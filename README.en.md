@@ -1,7 +1,6 @@
 # AronaAI
 
 #### Description
-一个实验性的AI，设定来自于游戏《蔚蓝档案》的角色“阿罗娜”。
 An experimental Artificial Intelligence which was based on character "Arona" from a mobile game "Blue Archive".
 
 #### Software Architecture
