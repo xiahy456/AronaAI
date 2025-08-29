@@ -1,27 +1,27 @@
 # AronaAI
 
-#### 介绍
+#### 介绍 / Description
 一个实验性的AI，设定来自于游戏《蔚蓝档案》的角色“阿罗娜”。
 
-#### 软件架构
-软件架构说明
+An experimental Artificial Intelligence which was based on character "Arona" from a mobile game "Blue Archive".
+
+#### 软件架构 / Software Architecture
+软件架构说明（待完善）
+
+Software architecture description(To be improved)
 
 
-#### 安装教程
+#### 安装教程 / Installation
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+1.  
+3.  
 
-#### 使用说明
+#### 使用说明 / Instructions
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+1.  
+2.  
 
-#### 参与贡献
+#### 参与贡献 / Contribution
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+1.  
+2.  
