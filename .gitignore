@@ -3,3 +3,6 @@
 
 # logs
 /logs/
+
+# pycache
+**/__pycache__/
