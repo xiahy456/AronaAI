@@ -15,30 +15,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#函数名: receiveMessage
-#参数:
-#   null
-#返回值:
-#   str 用户输入的字符串
-#作用： 
-#   从前端获取用户输入
-def receiveMessage():
-    user_input = input("请输入你想对阿罗娜说的话，输入\'exit\'结束对话:\n")
-    return user_input
+# Presentation层，用于与前端进行交互
+class Presentation:
+    #函数名: receiveMessage
+    #参数:
+    #   null
+    #返回值:
+    #   str 用户输入的字符串
+    #作用： 
+    #   从前端获取用户输入
+    @classmethod
+    def receiveMessage(cls):
+        user_input = input("请输入你想对阿罗娜说的话，输入\'exit\'结束对话:\n")
+        return user_input
 
-#函数名: presentationHandle
-#参数:
-#   null
-#返回值:
-#   null
-#作用： 
-#   接收来自receivedMessage()的用户输入的信息，交给下一层处理
-def presentationHandle():
-    continueInteract = True
-    while (continueInteract): 
-        user_input = receiveMessage()
-        if user_input=="exit": 
-            break
-        print(user_input)
-        print("")
-    print(f"对话结束")
+
+    #函数名: presentationHandle
+    #参数:
+    #   null
+    #返回值:
+    #   null
+    #作用： 
+    #   接收来自receivedMessage()的用户输入的信息，交给下一层处理
+    @classmethod
+    def presentationHandle(cls):
+        while (True): 
+            # 接收用户输入
+            user_input = Presentation.receiveMessage()
+            # 判断是否退出
+            if user_input=="exit": 
+                break
+            # 将信息交给DialogueManage层处理
+
+            # 输出DialogueManager层的返回信息
+            print(user_input+"\n")
+
+        # 退出交互循环
+        print(f"对话结束")
