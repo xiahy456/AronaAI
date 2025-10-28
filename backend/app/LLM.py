@@ -17,6 +17,7 @@
 
 # LLM层，用于与模型进行交互
 class LLM:
+    
     # LLMHandle
     # 参数
     #   str input 组装上下文完毕后的字符串

@@ -17,6 +17,7 @@
 
 # Knowledge模块，用于从知识库中获取大模型需要具备的知识
 class Knowledge:
+    
     # knowledgeHandle
     # 参数
     #   null

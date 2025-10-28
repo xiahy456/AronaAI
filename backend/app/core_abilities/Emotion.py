@@ -17,6 +17,7 @@
 
 # Emotion模块，用于组装大模型的情绪
 class Emotion:
+    
     # EmotionHandle
     # 参数
     #   null

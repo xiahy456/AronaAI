@@ -17,6 +17,7 @@
 
 # Memory模块，用于获取相关记忆，组装大模型的记忆部分
 class Memory:
+    
     # MemoryHandle
     # 参数
     #   null

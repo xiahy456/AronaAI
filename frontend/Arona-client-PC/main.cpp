@@ -1,23 +1,19 @@
+#include "stdafx.h"
+#include "Macros.h"
 #include "mainwidget.h"
-
-#include <QApplication>
-#include <QLocale>
-#include <QTranslator>
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
+    // 创建应用程序对象
+    QApplication app_obj(argc, argv);
 
-    QTranslator translator;
-    const QStringList uiLanguages = QLocale::system().uiLanguages();
-    for (const QString &locale : uiLanguages) {
-        const QString baseName = "Arona-client-PC_" + QLocale(locale).name();
-        if (translator.load(":/i18n/" + baseName)) {
-            a.installTranslator(&translator);
-            break;
-        }
-    }
+    // 翻译器初始化
+    TRANSLATOR_INITIALIZE(app_obj);
+
+    // 启动主界面
     MainWidget w;
     w.show();
-    return a.exec();
+
+    // 进入交互主循环
+    return app_obj.exec();
 }

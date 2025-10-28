@@ -13,7 +13,9 @@ SOURCES += \
     mainwidget.cpp
 
 HEADERS += \
-    mainwidget.h
+    Macros.h \
+    mainwidget.h \
+    stdafx.h
 
 FORMS += \
     mainwidget.ui

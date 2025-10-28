@@ -17,6 +17,7 @@
 
 # Personality模块，用于组装大模型的人格
 class Personality:
+    
     # PersonalityHandle
     # 参数
     #   null
