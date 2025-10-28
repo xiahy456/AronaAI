@@ -15,16 +15,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Emotion模块，用于组装大模型的情绪
-class Emotion:
-    # EmotionHandle
+# Memory模块，用于获取相关记忆，组装大模型的记忆部分
+class Memory:
+    # MemoryHandle
     # 参数
     #   null
     # 返回值
-    #   str 情绪字符串
+    #   str 记忆字符串
     # 作用
-    #   生成模型应当具有的情绪，以字符串返回
+    #   获取模型应当具有的记忆，以字符串返回
     @classmethod
-    def EmotionHandle(cls):
-        emotion_str = ""
-        return emotion_str
+    def memoryHandle(cls):
+        memory_str = ""
+        return memory_str

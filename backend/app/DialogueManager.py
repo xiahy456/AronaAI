@@ -17,6 +17,7 @@
 
 # 包含文件
 from .LLM import LLM
+from .CoreAbilities import CoreAbilities
 
 # DialogueManager层，用于组装上下文并送给LLM层、DAO层
 class DialogueManager:
@@ -32,11 +33,11 @@ class DialogueManager:
     @classmethod
     def dialogueManagerHandle(cls, user_input):
         # 调取CoreAbilities内容，组装上下文
-        complete_message = user_input
+        complete_message = CoreAbilities.coreAbilitiesHandle(user_input)
 
         # 将组装得到的信息交给LLM层
-        LLM.LLMHandle(complete_message)
+        return_message = LLM.lLMHandle(complete_message)
         # 进行数据持久化处理
 
         # 将最后得到的信息return给Presentation
-        return complete_message
+        return return_message

@@ -20,7 +20,7 @@ def printImformation():
     print(f"****\t当前程序信息: ")
     print(f"****\t程序:\tA.R.O.N.A")
     print(f"****\t开发者:\txia_hy456")
-    print(f"****\t版本:\talpha v0.0.1")
+    print(f"****\t版本:\talpha 0.0.1")
     print(f"================================================================")
     print(f"")
 

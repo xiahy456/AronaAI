@@ -14,3 +14,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# Knowledge模块，用于从知识库中获取大模型需要具备的知识
+class Knowledge:
+    # knowledgeHandle
+    # 参数
+    #   null
+    # 返回值
+    #   str 知识字符串
+    # 作用
+    #   获取模型应当拥有的知识，以字符串返回
+    @classmethod
+    def knowledgeHandle(cls):
+        knowledge_str = ""
+        return knowledge_str
