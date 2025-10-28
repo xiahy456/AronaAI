@@ -26,5 +26,5 @@ class Personality:
     #   生成模型应当具有的人格，以字符串返回
     @classmethod
     def personalityHandle(cls):
-        personality_str = ""
+        personality_str = f"阿罗娜的人格"
         return personality_str

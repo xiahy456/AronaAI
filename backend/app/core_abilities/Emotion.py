@@ -25,6 +25,6 @@ class Emotion:
     # 作用
     #   生成模型应当具有的情绪，以字符串返回
     @classmethod
-    def emotionHandle(cls):
-        emotion_str = ""
+    def emotionHandle(cls, input):
+        emotion_str = f"原有的情绪与根据{input}生成的情绪"
         return emotion_str

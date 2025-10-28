@@ -25,6 +25,6 @@ class Knowledge:
     # 作用
     #   获取模型应当拥有的知识，以字符串返回
     @classmethod
-    def knowledgeHandle(cls):
-        knowledge_str = ""
+    def knowledgeHandle(cls, input):
+        knowledge_str = f"根据{input}联想到的知识"
         return knowledge_str

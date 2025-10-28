@@ -34,11 +34,11 @@ class CoreAbilities:
     def coreAbilitiesHandle(cls, input):
         final_message = input
         # 调用memory模块
-        memory_message = Memory.memoryHandle()
+        memory_message = Memory.memoryHandle(input)
         # 调用Emotion模块
-        emotion_message = Emotion.emotionHandle()
+        emotion_message = Emotion.emotionHandle(input)
         # 调用Knowledge模块
-        knowledge_message = Knowledge.knowledgeHandle()
+        knowledge_message = Knowledge.knowledgeHandle(input)
         # 调用Personality模块
         personality_message = Personality.personalityHandle()
         # 组装上下文
