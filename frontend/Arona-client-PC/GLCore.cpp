@@ -9,7 +9,7 @@
 GLCore::GLCore(QWidget* parent)
     : QOpenGLWidget(parent)
 {
-
+    //this->resize(800, 600);
 }
 
 GLCore::~GLCore()

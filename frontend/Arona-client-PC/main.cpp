@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "Macros.h"
 #include "GLCore.h"
+#include <QDir>
 
 int main(int argc, char *argv[])
 {

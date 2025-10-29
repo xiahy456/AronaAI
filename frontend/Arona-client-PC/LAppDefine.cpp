@@ -28,7 +28,7 @@ namespace LAppDefine {
     const csmFloat32 ViewLogicalMaxTop = 2.0f;
 
     // 相対パス
-    const csmChar* ResourcesPath = "Resources/";
+    const csmChar* ResourcesPath = "D:/Code/projects/Arona/arona-ai/frontend/Resources/";
 
     // モデルの後ろにある背景の画像ファイル
     const csmChar* BackImageName = "back_class_normal.png";
@@ -38,7 +38,7 @@ namespace LAppDefine {
     const csmChar* PowerImageName = "close.png";
 
     // シェーダー相対パス
-    const csmChar* ShaderPath = "SampleShaders/";
+    const csmChar* ShaderPath = "D:/Code/projects/Arona/arona-ai/frontend/SampleShaders/";
     // 頂点シェーダー
     const csmChar* VertShaderName = "VertSprite.vert";
     // フラグメントシェーダー

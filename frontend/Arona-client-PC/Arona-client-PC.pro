@@ -6,6 +6,10 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
 
+# 忽略默认库冲突
+QMAKE_LFLAGS_WINDOWS += /NODEFAULTLIB:MSVCRT
+QMAKE_LFLAGS_WINDOWS += /NODEFAULTLIB:LIBCMT
+
 # 设置调试版本与发布版本的运行库
 CONFIG(debug, debug|release) {
     # 调试模式使用 MDd
@@ -23,7 +27,7 @@ INCLUDEPATH += $$PWD/../Thirdparty/glew/include
 INCLUDEPATH += $$PWD/../Thirdparty/glfw/include
 INCLUDEPATH += $$PWD/../Thirdparty/stb
 INCLUDEPATH += $$PWD/../Common
-INCLUDEPATH += $$PWD/Resources
+#INCLUDEPATH += $$PWD/Resources
 
 # 库文件配置
 debug {
@@ -41,6 +45,11 @@ release {
     LIBS += -lglfw3
     LIBS += -lLive2DCubismCore_MT
 }
+
+# 定义 GLEW_STATIC 如果使用静态库
+DEFINES += GLEW_STATIC
+
+DEFINES += GLFW_DLL
 
 # OpenGL 库
 LIBS += -lopengl32 -lglu32
@@ -94,6 +103,15 @@ HEADERS += \
     mainwidget.h \
     stdafx.h
 
+# DirectX 库
+LIBS += -ld3d9
+LIBS += -ld3dcompiler
+LIBS += -ldxgi
+LIBS += -ldxguid
+
+# Vulkan 库
+LIBS += -lvulkan-1
+
 FORMS += \
     mainwidget.ui
 
@@ -108,3 +126,15 @@ DEFINES += CSM_TARGET_WIN_GL
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+DISTFILES += \
+    FrameworkShaders/FragShaderSrc.frag \
+    FrameworkShaders/FragShaderSrcMask.frag \
+    FrameworkShaders/FragShaderSrcMaskInverted.frag \
+    FrameworkShaders/FragShaderSrcMaskInvertedPremultipliedAlpha.frag \
+    FrameworkShaders/FragShaderSrcMaskPremultipliedAlpha.frag \
+    FrameworkShaders/FragShaderSrcPremultipliedAlpha.frag \
+    FrameworkShaders/FragShaderSrcSetupMask.frag \
+    FrameworkShaders/VertShaderSrc.vert \
+    FrameworkShaders/VertShaderSrcMasked.vert \
+    FrameworkShaders/VertShaderSrcSetupMask.vert
