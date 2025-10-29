@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "Macros.h"
-#include "mainwidget.h"
+#include "GLCore.h"
 
 int main(int argc, char *argv[])
 {
@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
     TRANSLATOR_INITIALIZE(app_obj);
 
     // 启动主界面
-    MainWidget w;
+    GLCore w;
     w.show();
 
     // 进入交互主循环
