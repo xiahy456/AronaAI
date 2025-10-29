@@ -81,7 +81,9 @@ void LAppView::Render()
 {
     // 画面サイズを取得する
     int maxWidth, maxHeight;
-    glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &maxWidth, &maxHeight);
+    //glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &maxWidth, &maxHeight);
+    maxWidth = LAppDelegate::GetInstance()->GetWindow()->width();
+    maxHeight = LAppDelegate::GetInstance()->GetWindow()->height();
     _back->SetWindowSize(maxWidth, maxHeight);
     _gear->SetWindowSize(maxWidth, maxHeight);
     _power->SetWindowSize(maxWidth, maxHeight);
@@ -128,7 +130,9 @@ void LAppView::InitializeSprite()
     GLuint programId = _spriteShader->GetShaderId();
 
     int width, height;
-    glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &width, &height);
+    //glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &width, &height);
+    width = LAppDelegate::GetInstance()->GetWindow()->width();
+    height = LAppDelegate::GetInstance()->GetWindow()->height();
 
     LAppTextureManager* textureManager = LAppDelegate::GetInstance()->GetTextureManager();
     const string resourcesPath = ResourcesPath;
@@ -229,7 +233,9 @@ void LAppView::PreModelDraw(LAppModel& refModel)
         if (!useTarget->IsValid())
         {// 描画ターゲット内部未作成の場合はここで作成
             int width, height;
-            glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &width, &height);
+            //glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &width, &height);
+            width = LAppDelegate::GetInstance()->GetWindow()->width();
+            height = LAppDelegate::GetInstance()->GetWindow()->height();
             if (width != 0 && height != 0)
             {
                 // モデル描画キャンバス
@@ -272,7 +278,9 @@ void LAppView::PostModelDraw(LAppModel& refModel)
 
             // 画面サイズを取得する
             int maxWidth, maxHeight;
-            glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &maxWidth, &maxHeight);
+            //glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &maxWidth, &maxHeight);
+            maxWidth = LAppDelegate::GetInstance()->GetWindow()->width();
+            maxHeight = LAppDelegate::GetInstance()->GetWindow()->height();
             _renderSprite->SetWindowSize(maxWidth, maxHeight);
 
             _renderSprite->RenderImmidiate(useTarget->GetColorBuffer(), uvVertex);
@@ -319,7 +327,9 @@ void LAppView::ResizeSprite()
 
     // 描画領域サイズ
     int width, height;
-    glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &width, &height);
+    //glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &width, &height);
+    width = LAppDelegate::GetInstance()->GetWindow()->width();
+    height = LAppDelegate::GetInstance()->GetWindow()->height();
 
     float x = 0.0f;
     float y = 0.0f;

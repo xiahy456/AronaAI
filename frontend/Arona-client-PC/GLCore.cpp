@@ -19,16 +19,16 @@ GLCore::~GLCore()
 
 void GLCore::initializeGL()
 {
-
+    LAppDelegate::GetInstance()->Initialize(this);
 }
 
 void GLCore::paintGL()
 {
-
+    LAppDelegate::GetInstance()->update();
 }
 
 
 void GLCore::resizeGL(int w, int h)
 {
-
+    LAppDelegate::GetInstance()->resize(w, h);
 }

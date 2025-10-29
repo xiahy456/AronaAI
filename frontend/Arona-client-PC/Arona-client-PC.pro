@@ -23,6 +23,7 @@ INCLUDEPATH += $$PWD/../Thirdparty/glew/include
 INCLUDEPATH += $$PWD/../Thirdparty/glfw/include
 INCLUDEPATH += $$PWD/../Thirdparty/stb
 INCLUDEPATH += $$PWD/../Common
+INCLUDEPATH += $$PWD/Resources
 
 # 库文件配置
 debug {

@@ -10,6 +10,7 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "LAppAllocator_Common.hpp"
+#include "GLCore.h"
 
 class LAppView;
 class LAppTextureManager;
@@ -38,17 +39,22 @@ public:
     /**
     * @brief   APPに必要なものを初期化する。
     */
-    bool Initialize();
+    //bool Initialize();
+    bool Initialize(GLCore* window);
 
     /**
     * @brief   解放する。
     */
     void Release();
 
+    void resize(int width, int height);
+
+    void update();
+
     /**
     * @brief   実行処理。
     */
-    void Run();
+    //void Run();
 
     /**
     * @brief   OpenGL用 glfwSetMouseButtonCallback用関数。
@@ -72,7 +78,7 @@ public:
     /**
     * @brief   Window情報を取得する。
     */
-    GLFWwindow* GetWindow() { return _window; }
+    GLCore* GetWindow() { return _window; }
 
     /**
     * @brief   View情報を取得する。
@@ -109,7 +115,7 @@ private:
 
     LAppAllocator_Common _cubismAllocator;              ///< Cubism SDK Allocator
     Csm::CubismFramework::Option _cubismOption;  ///< Cubism SDK Option
-    GLFWwindow* _window;                         ///< OpenGL ウィンドウ
+    GLCore* _window;                             /// it used to be GLFWwindow* _window; < OpenGL ウィンドウ
     LAppView* _view;                             ///< View情報
     bool _captured;                              ///< クリックしているか
     float _mouseX;                               ///< マウスX座標

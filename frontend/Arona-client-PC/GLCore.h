@@ -7,6 +7,7 @@
 class GLCore : public QOpenGLWidget
 {
     Q_OBJECT
+
 public:
     GLCore(QWidget* parent = nullptr);
     ~GLCore();
