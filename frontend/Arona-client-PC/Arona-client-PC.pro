@@ -26,7 +26,6 @@ INCLUDEPATH += $$PWD/../Thirdparty/Framework/src
 INCLUDEPATH += $$PWD/../Thirdparty/glew/include
 INCLUDEPATH += $$PWD/../Thirdparty/glfw/include
 INCLUDEPATH += $$PWD/../Thirdparty/stb
-INCLUDEPATH += $$PWD/../Common
 #INCLUDEPATH += $$PWD/Resources
 
 # 库文件配置
@@ -55,15 +54,6 @@ DEFINES += GLFW_DLL
 LIBS += -lopengl32 -lglu32
 
 SOURCES += \
-    ../Common/CubismSampleViewMatrix_Common.cpp \
-    ../Common/LAppAllocator_Common.cpp \
-    ../Common/LAppModel_Common.cpp \
-    ../Common/LAppSprite_Common.cpp \
-    ../Common/LAppTextureManager_Common.cpp \
-    ../Common/LAppView_Common.cpp \
-    ../Common/LAppWavFileHandler_Common.cpp \
-    ../Common/MouseActionManager_Common.cpp \
-    ../Common/TouchManager_Common.cpp \
     GLCore.cpp \
     LAppDefine.cpp \
     LAppDelegate.cpp \
@@ -79,15 +69,6 @@ SOURCES += \
     mainwidget.cpp
 
 HEADERS += \
-    ../Common/CubismSampleViewMatrix_Common.hpp \
-    ../Common/LAppAllocator_Common.hpp \
-    ../Common/LAppModel_Common.hpp \
-    ../Common/LAppSprite_Common.hpp \
-    ../Common/LAppTextureManager_Common.hpp \
-    ../Common/LAppView_Common.hpp \
-    ../Common/LAppWavFileHandler_Common.hpp \
-    ../Common/MouseActionManager_Common.hpp \
-    ../Common/TouchManager_Common.hpp \
     GLCore.h \
     LAppDefine.hpp \
     LAppDelegate.hpp \
@@ -110,7 +91,7 @@ LIBS += -ldxgi
 LIBS += -ldxguid
 
 # Vulkan 库
-LIBS += -lvulkan-1
+#LIBS += -lvulkan-1
 
 FORMS += \
     mainwidget.ui
@@ -126,15 +107,3 @@ DEFINES += CSM_TARGET_WIN_GL
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
-
-DISTFILES += \
-    FrameworkShaders/FragShaderSrc.frag \
-    FrameworkShaders/FragShaderSrcMask.frag \
-    FrameworkShaders/FragShaderSrcMaskInverted.frag \
-    FrameworkShaders/FragShaderSrcMaskInvertedPremultipliedAlpha.frag \
-    FrameworkShaders/FragShaderSrcMaskPremultipliedAlpha.frag \
-    FrameworkShaders/FragShaderSrcPremultipliedAlpha.frag \
-    FrameworkShaders/FragShaderSrcSetupMask.frag \
-    FrameworkShaders/VertShaderSrc.vert \
-    FrameworkShaders/VertShaderSrcMasked.vert \
-    FrameworkShaders/VertShaderSrcSetupMask.vert
