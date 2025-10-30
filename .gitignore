@@ -10,8 +10,8 @@
 # QMake files
 **/build/
 **/build-*/
-**/release/
-**/debug/
+#**/release/
+#**/debug/
 **/x64/
 **/x86/
 
@@ -45,7 +45,7 @@ bin/
 *.lai
 *.la
 *.a
-*.lib
+#*.lib
 
 # Executables
 *.exe
