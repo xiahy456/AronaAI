@@ -1,0 +1,24 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "阿洛娜4_backup2025_0815_2142.moc3",
+		"Textures": [
+			"阿洛娜4_backup2025_0815_2142.8192/texture_00.png",
+			"阿洛娜4_backup2025_0815_2142.8192/texture_01.png"
+		],
+		"Physics": "阿洛娜4_backup2025_0815_2142.physics3.json",
+		"DisplayInfo": "阿洛娜4_backup2025_0815_2142.cdi3.json"
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": []
+		},
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": []
+		}
+	]
+}

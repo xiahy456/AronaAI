@@ -23,9 +23,9 @@ using namespace LAppDefine;
 
 LAppView::LAppView():
     LAppView_Common(),
-    _back(NULL),
-    _gear(NULL),
-    _power(NULL),
+    //_back(NULL),
+    //_gear(NULL),
+    //_power(NULL),
     _renderSprite(NULL),
     _renderTarget(SelectTarget_None)
 {
@@ -53,18 +53,18 @@ LAppView::~LAppView()
     {
         delete _touchManager;
     }
-    if (_back)
-    {
-        delete _back;
-    }
-    if (_gear)
-    {
-        delete _gear;
-    }
-    if (_power)
-    {
-        delete _power;
-    }
+    //if (_back)
+    //{
+    //    delete _back;
+    //}
+    //if (_gear)
+    //{
+    //    delete _gear;
+    //}
+    //if (_power)
+    //{
+    //    delete _power;
+    //}
 }
 
 void LAppView::Initialize(int width, int height)
@@ -81,14 +81,16 @@ void LAppView::Render()
 {
     // 画面サイズを取得する
     int maxWidth, maxHeight;
-    glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &maxWidth, &maxHeight);
-    _back->SetWindowSize(maxWidth, maxHeight);
-    _gear->SetWindowSize(maxWidth, maxHeight);
-    _power->SetWindowSize(maxWidth, maxHeight);
+    //glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &maxWidth, &maxHeight);
+    maxWidth = LAppDelegate::GetInstance()->GetWindow()->width();
+    maxHeight = LAppDelegate::GetInstance()->GetWindow()->height();
+    //_back->SetWindowSize(maxWidth, maxHeight);
+    //_gear->SetWindowSize(maxWidth, maxHeight);
+    //_power->SetWindowSize(maxWidth, maxHeight);
 
-    _back->Render();
-    _gear->Render();
-    _power->Render();
+    //_back->Render();
+    //_gear->Render();
+    //_power->Render();
 
     LAppLive2DManager* Live2DManager = LAppLive2DManager::GetInstance();
 
@@ -128,7 +130,9 @@ void LAppView::InitializeSprite()
     GLuint programId = _spriteShader->GetShaderId();
 
     int width, height;
-    glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &width, &height);
+    //glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &width, &height);
+    width = LAppDelegate::GetInstance()->GetWindow()->width();
+    height = LAppDelegate::GetInstance()->GetWindow()->height();
 
     LAppTextureManager* textureManager = LAppDelegate::GetInstance()->GetTextureManager();
     const string resourcesPath = ResourcesPath;
@@ -140,7 +144,7 @@ void LAppView::InitializeSprite()
     float y = height * 0.5f;
     float fWidth = static_cast<float>(backgroundTexture->width * 2.0f);
     float fHeight = static_cast<float>(height * 0.95f);
-    _back = new LAppSprite(x, y, fWidth, fHeight, backgroundTexture->id, programId);
+    //_back = new LAppSprite(x, y, fWidth, fHeight, backgroundTexture->id, programId);
 
     imageName = GearImageName;
     LAppTextureManager::TextureInfo* gearTexture = textureManager->CreateTextureFromPngFile(resourcesPath + imageName);
@@ -149,7 +153,7 @@ void LAppView::InitializeSprite()
     y = static_cast<float>(height - gearTexture->height * 0.5f);
     fWidth = static_cast<float>(gearTexture->width);
     fHeight = static_cast<float>(gearTexture->height);
-    _gear = new LAppSprite(x, y, fWidth, fHeight, gearTexture->id, programId);
+    //_gear = new LAppSprite(x, y, fWidth, fHeight, gearTexture->id, programId);
 
     imageName = PowerImageName;
     LAppTextureManager::TextureInfo* powerTexture = textureManager->CreateTextureFromPngFile(resourcesPath + imageName);
@@ -158,7 +162,7 @@ void LAppView::InitializeSprite()
     y = static_cast<float>(powerTexture->height * 0.5f);
     fWidth = static_cast<float>(powerTexture->width);
     fHeight = static_cast<float>(powerTexture->height);
-    _power = new LAppSprite(x, y, fWidth, fHeight, powerTexture->id, programId);
+    //_power = new LAppSprite(x, y, fWidth, fHeight, powerTexture->id, programId);
 
     // 画面全体を覆うサイズ
     x = width * 0.5f;
@@ -199,16 +203,16 @@ void LAppView::OnTouchesEnded(float px, float py) const
         live2DManager->OnTap(x, y);
 
         // 歯車にタップしたか
-        if (_gear->IsHit(px, py))
-        {
-            live2DManager->NextScene();
-        }
+        //if (_gear->IsHit(px, py))
+        //{
+        //    live2DManager->NextScene();
+        //}
 
         // 電源ボタンにタップしたか
-        if (_power->IsHit(px, py))
-        {
-            LAppDelegate::GetInstance()->AppEnd();
-        }
+        //if (_power->IsHit(px, py))
+        //{
+        //    LAppDelegate::GetInstance()->AppEnd();
+        //}
     }
 }
 
@@ -229,7 +233,9 @@ void LAppView::PreModelDraw(LAppModel& refModel)
         if (!useTarget->IsValid())
         {// 描画ターゲット内部未作成の場合はここで作成
             int width, height;
-            glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &width, &height);
+            //glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &width, &height);
+            width = LAppDelegate::GetInstance()->GetWindow()->width();
+            height = LAppDelegate::GetInstance()->GetWindow()->height();
             if (width != 0 && height != 0)
             {
                 // モデル描画キャンバス
@@ -272,7 +278,9 @@ void LAppView::PostModelDraw(LAppModel& refModel)
 
             // 画面サイズを取得する
             int maxWidth, maxHeight;
-            glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &maxWidth, &maxHeight);
+            //glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &maxWidth, &maxHeight);
+            maxWidth = LAppDelegate::GetInstance()->GetWindow()->width();
+            maxHeight = LAppDelegate::GetInstance()->GetWindow()->height();
             _renderSprite->SetWindowSize(maxWidth, maxHeight);
 
             _renderSprite->RenderImmidiate(useTarget->GetColorBuffer(), uvVertex);
@@ -319,52 +327,54 @@ void LAppView::ResizeSprite()
 
     // 描画領域サイズ
     int width, height;
-    glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &width, &height);
+    //glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &width, &height);
+    width = LAppDelegate::GetInstance()->GetWindow()->width();
+    height = LAppDelegate::GetInstance()->GetWindow()->height();
 
     float x = 0.0f;
     float y = 0.0f;
     float fWidth = 0.0f;
     float fHeight = 0.0f;
 
-    if (_back)
-    {
-        GLuint id = _back->GetTextureId();
-        LAppTextureManager::TextureInfo* texInfo = textureManager->GetTextureInfoById(id);
-        if (texInfo)
-        {
-            x = width * 0.5f;
-            y = height * 0.5f;
-            fWidth = static_cast<float>(texInfo->width * 2);
-            fHeight = static_cast<float>(height) * 0.95f;
-            _back->ResetRect(x, y, fWidth, fHeight);
-        }
-    }
+    //if (_back)
+    //{
+    //    GLuint id = _back->GetTextureId();
+    //    LAppTextureManager::TextureInfo* texInfo = textureManager->GetTextureInfoById(id);
+    //    if (texInfo)
+    //    {
+    //        x = width * 0.5f;
+    //        y = height * 0.5f;
+    //        fWidth = static_cast<float>(texInfo->width * 2);
+    //        fHeight = static_cast<float>(height) * 0.95f;
+    //        _back->ResetRect(x, y, fWidth, fHeight);
+    //    }
+    //}
 
-    if (_power)
-    {
-        GLuint id = _power->GetTextureId();
-        LAppTextureManager::TextureInfo* texInfo = textureManager->GetTextureInfoById(id);
-        if (texInfo)
-        {
-            x = static_cast<float>(width - texInfo->width * 0.5f);
-            y = static_cast<float>(texInfo->height * 0.5f);
-            fWidth = static_cast<float>(texInfo->width);
-            fHeight = static_cast<float>(texInfo->height);
-            _power->ResetRect(x, y, fWidth, fHeight);
-        }
-    }
+    //if (_power)
+    //{
+    //    GLuint id = _power->GetTextureId();
+    //    LAppTextureManager::TextureInfo* texInfo = textureManager->GetTextureInfoById(id);
+    //    if (texInfo)
+    //    {
+    //        x = static_cast<float>(width - texInfo->width * 0.5f);
+    //        y = static_cast<float>(texInfo->height * 0.5f);
+    //        fWidth = static_cast<float>(texInfo->width);
+    //        fHeight = static_cast<float>(texInfo->height);
+    //        _power->ResetRect(x, y, fWidth, fHeight);
+    //    }
+    //}
 
-    if (_gear)
-    {
-        GLuint id = _gear->GetTextureId();
-        LAppTextureManager::TextureInfo* texInfo = textureManager->GetTextureInfoById(id);
-        if (texInfo)
-        {
-            x = static_cast<float>(width - texInfo->width * 0.5f);
-            y = static_cast<float>(height - texInfo->height * 0.5f);
-            fWidth = static_cast<float>(texInfo->width);
-            fHeight = static_cast<float>(texInfo->height);
-            _gear->ResetRect(x, y, fWidth, fHeight);
-        }
-    }
+    //if (_gear)
+    //{
+    //    GLuint id = _gear->GetTextureId();
+    //    LAppTextureManager::TextureInfo* texInfo = textureManager->GetTextureInfoById(id);
+    //    if (texInfo)
+    //    {
+    //        x = static_cast<float>(width - texInfo->width * 0.5f);
+    //        y = static_cast<float>(height - texInfo->height * 0.5f);
+    //        fWidth = static_cast<float>(texInfo->width);
+    //        fHeight = static_cast<float>(texInfo->height);
+    //        _gear->ResetRect(x, y, fWidth, fHeight);
+    //    }
+    //}
 }

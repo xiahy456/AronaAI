@@ -68,9 +68,9 @@ LAppLive2DManager::LAppLive2DManager()
     , _sceneIndex(0)
 {
     _viewMatrix = new CubismMatrix44();
-    SetUpModel();
-
-    ChangeScene(_sceneIndex);
+    //SetUpModel();
+    LoadModelFromPath("Resources/Hiyori/", "Hiyori.model3.json");
+    //ChangeScene(_sceneIndex);
 }
 
 LAppLive2DManager::~LAppLive2DManager()
@@ -197,7 +197,9 @@ void LAppLive2DManager::OnTap(csmFloat32 x, csmFloat32 y)
 void LAppLive2DManager::OnUpdate() const
 {
     int width, height;
-    glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &width, &height);
+    //glfwGetWindowSize(LAppDelegate::GetInstance()->GetWindow(), &width, &height);
+    width = LAppDelegate::GetInstance()->GetWindow()->width();
+    height = LAppDelegate::GetInstance()->GetWindow()->height();
 
     csmUint32 modelCount = _models.GetSize();
     for (csmUint32 i = 0; i < modelCount; ++i)
@@ -310,4 +312,45 @@ void LAppLive2DManager::SetViewMatrix(CubismMatrix44* m)
     for (int i = 0; i < 16; i++) {
         _viewMatrix->GetArray()[i] = m->GetArray()[i];
     }
+}
+
+void LAppLive2DManager::LoadModelFromPath(const std::string& modelPath, const std::string& fileName) 
+{
+  csmString modelPathStr(modelPath.c_str());
+  csmString modelJsonName(fileName.c_str());
+
+  ReleaseAllModel(); // 释放当前所有模型 有一个点要注意，在这里先释放然后再Push模型实例，以及加载模型实例
+  _models.PushBack(new LAppModel()); //这样在加载的时候都使用的models[0]这一个位置，自行实现模型选择器要注意注意
+  _models[0]->LoadAssets(modelPathStr.GetRawString(), modelJsonName.GetRawString());
+
+  /*
+   * 提供一个半透明表示模型的示例。
+   * 如果定义了USE_RENDER_TARGET或USE_MODEL_RENDER_TARGET，
+   * 则将模型绘制到另一个渲染目标上，并将绘制结果作为纹理应用到另一个精灵上。
+   */
+  {
+#if defined(USE_RENDER_TARGET)
+    // 如果选择将绘制操作在LAppView持有的目标上进行，则选择此选项
+    LAppView::SelectTarget useRenderTarget = LAppView::SelectTarget_ViewFrameBuffer;
+#elif defined(USE_MODEL_RENDER_TARGET)
+    // 如果选择将绘制操作在各个LAppModel持有的目标上进行，则选择此选项
+    LAppView::SelectTarget useRenderTarget = LAppView::SelectTarget_ModelFrameBuffer;
+#else
+    // 默认情况下，渲染到主帧缓冲区（通常是直接渲染到屏幕）
+    LAppView::SelectTarget useRenderTarget = LAppView::SelectTarget_None;
+#endif
+
+#if defined(USE_RENDER_TARGET) || defined(USE_MODEL_RENDER_TARGET)
+    // 作为给模型单独设置α（透明度）的示例，创建另一个模型实例并稍微移动其位置
+    _models.PushBack(new LAppModel());
+    _models[1]->LoadAssets(modelPath.GetRawString(), modelJsonName.GetRawString());
+    _models[1]->GetModelMatrix()->TranslateX(0.2f);
+#endif
+
+    LAppDelegate::GetInstance()->GetView()->SwitchRenderingTarget(useRenderTarget);
+
+    // 当选择其他渲染目标时的背景清除颜色
+    float clearColor[3] = { 1.0f, 1.0f, 1.0f };
+    LAppDelegate::GetInstance()->GetView()->SetRenderTargetClearColor(clearColor[0], clearColor[1], clearColor[2]);
+  }
 }

@@ -113,6 +113,9 @@ public:
      */
     void SetViewMatrix(Live2D::Cubism::Framework::CubismMatrix44* m);
 
+    // 根据指定字符串加载模型
+    void LoadModelFromPath(const std::string& modelPath, const std::string& fileName);
+
 private:
     /**
     * @brief  コンストラクタ

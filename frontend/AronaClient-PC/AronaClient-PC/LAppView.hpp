@@ -123,9 +123,9 @@ public:
 
 private:
     TouchManager_Common* _touchManager;                 ///< タッチマネージャー
-    LAppSprite* _back;                       ///< 背景画像
-    LAppSprite* _gear;                       ///< ギア画像
-    LAppSprite* _power;                      ///< 電源画像
+    //LAppSprite* _back;                       ///< 背景画像
+    //LAppSprite* _gear;                       ///< ギア画像
+    //LAppSprite* _power;                      ///< 電源画像
 
     // レンダリング先を別ターゲットにする方式の場合に使用
     LAppSprite* _renderSprite;                                      ///< モードによっては_renderBufferのテクスチャを描画

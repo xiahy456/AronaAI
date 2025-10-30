@@ -109,7 +109,7 @@ bool LAppDelegate::Initialize(GLCore* window)
     InitializeCubism();
 
     //AppViewの初期化
-    _view->Initialize(width, height);
+    _view->Initialize(_windowWidth, _windowHeight);
 
     return GL_TRUE;
 }
@@ -180,7 +180,8 @@ void LAppDelegate::update()
     LAppPal::UpdateTime();
 
     // 画面の初期化
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);   // TODO: 透明化窗口
+    //glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);   // 透明化窗口
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glClearDepth(1.0);
 
