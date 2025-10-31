@@ -1,29 +1,35 @@
-#include "LAppDelegate.hpp"
+ï»¿#include "LAppDelegate.hpp"
 #include "LAppView.hpp"
 #include "LAppPal.hpp"
 #include "LAppLive2DManager.hpp"
 #include "LAppDefine.hpp"
 #include <QTimer>
 #include <QMouseEvent>
+#include <QCursor>
 
 #include "GLCore.h"
 
 GLCore::GLCore(QWidget* parent)
 	: QOpenGLWidget(parent)
 {
-	// ´°¿ÚÉèÖÃ
-	//this->setAttribute(Qt::WA_DeleteOnClose);	// ´°¿Ú¹Ø±ÕÊ±×Ô¶¯ÊÍ·ÅÄÚ´æ
-	this->setWindowFlag(Qt::FramelessWindowHint);	// ÉèÖÃÎÞ±ß¿ò´°¿Ú
-	this->setWindowFlag(Qt::WindowStaysOnTopHint);	// ÉèÖÃ´°¿ÚÊ¼ÖÕÔÚ¶¥²¿
-	//this->setWindowFlag(Qt::Tool);	// Òþ²ØÓ¦ÓÃ³ÌÐòÍ¼±ê
-	this->setAttribute(Qt::WA_TranslucentBackground);	// ÉèÖÃ´°¿Ú±³¾°Í¸Ã÷
+	// çª—å£è®¾ç½®
+	//this->setAttribute(Qt::WA_DeleteOnClose);	// çª—å£å…³é—­æ—¶è‡ªåŠ¨é‡Šæ”¾å†…å­˜
+	this->setWindowFlag(Qt::FramelessWindowHint);	// è®¾ç½®æ— è¾¹æ¡†çª—å£
+	this->setWindowFlag(Qt::WindowStaysOnTopHint);	// è®¾ç½®çª—å£å§‹ç»ˆåœ¨é¡¶éƒ¨
+	this->setWindowFlag(Qt::Tool);	// éšè—åº”ç”¨ç¨‹åºå›¾æ ‡
+	this->setAttribute(Qt::WA_TranslucentBackground);	// è®¾ç½®çª—å£èƒŒæ™¯é€æ˜Ž
+	this->resize(200, 400);
 
-	// Ë¢ÐÂÖ¡ÂÊ
+	// åˆ·æ–°å¸§çŽ‡
 	QTimer* timer = new QTimer();
 	connect(timer, &QTimer::timeout, this, [=]() {
+		// ç›®å…‰è·Ÿéšé¼ æ ‡
+		QPoint localPos = this->mapFromGlobal(QCursor::pos());
+		LAppDelegate::GetInstance()->GetView()->OnTouchesMoved(localPos.x(), localPos.y());
+		// åˆ·æ–°å›¾åƒ
 		update();
 	});
-	timer->start(1.0 / 60 * 1000);	// 60Ö¡Ë¢ÐÂÂÊ
+	timer->start(1.0 / 60 * 1000);	// 60å¸§åˆ·æ–°çŽ‡
 }
 
 GLCore::~GLCore()
@@ -50,7 +56,7 @@ void GLCore::mousePressEvent(QMouseEvent* event)
 {
 	LAppDelegate::GetInstance()->GetView()->OnTouchesBegan(event->position().x(), event->position().y());
 
-	// Êó±êÊÂ¼þ
+	// é¼ æ ‡äº‹ä»¶
 	if (event->button() == Qt::LeftButton) {
 		this->isLeftBottom = true;
 		this->currentPos = event->pos();
@@ -63,9 +69,9 @@ void GLCore::mousePressEvent(QMouseEvent* event)
 
 void GLCore::mouseMoveEvent(QMouseEvent* event)
 {
-	LAppDelegate::GetInstance()->GetView()->OnTouchesEnded(event->position().x(), event->position().y());
+	LAppDelegate::GetInstance()->GetView()->OnTouchesMoved(event->position().x(), event->position().y());
 
-	// ÊµÏÖ×ó¼üÍÏ¶¯´°¿ÚÂß¼­
+	// å®žçŽ°å·¦é”®æ‹–åŠ¨çª—å£é€»è¾‘
 	if (isLeftBottom) {
 		this->move(event->pos() - this->currentPos + this->pos());
 	}
@@ -73,9 +79,9 @@ void GLCore::mouseMoveEvent(QMouseEvent* event)
 
 void GLCore::mouseReleaseEvent(QMouseEvent* event)
 {
-	LAppDelegate::GetInstance()->GetView()->OnTouchesMoved(event->position().x(), event->position().y());
+	LAppDelegate::GetInstance()->GetView()->OnTouchesEnded(event->position().x(), event->position().y());
 
-	// Êó±êÊÂ¼þ
+	// é¼ æ ‡äº‹ä»¶
 	if (event->button() == Qt::LeftButton) {
 		this->isLeftBottom = false;
 	}

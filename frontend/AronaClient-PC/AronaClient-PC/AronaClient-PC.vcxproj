@@ -122,6 +122,7 @@
     <ClCompile Include="LAppTextureManager.cpp" />
     <ClCompile Include="LAppView.cpp" />
     <ClCompile Include="MouseActionManager.cpp" />
+    <ClCompile Include="TrayIcon.cpp" />
     <QtRcc Include="MainWidget.qrc" />
     <QtUic Include="MainWidget.ui" />
     <QtMoc Include="MainWidget.h" />
@@ -138,6 +139,7 @@
     <ClInclude Include="..\Thirdparty\Common\LAppWavFileHandler_Common.hpp" />
     <ClInclude Include="..\Thirdparty\Common\MouseActionManager_Common.hpp" />
     <ClInclude Include="..\Thirdparty\Common\TouchManager_Common.hpp" />
+    <QtMoc Include="TrayIcon.h" />
     <QtMoc Include="GLCore.h" />
     <ClInclude Include="LAppDefine.hpp" />
     <ClInclude Include="LAppDelegate.hpp" />
@@ -148,6 +150,7 @@
     <ClInclude Include="LAppSpriteShader.hpp" />
     <ClInclude Include="LAppTextureManager.hpp" />
     <ClInclude Include="LAppView.hpp" />
+    <ClInclude Include="Macros.h" />
     <ClInclude Include="MouseActionManager.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

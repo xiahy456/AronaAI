@@ -1,15 +1,24 @@
-#include "GLCore.h"
+ï»¿#include "GLCore.h"
+#include "MainWidget.h"
 #include <QtWidgets/QApplication>
 
 int main(int argc, char *argv[])
 {
-    // ÊµÀı»¯Ó¦ÓÃ³ÌĞò¶ÔÏó
+    // å®ä¾‹åŒ–åº”ç”¨ç¨‹åºå¯¹è±¡
     QApplication app(argc, argv);
 
-    // Ö÷½çÃæ¶ÔÏóÊµÀı»¯¡¢ÏÔÊ¾
-    GLCore window;
-    window.show();
+    // è®¾ç½®åº”ç”¨ç¨‹åºä¿¡æ¯
+    app.setApplicationName("AronaClient");
+    app.setApplicationVersion("alpha0.0.1");
+    app.setQuitOnLastWindowClosed(false); // å¯ç”¨/ç¦ç”¨å…³é—­æœ€åä¸€ä¸ªçª—å£æ—¶é€€å‡ºåº”ç”¨
 
-    // ½øÈëÓ¦ÓÃ³ÌĞòÖ÷Ñ­»·
+    // GLCoreå¯¹è±¡å®ä¾‹åŒ–ã€æ˜¾ç¤º
+    GLCore gLCore;
+    gLCore.show();
+    // ä¸»ç•Œé¢å¯¹è±¡å®ä¾‹åŒ–
+    MainWidget mainWidget;
+    //mainWidget.show();
+
+    // è¿›å…¥åº”ç”¨ç¨‹åºä¸»å¾ªç¯
     return app.exec();
 }

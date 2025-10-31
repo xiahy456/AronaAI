@@ -31,17 +31,50 @@ class CoreAbilities:
     # 作用： 
     #   组装上下文
     @classmethod
-    def coreAbilitiesHandle(cls, input):
-        final_message = input
+    def coreAbilitiesHandle(cls, input_msg):
+        final_msg = input_msg
         # 调用memory模块
-        memory_message = Memory.memoryHandle(input)
+        memory_msg = Memory.memoryHandle(input_msg)
         # 调用Emotion模块
-        emotion_message = Emotion.emotionHandle(input)
+        emotion_msg = Emotion.emotionHandle(input_msg)
         # 调用Knowledge模块
-        knowledge_message = Knowledge.knowledgeHandle(input)
+        knowledge_msg = Knowledge.knowledgeHandle(input_msg)
         # 调用Personality模块
-        personality_message = Personality.personalityHandle()
+        personality_msg = Personality.personalityHandle()
         # 组装上下文
+        final_msg = CoreAbilities.promptGenerate(input_msg, memory_msg, emotion_msg, knowledge_msg, personality_msg)
+        # 返回final_msg
+        return final_msg
+    
+    @classmethod
+    def promptGenerate(cls, user_msg, memory_msg, emotion_msg, knowledge_msg, personality_msg):
+        final_msg = user_msg
+        final_msg = f"""
+        你是一个具有情感和记忆的AI，负责与人交流与互动。请根据以下信息进行回复：
 
-        # 返回final_message
-        return final_message
+        #情感状态
+        当前情感：{emotion_msg}
+        人格特质：{personality_msg}
+        
+        #相关记忆
+        {memory_msg}
+
+        #具有知识
+        {knowledge_msg}
+
+        #当前对话
+        用户：{user_msg}
+
+        #回复要求
+        1. 保持情感一致性
+        2. 适当引用相关记忆与知识
+        3. 体现个性化特质
+        4. 自然流畅地回应
+
+        AI：
+        """
+
+        # 测试
+        final_msg = f"用户：{user_msg}"
+
+        return final_msg

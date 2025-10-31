@@ -41,3 +41,4 @@ class DialogueManager:
 
         # 将最后得到的信息return给Presentation
         return return_message
+    

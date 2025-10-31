@@ -100,6 +100,9 @@
     <ClCompile Include="GLCore.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="TrayIcon.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LAppLive2DManager.hpp">
@@ -159,9 +162,15 @@
     <ClInclude Include="..\Thirdparty\Common\LAppSprite_Common.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Macros.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="GLCore.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="TrayIcon.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>

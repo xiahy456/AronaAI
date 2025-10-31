@@ -1,6 +1,11 @@
 # GPT-SoVITs
 /gpt-sovits/
 
+# models
+/models/
+/chatglm3/
+
+
 # logs
 /logs/
 

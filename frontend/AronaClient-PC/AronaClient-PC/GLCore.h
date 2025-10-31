@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include <QWidget>
 #include <QOpenGLWidget>
@@ -19,8 +19,8 @@ protected:
 	void mouseReleaseEvent(QMouseEvent* event) override;
 
 private:
-	bool isLeftBottom = false;	// ×ó¼üÊÇ·ñ°´ÏÂ
-	bool isRightBottom = false;	// ÓÒ¼üÊÇ·ñ°´ÏÂ
-	QPoint currentPos;	// ¼ÇÂ¼Êó±êµ±Ç°Î»ÖÃ
+	bool isLeftBottom = false;	// å·¦é”®æ˜¯å¦æŒ‰ä¸‹
+	bool isRightBottom = false;	// å³é”®æ˜¯å¦æŒ‰ä¸‹
+	QPoint currentPos;	// è®°å½•é¼ æ ‡å½“å‰ä½ç½®
 
 };
