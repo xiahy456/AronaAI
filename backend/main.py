@@ -18,23 +18,16 @@
 # 包含文件
 from app.Presentation import Presentation
 from utils.PrintString import *
+from app.LLM import LLM
 
-# import torch
-# import os
-
-# print("PyTorch CUDA可用:", torch.cuda.is_available())
-# print("PyTorch CUDA版本:", torch.version.cuda)
-
-# # 检查环境变量
-# cuda_home = os.environ.get('CUDA_HOME') or os.environ.get('CUDA_PATH')
-# print("CUDA_HOME:", cuda_home)
-
-# 程序主入口main()函数定义
 def main():
     # 输出程序信息
     printImformation()
-    # 输出启动信息
-    printStarting()
+    # 启动模型
+    printStartingA()
+    LLM.initialize_model()
+    printStartingB()
+
     # 输出欢迎信息
     printWelcome()
 

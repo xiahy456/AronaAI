@@ -27,5 +27,5 @@ class Memory:
     #   获取模型应当具有的记忆，以字符串返回
     @classmethod
     def memoryHandle(cls, input):
-        memory_str = f"根据{input}想到的记忆"
+        memory_str = f"暂无"
         return memory_str

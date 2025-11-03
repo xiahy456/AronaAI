@@ -19,7 +19,12 @@
 import torch
 from transformers import AutoModel, AutoTokenizer
 import os
-from pathlib import Path
+import warnings
+import time
+
+# 过滤不必要的警告
+warnings.filterwarnings("ignore", category=UserWarning, module="transformers")
+warnings.filterwarnings("ignore", category=UserWarning, module="cpm_kernels")
 
 # LLM层，用于与模型进行交互
 class LLM:
@@ -28,14 +33,21 @@ class LLM:
     _tokenizer = None
     _model_loaded = False
 
+    # initialize_model
+    # 参数
+    #   null
+    # 返回值
+    #   null
+    # 作用
+    #   初始化大模型
     @classmethod
     def initialize_model(cls):
-        """初始化模型（单例模式）"""
+        # 初始化模型（单例模式）
         if not cls._model_loaded:
             try:
                 model_path = "D:/Code/projects/Arona/arona-ai/models/chatglm3-6b"
                 
-                print("正在初始化 ChatGLM 模型...")
+                print("****\t正在初始化 ChatGLM 模型...")
                 cls._tokenizer = AutoTokenizer.from_pretrained(
                     model_path, 
                     trust_remote_code=True
@@ -47,10 +59,10 @@ class LLM:
                 ).quantize(4).cuda()
                 
                 cls._model_loaded = True
-                print("ChatGLM 模型初始化完成！")
+                print("****\tChatGLM 模型初始化完成！")
                 
             except Exception as e:
-                print(f"模型初始化失败: {e}")
+                print(f"****\t模型初始化失败: {e}")
                 raise
 
     # LLMHandle
@@ -71,18 +83,23 @@ class LLM:
             cls.initialize_model()
 
         # 与大模型交互
+        start_time = time.time()
         response, updated_history = cls._model.chat(
             cls._tokenizer, 
             input_msg, 
             history=history,
             # 更多参数
-            max_new_tokens=320,      # 适中的长度
+            #max_new_tokens=320,      # 适中的长度
             num_beams=1,
             do_sample=True,          # 启用采样获得更好质量
             temperature=0.3,         # 低随机性
             top_p=0.85,              # 适中的多样性
             repetition_penalty=1.08
         )
+        end_time = time.time()
+        # 输出响应时间
+        duration = end_time - start_time
+        print(f"耗时: {duration:.2f}秒")
         
         # 返回response
         return response

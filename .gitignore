@@ -3,7 +3,7 @@
 
 # models
 /models/
-/chatglm3/
+/llm/chatglm3/
 
 
 # logs
