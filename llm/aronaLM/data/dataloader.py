@@ -121,7 +121,7 @@ def test_dataloader():
             input_text = tokenizer.decode(batch['input_ids'][0].tolist())
             output_text = tokenizer.decode(batch['output_ids'][0].tolist())
             print(f"  input text: {input_text}")
-            print(f"  target text: {output_text}")
+            print(f"  output text: {output_text}")
             print()
             if i >= 1:
                 break

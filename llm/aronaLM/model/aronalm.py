@@ -161,7 +161,7 @@ def test_aronalm():
     print(f"输出logits形状: {logits.shape}")
     print(f"损失值: {loss.item():.4f}")
     print(f"\n模型生成测试")
-    start_text = "你好"
+    start_text = "你好" # 测试输入文本
     start_tokens = tokenizer.encode(start_text)
     start_ids = torch.tensor([start_tokens], dtype=torch.long)
     print(f"起始文本: '{start_text}'")
