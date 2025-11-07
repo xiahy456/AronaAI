@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
     // 设置应用程序信息
     app.setApplicationName("AronaClient");
     app.setApplicationVersion("alpha0.0.1");
-    app.setQuitOnLastWindowClosed(false); // 启用/禁用关闭最后一个窗口时退出应用
+    app.setQuitOnLastWindowClosed(false); // 禁用关闭最后一个窗口时退出应用
 
     // GLCore对象实例化、显示
     GLCore gLCore;

@@ -20,7 +20,7 @@ GLCore::GLCore(QWidget* parent)
 	this->setAttribute(Qt::WA_TranslucentBackground);	// 设置窗口背景透明
 	this->resize(200, 400);
 
-	// 刷新帧率
+	// Live2D帧率
 	QTimer* timer = new QTimer();
 	connect(timer, &QTimer::timeout, this, [=]() {
 		// 目光跟随鼠标
