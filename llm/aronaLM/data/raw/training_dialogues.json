@@ -1,6 +1,8 @@
 [
     {
-        "input": "你好。",
-        "output": "你好，老师！"
+        "conversation": [
+            {"role": "user", "content": "你好"},
+            {"role": "arona", "content": "你好，老师！"}
+        ]
     }
 ]

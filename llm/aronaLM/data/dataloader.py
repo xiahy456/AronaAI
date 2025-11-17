@@ -52,17 +52,50 @@ class DialogueDataset(Dataset):
             data = json.load(f)
         print(f"成功加载 {len(data)} 条对话数据")  # 调试信息
         return data
-        
-    # 准备训练样本
+
+    # # 准备单轮对话训练样本
+    # def _prepare_samples(self) -> List[Tuple[List[int], List[int]]]:
+    #     samples = []
+    #     for dialogue in self.dialogues:
+    #         input_text = dialogue["input"]
+    #         output_text = dialogue["output"]
+    #         # 编码为token
+    #         input_ids = tokenizer.encode(input_text)
+    #         output_ids = tokenizer.encode(output_text)
+    #         samples.append((input_ids, output_ids))
+    #     return samples
+
+    # 准备多轮对话训练样本
     def _prepare_samples(self) -> List[Tuple[List[int], List[int]]]:
         samples = []
         for dialogue in self.dialogues:
-            input_text = dialogue["input"]
-            output_text = dialogue["output"]
-            # 编码为token
-            input_ids = tokenizer.encode(input_text)
-            output_ids = tokenizer.encode(output_text)
-            samples.append((input_ids, output_ids))
+            if "conversation" in dialogue:
+                # 多轮对话格式
+                conversation = dialogue["conversation"]
+                # 为每轮对话构建训练样本
+                for i in range(1, len(conversation)):
+                    if conversation[i]["role"] == "arona":
+                        # 构建上下文（之前的所有对话）
+                        context = ""
+                        for j in range(i):
+                            role = conversation[j]["role"]
+                            content = conversation[j]["content"]
+                            context += f"{role}: {content}"
+                        input_text = context.strip()
+                        output_text = conversation[i]["content"] + "[EOS]"
+                        # 编码为token
+                        input_ids = tokenizer.encode(input_text)
+                        output_ids = tokenizer.encode(output_text)
+                        samples.append(input_ids, output_ids)
+                    # 兼容单轮对话格式
+            elif "input" in dialogue and "output" in dialogue:
+                input_text = dialogue["input"]
+                output_text = dialogue["output"] = "[EOS]"
+                # 编码为token
+                input_ids = tokenizer.encode(input_text)
+                output_ids = tokenizer.encode(output_text)
+                samples.append((input_ids, output_ids))
+
         return samples
     
     def __len__(self):
