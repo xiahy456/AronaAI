@@ -5,6 +5,8 @@
 /models/
 /llm/chatglm3/
 
+# aronaLM checkpoints
+/llm/aronaLM/checkpoints/
 
 # logs
 /logs/

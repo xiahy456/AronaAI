@@ -9,13 +9,24 @@ from configs import MODEL_CONFIG
 
 # 分词器
 class Tokenizer:
-    def __init__(self, vocab_size=MODEL_CONFIG.vocab_size):
-        self.vocab_size = vocab_size
-        self.cutter = cutword.Cutter()
-        self.char_to_id = {}
-        self.id_to_char = {}
-        self._build_vocab()
-        print(f"CutWord分词器初始化完成，词汇表大小: {self.get_vocab_size()}")
+    _instance = None
+    _initialized = False
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(Tokenizer, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        # 确保只初始化一次
+        if not Tokenizer._initialized:
+            self.vocab_size = MODEL_CONFIG.vocab_size
+            self.cutter = cutword.Cutter()
+            self.char_to_id = {}
+            self.id_to_char = {}
+            self._build_vocab()
+            Tokenizer._initialized = True
+            print(f"CutWord分词器初始化完成，词汇表大小: {self.get_vocab_size()}")
     
     # 构建词汇表
     def _build_vocab(self):
@@ -90,10 +101,11 @@ class Tokenizer:
             if token_id in self.id_to_char:
                 char = self.id_to_char[token_id]
                 # 跳过特殊token（除了显示调试）
-                if char not in ['[PAD]', '[EOS]', '[UNK]']:
-                    chars.append(char)
-                elif char == '[UNK]':
-                    chars.append('?')  # 用?表示未知字符
+                if char in ['[PAD]', '[EOS]', '[UNK]']:
+                    continue
+                chars.append(char)
+            else:
+                chars.append('?')  # 用?表示未知字符
         return ''.join(chars)
     
     def get_vocab_size(self) -> int:

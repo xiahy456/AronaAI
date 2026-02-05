@@ -21,3 +21,4 @@ model:
   temperature: 0.8  # 生成温度，控制回复的随机性
   top_k: 50 # top_k采样
   do_sample: true # 是否使用采样而非贪心搜索
+  max_history: 16 # 最大对话历史轮数

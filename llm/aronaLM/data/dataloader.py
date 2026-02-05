@@ -74,19 +74,20 @@ class DialogueDataset(Dataset):
                 conversation = dialogue["conversation"]
                 # 为每轮对话构建训练样本
                 for i in range(1, len(conversation)):
-                    if conversation[i]["role"] == "arona":
+                    if conversation[i]["role"] == "Arona":
                         # 构建上下文（之前的所有对话）
-                        context = ""
+                        context_parts = []
                         for j in range(i):
                             role = conversation[j]["role"]
                             content = conversation[j]["content"]
-                            context += f"{role}: {content}"
-                        input_text = context.strip()
+                            role_display = "User" if role == "User" else "Arona"
+                            context_parts.append(f"{role_display}: {content}")
+                        input_text = " ".join(context_parts)
                         output_text = conversation[i]["content"] + "[EOS]"
                         # 编码为token
                         input_ids = tokenizer.encode(input_text)
                         output_ids = tokenizer.encode(output_text)
-                        samples.append(input_ids, output_ids)
+                        samples.append((input_ids, output_ids))
                     # 兼容单轮对话格式
             elif "input" in dialogue and "output" in dialogue:
                 input_text = dialogue["input"]
@@ -96,6 +97,7 @@ class DialogueDataset(Dataset):
                 output_ids = tokenizer.encode(output_text)
                 samples.append((input_ids, output_ids))
 
+        print(f"从对话数据中准备了 {len(samples)} 个训练样本")
         return samples
     
     def __len__(self):

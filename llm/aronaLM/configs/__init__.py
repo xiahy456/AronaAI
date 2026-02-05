@@ -26,6 +26,7 @@ class ModelConfig:
     temperature: int = 50
     top_k: int = 50
     do_sample: bool = True
+    max_history: int = 16
 
 @dataclass
 class TrainingConfig:

@@ -1,3 +1,5 @@
+import warnings
+warnings.filterwarnings('ignore')
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -111,29 +113,65 @@ class AronaLM(nn.Module):
 
         max_length = max_length or self.config.max_gen_length
         temperature = temperature or self.config.temperature
+        generated = input_ids.clone()
+        eos_generated = False
 
         with torch.no_grad():
             for _ in range(max_length):
+                # # 前向传播
+                # logits, _ = self.forward(input_ids)
+                # # 获取最后一个token的logits
+                # next_token_logits = logits[:, -1, :]
+                # # 应用温度（仅在temperature > 0时）
+                # if temperature is not None and temperature > 0:
+                #     next_token_logits = next_token_logits / temperature
+                # # 应用top-k采样
+                # if self.config.top_k > 0:
+                #     indices_to_remove = next_token_logits < torch.topk(next_token_logits, self.config.top_k)[0][..., -1, None]
+                #     next_token_logits[indices_to_remove] = -float('Inf')
+                # # 采样下一个token
+                # probs = F.softmax(next_token_logits, dim=-1)
+                # next_token = torch.multinomial(probs, num_samples=1)
+                # # 检查是否生成了EOS token
+                # if next_token.item() == self.config.eos_token_id:
+                #     # 确保只添加一个EOS
+                #     if input_ids[0, -1].item() != self.config.eos_token_id:
+                #         input_ids = torch.cat([input_ids, next_token], dim=1)
+                #     break
+
                 # 前向传播
-                logits, _ = self.forward(input_ids)
+                logits, _ = self.forward(generated)
                 # 获取最后一个token的logits
-                next_token_logits = logits[:, -1, :] / temperature
-                # 应用top-k采样
-                if self.config.top_k > 0:
-                    indices_to_remove = next_token_logits < torch.topk(next_token_logits, self.config.top_k)[0][..., -1, None]
-                    next_token_logits[indices_to_remove] = -float('Inf')
-                # 采样下一个token
-                probs = F.softmax(next_token_logits, dim=-1)
-                next_token = torch.multinomial(probs, num_samples=1)
-                # 检查是否生成了EOS token
+                next_token_logits = logits[:, -1, :]
+                # 应用温度（控制随机性）
+                if temperature > 0:
+                    next_token_logits = next_token_logits / temperature
+                    # 应用top-k采样（增加质量）
+                    if self.config.top_k > 0:
+                        values, _ = torch.topk(next_token_logits, self.config.top_k)
+                        min_values = values[:, -1].unsqueeze(-1)
+                        next_token_logits = torch.where(
+                            next_token_logits < min_values,
+                            torch.tensor(-1e10).to(next_token_logits.device),
+                            next_token_logits
+                        )
+                    # 采样
+                    probs = F.softmax(next_token_logits, dim=-1)
+                    next_token = torch.multinomial(probs, num_samples=1)
+                else:
+                    # 贪心解码
+                    next_token = torch.argmax(next_token_logits, dim=-1, keepdim=True)
+                # 检查EOS
                 if next_token.item() == self.config.eos_token_id:
+                    eos_generated = True
                     break
-                # 将新token添加到序列中
-                input_ids = torch.cat([input_ids, next_token], dim=1)
-                # 如果序列太长，截断到最大长度
-                if input_ids.size(1) > self.config.max_seq_length:
-                    input_ids = input_ids[:, -self.config.max_seq_length:]
-        return input_ids
+                
+                # 添加到生成序列
+                generated = torch.cat([generated, next_token], dim=1)
+                # 长度限制
+                if generated.size(1) >= self.config.max_seq_length:
+                    break
+        return generated
     
 # 测试阿罗娜语言模型
 def test_aronalm():
