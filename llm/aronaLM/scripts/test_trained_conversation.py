@@ -15,7 +15,7 @@ def test_trained_conversation():
     model = AronaLM()
     
     # 检查是否有训练好的模型
-    checkpoint_path = "checkpoints/quick_trained_model.pt"
+    checkpoint_path = "llm/aronaLM/checkpoints/best_model.pt"
     if os.path.exists(checkpoint_path):
         print(f"加载训练好的模型: {checkpoint_path}")
         model.load_state_dict(torch.load(checkpoint_path, map_location='cpu'))
