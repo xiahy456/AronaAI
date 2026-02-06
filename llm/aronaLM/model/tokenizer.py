@@ -10,32 +10,38 @@ from configs import MODEL_CONFIG
 # 分词器
 class Tokenizer:
     _instance = None
-    _initialized = False
     
-    def __new__(cls):
+    def __new__(cls, *args, **kwargs):
         if cls._instance is None:
-            cls._instance = super(Tokenizer, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self):
-        # 确保只初始化一次
-        if not Tokenizer._initialized:
-            self.vocab_size = MODEL_CONFIG.vocab_size
+    def __init__(self, vocab_size=MODEL_CONFIG.vocab_size):
+        if not hasattr(self, 'initialized'):
+            self.vocab_size = vocab_size
             self.cutter = cutword.Cutter()
+            # 特殊token
+            self.special_tokens = {
+                '[PAD]': MODEL_CONFIG.pad_token_id,
+                '[EOS]': MODEL_CONFIG.eos_token_id,
+                '[UNK]': MODEL_CONFIG.unk_token_id
+            }
+            # 映射表
             self.char_to_id = {}
             self.id_to_char = {}
             self._build_vocab()
-            Tokenizer._initialized = True
+            self.initialized = True
             print(f"CutWord分词器初始化完成，词汇表大小: {self.get_vocab_size()}")
     
     # 构建词汇表
     def _build_vocab(self):
         # 特殊token
-        special_tokens = {
-            MODEL_CONFIG.pad_token_id: '[PAD]',
-            MODEL_CONFIG.eos_token_id: '[EOS]', 
-            MODEL_CONFIG.unk_token_id: '[UNK]'
-        }
+        current_id = 0
+        # 添加特殊token作为整体
+        for token, token_id in self.special_tokens.items():
+            self.char_to_id[token] = token_id
+            self.id_to_char[token_id] = token
+            current_id = max(current_id, token_id + 1)
         
         # 基础字符集（作为后备）
         base_chars = []
@@ -52,14 +58,6 @@ class Tokenizer:
         base_chars.extend('!?.,;:\"\'()[]{}<>-~@#$%^&*_+=|/\\')
         base_chars.extend(' 😊🎬✨😄❤️🤣😂💕🌟🔥🎉📚🎵🍜☀️💪🎶')
         
-        # 构建映射表
-        current_id = len(special_tokens)
-        
-        # 添加特殊token
-        for token, token_id in special_tokens.items():
-            self.char_to_id[token] = token_id
-            self.id_to_char[token_id] = token
-        
         # 添加基础字符
         for char in base_chars:
             if current_id >= self.vocab_size:
@@ -71,41 +69,61 @@ class Tokenizer:
     
     # 将文本编码为token id序列
     def encode(self, text: str) -> List[int]:
-        # 使用cutword分词
-        words = self.cutter.cutword(text)
         tokens = []
-        
-        for word in words:
-            # 对每个词中的字符进行编码
-            for char in word:
+        # 特殊处理：检查是否包含特殊token
+        i = 0
+        while i < len(text):
+            # 检查是否以特殊token开头
+            found_special = False
+            for special_token in ['[EOS]', '[PAD]', '[UNK]']:
+                if text.startswith(special_token, i):
+                    tokens.append(self.special_tokens[special_token])
+                    i += len(special_token)
+                    found_special = True
+                    break
+            
+            if not found_special:
+                # 普通字符处理
+                char = text[i]
                 if char in self.char_to_id:
                     tokens.append(self.char_to_id[char])
                 else:
-                    # 如果字符不在词汇表中，添加到词汇表（如果还有空间）
-                    if len(self.char_to_id) < self.vocab_size:
+                    # 如果字符不在词汇表中，动态添加（如果有空间）
+                    if len(self.char_to_id) < self.vocab_size and char not in self.char_to_id:
                         new_id = len(self.char_to_id)
                         self.char_to_id[char] = new_id
                         self.id_to_char[new_id] = char
                         tokens.append(new_id)
                     else:
-                        tokens.append(MODEL_CONFIG.unk_token_id)
-                        print(f"警告: 字符 '{char}' 不在词汇表中，使用[UNK]替代")
+                        tokens.append(self.special_tokens['[UNK]'])
+                i += 1
         
         return tokens
-    
     # 将token id序列解码为文本
-    def decode(self, token_ids: List[int]) -> str:
+    def decode(self, token_ids: List[int], skip_special_tokens: bool = True) -> str:
         
         chars = []
         for token_id in token_ids:
             if token_id in self.id_to_char:
                 char = self.id_to_char[token_id]
-                # 跳过特殊token（除了显示调试）
-                if char in ['[PAD]', '[EOS]', '[UNK]']:
-                    continue
+                
+                if skip_special_tokens:
+                    # 跳过特殊token
+                    if char in ['[PAD]', '[EOS]', '[UNK]']:
+                        continue
+                else:
+                    # 如果要显示特殊token
+                    if char in ['[PAD]', '[EOS]', '[UNK]']:
+                        # 可以选择显示或不显示
+                        if char == '[EOS]':
+                            char = ''  # 不显示EOS
+                
                 chars.append(char)
             else:
-                chars.append('?')  # 用?表示未知字符
+                # 未知token ID
+                if not skip_special_tokens:
+                    chars.append('<?>')
+        
         return ''.join(chars)
     
     def get_vocab_size(self) -> int:

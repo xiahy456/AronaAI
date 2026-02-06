@@ -40,7 +40,7 @@ def train_quick():
     
     # 3. 训练配置
     num_epochs = 100  # 100次
-    learning_rate = 0.001  # 稍微提高学习率
+    learning_rate = 0.001
     
     # 4. 优化器
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
