@@ -3,17 +3,17 @@ model:
   name: "AronaLM"  # 模型名称
 
   # 词汇表配置
-  vocab_size: 16384 # 词汇表大小
+  vocab_size: 6000 # 词汇表大小
   pad_token_id: 0 # 填充符的id，用于统一序列长度
   eos_token_id: 1 # 结束符的id，用于表示一句话结束
   unk_token_id: 2 # 未知词的id，遇到没见过的词时使用
 
   # 模型架构参数
   max_seq_length: 128 # 最大序列长
-  d_model: 256   # 模型维度
-  n_layers: 8 # Transformer层数
-  n_heads: 4  # 注意力头数
-  d_ff: 1024  # 前馈网络维度
+  d_model: 128   # 模型维度256->128
+  n_layers: 2 # Transformer层数8->2
+  n_heads: 2  # 注意力头数4->2
+  d_ff: 256  # 前馈网络维度1024->256
   dropout: 0.1  # 丢弃率
 
   # 生成参数

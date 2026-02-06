@@ -69,7 +69,7 @@ LAppLive2DManager::LAppLive2DManager()
 {
     _viewMatrix = new CubismMatrix44();
     //SetUpModel();
-    LoadModelFromPath("Resources/Hiyori/", "Hiyori.model3.json");
+    LoadModelFromPath("Resources/Arona/", "Arona.model3.json");
     //ChangeScene(_sceneIndex);
 }
 
