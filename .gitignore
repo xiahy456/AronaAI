@@ -5,6 +5,9 @@
 /models/
 /llm/chatglm3/
 
+# aronaLM dialogue data
+/llm/aronaLM/data/raw/
+
 # aronaLM checkpoints
 /llm/aronaLM/checkpoints/
 

@@ -123,7 +123,7 @@ def train_with_curriculum():
     
     final_test_cases = [
         "你好",
-        "早上好阿罗娜",
+        "早上好，阿罗娜",
         "今天需要处理文件"
     ]
     
