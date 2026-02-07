@@ -32,7 +32,7 @@ def train_with_curriculum():
     optimizer = torch.optim.AdamW(
         model.parameters(), 
         lr=learning_rate,
-        weight_decay=0.02  # 更强的正则化
+        weight_decay=0.02
     )
     
     # 5. 学习率调度器（带warmup和衰减）
