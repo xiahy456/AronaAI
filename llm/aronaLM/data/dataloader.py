@@ -133,7 +133,7 @@ def create_data_loader(data_path: str, batch_size: int = None, shuffle: bool = T
         data_path = TRAINING_CONFIG.data_path
     if batch_size is None:
         batch_size = TRAINING_CONFIG.batch_size
-        
+
     print(f"创建数据加载器，数据路径: {data_path}")  # 调试信息
     dataset = DialogueDataset(data_path)
     dataloader = DataLoader(

@@ -13,6 +13,7 @@ class Tokenizer:
     
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
+            print(f"创建Tokenizer实例...")
             cls._instance = super().__new__(cls)
         return cls._instance
 
@@ -31,7 +32,7 @@ class Tokenizer:
             self.id_to_char = {}
             self._build_vocab()
             self.initialized = True
-            print(f"CutWord分词器初始化完成，词汇表大小: {self.get_vocab_size()}")
+            print(f"CutWord分词器加载成功，词汇表大小: {self.get_vocab_size()}")
     
     # 构建词汇表
     def _build_vocab(self):
