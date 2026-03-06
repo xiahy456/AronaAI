@@ -28,6 +28,7 @@
 # VS2022 Files
 bin/
 .vs/
+*.user
 
 # Prerequisites
 *.d
