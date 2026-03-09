@@ -7,6 +7,7 @@
 #include <QDebug>
 #include <QString>
 #include <QByteArray>
+#include <QFile>
 
 class SP_API QtSpineExtension : public spine::SpineExtension {
 public:

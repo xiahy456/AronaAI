@@ -1,6 +1,9 @@
 # GPT-SoVITs
 /gpt-sovits/
 
+# unused_frontend
+/AronaClient-PC/
+
 # models
 /models/
 /llm/chatglm3/

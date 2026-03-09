@@ -3,6 +3,8 @@
 #include <QtWidgets/QWidget>
 #include "ui_MainWidget.h"
 
+#include <spine/QtSpineManager.h>
+
 class MainWidget : public QWidget
 {
     Q_OBJECT

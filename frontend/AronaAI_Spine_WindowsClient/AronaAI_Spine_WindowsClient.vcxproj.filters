@@ -40,6 +40,9 @@
     <QtMoc Include="QtMainFile\MainWidget.h">
       <Filter>Header Files</Filter>
     </QtMoc>
+    <QtMoc Include="spine-cpp\include\spine\QtSpineManager.h">
+      <Filter>Spine\Include</Filter>
+    </QtMoc>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="QtMainFile\MainWidget.qrc">
@@ -255,6 +258,15 @@
       <Filter>Spine\Source</Filter>
     </ClCompile>
     <ClCompile Include="spine-cpp\src\spine\QtSpineExtension.cpp">
+      <Filter>Spine\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="spine-cpp\src\spine\QtTextureLoader.cpp">
+      <Filter>Spine\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="spine-cpp\src\spine\QtSkeletonLoader.cpp">
+      <Filter>Spine\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="spine-cpp\src\spine\QtSpineManager.cpp">
       <Filter>Spine\Source</Filter>
     </ClCompile>
   </ItemGroup>
@@ -533,6 +545,12 @@
       <Filter>Spine\Include</Filter>
     </ClInclude>
     <ClInclude Include="spine-cpp\include\spine\QtSpineExtension.h">
+      <Filter>Spine\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="spine-cpp\include\spine\QtTextureLoader.h">
+      <Filter>Spine\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="spine-cpp\include\spine\QtSkeletonLoader.h">
       <Filter>Spine\Include</Filter>
     </ClInclude>
   </ItemGroup>

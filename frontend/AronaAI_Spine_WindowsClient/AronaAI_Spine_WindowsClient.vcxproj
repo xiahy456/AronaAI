@@ -62,7 +62,10 @@
     <ClCompile Include="spine-cpp\src\spine\PhysicsConstraintData.cpp" />
     <ClCompile Include="spine-cpp\src\spine\PhysicsConstraintTimeline.cpp" />
     <ClCompile Include="spine-cpp\src\spine\PointAttachment.cpp" />
+    <ClCompile Include="spine-cpp\src\spine\QtSkeletonLoader.cpp" />
     <ClCompile Include="spine-cpp\src\spine\QtSpineExtension.cpp" />
+    <ClCompile Include="spine-cpp\src\spine\QtSpineManager.cpp" />
+    <ClCompile Include="spine-cpp\src\spine\QtTextureLoader.cpp" />
     <ClCompile Include="spine-cpp\src\spine\RegionAttachment.cpp" />
     <ClCompile Include="spine-cpp\src\spine\RotateTimeline.cpp" />
     <ClCompile Include="spine-cpp\src\spine\RTTI.cpp" />
@@ -148,7 +151,10 @@
     <ClInclude Include="spine-cpp\include\spine\Pool.h" />
     <ClInclude Include="spine-cpp\include\spine\PositionMode.h" />
     <ClInclude Include="spine-cpp\include\spine\Property.h" />
+    <ClInclude Include="spine-cpp\include\spine\QtSkeletonLoader.h" />
     <ClInclude Include="spine-cpp\include\spine\QtSpineExtension.h" />
+    <QtMoc Include="spine-cpp\include\spine\QtSpineManager.h" />
+    <ClInclude Include="spine-cpp\include\spine\QtTextureLoader.h" />
     <ClInclude Include="spine-cpp\include\spine\RegionAttachment.h" />
     <ClInclude Include="spine-cpp\include\spine\RotateMode.h" />
     <ClInclude Include="spine-cpp\include\spine\RotateTimeline.h" />
