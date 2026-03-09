@@ -62,6 +62,13 @@ private slots:
     void updateAnimation();
 
 private:
+    // 辅助函数
+    GLuint getTextureId(spine::RegionAttachment* attachment);
+    GLuint getTextureId(spine::MeshAttachment* attachment);
+    void collectRegionAttachmentVertices(spine::RegionAttachment* attachment, spine::Slot* slot, const spine::Color& slotColor);
+    void collectMeshAttachmentVertices(spine::MeshAttachment* attachment, spine::Slot* slot, const spine::Color& slotColor);
+    void flushBatches();
+
     // Spine 对象
     spine::Atlas* m_atlas = nullptr;
     QtTextureLoader* m_textureLoader = nullptr;
@@ -86,13 +93,6 @@ private:
 
     // 批次数据
     QVector<TextureBatch> m_batches;
-
-    // 辅助函数
-    GLuint getTextureId(spine::RegionAttachment* attachment);
-    GLuint getTextureId(spine::MeshAttachment* attachment);
-    void collectRegionAttachmentVertices(spine::RegionAttachment* attachment, spine::Slot* slot, const spine::Color& slotColor);
-    void collectMeshAttachmentVertices(spine::MeshAttachment* attachment, spine::Slot* slot, const spine::Color& slotColor);
-    void flushBatches();
 };
 
 #endif // SPINEWIDGET_H

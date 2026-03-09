@@ -15,6 +15,13 @@
 
 QtSpineManager::QtSpineManager(QWidget* parent) : QOpenGLWidget(parent)
 {
+    // 窗口控件
+    //this->setWindowFlag(Qt::FramelessWindowHint);	// 设置无边框窗口
+    //this->setWindowFlag(Qt::WindowStaysOnTopHint);	// 设置窗口始终在顶部
+    //this->setWindowFlag(Qt::Tool);	// 隐藏应用程序图标
+    //this->setAttribute(Qt::WA_TranslucentBackground);	// 设置窗口背景透明
+	//this->setWindowOpacity(0.5);    // 设置窗口半透明（0.0完全透明，1.0完全不透明）
+    // 动画计时器
     connect(&m_timer, &QTimer::timeout, this, &QtSpineManager::updateAnimation);
     m_timer.start(16);
 }
@@ -42,7 +49,8 @@ void QtSpineManager::initializeGL()
 {
     initializeOpenGLFunctions();
 
-    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    //glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);  // 完全透明黑色
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDisable(GL_DEPTH_TEST);
@@ -72,28 +80,35 @@ void QtSpineManager::initializeGL()
         "out vec4 fragColor;\n"
         "void main() {\n"
         "    vec4 texColor = texture(u_texture, v_texCoord);\n"
-        "    fragColor = texColor * v_color;\n"
-        "    if (texColor.r == 0.0 && texColor.g == 0.0 && texColor.b == 0.0 && texColor.a > 0.0) {\n"
-        "        fragColor = vec4(1.0, 0.0, 1.0, texColor.a);\n"
+        "    \n"
+        "    // 关键步骤：还原预乘的RGB值\n"
+        "    if (texColor.a > 0.0) {\n"
+        "        texColor.rgb /= texColor.a;\n"
         "    }\n"
+        "    \n"
+        "    // 再乘以顶点颜色\n"
+        "    fragColor = texColor * v_color;\n"
+        "    \n"
+        "    // 丢弃几乎透明的像素\n"
+        "    if (fragColor.a < 0.01) discard;\n"
         "}\n";
 
     m_program->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource);
     m_program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
     m_program->link();
-    
+
     m_u_matrixLoc = m_program->uniformLocation("u_matrix");
     m_u_textureLoc = m_program->uniformLocation("u_texture");
-    
+
     // 创建VBO
     m_vbo = new QOpenGLBuffer(QOpenGLBuffer::VertexBuffer);
     m_vbo->create();
     m_vbo->setUsagePattern(QOpenGLBuffer::DynamicDraw);
-    
+
     // 创建VAO
     m_vao = new QOpenGLVertexArrayObject();
     m_vao->create();
-    
+
     qDebug() << "[Spine Operation]OpenGL initialized successfully";
 }
 
@@ -116,12 +131,10 @@ void QtSpineManager::paintGL()
     // 创建视图矩阵，用于移动整个Spine动画
     QMatrix4x4 view;
     // 2. 翻转Y轴（替代负缩放）
-    view.scale(1.0f, -1.0f);
-    // 3. 应用缩放（正缩放）
-    //view.scale(0.3f, 0.3f);
+    view.scale(0.3f, -0.3f);
     // 应用平移
-    float offsetX = 200.0f;  // 向右移动像素
-    float offsetY = -400.0f;  // 向下移动像素（因为Y轴向下）
+    float offsetX = 600.0f;  // 向右移动像素
+    float offsetY = -1600.0f;  // 向下移动像素（因为Y轴向下）
     view.translate(offsetX, offsetY);
 
     // 组合矩阵：最终位置 = 投影 * 视图
@@ -218,12 +231,12 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
 
     if (isBinary) {
         spine::SkeletonBinary binary(m_atlas);
-        binary.setScale(0.3f);
+        //binary.setScale(0.3f);
         m_skeletonData = binary.readSkeletonDataFile(skelOrJsonPath.toStdString().c_str());
     }
     else {
         spine::SkeletonJson json(m_atlas);
-        json.setScale(0.3f);
+        //json.setScale(0.3f);
         m_skeletonData = json.readSkeletonDataFile(skelOrJsonPath.toStdString().c_str());
     }
 
@@ -286,13 +299,6 @@ void QtSpineManager::collectMeshAttachmentVertices(spine::MeshAttachment* attach
     float finalG = slotColor.g * attachmentColor.g;
     float finalB = slotColor.b * attachmentColor.b;
     float finalA = slotColor.a * attachmentColor.a;
-
-    // 调试：打印透明控件的颜色信息
-    if (finalA < 1.0f && finalA > 0.0f) {
-        qDebug() << "[Spine Operation] Transparent mesh:"
-            << attachment->getName().buffer()
-            << "Color:" << finalR << finalG << finalB << finalA;
-    }
 
     // 如果透明度为0，跳过渲染
     if (finalA <= 0.0f) return;
@@ -440,7 +446,6 @@ void QtSpineManager::flushBatches()
     for (const auto& batch : m_batches) {
         totalVertices += batch.vertices.size();
     }
-    qDebug() << "[Spine Operation]Rendering" << totalVertices << "vertices in" << m_batches.size() << "batches";
 
     for (const auto& batch : m_batches) {
         if (batch.vertices.isEmpty() || batch.textureId == 0) continue;
