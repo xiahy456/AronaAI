@@ -20,8 +20,6 @@ void QtTextureLoader::load(spine::AtlasPage& page, const spine::String& path) {
         image = image.convertToFormat(QImage::Format_RGBA8888);
     }
 
-    // 不要修改RGB值，只保留原始颜色，预乘Alpha处理应该在着色器中进行，而不是在这里
-
     // 创建OpenGL纹理
     QOpenGLTexture* glTexture = new QOpenGLTexture(image.mirrored());
     glTexture->setMinificationFilter(QOpenGLTexture::Linear);

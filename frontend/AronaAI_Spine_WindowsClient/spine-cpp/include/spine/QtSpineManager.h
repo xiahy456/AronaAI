@@ -61,9 +61,6 @@ protected:
     void initializeGL() override;
     void paintGL() override;
     void resizeGL(int w, int h) override;
-    void mousePressEvent(QMouseEvent* event) override;
-    void mouseMoveEvent(QMouseEvent* event) override;
-    void mouseReleaseEvent(QMouseEvent* event) override;
 
 private slots:
     void updateAnimation();
@@ -100,10 +97,6 @@ private:
 
     // 批次数据
     QVector<TextureBatch> m_batches;
-
-    // 鼠标事件
-    bool m_dragging;
-    QPoint m_dragPosition;
 };
 
 #endif // QTSPINEWIDGET_H

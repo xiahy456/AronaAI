@@ -28,15 +28,15 @@ QtSpineManager::QtSpineManager(QWidget* parent) : QOpenGLWidget(parent)
     // 启动事件过滤器
     this->installEventFilter(this);
 
-    // 移动窗口
-    // 获取主屏幕
-    QScreen* screen = QApplication::primaryScreen();
-    QRect screenRect = screen->availableGeometry();
-    // 计算左下角位置
-    int x = screenRect.left();
-    int y = screenRect.bottom() - this->height() + 50;
-    // 移动窗口
-    this->move(x, y);
+    //// 移动窗口
+    //// 获取主屏幕
+    //QScreen* screen = QApplication::primaryScreen();
+    //QRect screenRect = screen->availableGeometry();
+    //// 计算左下角位置
+    //int x = screenRect.left();
+    //int y = screenRect.bottom() - this->height() + 50;
+    //// 移动窗口
+    //this->move(x, y);
 
     // 动画计时器
     connect(&m_timer, &QTimer::timeout, this, &QtSpineManager::updateAnimation);
@@ -526,29 +526,3 @@ GLuint QtSpineManager::getTextureId(spine::MeshAttachment* attachment)
 
     return *textureIdPtr;
 }
-
-void QtSpineManager::mousePressEvent(QMouseEvent* event)
-{
-    if (event->button() == Qt::RightButton) {
-        m_dragging = true;
-        m_dragPosition = event->globalPosition().toPoint() - frameGeometry().topLeft();
-        event->accept();
-    }
-}
-
-void QtSpineManager::mouseMoveEvent(QMouseEvent* event)
-{
-    if (m_dragging && (event->buttons() & Qt::RightButton)) {
-        move(event->globalPosition().toPoint() - m_dragPosition);
-        event->accept();
-    }
-}
-
-void QtSpineManager::mouseReleaseEvent(QMouseEvent* event)
-{
-    if (event->button() == Qt::RightButton) {
-        m_dragging = false;
-        event->accept();
-    }
-}
-

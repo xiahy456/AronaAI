@@ -30,6 +30,9 @@
     <Filter Include="Spine\Source">
       <UniqueIdentifier>{bd64d27c-f4c3-448e-a459-2c4d0f6b473a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="QtUtils">
+      <UniqueIdentifier>{d02dbd0a-6b6a-4453-803a-7a35818691e4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <QtUic Include="QtMainFile\MainWidget.ui">
@@ -268,6 +271,9 @@
     </ClCompile>
     <ClCompile Include="spine-cpp\src\spine\QtSpineManager.cpp">
       <Filter>Spine\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="QtUtils\OpacityAnimation.cpp">
+      <Filter>QtUtils</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -552,6 +558,9 @@
     </ClInclude>
     <ClInclude Include="spine-cpp\include\spine\QtSkeletonLoader.h">
       <Filter>Spine\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="QtUtils\OpacityAnimation.h">
+      <Filter>QtUtils</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
