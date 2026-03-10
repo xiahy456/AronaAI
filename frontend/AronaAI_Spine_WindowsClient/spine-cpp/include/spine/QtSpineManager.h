@@ -13,6 +13,7 @@
 #include <QVector>
 #include <QOpenGLTexture>
 #include <QOpenGLExtraFunctions>
+#include <QFrame>
 
 #include <memory>
 

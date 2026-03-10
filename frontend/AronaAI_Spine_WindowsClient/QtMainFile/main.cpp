@@ -18,7 +18,6 @@ int main(int argc, char *argv[])
 
     // 创建QtSpineManager窗口对象并显示
     QtSpineManager* spineManager = new QtSpineManager();
-    spineManager->resize(400, 500);
     //spineManager->show();
     QTimer::singleShot(100, [spineManager]() {
         spineManager->loadSpineFile("D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/AronaSpineAssets/Arona01.atlas", "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/AronaSpineAssets/arona_spr.json");

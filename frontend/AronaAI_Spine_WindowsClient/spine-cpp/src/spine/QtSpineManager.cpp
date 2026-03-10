@@ -16,16 +16,17 @@
 QtSpineManager::QtSpineManager(QWidget* parent) : QOpenGLWidget(parent)
 {
     // 窗口控件
-    //this->setWindowFlag(Qt::FramelessWindowHint);	// 设置无边框窗口
-    //this->setWindowFlag(Qt::WindowStaysOnTopHint);	// 设置窗口始终在顶部
+    this->setWindowFlag(Qt::FramelessWindowHint);	// 设置无边框窗口
+    this->setWindowFlag(Qt::WindowStaysOnTopHint);	// 设置窗口始终在顶部
     //this->setWindowFlag(Qt::Tool);	// 隐藏应用程序图标
-    //this->setAttribute(Qt::WA_TranslucentBackground);	// 设置窗口背景透明
+    this->setAttribute(Qt::WA_TranslucentBackground);	// 设置窗口背景透明
 	//this->setWindowOpacity(0.5);    // 设置窗口半透明（0.0完全透明，1.0完全不透明）
 	this->setAutoFillBackground(false);   // 禁用自动填充背景，确保paintGL的背景颜色生效
+    this->resize(350, 450); // 设置窗口大小
+
     // 动画计时器
     connect(&m_timer, &QTimer::timeout, this, &QtSpineManager::updateAnimation);
     m_timer.start(16);
-
 }
 
 QtSpineManager::~QtSpineManager()
@@ -51,10 +52,12 @@ void QtSpineManager::initializeGL()
 {
     initializeOpenGLFunctions();
 
-    glClearColor(0.2f, 0.2f, 0.2f, 0.5f);
-    //glClearColor(0.0f, 0.0f, 0.0f, 0.0f);  // 完全透明黑色
+    //glClearColor(0.69f, 0.88f, 0.90f, 0.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);  // 完全透明黑色
+    // 启用混合，使用正确的混合函数
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
     glDisable(GL_DEPTH_TEST);
 
     // 创建着色器程序
@@ -131,16 +134,12 @@ void QtSpineManager::paintGL()
     projection.ortho(0, w, h, 0, -1, 1);
 
     // 创建视图矩阵，用于移动整个Spine动画
-    QMatrix4x4 view;
-    // 2. 翻转Y轴（替代负缩放）
-    view.scale(0.3f, -0.3f);
-    // 应用平移
-    float offsetX = 600.0f;  // 向右移动像素
-    float offsetY = -1600.0f;  // 向下移动像素（因为Y轴向下）
-    view.translate(offsetX, offsetY);
+    QMatrix4x4 transform;
+    transform.translate(200.0f, 400.0f);
+    transform.scale(0.2f, -0.2f);
 
     // 组合矩阵：最终位置 = 投影 * 视图
-    QMatrix4x4 matrix = projection * view;
+    QMatrix4x4 matrix = projection * transform;
 
     m_program->bind();
     m_program->setUniformValue(m_u_matrixLoc, matrix);
