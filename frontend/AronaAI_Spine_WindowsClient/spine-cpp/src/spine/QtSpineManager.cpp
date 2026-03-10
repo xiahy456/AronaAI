@@ -16,17 +16,32 @@
 QtSpineManager::QtSpineManager(QWidget* parent) : QOpenGLWidget(parent)
 {
     // 窗口控件
+    this->setAttribute(Qt::WA_TranslucentBackground);	// 设置窗口背景透明
+    //this->setAttribute(Qt::WA_TransparentForMouseEvents, true); // 设置鼠标穿透点击
     this->setWindowFlag(Qt::FramelessWindowHint);	// 设置无边框窗口
     this->setWindowFlag(Qt::WindowStaysOnTopHint);	// 设置窗口始终在顶部
     //this->setWindowFlag(Qt::Tool);	// 隐藏应用程序图标
-    this->setAttribute(Qt::WA_TranslucentBackground);	// 设置窗口背景透明
 	//this->setWindowOpacity(0.5);    // 设置窗口半透明（0.0完全透明，1.0完全不透明）
 	this->setAutoFillBackground(false);   // 禁用自动填充背景，确保paintGL的背景颜色生效
-    this->resize(350, 450); // 设置窗口大小
+    this->resize(220, 290); // 设置窗口大小
+
+    // 启动事件过滤器
+    this->installEventFilter(this);
+
+    // 移动窗口
+    // 获取主屏幕
+    QScreen* screen = QApplication::primaryScreen();
+    QRect screenRect = screen->availableGeometry();
+    // 计算左下角位置
+    int x = screenRect.left();
+    int y = screenRect.bottom() - this->height() + 50;
+    // 移动窗口
+    this->move(x, y);
 
     // 动画计时器
     connect(&m_timer, &QTimer::timeout, this, &QtSpineManager::updateAnimation);
     m_timer.start(16);
+
 }
 
 QtSpineManager::~QtSpineManager()
@@ -135,7 +150,7 @@ void QtSpineManager::paintGL()
 
     // 创建视图矩阵，用于移动整个Spine动画
     QMatrix4x4 transform;
-    transform.translate(200.0f, 400.0f);
+    transform.translate(110.0f, 270.0f);
     transform.scale(0.2f, -0.2f);
 
     // 组合矩阵：最终位置 = 投影 * 视图
@@ -511,3 +526,29 @@ GLuint QtSpineManager::getTextureId(spine::MeshAttachment* attachment)
 
     return *textureIdPtr;
 }
+
+void QtSpineManager::mousePressEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::RightButton) {
+        m_dragging = true;
+        m_dragPosition = event->globalPosition().toPoint() - frameGeometry().topLeft();
+        event->accept();
+    }
+}
+
+void QtSpineManager::mouseMoveEvent(QMouseEvent* event)
+{
+    if (m_dragging && (event->buttons() & Qt::RightButton)) {
+        move(event->globalPosition().toPoint() - m_dragPosition);
+        event->accept();
+    }
+}
+
+void QtSpineManager::mouseReleaseEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::RightButton) {
+        m_dragging = false;
+        event->accept();
+    }
+}
+
