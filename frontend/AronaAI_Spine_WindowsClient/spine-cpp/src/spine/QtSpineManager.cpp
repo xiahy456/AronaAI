@@ -21,9 +21,11 @@ QtSpineManager::QtSpineManager(QWidget* parent) : QOpenGLWidget(parent)
     //this->setWindowFlag(Qt::Tool);	// 隐藏应用程序图标
     //this->setAttribute(Qt::WA_TranslucentBackground);	// 设置窗口背景透明
 	//this->setWindowOpacity(0.5);    // 设置窗口半透明（0.0完全透明，1.0完全不透明）
+	this->setAutoFillBackground(false);   // 禁用自动填充背景，确保paintGL的背景颜色生效
     // 动画计时器
     connect(&m_timer, &QTimer::timeout, this, &QtSpineManager::updateAnimation);
     m_timer.start(16);
+
 }
 
 QtSpineManager::~QtSpineManager()
@@ -49,8 +51,8 @@ void QtSpineManager::initializeGL()
 {
     initializeOpenGLFunctions();
 
-    //glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);  // 完全透明黑色
+    glClearColor(0.2f, 0.2f, 0.2f, 0.5f);
+    //glClearColor(0.0f, 0.0f, 0.0f, 0.0f);  // 完全透明黑色
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDisable(GL_DEPTH_TEST);

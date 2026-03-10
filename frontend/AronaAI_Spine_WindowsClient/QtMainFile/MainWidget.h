@@ -1,7 +1,9 @@
 #pragma once
 
-#include <QtWidgets/QWidget>
 #include "ui_MainWidget.h"
+
+#include <QtWidgets/QWidget>
+#include <QVBoxLayout>
 
 #include <spine/QtSpineManager.h>
 

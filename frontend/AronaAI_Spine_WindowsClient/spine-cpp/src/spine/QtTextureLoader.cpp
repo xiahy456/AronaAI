@@ -20,17 +20,7 @@ void QtTextureLoader::load(spine::AtlasPage& page, const spine::String& path) {
         image = image.convertToFormat(QImage::Format_RGBA8888);
     }
 
-    // 调试：检查第一个像素的颜色
-    if (!image.isNull()) {
-        QRgb firstPixel = image.pixel(0, 0);
-        qDebug() << "[Spine Operation] First pixel - R:" << qRed(firstPixel)
-            << "G:" << qGreen(firstPixel)
-            << "B:" << qBlue(firstPixel)
-            << "A:" << qAlpha(firstPixel);
-    }
-
-    // 重要：不要修改RGB值，只保留原始颜色
-    // 预乘Alpha处理应该在着色器中进行，而不是在这里
+    // 不要修改RGB值，只保留原始颜色，预乘Alpha处理应该在着色器中进行，而不是在这里
 
     // 创建OpenGL纹理
     QOpenGLTexture* glTexture = new QOpenGLTexture(image.mirrored());

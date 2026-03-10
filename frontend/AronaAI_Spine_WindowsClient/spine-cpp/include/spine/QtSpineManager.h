@@ -1,5 +1,5 @@
-#ifndef SPINEWIDGET_H
-#define SPINEWIDGET_H
+#ifndef QTSPINEWIDGET_H
+#define QTSPINEWIDGET_H
 
 #include <spine/QtTextureLoader.h>
 
@@ -13,6 +13,7 @@
 #include <QVector>
 #include <QOpenGLTexture>
 #include <QOpenGLExtraFunctions>
+
 #include <memory>
 
 namespace spine {
@@ -28,8 +29,6 @@ namespace spine {
     class Slot;
     class Color;
 }
-
-class MyTextureLoader;
 
 class QtSpineManager : public QOpenGLWidget, protected QOpenGLFunctions
 {
@@ -95,4 +94,4 @@ private:
     QVector<TextureBatch> m_batches;
 };
 
-#endif // SPINEWIDGET_H
+#endif // QTSPINEWIDGET_H
