@@ -3,6 +3,8 @@
 
 #include <spine/QtTextureLoader.h>
 
+#include <GlobalInclude.h>
+
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>

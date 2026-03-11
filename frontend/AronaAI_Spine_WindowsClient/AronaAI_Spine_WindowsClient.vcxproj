@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <QtUic Include="QtMainFile\MainWidget.ui" />
+    <QtUic Include="QtMainFile\SettingsWidget.ui" />
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="QtMainFile\MainWidget.h" />
@@ -20,8 +21,12 @@
     <QtRcc Include="QtMainFile\MainWidget.qrc" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="QtMainFile\GlobalVariables.cpp" />
     <ClCompile Include="QtMainFile\main.cpp" />
     <ClCompile Include="QtMainFile\MainWidget.cpp" />
+    <ClCompile Include="QtMainFile\SettingsWidget.cpp" />
+    <ClCompile Include="QtMainFile\SystemTray.cpp" />
+    <ClCompile Include="QtUtils\JsonOperation.cpp" />
     <ClCompile Include="QtUtils\OpacityAnimation.cpp" />
     <ClCompile Include="spine-cpp\src\spine\Animation.cpp" />
     <ClCompile Include="spine-cpp\src\spine\AnimationState.cpp" />
@@ -96,6 +101,12 @@
     <ClCompile Include="spine-cpp\src\spine\VertexAttachment.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="QtMainFile\GlobalVariables.h" />
+    <QtMoc Include="QtMainFile\SettingsWidget.h" />
+    <QtMoc Include="QtMainFile\SystemTray.h" />
+    <ClInclude Include="QtUtils\Defines.h" />
+    <ClInclude Include="QtUtils\GlobalInclude.h" />
+    <ClInclude Include="QtUtils\JsonOperation.h" />
     <ClInclude Include="QtUtils\OpacityAnimation.h" />
     <ClInclude Include="spine-cpp\include\spine\Animation.h" />
     <ClInclude Include="spine-cpp\include\spine\AnimationState.h" />
@@ -193,6 +204,10 @@
     <ClInclude Include="spine-cpp\include\spine\VertexAttachment.h" />
     <ClInclude Include="spine-cpp\include\spine\Vertices.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Config\config.json" />
+    <None Include="Dict\dict_zh.json" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{62C196CF-5223-43FA-B7D4-C7C786458BD7}</ProjectGuid>
     <Keyword>QtVS_v304</Keyword>
@@ -250,15 +265,21 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <Link>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <Link>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">
     <ClCompile>

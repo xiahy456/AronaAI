@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
+    <width>350</width>
     <height>290</height>
    </rect>
   </property>
@@ -16,7 +16,7 @@
   <widget class="QtSpineManager" name="qtSpineManagerWidget" native="true">
    <property name="geometry">
     <rect>
-     <x>90</x>
+     <x>65</x>
      <y>0</y>
      <width>220</width>
      <height>290</height>
@@ -31,14 +31,14 @@
     <rect>
      <x>25</x>
      <y>170</y>
-     <width>350</width>
+     <width>300</width>
      <height>80</height>
     </rect>
    </property>
    <property name="styleSheet">
     <string notr="true">#aronaOutputTextBox {
-	background-color: rgba(255, 255, 255, 0.6);
-	border: 1px solid gray;
+	background-color: rgb(255, 255, 255);
+	border: 1px solid rgb(191, 191, 191);
 	border-radius: 10px;
 }</string>
    </property>
@@ -53,7 +53,7 @@
      <rect>
       <x>10</x>
       <y>10</y>
-      <width>330</width>
+      <width>280</width>
       <height>60</height>
      </rect>
     </property>

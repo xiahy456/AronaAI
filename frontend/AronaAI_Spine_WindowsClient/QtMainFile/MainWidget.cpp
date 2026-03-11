@@ -3,14 +3,15 @@
 MainWidget::MainWidget(QWidget *parent)
     : QWidget(parent)
 {
-    qDebug() << "[Qt Operation]Loading MainWidget...";  // 调试信息
+    qDebug() << "ദ്ദി˶˃ ᵕ ˂ )✧ [Qt Operation]Loading MainWidget...";  // 调试信息
     ui.setupUi(this);
 
-	// 100ms时间等待OpenGL初始化，然后加载spine文件并设置初始动画
+    // 100ms时间等待OpenGL初始化，然后加载spine文件并设置初始动画
     QTimer::singleShot(100, [this]() {
         ui.qtSpineManagerWidget->loadSpineFile(
-            "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/AronaSpineAssets/Arona01.atlas", 
-            "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/AronaSpineAssets/arona_spr.json");
+            GET_STRING_FROM_JSON(_global_config, "spine", "atlas_path"),
+            GET_STRING_FROM_JSON(_global_config, "spine", "skelOrJson_path")
+            );
         ui.qtSpineManagerWidget->setAnimation("Idle_01", 0, true);
         });
 
@@ -19,17 +20,26 @@ MainWidget::MainWidget(QWidget *parent)
     //this->setAttribute(Qt::WA_TransparentForMouseEvents, true); // 设置鼠标穿透点击
     this->setWindowFlag(Qt::FramelessWindowHint);	// 设置无边框窗口
     this->setWindowFlag(Qt::WindowStaysOnTopHint);	// 设置窗口始终在顶部
-    //this->setWindowFlag(Qt::Tool);	// 隐藏应用程序图标
+    this->setWindowFlag(Qt::Tool);	// 隐藏应用程序图标
+	this->setWindowTitle(GET_STRING_FROM_JSON(_global_dict, "application_data", "main_widget_name"));  // 设置窗口名称
+
+    // 移动窗口
+    // 获取主屏幕
+    QScreen* screen = QApplication::primaryScreen();
+    QRect screenRect = screen->availableGeometry();
+    // 计算左下角位置
+    int x = screenRect.left();
+    int y = screenRect.bottom() - this->height() + 50;
+    // 移动窗口
+    this->move(x, y);
 
     // 初始化相关控件
-    m_opacityEffect_textBox = new QGraphicsOpacityEffect(this);
+	m_opacityAnimation_aronaOutputTextBox = new OpacityAnimation(ui.aronaOutputTextBox, 0.0, 250, QEasingCurve::Linear); // 默认气泡文本不透明度为0，后续根据需要显示
 
     // 界面控件设置
-	// 默认气泡文本不透明度为0，后续根据需要显示
-	setWidgetOpacity(ui.aronaOutputTextBox, m_opacityEffect_textBox, 0.0);
 
 	// 测试代码：3秒后显示气泡文本，5秒后隐藏气泡文本
-    QTimer::singleShot(3000, [this]() { showOutputText("Hello, I'm Arona!"); });
+    QTimer::singleShot(5000, [this]() { showOutputText("Hello, I'm Arona!"); });
 	QTimer::singleShot(8000, [this]() { hideOutputText(); });
 }
 
@@ -39,18 +49,16 @@ MainWidget::~MainWidget()
 
 void MainWidget::showOutputText(const QString& text)
 {
-    // 显示气泡
-    ui.aronaOutputTextBox->show();
     // 更新文本内容
     ui.aronaOutputText->setText(text);
     // 气泡不透明度从0到1
-    opacityAnimation(ui.aronaOutputTextBox, m_opacityEffect_textBox, 0.0, 1.0, 250, QEasingCurve::Linear);
+	m_opacityAnimation_aronaOutputTextBox->startAnimation(0.0, 0.7);
 }
 
 void MainWidget::hideOutputText()
 {
     // 气泡不透明度从1到0
-    opacityAnimation(ui.aronaOutputTextBox, m_opacityEffect_textBox, 1.0, 0.0, 250, QEasingCurve::Linear);
+    m_opacityAnimation_aronaOutputTextBox->startAnimation(0.7, 0.0);
 }
 
 void MainWidget::setWidgetOpacity(QWidget* widget, QGraphicsOpacityEffect* effect, float opacity)

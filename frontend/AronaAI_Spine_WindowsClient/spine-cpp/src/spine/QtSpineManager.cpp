@@ -15,32 +15,22 @@
 
 QtSpineManager::QtSpineManager(QWidget* parent) : QOpenGLWidget(parent)
 {
-    // ´°¿Ú¿Ø¼ş
-    this->setAttribute(Qt::WA_TranslucentBackground);	// ÉèÖÃ´°¿Ú±³¾°Í¸Ã÷
-    //this->setAttribute(Qt::WA_TransparentForMouseEvents, true); // ÉèÖÃÊó±ê´©Í¸µã»÷
-    this->setWindowFlag(Qt::FramelessWindowHint);	// ÉèÖÃÎŞ±ß¿ò´°¿Ú
-    this->setWindowFlag(Qt::WindowStaysOnTopHint);	// ÉèÖÃ´°¿ÚÊ¼ÖÕÔÚ¶¥²¿
-    //this->setWindowFlag(Qt::Tool);	// Òş²ØÓ¦ÓÃ³ÌĞòÍ¼±ê
-	//this->setWindowOpacity(0.5);    // ÉèÖÃ´°¿Ú°ëÍ¸Ã÷£¨0.0ÍêÈ«Í¸Ã÷£¬1.0ÍêÈ«²»Í¸Ã÷£©
-	this->setAutoFillBackground(false);   // ½ûÓÃ×Ô¶¯Ìî³ä±³¾°£¬È·±£paintGLµÄ±³¾°ÑÕÉ«ÉúĞ§
-    this->resize(220, 290); // ÉèÖÃ´°¿Ú´óĞ¡
+    // çª—å£æ§ä»¶
+    this->setAttribute(Qt::WA_TranslucentBackground);	// è®¾ç½®çª—å£èƒŒæ™¯é€æ˜
+    //this->setAttribute(Qt::WA_TransparentForMouseEvents, true); // è®¾ç½®é¼ æ ‡ç©¿é€ç‚¹å‡»
+    this->setWindowFlag(Qt::FramelessWindowHint);	// è®¾ç½®æ— è¾¹æ¡†çª—å£
+    this->setWindowFlag(Qt::WindowStaysOnTopHint);	// è®¾ç½®çª—å£å§‹ç»ˆåœ¨é¡¶éƒ¨
+    //this->setWindowFlag(Qt::ToolTip);	// éšè—åº”ç”¨ç¨‹åºå›¾æ ‡
+	//this->setWindowOpacity(0.5);    // è®¾ç½®çª—å£åŠé€æ˜ï¼ˆ0.0å®Œå…¨é€æ˜ï¼Œ1.0å®Œå…¨ä¸é€æ˜ï¼‰
+	this->setAutoFillBackground(false);   // ç¦ç”¨è‡ªåŠ¨å¡«å……èƒŒæ™¯ï¼Œç¡®ä¿paintGLçš„èƒŒæ™¯é¢œè‰²ç”Ÿæ•ˆ
+    this->resize(220, 290); // è®¾ç½®çª—å£å¤§å°
 
-    // Æô¶¯ÊÂ¼ş¹ıÂËÆ÷
+    // å¯åŠ¨äº‹ä»¶è¿‡æ»¤å™¨
     this->installEventFilter(this);
 
-    //// ÒÆ¶¯´°¿Ú
-    //// »ñÈ¡Ö÷ÆÁÄ»
-    //QScreen* screen = QApplication::primaryScreen();
-    //QRect screenRect = screen->availableGeometry();
-    //// ¼ÆËã×óÏÂ½ÇÎ»ÖÃ
-    //int x = screenRect.left();
-    //int y = screenRect.bottom() - this->height() + 50;
-    //// ÒÆ¶¯´°¿Ú
-    //this->move(x, y);
-
-    // ¶¯»­¼ÆÊ±Æ÷
+    // åŠ¨ç”»è®¡æ—¶å™¨
     connect(&m_timer, &QTimer::timeout, this, &QtSpineManager::updateAnimation);
-    m_timer.start(16);
+    m_timer.start((int)(1000 / GET_INT_FROM_JSON(_global_config, "settings", "frame_rate")));
 
 }
 
@@ -68,14 +58,14 @@ void QtSpineManager::initializeGL()
     initializeOpenGLFunctions();
 
     //glClearColor(0.69f, 0.88f, 0.90f, 0.0f);
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);  // ÍêÈ«Í¸Ã÷ºÚÉ«
-    // ÆôÓÃ»ìºÏ£¬Ê¹ÓÃÕıÈ·µÄ»ìºÏº¯Êı
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);  // å®Œå…¨é€æ˜é»‘è‰²
+    // å¯ç”¨æ··åˆï¼Œä½¿ç”¨æ­£ç¡®çš„æ··åˆå‡½æ•°
     glEnable(GL_BLEND);
     glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
     glDisable(GL_DEPTH_TEST);
 
-    // ´´½¨×ÅÉ«Æ÷³ÌĞò
+    // åˆ›å»ºç€è‰²å™¨ç¨‹åº
     m_program = new QOpenGLShaderProgram();
 
     const char* vertexShaderSource =
@@ -101,15 +91,15 @@ void QtSpineManager::initializeGL()
         "void main() {\n"
         "    vec4 texColor = texture(u_texture, v_texCoord);\n"
         "    \n"
-        "    // ¹Ø¼ü²½Öè£º»¹Ô­Ô¤³ËµÄRGBÖµ\n"
+        "    // å…³é”®æ­¥éª¤ï¼šè¿˜åŸé¢„ä¹˜çš„RGBå€¼\n"
         "    if (texColor.a > 0.0) {\n"
         "        texColor.rgb /= texColor.a;\n"
         "    }\n"
         "    \n"
-        "    // ÔÙ³ËÒÔ¶¥µãÑÕÉ«\n"
+        "    // å†ä¹˜ä»¥é¡¶ç‚¹é¢œè‰²\n"
         "    fragColor = texColor * v_color;\n"
         "    \n"
-        "    // ¶ªÆú¼¸ºõÍ¸Ã÷µÄÏñËØ\n"
+        "    // ä¸¢å¼ƒå‡ ä¹é€æ˜çš„åƒç´ \n"
         "    if (fragColor.a < 0.01) discard;\n"
         "}\n";
 
@@ -120,16 +110,16 @@ void QtSpineManager::initializeGL()
     m_u_matrixLoc = m_program->uniformLocation("u_matrix");
     m_u_textureLoc = m_program->uniformLocation("u_texture");
 
-    // ´´½¨VBO
+    // åˆ›å»ºVBO
     m_vbo = new QOpenGLBuffer(QOpenGLBuffer::VertexBuffer);
     m_vbo->create();
     m_vbo->setUsagePattern(QOpenGLBuffer::DynamicDraw);
 
-    // ´´½¨VAO
+    // åˆ›å»ºVAO
     m_vao = new QOpenGLVertexArrayObject();
     m_vao->create();
 
-    qDebug() << "[Spine Operation]OpenGL initialized successfully";
+    qDebug().noquote() << "à´¦àµà´¦à´¿Ë¶Ëƒ áµ• Ë‚ )âœ§ [Spine Operation]OpenGL initialized successfully";
 }
 
 void QtSpineManager::paintGL()
@@ -140,20 +130,20 @@ void QtSpineManager::paintGL()
         return;
     }
 
-    // ÉèÖÃÍ¶Ó°¾ØÕó - ÒÆ³ıÊÓÍ¼±ä»»£¬ÈÃ¹Ç÷ÀÔÚÔ­Ê¼Î»ÖÃ
+    // è®¾ç½®æŠ•å½±çŸ©é˜µ - ç§»é™¤è§†å›¾å˜æ¢ï¼Œè®©éª¨éª¼åœ¨åŸå§‹ä½ç½®
     QMatrix4x4 projection;
     int w = width();
     int h = height();
 
-    // Ê¹ÓÃÕı½»Í¶Ó°£¬YÖáÏòÏÂÒÔÆ¥ÅäÆÁÄ»×ø±ê
+    // ä½¿ç”¨æ­£äº¤æŠ•å½±ï¼ŒYè½´å‘ä¸‹ä»¥åŒ¹é…å±å¹•åæ ‡
     projection.ortho(0, w, h, 0, -1, 1);
 
-    // ´´½¨ÊÓÍ¼¾ØÕó£¬ÓÃÓÚÒÆ¶¯Õû¸öSpine¶¯»­
+    // åˆ›å»ºè§†å›¾çŸ©é˜µï¼Œç”¨äºç§»åŠ¨æ•´ä¸ªSpineåŠ¨ç”»
     QMatrix4x4 transform;
     transform.translate(110.0f, 270.0f);
     transform.scale(0.2f, -0.2f);
 
-    // ×éºÏ¾ØÕó£º×îÖÕÎ»ÖÃ = Í¶Ó° * ÊÓÍ¼
+    // ç»„åˆçŸ©é˜µï¼šæœ€ç»ˆä½ç½® = æŠ•å½± * è§†å›¾
     QMatrix4x4 matrix = projection * transform;
 
     m_program->bind();
@@ -162,7 +152,7 @@ void QtSpineManager::paintGL()
 
     m_batches.clear();
 
-    // ÊÕ¼¯ËùÓĞ¶¥µãÊı¾İ
+    // æ”¶é›†æ‰€æœ‰é¡¶ç‚¹æ•°æ®
     spine::Vector<spine::Slot*>& slots_rev = m_skeleton->getSlots();
     for (size_t i = 0; i < slots_rev.size(); ++i) {
         spine::Slot* slot = slots_rev[i];
@@ -183,7 +173,7 @@ void QtSpineManager::paintGL()
         }
     }
 
-    // äÖÈ¾ËùÓĞÅú´Î
+    // æ¸²æŸ“æ‰€æœ‰æ‰¹æ¬¡
     flushBatches();
 
     m_program->release();
@@ -200,7 +190,7 @@ void QtSpineManager::updateAnimation()
         return;
     }
 
-    // Ê¹ÓÃQElapsedTimer¼ÆËãÊ±¼ä²î
+    // ä½¿ç”¨QElapsedTimerè®¡ç®—æ—¶é—´å·®
     float now = m_elapsedTimer.elapsed() / 1000.0f;
     if (m_lastTime == 0.0f) {
         m_lastTime = now;
@@ -211,16 +201,16 @@ void QtSpineManager::updateAnimation()
     float deltaTime = now - m_lastTime;
     m_lastTime = now;
 
-    // ÏŞÖÆ×î´ódeltaTime£¬±ÜÃâ¿¨¶ÙÊ±ÌøÔ¾Ì«´ó
+    // é™åˆ¶æœ€å¤§deltaTimeï¼Œé¿å…å¡é¡¿æ—¶è·³è·ƒå¤ªå¤§
     if (deltaTime > 0.1f) deltaTime = 0.1f;
-    if (deltaTime < 0.001f) return; // Ê±¼ä²îÌ«Ğ¡¾Í²»¸üĞÂ
+    if (deltaTime < 0.001f) return; // æ—¶é—´å·®å¤ªå°å°±ä¸æ›´æ–°
 
-    // ¸üĞÂ¶¯»­
+    // æ›´æ–°åŠ¨ç”»
     m_animationState->update(deltaTime);
     m_animationState->apply(*m_skeleton);
     m_skeleton->updateWorldTransform(spine::Physics_Update);
 
-    // ÇëÇóÖØ»æ
+    // è¯·æ±‚é‡ç»˜
     update();
 }
 
@@ -230,15 +220,15 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
     m_atlas = new spine::Atlas(atlasPath.toStdString().c_str(), m_textureLoader);
 
     if (!m_atlas) {
-        qCritical() << "Failed to load atlas:" << atlasPath;
+        qCritical() << "à«®â‚ Ë¶â€¢â€¸â€¢Ë¶â‚áƒ Failed to load atlas:" << atlasPath;
         return;
     }
 
-    // ÉèÖÃÍ¼¼¯µÄPMA±êÖ¾£¨Í¨³£SpineÍ¼¼¯Ê¹ÓÃÔ¤³ËAlpha£©
+    // è®¾ç½®å›¾é›†çš„PMAæ ‡å¿—ï¼ˆé€šå¸¸Spineå›¾é›†ä½¿ç”¨é¢„ä¹˜Alphaï¼‰
     for (int i = 0; i < m_atlas->getPages().size(); i++) {
         spine::AtlasPage* page = m_atlas->getPages()[i];
         if (page) {
-            // Í¨³£Spineµ¼³öµÄÍ¼¼¯Ê¹ÓÃÔ¤³ËAlpha
+            // é€šå¸¸Spineå¯¼å‡ºçš„å›¾é›†ä½¿ç”¨é¢„ä¹˜Alpha
             page->pma = true;
         }
     }
@@ -257,24 +247,24 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
     }
 
     if (!m_skeletonData) {
-        qCritical() << "Failed to load skeleton data:" << skelOrJsonPath;
+        qCritical() << "à«®â‚ Ë¶â€¢â€¸â€¢Ë¶â‚áƒ Failed to load skeleton data:" << skelOrJsonPath;
         return;
     }
 
     m_skeleton = new spine::Skeleton(m_skeletonData);
     m_animationStateData = new spine::AnimationStateData(m_skeletonData);
-    // ÉèÖÃÄ¬ÈÏ»ìºÏÊ±¼ä
+    // è®¾ç½®é»˜è®¤æ··åˆæ—¶é—´
     m_animationStateData->setDefaultMix(0.2f);
     m_animationState = new spine::AnimationState(m_animationStateData);
     m_skeleton->setToSetupPose();
 
-    qDebug() << "[Spine Operation]Spine file loaded successfully!";
+    qDebug() << "à´¦àµà´¦à´¿Ë¶Ëƒ áµ• Ë‚ )âœ§ [Spine Operation]Spine file loaded successfully!";
 }
 
 void QtSpineManager::setAnimation(const QString& name, int track_idx, bool loop)
 {
     if (!m_animationState || !m_skeletonData) {
-        qDebug() << "[Spine Operation]Animation state not ready";
+        qWarning() << "à«®â‚ Ë¶â€¢â€¸â€¢Ë¶â‚áƒ [Spine Operation]Animation state not ready";
         return;
     }
 
@@ -282,10 +272,10 @@ void QtSpineManager::setAnimation(const QString& name, int track_idx, bool loop)
     if (anim) {
         m_animationState->setAnimation(track_idx, anim, loop);
         m_lastTime = 0;
-        qDebug() << "[Spine Operation]Set animation:" << name;
+        qDebug() << "à´¦àµà´¦à´¿Ë¶Ëƒ áµ• Ë‚ )âœ§ [Spine Operation]Set animation:" << name;
     }
     else {
-        qDebug() << "[Spine Operation]Animation not found:" << name;
+        qWarning() << "à«®â‚ Ë¶â€¢â€¸â€¢Ë¶â‚áƒ [Spine Operation]Animation not found:" << name;
     }
 }
 
@@ -307,19 +297,19 @@ void QtSpineManager::collectMeshAttachmentVertices(spine::MeshAttachment* attach
     spine::Vector<float>& uvs = attachment->getUVs();
     if (uvs.size() < static_cast<size_t>(numVertices)) return;
 
-    // »ñÈ¡¸½¼şµÄÑÕÉ«
+    // è·å–é™„ä»¶çš„é¢œè‰²
     spine::Color attachmentColor = attachment->getColor();
 
-    // ¼ÆËã×îÖÕÑÕÉ«
+    // è®¡ç®—æœ€ç»ˆé¢œè‰²
     float finalR = slotColor.r * attachmentColor.r;
     float finalG = slotColor.g * attachmentColor.g;
     float finalB = slotColor.b * attachmentColor.b;
     float finalA = slotColor.a * attachmentColor.a;
 
-    // Èç¹ûÍ¸Ã÷¶ÈÎª0£¬Ìø¹ıäÖÈ¾
+    // å¦‚æœé€æ˜åº¦ä¸º0ï¼Œè·³è¿‡æ¸²æŸ“
     if (finalA <= 0.0f) return;
 
-    // ²éÕÒ»ò´´½¨Åú´Î
+    // æŸ¥æ‰¾æˆ–åˆ›å»ºæ‰¹æ¬¡
     TextureBatch* batch = nullptr;
     for (auto& b : m_batches) {
         if (b.textureId == textureId) {
@@ -335,14 +325,14 @@ void QtSpineManager::collectMeshAttachmentVertices(spine::MeshAttachment* attach
         batch = &m_batches.last();
     }
 
-    // ¼ÆËãÊÀ½ç×ø±ê
+    // è®¡ç®—ä¸–ç•Œåæ ‡
     std::vector<float> worldVertices(numVertices);
     attachment->computeWorldVertices(*slot, 0, numVertices, worldVertices.data(), 0, 2);
 
     int vertexCount = numVertices / 2;
     int triangleCount = triangles.size() / 3;
 
-    // ´¦ÀíÈı½ÇĞÎ
+    // å¤„ç†ä¸‰è§’å½¢
     for (int i = 0; i < triangleCount; ++i) {
         int baseIdx = i * 3;
         if (baseIdx + 2 >= (int)triangles.size()) break;
@@ -353,7 +343,7 @@ void QtSpineManager::collectMeshAttachmentVertices(spine::MeshAttachment* attach
 
         if (idx1 >= vertexCount || idx2 >= vertexCount || idx3 >= vertexCount) continue;
 
-        // ´¦ÀíÈı¸ö¶¥µã
+        // å¤„ç†ä¸‰ä¸ªé¡¶ç‚¹
         int indices[3] = { idx1, idx2, idx3 };
         for (int j = 0; j < 3; ++j) {
             int idx = indices[j];
@@ -368,7 +358,7 @@ void QtSpineManager::collectMeshAttachmentVertices(spine::MeshAttachment* attach
             vertex.u = uvs[uvIdx];
             vertex.v = uvs[uvIdx + 1];
 
-            // Ê¹ÓÃ¼ÆËãºÃµÄÑÕÉ«
+            // ä½¿ç”¨è®¡ç®—å¥½çš„é¢œè‰²
             vertex.r = finalR;
             vertex.g = finalG;
             vertex.b = finalB;
@@ -398,16 +388,16 @@ void QtSpineManager::collectRegionAttachmentVertices(spine::RegionAttachment* at
         }
     }
 
-    // »ñÈ¡¸½¼şÑÕÉ«
+    // è·å–é™„ä»¶é¢œè‰²
     spine::Color attachmentColor = attachment->getColor();
 
-    // ¼ÆËã×îÖÕÑÕÉ«
+    // è®¡ç®—æœ€ç»ˆé¢œè‰²
     float finalR = slotColor.r * attachmentColor.r;
     float finalG = slotColor.g * attachmentColor.g;
     float finalB = slotColor.b * attachmentColor.b;
     float finalA = slotColor.a * attachmentColor.a;
 
-    // Èç¹ûÍ¸Ã÷¶ÈÎª0£¬Ìø¹ıäÖÈ¾
+    // å¦‚æœé€æ˜åº¦ä¸º0ï¼Œè·³è¿‡æ¸²æŸ“
     if (finalA <= 0.0f) return;
 
     TextureBatch* batch = nullptr;
@@ -425,12 +415,12 @@ void QtSpineManager::collectRegionAttachmentVertices(spine::RegionAttachment* at
         batch = &m_batches.last();
     }
 
-    // Èı½ÇĞÎ1
+    // ä¸‰è§’å½¢1
     batch->vertices.append({ worldVertices[0], worldVertices[1], uvs[0], uvs[1], finalR, finalG, finalB, finalA });
     batch->vertices.append({ worldVertices[2], worldVertices[3], uvs[2], uvs[3], finalR, finalG, finalB, finalA });
     batch->vertices.append({ worldVertices[4], worldVertices[5], uvs[4], uvs[5], finalR, finalG, finalB, finalA });
 
-    // Èı½ÇĞÎ2
+    // ä¸‰è§’å½¢2
     batch->vertices.append({ worldVertices[2], worldVertices[3], uvs[2], uvs[3], finalR, finalG, finalB, finalA });
     batch->vertices.append({ worldVertices[6], worldVertices[7], uvs[6], uvs[7], finalR, finalG, finalB, finalA });
     batch->vertices.append({ worldVertices[4], worldVertices[5], uvs[4], uvs[5], finalR, finalG, finalB, finalA });
@@ -443,18 +433,18 @@ void QtSpineManager::flushBatches()
     m_vbo->bind();
     m_vao->bind();
 
-    // ÉèÖÃ¶¥µãÊôĞÔÖ¸Õë
+    // è®¾ç½®é¡¶ç‚¹å±æ€§æŒ‡é’ˆ
     size_t vertexSize = sizeof(SpineVertex);
 
-    // Î»ÖÃÊôĞÔ (2 floats)
+    // ä½ç½®å±æ€§ (2 floats)
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)offsetof(SpineVertex, x));
     glEnableVertexAttribArray(0);
 
-    // ÎÆÀí×ø±êÊôĞÔ (2 floats)
+    // çº¹ç†åæ ‡å±æ€§ (2 floats)
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)offsetof(SpineVertex, u));
     glEnableVertexAttribArray(1);
 
-    // ÑÕÉ«ÊôĞÔ (4 floats)
+    // é¢œè‰²å±æ€§ (4 floats)
     glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, vertexSize, (void*)offsetof(SpineVertex, r));
     glEnableVertexAttribArray(2);
 
@@ -469,7 +459,7 @@ void QtSpineManager::flushBatches()
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, batch.textureId);
 
-        // ÉèÖÃÎÆÀí²ÎÊı
+        // è®¾ç½®çº¹ç†å‚æ•°
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -482,7 +472,7 @@ void QtSpineManager::flushBatches()
 
         GLenum error = glGetError();
         if (error != GL_NO_ERROR) {
-            qDebug() << "[Spine Operation]OpenGL error:" << error;
+            qWarning() << "à«®â‚ Ë¶â€¢â€¸â€¢Ë¶â‚áƒ [Spine Operation]OpenGL error:" << error;
         }
     }
 
@@ -495,15 +485,15 @@ GLuint QtSpineManager::getTextureId(spine::RegionAttachment* attachment)
 {
     if (!attachment) return 0;
 
-    // RegionAttachment¿ÉÒÔÍ¨¹ıgetRegion()»ñÈ¡TextureRegion
+    // RegionAttachmentå¯ä»¥é€šè¿‡getRegion()è·å–TextureRegion
     spine::TextureRegion* region = attachment->getRegion();
     if (!region) return 0;
 
-    // ´ÓTextureRegion»ñÈ¡AtlasRegion
+    // ä»TextureRegionè·å–AtlasRegion
     spine::AtlasRegion* atlasRegion = static_cast<spine::AtlasRegion*>(region);
     if (!atlasRegion || !atlasRegion->page) return 0;
 
-    // Ö±½Ó´Ópage.texture»ñÈ¡ÎÆÀíIDÖ¸Õë
+    // ç›´æ¥ä»page.textureè·å–çº¹ç†IDæŒ‡é’ˆ
     GLuint* textureIdPtr = static_cast<GLuint*>(atlasRegion->page->texture);
     if (!textureIdPtr) return 0;
 
@@ -514,7 +504,7 @@ GLuint QtSpineManager::getTextureId(spine::MeshAttachment* attachment)
 {
     if (!attachment) return 0;
 
-    // MeshAttachmentÒ²ÓĞgetRegion()·½·¨
+    // MeshAttachmentä¹Ÿæœ‰getRegion()æ–¹æ³•
     spine::TextureRegion* region = attachment->getRegion();
     if (!region) return 0;
 

@@ -33,9 +33,18 @@
     <Filter Include="QtUtils">
       <UniqueIdentifier>{d02dbd0a-6b6a-4453-803a-7a35818691e4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Config">
+      <UniqueIdentifier>{47025724-8e99-4c42-88bf-87aba7576761}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Dict">
+      <UniqueIdentifier>{351be407-b2c2-464a-af96-967f92e6631a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <QtUic Include="QtMainFile\MainWidget.ui">
+      <Filter>Form Files</Filter>
+    </QtUic>
+    <QtUic Include="QtMainFile\SettingsWidget.ui">
       <Filter>Form Files</Filter>
     </QtUic>
   </ItemGroup>
@@ -45,6 +54,12 @@
     </QtMoc>
     <QtMoc Include="spine-cpp\include\spine\QtSpineManager.h">
       <Filter>Spine\Include</Filter>
+    </QtMoc>
+    <QtMoc Include="QtMainFile\SettingsWidget.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="QtMainFile\SystemTray.h">
+      <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
   <ItemGroup>
@@ -274,6 +289,18 @@
     </ClCompile>
     <ClCompile Include="QtUtils\OpacityAnimation.cpp">
       <Filter>QtUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="QtUtils\JsonOperation.cpp">
+      <Filter>QtUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="QtMainFile\GlobalVariables.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="QtMainFile\SettingsWidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="QtMainFile\SystemTray.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -562,5 +589,25 @@
     <ClInclude Include="QtUtils\OpacityAnimation.h">
       <Filter>QtUtils</Filter>
     </ClInclude>
+    <ClInclude Include="QtUtils\JsonOperation.h">
+      <Filter>QtUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="QtMainFile\GlobalVariables.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="QtUtils\Defines.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="QtUtils\GlobalInclude.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Config\config.json">
+      <Filter>Config</Filter>
+    </None>
+    <None Include="Dict\dict_zh.json">
+      <Filter>Dict</Filter>
+    </None>
   </ItemGroup>
 </Project>

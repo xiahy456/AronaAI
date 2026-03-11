@@ -2,12 +2,16 @@
 
 #include "ui_MainWidget.h"
 
+#include <GlobalInclude.h>
+
 #include <QtWidgets/QWidget>
 #include <QVBoxLayout>
 #include <QGraphicsOpacityEffect>
 #include <QPropertyAnimation>
 
 #include <spine/QtSpineManager.h>
+
+#include <OpacityAnimation.h>
 
 class MainWidget : public QWidget
 {
@@ -41,7 +45,7 @@ private:
     bool m_dragging;
     QPoint m_dragPosition;
 
-    // 不透明度属性
-    QGraphicsOpacityEffect* m_opacityEffect_textBox = nullptr;
+    // 不透明度动画属性
+	OpacityAnimation* m_opacityAnimation_aronaOutputTextBox = nullptr;   // 文本框不透明度动画
 
 };

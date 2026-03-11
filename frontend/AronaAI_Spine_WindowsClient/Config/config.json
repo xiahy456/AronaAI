@@ -1,0 +1,11 @@
+{
+  "settings": {
+    "frame_rate": 60,
+    "dict_path": "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Dict/dict_zh.json",
+    "icon_path": "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/Icon.png"
+  },
+  "spine": {
+    "skelOrJson_path": "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/AronaSpineAssets/arona_spr.json",
+    "atlas_path": "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/AronaSpineAssets/Arona01.atlas"
+  }
+}

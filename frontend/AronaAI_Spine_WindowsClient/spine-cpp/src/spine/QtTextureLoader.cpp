@@ -4,43 +4,43 @@ void QtTextureLoader::load(spine::AtlasPage& page, const spine::String& path) {
     std::string pathStr(path.buffer());
     QString qImgPath = QString::fromStdString(pathStr);
 
-    // Ê¹ÓÃQImage¼ÓÔØÍ¼Æ¬
+    // ä½¿ç”¨QImageåŠ è½½å›¾ç‰‡
     QImage image;
     if (!image.load(qImgPath)) {
-        qDebug() << "[Spine Operation] Texture Load Failed! Texture£º" << qImgPath;
+        qDebug() << "à«®â‚ Ë¶â€¢â€¸â€¢Ë¶â‚áƒ [Spine Operation] Texture Load Failed! Textureï¼š" << qImgPath;
         return;
     }
 
-    qDebug() << "[Spine Operation] Original image format:" << image.format()
+    qDebug() << "à´¦àµà´¦à´¿Ë¶Ëƒ áµ• Ë‚ )âœ§ [Spine Operation] Original image format:" << image.format()
         << "Size:" << image.width() << "x" << image.height()
         << "Has Alpha:" << image.hasAlphaChannel();
 
-    // È·±£Í¼Æ¬ÊÇRGBA¸ñÊ½
+    // ç¡®ä¿å›¾ç‰‡æ˜¯RGBAæ ¼å¼
     if (image.format() != QImage::Format_RGBA8888) {
         image = image.convertToFormat(QImage::Format_RGBA8888);
     }
 
-    // ´´½¨OpenGLÎÆÀí
+    // åˆ›å»ºOpenGLçº¹ç†
     QOpenGLTexture* glTexture = new QOpenGLTexture(image.mirrored());
     glTexture->setMinificationFilter(QOpenGLTexture::Linear);
     glTexture->setMagnificationFilter(QOpenGLTexture::Linear);
     glTexture->setWrapMode(QOpenGLTexture::ClampToEdge);
 
-    // »ñÈ¡ÎÆÀíID
+    // è·å–çº¹ç†ID
     GLuint textureId = glTexture->textureId();
 
-    // ´æ´¢ÎÆÀíIDµ½page.texture
+    // å­˜å‚¨çº¹ç†IDåˆ°page.texture
     GLuint* textureIdPtr = new GLuint(textureId);
     page.texture = textureIdPtr;
 
-    // Í¬Ê±Ò²´æ´¢QOpenGLTextureÖ¸ÕëÒÔ±ãÕıÈ·ÊÍ·Å
+    // åŒæ—¶ä¹Ÿå­˜å‚¨QOpenGLTextureæŒ‡é’ˆä»¥ä¾¿æ­£ç¡®é‡Šæ”¾
     m_textureMap[textureId] = glTexture;
 
-    // ÉèÖÃ´óÍ¼µÄÊµ¼ÊÏñËØ¿í¸ß
+    // è®¾ç½®å¤§å›¾çš„å®é™…åƒç´ å®½é«˜
     page.width = image.width();
     page.height = image.height();
 
-    qDebug() << "[Spine Operation] Texture Load Succeed! "
+    qDebug() << "à´¦àµà´¦à´¿Ë¶Ëƒ áµ• Ë‚ )âœ§ [Spine Operation] Texture Load Succeed! "
         << " Path: " << qImgPath
         << "| Size: " << page.width << "x" << page.height
         << "| Texture ID: " << textureId;
@@ -51,15 +51,15 @@ void QtTextureLoader::unload(void* texture) {
     if (textureIdPtr) {
         GLuint textureId = *textureIdPtr;
 
-        // ²éÕÒ²¢É¾³ıQOpenGLTexture¶ÔÏó
+        // æŸ¥æ‰¾å¹¶åˆ é™¤QOpenGLTextureå¯¹è±¡
         auto it = m_textureMap.find(textureId);
         if (it != m_textureMap.end()) {
-            delete it->second;  // QOpenGLTextureÎö¹¹º¯Êı»á×Ô¶¯µ÷ÓÃglDeleteTextures
+            delete it->second;  // QOpenGLTextureææ„å‡½æ•°ä¼šè‡ªåŠ¨è°ƒç”¨glDeleteTextures
             m_textureMap.erase(it);
         }
 
-        // É¾³ıÎÆÀíIDÖ¸Õë
+        // åˆ é™¤çº¹ç†IDæŒ‡é’ˆ
         delete textureIdPtr;
     }
-    qDebug() << "[Spine Operation] Texture Unload Succeed! ";
+    qDebug() << "à´¦àµà´¦à´¿Ë¶Ëƒ áµ• Ë‚ )âœ§ [Spine Operation] Texture Unload Succeed! ";
 }
