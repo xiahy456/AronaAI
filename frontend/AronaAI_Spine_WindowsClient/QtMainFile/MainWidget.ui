@@ -37,8 +37,9 @@
    </property>
    <property name="styleSheet">
     <string notr="true">#aronaOutputTextBox {
-	background-color: rgb(255, 255, 255);
-	border: 1px solid rgb(191, 191, 191);
+	border-image: url('D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/TextBox.png');
+	background-position: center;
+	border: 1 px solid rgb(191, 191, 191);
 	border-radius: 10px;
 }</string>
    </property>

@@ -4,6 +4,8 @@ MainWidget::MainWidget(QWidget *parent)
     : QWidget(parent)
 {
     qDebug() << "ദ്ദി˶˃ ᵕ ˂ )✧ [Qt Operation]Loading MainWidget...";  // 调试信息
+
+	// 加载UI界面
     ui.setupUi(this);
 
     // 100ms时间等待OpenGL初始化，然后加载spine文件并设置初始动画
@@ -14,6 +16,9 @@ MainWidget::MainWidget(QWidget *parent)
             );
         ui.qtSpineManagerWidget->setAnimation("Idle_01", 0, true);
         });
+
+    // 初始化相关控件
+    m_opacityAnimation_aronaOutputTextBox = new OpacityAnimation(ui.aronaOutputTextBox, 0.0, 250, QEasingCurve::Linear); // 默认气泡文本不透明度为0
 
     // 窗口设置
     this->setAttribute(Qt::WA_TranslucentBackground);	// 设置窗口背景透明
@@ -33,14 +38,15 @@ MainWidget::MainWidget(QWidget *parent)
     // 移动窗口
     this->move(x, y);
 
-    // 初始化相关控件
-	m_opacityAnimation_aronaOutputTextBox = new OpacityAnimation(ui.aronaOutputTextBox, 0.0, 250, QEasingCurve::Linear); // 默认气泡文本不透明度为0，后续根据需要显示
-
     // 界面控件设置
 
-	// 测试代码：3秒后显示气泡文本，5秒后隐藏气泡文本
-    QTimer::singleShot(5000, [this]() { showOutputText("Hello, I'm Arona!"); });
-	QTimer::singleShot(8000, [this]() { hideOutputText(); });
+    // 初始动画启动
+    // 2秒后显示气泡文本
+    QTimer::singleShot(2000, [this]() { showOutputText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "connected_to_os_operator")); });
+    // 4秒后隐藏气泡文本
+    QTimer::singleShot(5000, [this]() { hideOutputText(); });
+
+    //debug_showText();
 }
 
 MainWidget::~MainWidget()
@@ -66,6 +72,14 @@ void MainWidget::setWidgetOpacity(QWidget* widget, QGraphicsOpacityEffect* effec
 	if (!widget) return;
     effect->setOpacity(opacity);
     widget->setGraphicsEffect(effect);
+}
+
+void MainWidget::debug_showText()
+{
+    // 3秒后显示气泡文本
+    QTimer::singleShot(3000, [this]() { showOutputText(GET_STRING_FROM_JSON(_global_dict, "debug", "hello_im_arona")); });
+    // 5秒后隐藏气泡文本
+    QTimer::singleShot(5000, [this]() { hideOutputText(); });
 }
 
 void MainWidget::mousePressEvent(QMouseEvent* event)

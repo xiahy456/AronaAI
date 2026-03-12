@@ -61,6 +61,12 @@
     <QtMoc Include="QtMainFile\SystemTray.h">
       <Filter>Header Files</Filter>
     </QtMoc>
+    <QtMoc Include="QtMainFile\TTSManager.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="MainController.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="QtMainFile\MainWidget.qrc">
@@ -300,6 +306,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="QtMainFile\SystemTray.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="QtMainFile\TTSManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MainController.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,11 +1,18 @@
 {
+  "debug": {
+    "hello_im_arona": "你好，我是阿罗娜！"
+  },
   "application_data": {
     "application_name": "阿罗娜AI",
     "main_widget_name": "阿罗娜AI-主界面",
+    "settings_widget_name": "阿罗娜AI-设置界面",
     "system_tray": "系统托盘",
     "system_tray_not_support": "您的系统不支持系统托盘",
     "showOrHide_main_widget": "显示/隐藏主界面",
     "showOrHide_settings_widget": "显示/隐藏设置界面",
     "quit": "退出"
+  },
+  "formed_text": {
+    "connected_to_os_operator": "已连接至系统管理员阿罗娜\n欢迎回来，老师"
   }
 }

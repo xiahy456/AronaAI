@@ -1,6 +1,8 @@
 ﻿#include "MainWidget.h"
 #include "SettingsWidget.h"
 #include "SystemTray.h"
+#include "MainController.h"
+#include "TTSManager.h"
 
 #include <QtWidgets/QApplication>
 #include <QDebug>
@@ -51,6 +53,7 @@ int main(int argc, char *argv[])
     app.setApplicationVersion("0.0.1"); // 设置版本
     app.setWindowIcon(QIcon(GET_STRING_FROM_JSON(_global_config, "settings", "icon_path")));    // 设置图标
 	app.setQuitOnLastWindowClosed(false);   // 设置关闭最后一个窗口时不退出应用程序
+    qputenv("QT_FRAME_RATE_OVERRIDE", QByteArray::number(GET_INT_FROM_JSON(_global_config, "settings", "frame_rate")));    // 设置全局帧率
 
 	// 创建主界面对象并显示
     MainWidget mainWidget;
@@ -58,6 +61,12 @@ int main(int argc, char *argv[])
 
     // 创建设置界面对象
     SettingsWidget settingsWidget;
+
+    // 创建TTS功能对象
+	TTSManager ttsManager;
+
+    // 创建总控制对象
+	MainController mainController(mainWidget, ttsManager);
 
     // 创建托盘菜单类
     SystemTray systemTray(mainWidget, settingsWidget);

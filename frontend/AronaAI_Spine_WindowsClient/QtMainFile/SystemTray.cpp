@@ -2,9 +2,7 @@
 
 SystemTray::SystemTray(QWidget& mainWidget, QWidget& settingsWidget) :
 	m_mainWidget(mainWidget),
-	m_settingsWidget(settingsWidget),
-    m_mainWidgetIsVisible(true),
-	m_settingsWidgetIsVisible(false)
+	m_settingsWidget(settingsWidget)
 {
     // 检查系统是否支持托盘图标
     if (!QSystemTrayIcon::isSystemTrayAvailable()) {
@@ -32,7 +30,7 @@ SystemTray::SystemTray(QWidget& mainWidget, QWidget& settingsWidget) :
 
     // 创建托盘图标
     m_trayIcon = new QSystemTrayIcon(this);
-    m_trayIcon->setIcon(QIcon(GET_STRING_FROM_JSON(_global_config, "settings", "icon_path"))); // 请替换为你的图标资源路径
+    m_trayIcon->setIcon(QIcon(GET_STRING_FROM_JSON(_global_config, "settings", "icon_path")));  // 请替换为你的图标资源路径
     m_trayIcon->setToolTip(GET_STRING_FROM_JSON(_global_dict, "application_data", "application_name")); // 鼠标悬停时的提示
 
     // 将菜单设置给托盘图标（右键菜单）
@@ -49,24 +47,12 @@ SystemTray::~SystemTray()
 
 void SystemTray::showOrHideMainWidget()
 {
-    if (m_mainWidgetIsVisible) {
-		m_mainWidget.hide();
-		m_mainWidgetIsVisible = false;
-    }
-    else {
-		m_mainWidget.show();
-		m_mainWidgetIsVisible = true;
-    }
+    if (m_mainWidget.isVisible()) m_mainWidget.hide();
+    else m_mainWidget.show();
 }
 
 void SystemTray::showOrHideSettingsWidget()
 {
-	if (m_settingsWidgetIsVisible) {
-        m_settingsWidget.hide();
-        m_settingsWidgetIsVisible = false;
-    }
-    else {
-        m_settingsWidget.show();
-        m_settingsWidgetIsVisible = true;
-    }
+	if (m_settingsWidget.isVisible()) m_settingsWidget.hide();
+    else m_settingsWidget.show();
 }

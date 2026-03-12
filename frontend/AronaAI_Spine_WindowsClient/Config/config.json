@@ -7,5 +7,11 @@
   "spine": {
     "skelOrJson_path": "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/AronaSpineAssets/arona_spr.json",
     "atlas_path": "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/AronaSpineAssets/Arona01.atlas"
+  },
+  "tts": {
+    "host": "127.0.0.1",
+    "port": 9880,
+    "gpt_path": "GPT_weights_v2/ALuoNa_cn-e15.ckpt",
+    "sovits_path": "SoVITS_weights_v2/ALuoNa_cn_e16_s256.pth"
   }
 }

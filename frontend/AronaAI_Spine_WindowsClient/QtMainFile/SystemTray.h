@@ -29,13 +29,11 @@ public:
 private:
 	QWidget& m_mainWidget;	// mainWidget主界面对象的引用
 	QWidget& m_settingsWidget;	// settingsWidget设置界面对象的引用
-	bool m_mainWidgetIsVisible = true;	// 主界面是否可见的标志
-	bool m_settingsWidgetIsVisible = false;	// 设置界面是否可见的标志
-	QSystemTrayIcon* m_trayIcon;	// 系统托盘图标对象
-	QMenu* m_trayIconMenu;	// 托盘图标关联的菜单
-	QAction* m_operateMainWidget_showOrHide;	// 显示/隐藏主界面
-	QAction* m_operateSettingsWidget_showOrHide;	// 显示/隐藏设置界面
-	QAction* m_quitAction;	// 退出动作
+	QSystemTrayIcon* m_trayIcon = nullptr;	// 系统托盘图标对象
+	QMenu* m_trayIconMenu = nullptr;	// 托盘图标关联的菜单
+	QAction* m_operateMainWidget_showOrHide = nullptr;	// 显示/隐藏主界面
+	QAction* m_operateSettingsWidget_showOrHide = nullptr;	// 显示/隐藏设置界面
+	QAction* m_quitAction = nullptr;	// 退出动作
 };
 
 #endif // !SYSTEMTRAY_H

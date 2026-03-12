@@ -21,11 +21,13 @@
     <QtRcc Include="QtMainFile\MainWidget.qrc" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="MainController.cpp" />
     <ClCompile Include="QtMainFile\GlobalVariables.cpp" />
     <ClCompile Include="QtMainFile\main.cpp" />
     <ClCompile Include="QtMainFile\MainWidget.cpp" />
     <ClCompile Include="QtMainFile\SettingsWidget.cpp" />
     <ClCompile Include="QtMainFile\SystemTray.cpp" />
+    <ClCompile Include="QtMainFile\TTSManager.cpp" />
     <ClCompile Include="QtUtils\JsonOperation.cpp" />
     <ClCompile Include="QtUtils\OpacityAnimation.cpp" />
     <ClCompile Include="spine-cpp\src\spine\Animation.cpp" />
@@ -101,9 +103,11 @@
     <ClCompile Include="spine-cpp\src\spine\VertexAttachment.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <QtMoc Include="MainController.h" />
     <ClInclude Include="QtMainFile\GlobalVariables.h" />
     <QtMoc Include="QtMainFile\SettingsWidget.h" />
     <QtMoc Include="QtMainFile\SystemTray.h" />
+    <QtMoc Include="QtMainFile\TTSManager.h" />
     <ClInclude Include="QtUtils\Defines.h" />
     <ClInclude Include="QtUtils\GlobalInclude.h" />
     <ClInclude Include="QtUtils\JsonOperation.h" />
@@ -235,12 +239,12 @@
   </ImportGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="QtSettings">
     <QtInstall>6.5.3_msvc2019_64</QtInstall>
-    <QtModules>concurrent;core;gui;network;opengl;openglwidgets;widgets</QtModules>
+    <QtModules>core;gui;network;widgets;concurrent;opengl;openglwidgets;multimedia;multimediawidgets;websockets</QtModules>
     <QtBuildConfig>debug</QtBuildConfig>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'" Label="QtSettings">
     <QtInstall>6.5.3_msvc2019_64</QtInstall>
-    <QtModules>concurrent;core;gui;network;opengl;openglwidgets;widgets</QtModules>
+    <QtModules>core;gui;network;widgets;concurrent;opengl;openglwidgets;multimedia;multimediawidgets;websockets</QtModules>
     <QtBuildConfig>release</QtBuildConfig>
   </PropertyGroup>
   <Target Name="QtMsBuildNotFound" BeforeTargets="CustomBuild;ClCompile" Condition="!Exists('$(QtMsBuild)\qt.targets') or !Exists('$(QtMsBuild)\qt.props')">

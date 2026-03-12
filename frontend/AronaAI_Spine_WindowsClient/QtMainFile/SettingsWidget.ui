@@ -6,12 +6,18 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>600</width>
+    <width>640</width>
     <height>400</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>SettingsWidget</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QWidget {
+	background-image: url('&quot;D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/Settings_BG.jpg&quot;');
+	background-position: center;
+}</string>
   </property>
  </widget>
  <layoutdefault spacing="6" margin="11"/>

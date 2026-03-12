@@ -33,6 +33,9 @@ public:
         float startValue, float endValue, int duration,
         QEasingCurve easingCurve);
 
+    // Debug-ÏÔÊ¾ÎÄ±¾
+	void debug_showText();
+
 protected:
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
