@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
     SettingsWidget settingsWidget;
 
     // 创建TTS功能对象
-	TTSManager ttsManager;
+	TTSManager* ttsManager = new TTSManager;
 
     // 创建总控制对象
 	MainController mainController(mainWidget, ttsManager);

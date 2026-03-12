@@ -10,34 +10,12 @@ TTSManager::TTSManager(QObject* parent)
     , currentReply(nullptr)
     , audioSink(nullptr)
     , audioBuffer(nullptr)
+    , isProcessingRequest(false)
+    , isStreamingMode(false)
 {
     // 设置服务器地址
     setServerAddress(GET_STRING_FROM_JSON(_global_config, "tts", "host"), GET_INT_FROM_JSON(_global_config, "tts", "port"));
     qDebug().noquote() << FINE_PR << "[TTS Operation]Set server : Host: " << serverHost << " | Port: " << serverPort;
-
-	// 初始化TTSRequestParams
-    ttsRequestParams.text = "";  // 要合成的文本
-    ttsRequestParams.textLang = "zh";    // 文本语言
-    ttsRequestParams.refAudioPath = "";  // 参考音频路径
-    ttsRequestParams.auxRefAudioPaths;   // 辅助参考音频路径
-    ttsRequestParams.promptText = "";    // 提示文本
-    ttsRequestParams.promptLang = "zh";  // 提示文本语言
-    ttsRequestParams.topK = 5;   // top k采样
-    ttsRequestParams.topP = 1.0;  // top p采样
-    ttsRequestParams.temperature = 1.0;   // 温度参数
-    ttsRequestParams.textSplitMethod = "cut0";   // 文本分割方法
-    ttsRequestParams.batchSize = 1;  // 批处理大小
-    ttsRequestParams.batchThreshold = 0.75;   // 批处理阈值
-    ttsRequestParams.splitBucket = true;    // 是否分割桶
-    ttsRequestParams.speedFactor = 1.0;   // 语速因子
-    ttsRequestParams.fragmentInterval = 0.3;  // 片段间隔
-    ttsRequestParams.seed = -1;  // 随机种子
-    ttsRequestParams.streamingMode = false; // 流式模式
-    ttsRequestParams.parallelInfer = true;  // 并行推理
-    ttsRequestParams.repetitionPenalty = 1.35;    // 重复惩罚
-    ttsRequestParams.sampleSteps = 32;   // 采样步数
-    ttsRequestParams.superSampling = false; // 超采样
-    ttsRequestParams.mediaType = "wav";  // 媒体类型
 
 	// 连接网络请求完成的信号到槽函数
     connect(networkManager, &QNetworkAccessManager::finished,
@@ -47,10 +25,9 @@ TTSManager::TTSManager(QObject* parent)
 
 TTSManager::~TTSManager()
 {
-    if (currentReply) {
-        currentReply->abort();
-        currentReply->deleteLater();
-    }
+    cleanupCurrentReply();
+    requestQueue.clear();  // 清空请求队列
+
     if (audioSink) {
         audioSink->stop();
         delete audioSink;
@@ -64,6 +41,19 @@ void TTSManager::setServerAddress(const QString& host, int port)
 {
     serverHost = host;
     serverPort = port;
+}
+
+void TTSManager::cleanupCurrentReply()
+{
+    if (currentReply) {
+        // 断开所有连接
+        currentReply->disconnect();
+        currentReply->abort();
+        currentReply->deleteLater();
+        currentReply = nullptr;
+    }
+    accumulatedAudioData.clear();
+    isStreamingMode = false;
 }
 
 QUrl TTSManager::buildBaseUrl() const
@@ -115,13 +105,13 @@ QJsonObject TTSManager::buildJsonFromParams(const TTSRequestParams& params) cons
     json["text_lang"] = params.textLang;
     json["ref_audio_path"] = params.refAudioPath;
 
+    QJsonArray auxPaths;
     if (!params.auxRefAudioPaths.isEmpty()) {
-        QJsonArray auxPaths;
         for (const QString& path : params.auxRefAudioPaths) {
             auxPaths.append(path);
         }
-        json["aux_ref_audio_paths"] = auxPaths;
     }
+    json["aux_ref_audio_paths"] = auxPaths;
 
     json["prompt_lang"] = params.promptLang;
     json["prompt_text"] = params.promptText;
@@ -142,163 +132,68 @@ QJsonObject TTSManager::buildJsonFromParams(const TTSRequestParams& params) cons
     json["sample_steps"] = params.sampleSteps;
     json["super_sampling"] = params.superSampling;
 
+	// 调试：输出构建的JSON对象
+	QJsonDocument jsonDoc(json);
+    qDebug().noquote() << jsonDoc.toJson(QJsonDocument::Indented);
+
     return json;
 }
 
 void TTSManager::requestTTSGet(const TTSRequestParams& params)
 {
-    QUrl url = buildBaseUrl();
-    url.setPath("/tts");
-    url.setQuery(buildQueryFromParams(params));
-
-    QNetworkRequest request(url);
-    currentMediaType = params.mediaType;
-
-    if (currentReply) {
-        currentReply->abort();
-        currentReply->deleteLater();
-    }
-
-    currentReply = networkManager->get(request);
-
-    if (params.streamingMode) {
-        connect(currentReply, &QNetworkReply::readyRead,
-            this, &TTSManager::onStreamReadyRead);
-        connect(currentReply, &QNetworkReply::finished,
-            this, &TTSManager::onStreamFinished);
-    }
-
-    accumulatedAudioData.clear();
+    requestQueue.enqueue(QueuedRequest(QueuedRequest::TTSGet, params));
+    processNextRequest();
 }
 
 void TTSManager::requestTTSPost(const TTSRequestParams& params)
 {
-    QUrl url = buildBaseUrl();
-    url.setPath("/tts");
-
-    QNetworkRequest request(url);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-    QJsonObject json = buildJsonFromParams(params);
-    QJsonDocument doc(json);
-    QByteArray data = doc.toJson();
-
-    currentMediaType = params.mediaType;
-
-    if (currentReply) {
-        currentReply->abort();
-        currentReply->deleteLater();
-    }
-
-    currentReply = networkManager->post(request, data);
-
-    if (params.streamingMode) {
-        connect(currentReply, &QNetworkReply::readyRead,
-            this, &TTSManager::onStreamReadyRead);
-        connect(currentReply, &QNetworkReply::finished,
-            this, &TTSManager::onStreamFinished);
-    }
-
-    accumulatedAudioData.clear();
+    requestQueue.enqueue(QueuedRequest(QueuedRequest::TTSPost, params));
+    processNextRequest();
 }
 
 void TTSManager::sendControlCommand(const QString& command)
 {
-    QUrl url = buildBaseUrl();
-    url.setPath("/control");
-
-    QUrlQuery query;
-    query.addQueryItem("command", command);
-    url.setQuery(query);
-
-    QNetworkRequest request(url);
-    QNetworkReply* reply = networkManager->get(request);
-
-    connect(reply, &QNetworkReply::finished, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
-            emit commandFinished(true, "Command executed successfully");
-        }
-        else {
-            emit commandFinished(false, reply->errorString());
-        }
-        reply->deleteLater();
-        });
+    requestQueue.enqueue(QueuedRequest(QueuedRequest::ControlCommand, command));
+    processNextRequest();
 }
 
 void TTSManager::setGPTWeights(const QString& weightsPath)
 {
-    QUrl url = buildBaseUrl();
-    url.setPath("/set_gpt_weights");
-
-    QUrlQuery query;
-    query.addQueryItem("weights_path", weightsPath);
-    url.setQuery(query);
-
-    QNetworkRequest request(url);
-    QNetworkReply* reply = networkManager->get(request);
-
-    connect(reply, &QNetworkReply::finished, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
-            QByteArray data = reply->readAll();
-            if (data.contains("success")) {
-                emit modelSwitched(true, "GPT model switched successfully");
-            }
-            else {
-                emit modelSwitched(false, QString::fromUtf8(data));
-            }
-        }
-        else {
-            emit modelSwitched(false, reply->errorString());
-        }
-        reply->deleteLater();
-        });
+    requestQueue.enqueue(QueuedRequest(QueuedRequest::SetGPTWeights, weightsPath, true));
+    processNextRequest();
 }
 
 void TTSManager::setSovitsWeights(const QString& weightsPath)
 {
-    QUrl url = buildBaseUrl();
-    url.setPath("/set_sovits_weights");
-
-    QUrlQuery query;
-    query.addQueryItem("weights_path", weightsPath);
-    url.setQuery(query);
-
-    QNetworkRequest request(url);
-    QNetworkReply* reply = networkManager->get(request);
-
-    connect(reply, &QNetworkReply::finished, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
-            QByteArray data = reply->readAll();
-            if (data.contains("success")) {
-                emit modelSwitched(true, "Sovits model switched successfully");
-            }
-            else {
-                emit modelSwitched(false, QString::fromUtf8(data));
-            }
-        }
-        else {
-            emit modelSwitched(false, reply->errorString());
-        }
-        reply->deleteLater();
-        });
+    requestQueue.enqueue(QueuedRequest(QueuedRequest::SetSovitsWeights, weightsPath, true));
+    processNextRequest();
 }
 
 void TTSManager::onNetworkReplyFinished()
 {
     QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
-    if (!reply) return;
-
-    reply->deleteLater();
-
-    if (reply->error() != QNetworkReply::NoError) {
-        emit ttsError(reply->errorString());
+    if (!reply || reply != currentReply) {
+        // 如果不是当前请求的回复，忽略并清理
+        if (reply) {
+            reply->deleteLater();
+        }
         return;
     }
 
-    // 检查是否是TTS请求
-    if (reply->url().path() == "/tts") {
-        handleTTSResponse(reply);
+    if (reply->error() != QNetworkReply::NoError) {
+        emit ttsError(reply->errorString());
     }
+    else {
+        // 检查是否是TTS请求
+        if (reply->url().path() == "/tts") {
+            handleTTSResponse(reply);
+        }
+    }
+
+    // 清理当前回复并处理下一个请求
+    cleanupCurrentReply();
+    isProcessingRequest = false;
+    processNextRequest();
 }
 
 void TTSManager::onStreamReadyRead()
@@ -314,10 +209,17 @@ void TTSManager::onStreamReadyRead()
 
 void TTSManager::onStreamFinished()
 {
+    if (!currentReply) return;
+
     if (!accumulatedAudioData.isEmpty()) {
         emit ttsFinished(accumulatedAudioData, currentMediaType);
     }
     accumulatedAudioData.clear();
+
+    // 清理当前回复并处理下一个请求
+    cleanupCurrentReply();
+    isProcessingRequest = false;
+    processNextRequest();
 }
 
 void TTSManager::handleTTSResponse(QNetworkReply* reply)
@@ -361,14 +263,14 @@ void TTSManager::playAudio(const QByteArray& audioData)
 
     // 创建音频格式
     QAudioFormat format;
-    format.setSampleRate(24000); // 根据实际音频采样率调整
+    format.setSampleRate(32000); // 根据实际音频采样率调整
     format.setChannelCount(1);
     format.setSampleFormat(QAudioFormat::Int16);
 
     // 检查设备是否支持该格式
     QAudioDevice audioDevice = QMediaDevices::defaultAudioOutput();
     if (!audioDevice.isFormatSupported(format)) {
-        qWarning() << "Default format not supported, trying to use preferred format";
+        qWarning() << ERROR_PR << "Default format not supported, trying to use preferred format";
         format = audioDevice.preferredFormat();
     }
 
@@ -397,4 +299,261 @@ bool TTSManager::saveAudioToFile(const QByteArray& audioData, const QString& fil
         return true;
     }
     return false;
+}
+
+double TTSManager::getWavDuration(const QByteArray& audioData)
+{
+    // WAV文件头结构
+    struct WavHeader {
+        // RIFF头
+        char riffId[4];        // "RIFF"
+        quint32 riffSize;       // 文件大小-8
+        char waveId[4];         // "WAVE"
+
+        // fmt块
+        char fmtId[4];          // "fmt "
+        quint32 fmtSize;        // fmt块大小
+        quint16 audioFormat;     // 音频格式 (1 = PCM)
+        quint16 numChannels;     // 声道数
+        quint32 sampleRate;      // 采样率
+        quint32 byteRate;        // 字节率 = sampleRate * numChannels * bitsPerSample/8
+        quint16 blockAlign;      // 块对齐 = numChannels * bitsPerSample/8
+        quint16 bitsPerSample;   // 位深度
+    };
+
+    if (audioData.size() < sizeof(WavHeader)) {
+        qWarning() << "WAV数据太小，无法读取头部";
+        return -1;
+    }
+
+    // 将数据复制到头结构
+    WavHeader header;
+    memcpy(&header, audioData.constData(), sizeof(WavHeader));
+
+    // 验证是否为有效的WAV文件
+    if (memcmp(header.riffId, "RIFF", 4) != 0 ||
+        memcmp(header.waveId, "WAVE", 4) != 0 ||
+        memcmp(header.fmtId, "fmt ", 4) != 0) {
+        qWarning() << "无效的WAV文件格式";
+        return -1;
+    }
+
+    // 查找data块
+    int offset = sizeof(WavHeader);
+    while (offset < audioData.size() - 8) {
+        char chunkId[4];
+        quint32 chunkSize;
+
+        memcpy(chunkId, audioData.constData() + offset, 4);
+        memcpy(&chunkSize, audioData.constData() + offset + 4, 4);
+
+        if (memcmp(chunkId, "data", 4) == 0) {
+            // 找到data块
+            quint32 dataSize = chunkSize;
+
+            // 计算时长：数据大小 / (采样率 * 声道数 * 位深度/8)
+            double duration = static_cast<double>(dataSize) /
+                (header.sampleRate * header.numChannels * (header.bitsPerSample / 8.0));
+
+            qDebug() << "WAV信息:"
+                << "采样率:" << header.sampleRate
+                << "声道数:" << header.numChannels
+                << "位深度:" << header.bitsPerSample
+                << "数据大小:" << dataSize
+                << "时长:" << duration << "秒";
+
+            return duration;
+        }
+
+        offset += 8 + chunkSize;
+    }
+
+    qWarning() << "未找到data块";
+    return -1;
+}
+
+void TTSManager::processNextRequest()
+{
+    // 如果正在处理请求或队列为空，则返回
+    if (isProcessingRequest || requestQueue.isEmpty()) {
+        return;
+    }
+
+    isProcessingRequest = true;
+    QueuedRequest request = requestQueue.dequeue();
+
+    switch (request.type) {
+    case QueuedRequest::TTSGet:
+        executeTTSGet(request.params);
+        break;
+    case QueuedRequest::TTSPost:
+        executeTTSPost(request.params);
+        break;
+    case QueuedRequest::ControlCommand:
+        executeControlCommand(request.command);
+        break;
+    case QueuedRequest::SetGPTWeights:
+        executeSetGPTWeights(request.weightsPath);
+        break;
+    case QueuedRequest::SetSovitsWeights:
+        executeSetSovitsWeights(request.weightsPath);
+        break;
+    }
+}
+
+void TTSManager::executeTTSGet(const TTSRequestParams& params)
+{
+    QUrl url = buildBaseUrl();
+    url.setPath("/tts");
+    url.setQuery(buildQueryFromParams(params));
+
+    QNetworkRequest request(url);
+    currentMediaType = params.mediaType;
+    isStreamingMode = params.streamingMode;
+
+    cleanupCurrentReply();
+    currentReply = networkManager->get(request);
+
+    if (params.streamingMode) {
+        connect(currentReply, &QNetworkReply::readyRead,
+            this, &TTSManager::onStreamReadyRead);
+        connect(currentReply, &QNetworkReply::finished,
+            this, &TTSManager::onStreamFinished);
+    }
+    else {
+        // 非流式模式，使用原有的finished信号
+        connect(currentReply, &QNetworkReply::finished,
+            this, &TTSManager::onNetworkReplyFinished);
+    }
+
+    accumulatedAudioData.clear();
+}
+
+void TTSManager::executeTTSPost(const TTSRequestParams& params)
+{
+    QUrl url = buildBaseUrl();
+    url.setPath("/tts");
+
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QJsonObject json = buildJsonFromParams(params);
+    QJsonDocument doc(json);
+    QByteArray data = doc.toJson();
+
+    currentMediaType = params.mediaType;
+    isStreamingMode = params.streamingMode;
+
+    cleanupCurrentReply();
+    currentReply = networkManager->post(request, data);
+
+    if (params.streamingMode) {
+        connect(currentReply, &QNetworkReply::readyRead,
+            this, &TTSManager::onStreamReadyRead);
+        connect(currentReply, &QNetworkReply::finished,
+            this, &TTSManager::onStreamFinished);
+    }
+    else {
+        // 非流式模式，使用原有的finished信号
+        connect(currentReply, &QNetworkReply::finished,
+            this, &TTSManager::onNetworkReplyFinished);
+    }
+
+    accumulatedAudioData.clear();
+}
+
+void TTSManager::executeControlCommand(const QString& command)
+{
+    QUrl url = buildBaseUrl();
+    url.setPath("/control");
+
+    QUrlQuery query;
+    query.addQueryItem("command", command);
+    url.setQuery(query);
+
+    QNetworkRequest request(url);
+    cleanupCurrentReply();
+    currentReply = networkManager->get(request);
+
+    connect(currentReply, &QNetworkReply::finished, [this]() {
+        if (currentReply->error() == QNetworkReply::NoError) {
+            emit commandFinished(true, "Command executed successfully");
+        }
+        else {
+            emit commandFinished(false, currentReply->errorString());
+        }
+
+        // 清理并处理下一个请求
+        cleanupCurrentReply();
+        isProcessingRequest = false;
+        processNextRequest();
+        });
+}
+
+void TTSManager::executeSetGPTWeights(const QString& weightsPath)
+{
+    QUrl url = buildBaseUrl();
+    url.setPath("/set_gpt_weights");
+
+    QUrlQuery query;
+    query.addQueryItem("weights_path", weightsPath);
+    url.setQuery(query);
+
+    QNetworkRequest request(url);
+    cleanupCurrentReply();
+    currentReply = networkManager->get(request);
+
+    connect(currentReply, &QNetworkReply::finished, [this]() {
+        if (currentReply->error() == QNetworkReply::NoError) {
+            QByteArray data = currentReply->readAll();
+            if (data.contains("success")) {
+                emit modelSwitched(true, "GPT model switched successfully");
+            }
+            else {
+                emit modelSwitched(false, QString::fromUtf8(data));
+            }
+        }
+        else {
+            emit modelSwitched(false, currentReply->errorString());
+        }
+
+        // 清理并处理下一个请求
+        cleanupCurrentReply();
+        isProcessingRequest = false;
+        processNextRequest();
+        });
+}
+
+void TTSManager::executeSetSovitsWeights(const QString& weightsPath)
+{
+    QUrl url = buildBaseUrl();
+    url.setPath("/set_sovits_weights");
+
+    QUrlQuery query;
+    query.addQueryItem("weights_path", weightsPath);
+    url.setQuery(query);
+
+    QNetworkRequest request(url);
+    cleanupCurrentReply();
+    currentReply = networkManager->get(request);
+
+    connect(currentReply, &QNetworkReply::finished, [this]() {
+        if (currentReply->error() == QNetworkReply::NoError) {
+            QByteArray data = currentReply->readAll();
+            if (data.contains("success")) {
+                emit modelSwitched(true, "Sovits model switched successfully");
+            }
+            else {
+                emit modelSwitched(false, QString::fromUtf8(data));
+            }
+        }
+        else {
+            emit modelSwitched(false, currentReply->errorString());
+        }
+
+        // 清理并处理下一个请求
+        cleanupCurrentReply();
+        isProcessingRequest = false;
+        processNextRequest();
+        });
 }

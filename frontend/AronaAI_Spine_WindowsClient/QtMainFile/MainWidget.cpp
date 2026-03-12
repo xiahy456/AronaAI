@@ -14,7 +14,9 @@ MainWidget::MainWidget(QWidget *parent)
             GET_STRING_FROM_JSON(_global_config, "spine", "atlas_path"),
             GET_STRING_FROM_JSON(_global_config, "spine", "skelOrJson_path")
             );
-        ui.qtSpineManagerWidget->setAnimation("Idle_01", 0, true);
+        ui.qtSpineManagerWidget->setAnimation("Idle_01", 0, true);  // 最基层
+        ui.qtSpineManagerWidget->setAnimation("00", 1, true);   // 表情层
+        ui.qtSpineManagerWidget->setAnimation("00", 2, true);   // 语言层
         });
 
     // 初始化相关控件
@@ -40,12 +42,6 @@ MainWidget::MainWidget(QWidget *parent)
 
     // 界面控件设置
 
-    // 初始动画启动
-    // 2秒后显示气泡文本
-    QTimer::singleShot(2000, [this]() { showOutputText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "connected_to_os_operator")); });
-    // 4秒后隐藏气泡文本
-    QTimer::singleShot(5000, [this]() { hideOutputText(); });
-
     //debug_showText();
 }
 
@@ -67,11 +63,9 @@ void MainWidget::hideOutputText()
     m_opacityAnimation_aronaOutputTextBox->startAnimation(0.7, 0.0);
 }
 
-void MainWidget::setWidgetOpacity(QWidget* widget, QGraphicsOpacityEffect* effect, float opacity)
+void MainWidget::setAnimation(const QString& name, int track_idx, bool loop)
 {
-	if (!widget) return;
-    effect->setOpacity(opacity);
-    widget->setGraphicsEffect(effect);
+	ui.qtSpineManagerWidget->setAnimation(name, track_idx, loop);
 }
 
 void MainWidget::debug_showText()
@@ -105,21 +99,4 @@ void MainWidget::mouseReleaseEvent(QMouseEvent* event)
         m_dragging = false;
         event->accept();
     }
-}
-
-void MainWidget::opacityAnimation(QWidget* widget, QGraphicsOpacityEffect* effect,
-    float startValue, float endValue, int duration,
-    QEasingCurve easingCurve)
-{
-    if (!effect) return;
-
-    // 停止可能正在进行的动画
-    effect->setOpacity(startValue);
-
-    QPropertyAnimation* animation = new QPropertyAnimation(effect, "opacity");
-    animation->setDuration(duration);
-    animation->setStartValue(startValue);
-    animation->setEndValue(endValue);
-    animation->setEasingCurve(easingCurve);
-    animation->start(QAbstractAnimation::DeleteWhenStopped);
 }

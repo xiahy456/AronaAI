@@ -19,6 +19,7 @@
 #include <QJsonArray>
 #include <QMediaDevices>
 #include <QAudioSink>
+#include <QQueue>
 
 class TTSManager : public QObject
 {
@@ -78,6 +79,9 @@ public:
     // 保存音频到文件
     bool saveAudioToFile(const QByteArray& audioData, const QString& filePath);
 
+	// 获取音频长度（秒）
+    double getWavDuration(const QByteArray& audioData);
+
 signals:
     // TTS完成信号
     void ttsFinished(const QByteArray& audioData, const QString& mediaType);
@@ -96,7 +100,34 @@ private slots:
     void onStreamFinished();
 
 private:
-	TTSRequestParams ttsRequestParams;
+    struct QueuedRequest {
+        enum RequestType {
+            TTSGet,
+            TTSPost,
+            ControlCommand,
+            SetGPTWeights,
+            SetSovitsWeights
+        };
+
+        RequestType type;
+        TTSRequestParams params;  // 用于TTS请求
+        QString command;          // 用于控制命令
+        QString weightsPath;      // 用于模型切换
+
+        // 构造函数
+        QueuedRequest(RequestType t, const TTSRequestParams& p)
+            : type(t), params(p) {
+        }
+        QueuedRequest(RequestType t, const QString& cmd)
+            : type(t), command(cmd) {
+        }
+        QueuedRequest(RequestType t, const QString& path, bool isModelWeight)
+            : type(t), weightsPath(path) {
+        }
+    };
+
+    QQueue<QueuedRequest> requestQueue;
+
     QNetworkAccessManager* networkManager;
     QString serverHost;
     int serverPort;
@@ -108,6 +139,16 @@ private:
     QAudioSink* audioSink;
     QBuffer* audioBuffer;
 
+    bool isProcessingRequest;
+    bool isStreamingMode;  // 记录当前请求是否为流式模式
+
+    void processNextRequest();
+    void executeTTSGet(const TTSRequestParams& params);
+    void executeTTSPost(const TTSRequestParams& params);
+    void executeControlCommand(const QString& command);
+    void executeSetGPTWeights(const QString& weightsPath);
+    void executeSetSovitsWeights(const QString& weightsPath);
+    void cleanupCurrentReply();
     QUrl buildBaseUrl() const;
     QUrlQuery buildQueryFromParams(const TTSRequestParams& params) const;
     QJsonObject buildJsonFromParams(const TTSRequestParams& params) const;

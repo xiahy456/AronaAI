@@ -26,12 +26,8 @@ public:
 	void showOutputText(const QString& text);
     // 隐藏输出文本并隐藏气泡
 	void hideOutputText();
-    // 设置控件不透明度
-	void setWidgetOpacity(QWidget* widget, QGraphicsOpacityEffect* effect, float opacity);
-    // 实现不透明度动画
-    void opacityAnimation(QWidget* widget, QGraphicsOpacityEffect* effect,
-        float startValue, float endValue, int duration,
-        QEasingCurve easingCurve);
+    // 设置动画
+	void setAnimation(const QString& name, int track_idx, bool loop);
 
     // Debug-显示文本
 	void debug_showText();
