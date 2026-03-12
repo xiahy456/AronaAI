@@ -58,7 +58,6 @@ int main(int argc, char *argv[])
 
     // 创建设置界面对象
     SettingsWidget settingsWidget;
-    settingsWidget.show();
 
     // 创建托盘菜单类
     SystemTray systemTray(mainWidget, settingsWidget);
