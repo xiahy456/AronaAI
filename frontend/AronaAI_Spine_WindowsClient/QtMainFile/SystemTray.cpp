@@ -1,8 +1,8 @@
 #include <SystemTray.h>
 
-SystemTray::SystemTray(MainWidget& mainWidget, QWidget& settingsWidget) :
-	m_mainWidget(mainWidget),
-	m_settingsWidget(settingsWidget)
+SystemTray::SystemTray(MainWidget* mainWidget, QWidget* settingsWidget)
+    : m_mainWidget(mainWidget)
+	, m_settingsWidget(settingsWidget)
 {
     // 检查系统是否支持托盘图标
     if (!QSystemTrayIcon::isSystemTrayAvailable()) {
@@ -53,22 +53,22 @@ SystemTray::~SystemTray()
 
 void SystemTray::showOrHideMainWidget()
 {
-    if (m_mainWidget.isVisible()) m_mainWidget.hide();
-    else m_mainWidget.show();
+    if (m_mainWidget->isVisible()) m_mainWidget->hide();
+    else m_mainWidget->show();
 }
 
 void SystemTray::showOrHideSettingsWidget()
 {
-	if (m_settingsWidget.isVisible()) m_settingsWidget.hide();
-    else m_settingsWidget.show();
+	if (m_settingsWidget->isVisible()) m_settingsWidget->hide();
+    else m_settingsWidget->show();
 }
 
 void SystemTray::ableEdit()
 {
-    m_mainWidget.setMouseAble(true);
+    m_mainWidget->setMouseAble(true);
 }
 
 void SystemTray::unableEdit()
 {
-    m_mainWidget.setMouseAble(false);
+    m_mainWidget->setMouseAble(false);
 }

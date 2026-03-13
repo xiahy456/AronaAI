@@ -3,6 +3,9 @@
 #include "SystemTray.h"
 #include "MainController.h"
 #include "TTSManager.h"
+#include "AudioRecorder.h"
+#include "SpeechRecognizer.h"
+#include "ShortCutKey.h"
 
 #include <QtWidgets/QApplication>
 #include <QDebug>
@@ -32,7 +35,7 @@ QString getDict() {
 int main(int argc, char *argv[])
 {
 	// 输出启动信息
-	qDebug() << "ദ്ദി˶˃ ᵕ ˂ )✧ [Qt Operation]Starting application...";
+	qDebug().noquote() << FINE_PR << "[Qt Operation]Starting application...";
 
     // 设置OpenGL格式支持透明
     QSurfaceFormat format;
@@ -47,7 +50,7 @@ int main(int argc, char *argv[])
     getConfig();
 
     // 加载字典
-    qDebug() << "ദ്ദി˶˃ ᵕ ˂ )✧ [Qt Operation]Load dictionary succeed! Changing to language: " <<getDict();
+    qDebug().noquote() << FINE_PR << "[Qt Operation]Load dictionary succeed! Changing to language: " <<getDict();
 
     // 设置应用程序信息
 	app.setApplicationName(GET_STRING_FROM_JSON(_global_dict, "application_data", "application_name")); // 设置应用程序名称
@@ -57,22 +60,32 @@ int main(int argc, char *argv[])
     qputenv("QT_FRAME_RATE_OVERRIDE", QByteArray::number(GET_INT_FROM_JSON(_global_config, "settings", "frame_rate")));    // 设置全局帧率
 
 	// 创建主界面对象并显示
-    MainWidget mainWidget;
-    mainWidget.show();
+    MainWidget* mainWidget = new MainWidget;
+    mainWidget->show();
 
     // 创建设置界面对象
-    SettingsWidget settingsWidget;
+    SettingsWidget* settingsWidget = new SettingsWidget;
 
     // 创建TTS功能对象
 	TTSManager* ttsManager = new TTSManager;
 
+    // 创建语音输入对象
+	AudioRecorder* audioRecorder = new AudioRecorder;
+    audioRecorder->setStreamMode(true);
+
+	// 创建语音识别对象
+	SpeechRecognizer* speechRecognizer = new SpeechRecognizer;
+
     // 创建总控制对象
-	MainController mainController(mainWidget, ttsManager);
+	MainController* mainController = new MainController(mainWidget, ttsManager, audioRecorder, speechRecognizer);
+
+	// 创建快捷键对象
+	ShortCutKey* shortCutKey = new ShortCutKey(mainController);
 
     // 创建托盘菜单类
-    SystemTray systemTray(mainWidget, settingsWidget);
+    SystemTray* systemTray = new SystemTray(mainWidget, settingsWidget);
 
     // 开始应用程序循环
-	qDebug().noquote() << "ദ്ദി˶˃ ᵕ ˂ )✧ [Qt Operation]Starting application loop...";
+	qDebug().noquote() << FINE_PR << "[Qt Operation]Starting application loop...";
     return app.exec();
 }

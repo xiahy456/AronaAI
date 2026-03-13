@@ -1,6 +1,8 @@
 #ifndef JSONOPERATION_H
 #define JSONOPERATION_H
 
+#include <Defines.h>
+
 #include <QFile>          // 文件操作
 #include <QJsonDocument>  // JSON文档
 #include <QJsonObject>    // JSON对象

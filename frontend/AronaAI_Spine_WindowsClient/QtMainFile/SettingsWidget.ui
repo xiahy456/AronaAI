@@ -14,10 +14,7 @@
    <string>SettingsWidget</string>
   </property>
   <property name="styleSheet">
-   <string notr="true">QWidget {
-	background-image: url('&quot;D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/Settings_BG.jpg&quot;');
-	background-position: center;
-}</string>
+   <string notr="true"/>
   </property>
  </widget>
  <layoutdefault spacing="6" margin="11"/>

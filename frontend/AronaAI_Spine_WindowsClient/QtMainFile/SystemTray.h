@@ -19,7 +19,7 @@ class SystemTray : public QObject
 
 public:
 	// 构造函数
-	SystemTray(MainWidget& mainWidget, QWidget& settingsWidget);
+	SystemTray(MainWidget* mainWidget, QWidget* settingsWidget);
 	// 析构函数
 	~SystemTray();
 
@@ -33,8 +33,8 @@ public:
 	void unableEdit();
 
 private:
-	MainWidget& m_mainWidget;	// mainWidget主界面对象的引用
-	QWidget& m_settingsWidget;	// settingsWidget设置界面对象的引用
+	MainWidget* m_mainWidget;	// mainWidget主界面对象的引用
+	QWidget* m_settingsWidget;	// settingsWidget设置界面对象的引用
 	QSystemTrayIcon* m_trayIcon = nullptr;	// 系统托盘图标对象
 	QMenu* m_trayIconMenu = nullptr;	// 托盘图标关联的菜单
 

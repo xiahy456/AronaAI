@@ -10,10 +10,10 @@ JsonOperation::JsonOperation(QString file_path)
 	// 打开文件
 	QFile file(file_path);
 	if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-		qWarning() << "૮₍ ˶•‸•˶₎ა [Json Operation]Failed to open file: " << file_path;
+		qWarning().noquote() << ERROR_PR << "[Json Operation]Failed to open file: " << file_path;
 		return;
 	}
-    qDebug() << "ദ്ദി˶˃ ᵕ ˂ )✧ [Json Operation]Open file succeed! Path: " << file_path;
+    qDebug().noquote() << FINE_PR << "[Json Operation]Open file succeed! Path: " << file_path;
 
 	// 读取文件内容，解析为QByteArray对象
 	QByteArray jsonData = file.readAll();
@@ -27,12 +27,12 @@ JsonOperation::JsonOperation(QString file_path)
 
     // 检查解析是否成功
     if (parseError.error != QJsonParseError::NoError) {
-        qWarning() << "૮₍ ˶•‸•˶₎ა [Json Operation]Failed to analsis file:" << parseError.errorString();
-        qWarning() << "૮₍ ˶•‸•˶₎ა [Json Operation]Error at:" << parseError.offset;
+        qWarning().noquote() << ERROR_PR << "[Json Operation]Failed to analsis file:" << parseError.errorString();
+        qWarning().noquote() << ERROR_PR << "[Json Operation]Error at:" << parseError.offset;
         return;
     }
     if (jsonDoc.isNull() || !jsonDoc.isObject()) {
-        qWarning() << "૮₍ ˶•‸•˶₎ა [Json Operation]Invailed json file!";
+        qWarning().noquote() << ERROR_PR << "[Json Operation]Invailed json file!";
         return;
     }
 
@@ -40,7 +40,7 @@ JsonOperation::JsonOperation(QString file_path)
     m_jsonObj = jsonDoc.object();
 
 	// 输出调试信息
-	qDebug() << "ദ്ദി˶˃ ᵕ ˂ )✧ [Json Operation]Successfully opened json file: " << file_path;
+	qDebug().noquote() << FINE_PR << "[Json Operation]Successfully opened json file: " << file_path;
 }
 
 JsonOperation::JsonOperation(QJsonObject jsonObj)
@@ -68,7 +68,7 @@ QString JsonOperation::getString(QString key)
     // 判断是不是字符串并返回
     if (target_pair.isString()) return target_pair.toString();
     else {
-        qWarning() << "૮₍ ˶•‸•˶₎ა [Qt Operation]Failed getting string! Target key: " << key;
+        qWarning().noquote() << ERROR_PR << "[Qt Operation]Failed getting string! Target key: " << key;
         return "";
     }
 }
@@ -101,7 +101,7 @@ JsonOperation JsonOperation::getJson(QString key)
     // 判断是不是Json并返回
     if (target_pair.isObject()) return target_pair.toObject();
     else {
-        qWarning() << "૮₍ ˶•‸•˶₎ა [Qt Operation]Failed getting json object! Target key: " << key;
+        qWarning().noquote() << ERROR_PR << "[Qt Operation]Failed getting json object! Target key: " << key;
         return JsonOperation();
     }
 }

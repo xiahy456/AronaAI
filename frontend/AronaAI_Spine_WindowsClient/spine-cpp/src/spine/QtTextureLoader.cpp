@@ -7,11 +7,11 @@ void QtTextureLoader::load(spine::AtlasPage& page, const spine::String& path) {
     // 使用QImage加载图片
     QImage image;
     if (!image.load(qImgPath)) {
-        qDebug() << "૮₍ ˶•‸•˶₎ა [Spine Operation] Texture Load Failed! Texture：" << qImgPath;
+        qDebug().noquote() << ERROR_PR << "[Spine Operation] Texture Load Failed! Texture：" << qImgPath;
         return;
     }
 
-    qDebug() << "ദ്ദി˶˃ ᵕ ˂ )✧ [Spine Operation] Original image format:" << image.format()
+    qDebug().noquote() << FINE_PR << "[Spine Operation] Original image format:" << image.format()
         << "Size:" << image.width() << "x" << image.height()
         << "Has Alpha:" << image.hasAlphaChannel();
 
@@ -40,7 +40,7 @@ void QtTextureLoader::load(spine::AtlasPage& page, const spine::String& path) {
     page.width = image.width();
     page.height = image.height();
 
-    qDebug() << "ദ്ദി˶˃ ᵕ ˂ )✧ [Spine Operation] Texture Load Succeed! "
+    qDebug().noquote() << FINE_PR << "[Spine Operation] Texture Load Succeed! "
         << " Path: " << qImgPath
         << "| Size: " << page.width << "x" << page.height
         << "| Texture ID: " << textureId;
@@ -61,5 +61,5 @@ void QtTextureLoader::unload(void* texture) {
         // 删除纹理ID指针
         delete textureIdPtr;
     }
-    qDebug() << "ദ്ദി˶˃ ᵕ ˂ )✧ [Spine Operation] Texture Unload Succeed! ";
+    qDebug().noquote() << FINE_PR << "[Spine Operation] Texture Unload Succeed! ";
 }

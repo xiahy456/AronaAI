@@ -119,7 +119,7 @@ void QtSpineManager::initializeGL()
     m_vao = new QOpenGLVertexArrayObject();
     m_vao->create();
 
-    qDebug().noquote() << "ദ്ദി˶˃ ᵕ ˂ )✧ [Spine Operation]OpenGL initialized successfully";
+    qDebug().noquote() << FINE_PR << "[Spine Operation]OpenGL initialized successfully";
 }
 
 void QtSpineManager::paintGL()
@@ -220,7 +220,7 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
     m_atlas = new spine::Atlas(atlasPath.toStdString().c_str(), m_textureLoader);
 
     if (!m_atlas) {
-        qCritical() << "૮₍ ˶•‸•˶₎ა Failed to load atlas:" << atlasPath;
+        qCritical().noquote() << ERROR_PR << "Failed to load atlas:" << atlasPath;
         return;
     }
 
@@ -245,7 +245,7 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
     }
 
     if (!m_skeletonData) {
-        qCritical() << "૮₍ ˶•‸•˶₎ა Failed to load skeleton data:" << skelOrJsonPath;
+        qCritical().noquote() << ERROR_PR << "Failed to load skeleton data:" << skelOrJsonPath;
         return;
     }
 
@@ -256,13 +256,13 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
     m_animationState = new spine::AnimationState(m_animationStateData);
     m_skeleton->setToSetupPose();
 
-    qDebug() << "ദ്ദി˶˃ ᵕ ˂ )✧ [Spine Operation]Spine file loaded successfully!";
+    qDebug().noquote() << FINE_PR << "[Spine Operation]Spine file loaded successfully!";
 }
 
 void QtSpineManager::setAnimation(const QString& name, int track_idx, bool loop)
 {
     if (!m_animationState || !m_skeletonData) {
-        qWarning() << "૮₍ ˶•‸•˶₎ა [Spine Operation]Animation state not ready";
+        qWarning().noquote() << ERROR_PR << "[Spine Operation]Animation state not ready";
         return;
     }
 
@@ -270,10 +270,10 @@ void QtSpineManager::setAnimation(const QString& name, int track_idx, bool loop)
     if (anim) {
         m_animationState->setAnimation(track_idx, anim, loop);
         m_lastTime = 0;
-        qDebug() << "ദ്ദി˶˃ ᵕ ˂ )✧ [Spine Operation]Set animation:" << name;
+        qDebug().noquote() << FINE_PR << "[Spine Operation]Set animation:" << name;
     }
     else {
-        qWarning() << "૮₍ ˶•‸•˶₎ა [Spine Operation]Animation not found:" << name;
+        qWarning().noquote() << ERROR_PR << "[Spine Operation]Animation not found:" << name;
     }
 }
 
@@ -282,7 +282,7 @@ void QtSpineManager::clearAnimation(int track_idx)
     if (!m_animationState) return;
     m_animationState->clearTrack(track_idx);
     m_lastTime = 0;
-	qDebug() << "ദ്ദി˶˃ ᵕ ˂ )✧ [Spine Operation]Cleared animation on track:" << track_idx;
+	qDebug().noquote() << FINE_PR << "[Spine Operation]Cleared animation on track:" << track_idx;
 }
 
 void QtSpineManager::collectMeshAttachmentVertices(spine::MeshAttachment* attachment,
@@ -478,7 +478,7 @@ void QtSpineManager::flushBatches()
 
         GLenum error = glGetError();
         if (error != GL_NO_ERROR) {
-            qWarning() << "૮₍ ˶•‸•˶₎ა [Spine Operation]OpenGL error:" << error;
+            qWarning().noquote() << ERROR_PR << "[Spine Operation]OpenGL error:" << error;
         }
     }
 

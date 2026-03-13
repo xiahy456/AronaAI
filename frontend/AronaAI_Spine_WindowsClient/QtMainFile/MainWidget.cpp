@@ -3,7 +3,7 @@
 MainWidget::MainWidget(QWidget *parent)
     : QWidget(parent)
 {
-    qDebug() << "ദ്ദി˶˃ ᵕ ˂ )✧ [Qt Operation]Loading MainWidget...";  // 调试信息
+    qDebug().noquote() << FINE_PR << "[Qt Operation]Loading MainWidget...";  // 调试信息
 
 	// 加载UI界面
     ui.setupUi(this);
@@ -49,6 +49,9 @@ MainWidget::MainWidget(QWidget *parent)
 	ui.aronaOutputText->move(10 * WIDGET_ZOOM, 10 * WIDGET_ZOOM);
 	ui.qtSpineManagerWidget->resize(220 * WIDGET_ZOOM, 290 * WIDGET_ZOOM);
 	ui.qtSpineManagerWidget->move(65 * WIDGET_ZOOM, 0);
+	QFont font = ui.aronaOutputText->font();
+	font.setPointSize(11 * WIDGET_ZOOM);
+	ui.aronaOutputText->setFont(font);
 
     // 初始化输出
     debug_showText();

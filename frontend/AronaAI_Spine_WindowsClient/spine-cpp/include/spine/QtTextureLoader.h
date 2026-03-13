@@ -1,6 +1,8 @@
 #ifndef SPINE_QTTEXTURELOADER_H
 #define SPINE_QTTEXTURELOADER_H
 
+#include <Defines.h>
+
 #include <spine/TextureLoader.h>
 #include <spine/Atlas.h>
 #include <QOpenGLWidget>

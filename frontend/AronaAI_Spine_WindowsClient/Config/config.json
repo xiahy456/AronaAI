@@ -6,12 +6,12 @@
     "zoom": 1.0,
     "offset_from_screen_bottom": 50,
     "mouse_event_transparent": true,
-    "vosk_lib_path": "D:/Code/projects/Arona/arona-ai/vosk/lib"
+    "qhotkey_path": "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/QHotkey"
   },
   "spine": {
     "skelOrJson_path": "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/AronaSpineAssets/arona_spr.json",
     "atlas_path": "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/AronaSpineAssets/Arona01.atlas",
-    "animation_default_mix": 0.25
+    "animation_default_mix": 2.0
   },
   "tts": {
     "host": "127.0.0.1",
@@ -20,7 +20,7 @@
     "sovits_path": "SoVITS_weights_v2/ALuoNa_cn_e16_s256.pth",
     "text_lang": "zh",
     "ref_audio_path": "ref_audio/Arona/arona_academy_in_2.ogg",
-    "prompt_text": "这里为您准备了各种课程和活动， 请按您喜欢的方式安排日程吧！",
+    "prompt_text": "这里为您准备了各种课程和活动，请按您喜欢的方式安排日程吧！",
     "prompt_lang": "zh",
     "top_k": 15,
     "top_p": 1.0,
@@ -37,5 +37,14 @@
     "repetition_penalty": 1.35,
     "sample_steps": 32,
     "super_sampling": false
+  },
+  "audio_input": {
+    "device" : ""
+  },
+  "vosk": {
+    "model_path": "D:/Code/projects/Arona/arona-ai/vosk/model/vosk-model-small-cn-0.22"
+  },
+  "short_cut_key": {
+    "switch_audio_input": "Ctrl+Alt+V"
   }
 }

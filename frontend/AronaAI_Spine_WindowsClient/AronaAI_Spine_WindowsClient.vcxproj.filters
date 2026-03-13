@@ -42,6 +42,9 @@
     <Filter Include="vosk">
       <UniqueIdentifier>{09edced3-6ab2-49bc-8460-2a8048f17d8c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="QHotkey">
+      <UniqueIdentifier>{b251d4a9-1cc9-40d4-af3f-b83e7eaebce4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <QtUic Include="QtMainFile\MainWidget.ui">
@@ -64,17 +67,26 @@
     <QtMoc Include="QtMainFile\TTSManager.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <QtMoc Include="MainController.h">
-      <Filter>Header Files</Filter>
-    </QtMoc>
     <QtMoc Include="QtMainFile\MainWidget.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <QtMoc Include="AudioRecorder.h">
+    <QtMoc Include="QtUtils\ShortCutKey.h">
       <Filter>QtUtils</Filter>
     </QtMoc>
-    <QtMoc Include="SpeechRecognizer.h">
+    <QtMoc Include="QtUtils\AudioRecorder.h">
       <Filter>QtUtils</Filter>
+    </QtMoc>
+    <QtMoc Include="QtMainFile\MainController.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="QtUtils\SpeechRecognizer.h">
+      <Filter>QtUtils</Filter>
+    </QtMoc>
+    <QtMoc Include="QHotkey\qhotkey.h">
+      <Filter>QHotkey</Filter>
+    </QtMoc>
+    <QtMoc Include="QHotkey\qhotkey_p.h">
+      <Filter>QHotkey</Filter>
     </QtMoc>
   </ItemGroup>
   <ItemGroup>
@@ -320,14 +332,23 @@
     <ClCompile Include="QtMainFile\TTSManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MainController.cpp">
+    <ClCompile Include="QtUtils\ShortCutKey.cpp">
+      <Filter>QtUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="QtUtils\AudioRecorder.cpp">
+      <Filter>QtUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="QtMainFile\MainController.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="AudioRecorder.cpp">
+    <ClCompile Include="QtUtils\SpeechRecognizer.cpp">
       <Filter>QtUtils</Filter>
     </ClCompile>
-    <ClCompile Include="SpeechRecognizer.cpp">
-      <Filter>QtUtils</Filter>
+    <ClCompile Include="QHotkey\qhotkey.cpp">
+      <Filter>QHotkey</Filter>
+    </ClCompile>
+    <ClCompile Include="QHotkey\qhotkey_win.cpp">
+      <Filter>QHotkey</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -21,17 +21,20 @@
     <QtRcc Include="QtMainFile\MainWidget.qrc" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="AudioRecorder.cpp" />
-    <ClCompile Include="MainController.cpp" />
+    <ClCompile Include="QHotkey\qhotkey.cpp" />
+    <ClCompile Include="QHotkey\qhotkey_win.cpp" />
     <ClCompile Include="QtMainFile\GlobalVariables.cpp" />
     <ClCompile Include="QtMainFile\main.cpp" />
+    <ClCompile Include="QtMainFile\MainController.cpp" />
     <ClCompile Include="QtMainFile\MainWidget.cpp" />
     <ClCompile Include="QtMainFile\SettingsWidget.cpp" />
     <ClCompile Include="QtMainFile\SystemTray.cpp" />
     <ClCompile Include="QtMainFile\TTSManager.cpp" />
+    <ClCompile Include="QtUtils\AudioRecorder.cpp" />
     <ClCompile Include="QtUtils\JsonOperation.cpp" />
     <ClCompile Include="QtUtils\OpacityAnimation.cpp" />
-    <ClCompile Include="SpeechRecognizer.cpp" />
+    <ClCompile Include="QtUtils\ShortCutKey.cpp" />
+    <ClCompile Include="QtUtils\SpeechRecognizer.cpp" />
     <ClCompile Include="spine-cpp\src\spine\Animation.cpp" />
     <ClCompile Include="spine-cpp\src\spine\AnimationState.cpp" />
     <ClCompile Include="spine-cpp\src\spine\AnimationStateData.cpp" />
@@ -105,18 +108,21 @@
     <ClCompile Include="spine-cpp\src\spine\VertexAttachment.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <QtMoc Include="MainController.h" />
     <ClInclude Include="..\..\vosk\include\vosk_api.h" />
-    <QtMoc Include="AudioRecorder.h" />
+    <QtMoc Include="QHotkey\qhotkey.h" />
+    <QtMoc Include="QHotkey\qhotkey_p.h" />
     <ClInclude Include="QtMainFile\GlobalVariables.h" />
     <QtMoc Include="QtMainFile\SettingsWidget.h" />
     <QtMoc Include="QtMainFile\SystemTray.h" />
     <QtMoc Include="QtMainFile\TTSManager.h" />
+    <QtMoc Include="QtUtils\AudioRecorder.h" />
+    <QtMoc Include="QtMainFile\MainController.h" />
     <ClInclude Include="QtUtils\Defines.h" />
     <ClInclude Include="QtUtils\GlobalInclude.h" />
     <ClInclude Include="QtUtils\JsonOperation.h" />
     <ClInclude Include="QtUtils\OpacityAnimation.h" />
-    <QtMoc Include="SpeechRecognizer.h" />
+    <QtMoc Include="QtUtils\ShortCutKey.h" />
+    <QtMoc Include="QtUtils\SpeechRecognizer.h" />
     <ClInclude Include="spine-cpp\include\spine\Animation.h" />
     <ClInclude Include="spine-cpp\include\spine\AnimationState.h" />
     <ClInclude Include="spine-cpp\include\spine\AnimationStateData.h" />
@@ -244,12 +250,12 @@
   </ImportGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="QtSettings">
     <QtInstall>6.5.3_msvc2019_64</QtInstall>
-    <QtModules>core;gui;network;widgets;concurrent;opengl;openglwidgets;multimedia;multimediawidgets;websockets</QtModules>
+    <QtModules>core;gui;network;widgets;concurrent;opengl;openglwidgets;multimedia;multimediawidgets;websockets;networkauth</QtModules>
     <QtBuildConfig>debug</QtBuildConfig>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'" Label="QtSettings">
     <QtInstall>6.5.3_msvc2019_64</QtInstall>
-    <QtModules>core;gui;network;widgets;concurrent;opengl;openglwidgets;multimedia;multimediawidgets;websockets</QtModules>
+    <QtModules>core;gui;network;widgets;concurrent;opengl;openglwidgets;multimedia;multimediawidgets;websockets;networkauth</QtModules>
     <QtBuildConfig>release</QtBuildConfig>
   </PropertyGroup>
   <Target Name="QtMsBuildNotFound" BeforeTargets="CustomBuild;ClCompile" Condition="!Exists('$(QtMsBuild)\qt.targets') or !Exists('$(QtMsBuild)\qt.props')">
@@ -274,7 +280,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\vosk\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QHotkey;D:\Code\projects\Arona\arona-ai\vosk\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
@@ -285,7 +291,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\vosk\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QHotkey;D:\Code\projects\Arona\arona-ai\vosk\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>

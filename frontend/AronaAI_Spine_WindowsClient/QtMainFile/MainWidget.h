@@ -8,6 +8,7 @@
 #include <QVBoxLayout>
 #include <QGraphicsOpacityEffect>
 #include <QPropertyAnimation>
+#include <QFont>
 
 #include <spine/QtSpineManager.h>
 
