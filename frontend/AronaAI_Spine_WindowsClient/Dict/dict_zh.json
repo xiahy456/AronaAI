@@ -1,6 +1,7 @@
 {
   "debug": {
-    "hello_im_arona": "你好，我是阿罗娜！"
+    "hello_im_arona": "你好，我是阿罗娜！",
+    "initializing": "【什亭之匣】正在初始化..."
   },
   "application_data": {
     "application_name": "阿罗娜AI",
@@ -10,9 +11,11 @@
     "system_tray_not_support": "您的系统不支持系统托盘",
     "showOrHide_main_widget": "显示/隐藏主界面",
     "showOrHide_settings_widget": "显示/隐藏设置界面",
+    "able_edit": "允许互动",
+    "unable_edit": "禁止互动（穿透点击）",
     "quit": "退出"
   },
   "formed_text": {
-    "connected_to_os_operator": "已连接至系统管理员阿罗娜\n欢迎回来，老师"
+    "connected_to_os_operator": "已连接至系统管理员阿罗娜。欢迎回来，老师。"
   }
 }

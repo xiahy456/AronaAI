@@ -23,7 +23,7 @@ QtSpineManager::QtSpineManager(QWidget* parent) : QOpenGLWidget(parent)
     //this->setWindowFlag(Qt::ToolTip);	// 隐藏应用程序图标
 	//this->setWindowOpacity(0.5);    // 设置窗口半透明（0.0完全透明，1.0完全不透明）
 	this->setAutoFillBackground(false);   // 禁用自动填充背景，确保paintGL的背景颜色生效
-    this->resize(220, 290); // 设置窗口大小
+    this->resize(220 * WIDGET_ZOOM, 290 * WIDGET_ZOOM); // 设置窗口大小
 
     // 启动事件过滤器
     this->installEventFilter(this);
@@ -140,8 +140,8 @@ void QtSpineManager::paintGL()
 
     // 创建视图矩阵，用于移动整个Spine动画
     QMatrix4x4 transform;
-    transform.translate(110.0f, 270.0f);
-    transform.scale(0.2f, -0.2f);
+    transform.translate(110.0f * WIDGET_ZOOM, 270.0f * WIDGET_ZOOM);
+    transform.scale(0.2f * WIDGET_ZOOM, -0.2f * WIDGET_ZOOM);
 
     // 组合矩阵：最终位置 = 投影 * 视图
     QMatrix4x4 matrix = projection * transform;
@@ -237,12 +237,10 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
 
     if (isBinary) {
         spine::SkeletonBinary binary(m_atlas);
-        //binary.setScale(0.3f);
         m_skeletonData = binary.readSkeletonDataFile(skelOrJsonPath.toStdString().c_str());
     }
     else {
         spine::SkeletonJson json(m_atlas);
-        //json.setScale(0.3f);
         m_skeletonData = json.readSkeletonDataFile(skelOrJsonPath.toStdString().c_str());
     }
 
@@ -254,7 +252,7 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
     m_skeleton = new spine::Skeleton(m_skeletonData);
     m_animationStateData = new spine::AnimationStateData(m_skeletonData);
     // 设置默认混合时间
-    m_animationStateData->setDefaultMix(0.2f);
+    m_animationStateData->setDefaultMix(GET_DOUBLE_FROM_JSON(_global_config, "spine", "animation_default_mix"));
     m_animationState = new spine::AnimationState(m_animationStateData);
     m_skeleton->setToSetupPose();
 
@@ -277,6 +275,14 @@ void QtSpineManager::setAnimation(const QString& name, int track_idx, bool loop)
     else {
         qWarning() << "૮₍ ˶•‸•˶₎ა [Spine Operation]Animation not found:" << name;
     }
+}
+
+void QtSpineManager::clearAnimation(int track_idx)
+{
+    if (!m_animationState) return;
+    m_animationState->clearTrack(track_idx);
+    m_lastTime = 0;
+	qDebug() << "ദ്ദി˶˃ ᵕ ˂ )✧ [Spine Operation]Cleared animation on track:" << track_idx;
 }
 
 void QtSpineManager::collectMeshAttachmentVertices(spine::MeshAttachment* attachment,

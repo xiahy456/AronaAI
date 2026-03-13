@@ -13,5 +13,14 @@
 // 获取Json->Json->int
 #define GET_INT_FROM_JSON(global_json, sec_json, trd_int) global_json->getJson(sec_json).getInt(trd_int)
 
+// 获取Json->Json->double
+#define GET_DOUBLE_FROM_JSON(global_json, sec_json, trd_double) global_json->getJson(sec_json).getDouble(trd_double)
+
+// 获取Json->Json->bool
+#define GET_BOOL_FROM_JSON(global_json, sec_json, trd_bool) global_json->getJson(sec_json).getBool(trd_bool)
+
+// 获取全局缩放比例
+#define WIDGET_ZOOM _global_config->getJson("settings").getDouble("zoom")
+
 #endif // !DEFINES_H
 

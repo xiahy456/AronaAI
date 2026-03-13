@@ -58,6 +58,7 @@ public:
 
     void loadSpineFile(const QString& atlasPath, const QString& skelOrJsonPath);
     void setAnimation(const QString& name, int track_idx, bool loop = true);
+	void clearAnimation(int track_idx);
 
 protected:
     void initializeGL() override;

@@ -1,6 +1,6 @@
 #include <SystemTray.h>
 
-SystemTray::SystemTray(QWidget& mainWidget, QWidget& settingsWidget) :
+SystemTray::SystemTray(MainWidget& mainWidget, QWidget& settingsWidget) :
 	m_mainWidget(mainWidget),
 	m_settingsWidget(settingsWidget)
 {
@@ -14,17 +14,23 @@ SystemTray::SystemTray(QWidget& mainWidget, QWidget& settingsWidget) :
     // 创建动作 (Actions)
     m_operateMainWidget_showOrHide = new QAction(GET_STRING_FROM_JSON(_global_dict, "application_data", "showOrHide_main_widget"));
     m_operateSettingsWidget_showOrHide = new QAction(GET_STRING_FROM_JSON(_global_dict, "application_data", "showOrHide_settings_widget"));
+    m_ableEdit = new QAction(GET_STRING_FROM_JSON(_global_dict, "application_data", "able_edit"));
+    m_unableEdit = new QAction(GET_STRING_FROM_JSON(_global_dict, "application_data", "unable_edit"));
     m_quitAction = new QAction(GET_STRING_FROM_JSON(_global_dict, "application_data", "quit"));
 
     // 连接动作的信号到对应的槽函数
     connect(m_operateMainWidget_showOrHide, &QAction::triggered, this, &SystemTray::showOrHideMainWidget);
     connect(m_operateSettingsWidget_showOrHide, &QAction::triggered, this, &SystemTray::showOrHideSettingsWidget);
+    connect(m_ableEdit, &QAction::triggered, this, &SystemTray::ableEdit);
+    connect(m_unableEdit, &QAction::triggered, this, &SystemTray::unableEdit);
     connect(m_quitAction, &QAction::triggered, qApp, &QApplication::quit);
 
     // 创建托盘图标和菜单
     m_trayIconMenu = new QMenu();
     m_trayIconMenu->addAction(m_operateMainWidget_showOrHide);
     m_trayIconMenu->addAction(m_operateSettingsWidget_showOrHide);
+    m_trayIconMenu->addAction(m_ableEdit);
+    m_trayIconMenu->addAction(m_unableEdit);
     m_trayIconMenu->addSeparator(); // 添加分隔线
     m_trayIconMenu->addAction(m_quitAction);
 
@@ -55,4 +61,14 @@ void SystemTray::showOrHideSettingsWidget()
 {
 	if (m_settingsWidget.isVisible()) m_settingsWidget.hide();
     else m_settingsWidget.show();
+}
+
+void SystemTray::ableEdit()
+{
+    m_mainWidget.setMouseAble(true);
+}
+
+void SystemTray::unableEdit()
+{
+    m_mainWidget.setMouseAble(false);
 }

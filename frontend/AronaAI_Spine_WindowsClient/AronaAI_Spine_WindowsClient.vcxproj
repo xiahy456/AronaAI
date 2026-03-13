@@ -21,6 +21,7 @@
     <QtRcc Include="QtMainFile\MainWidget.qrc" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AudioRecorder.cpp" />
     <ClCompile Include="MainController.cpp" />
     <ClCompile Include="QtMainFile\GlobalVariables.cpp" />
     <ClCompile Include="QtMainFile\main.cpp" />
@@ -30,6 +31,7 @@
     <ClCompile Include="QtMainFile\TTSManager.cpp" />
     <ClCompile Include="QtUtils\JsonOperation.cpp" />
     <ClCompile Include="QtUtils\OpacityAnimation.cpp" />
+    <ClCompile Include="SpeechRecognizer.cpp" />
     <ClCompile Include="spine-cpp\src\spine\Animation.cpp" />
     <ClCompile Include="spine-cpp\src\spine\AnimationState.cpp" />
     <ClCompile Include="spine-cpp\src\spine\AnimationStateData.cpp" />
@@ -104,6 +106,8 @@
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="MainController.h" />
+    <ClInclude Include="..\..\vosk\include\vosk_api.h" />
+    <QtMoc Include="AudioRecorder.h" />
     <ClInclude Include="QtMainFile\GlobalVariables.h" />
     <QtMoc Include="QtMainFile\SettingsWidget.h" />
     <QtMoc Include="QtMainFile\SystemTray.h" />
@@ -112,6 +116,7 @@
     <ClInclude Include="QtUtils\GlobalInclude.h" />
     <ClInclude Include="QtUtils\JsonOperation.h" />
     <ClInclude Include="QtUtils\OpacityAnimation.h" />
+    <QtMoc Include="SpeechRecognizer.h" />
     <ClInclude Include="spine-cpp\include\spine\Animation.h" />
     <ClInclude Include="spine-cpp\include\spine\AnimationState.h" />
     <ClInclude Include="spine-cpp\include\spine\AnimationStateData.h" />
@@ -269,20 +274,24 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\vosk\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
+      <AdditionalLibraryDirectories>D:\Code\projects\Arona\arona-ai\vosk\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libvosk.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\vosk\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
+      <AdditionalLibraryDirectories>D:\Code\projects\Arona\arona-ai\vosk\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libvosk.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">

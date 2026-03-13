@@ -75,8 +75,23 @@ QString JsonOperation::getString(QString key)
 
 int JsonOperation::getInt(QString key)
 {
-    QJsonValue target_pair = m_jsonObj[key];
-    return target_pair.toInt();
+    int value = 0;
+    value = m_jsonObj[key].toInt();
+    return value;
+}
+
+double JsonOperation::getDouble(QString key)
+{
+    double value = 0.0;
+    value = m_jsonObj[key].toDouble();
+	return value;
+}
+
+bool JsonOperation::getBool(QString key)
+{
+	bool value = false;
+	value = m_jsonObj[key].toBool();
+	return value;
 }
 
 

@@ -2,11 +2,16 @@
   "settings": {
     "frame_rate": 60,
     "dict_path": "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Dict/dict_zh.json",
-    "icon_path": "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/Icon.png"
+    "icon_path": "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/Icon.png",
+    "zoom": 1.0,
+    "offset_from_screen_bottom": 50,
+    "mouse_event_transparent": true,
+    "vosk_lib_path": "D:/Code/projects/Arona/arona-ai/vosk/lib"
   },
   "spine": {
     "skelOrJson_path": "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/AronaSpineAssets/arona_spr.json",
-    "atlas_path": "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/AronaSpineAssets/Arona01.atlas"
+    "atlas_path": "D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/AronaSpineAssets/Arona01.atlas",
+    "animation_default_mix": 0.25
   },
   "tts": {
     "host": "127.0.0.1",

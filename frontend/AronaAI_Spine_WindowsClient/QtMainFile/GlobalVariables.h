@@ -11,6 +11,4 @@ extern JsonOperation* _global_config;	// config对象
 
 extern JsonOperation* _global_dict;	// dict对象
 
-
-
 #endif // !GLOBALVARIABLES_H

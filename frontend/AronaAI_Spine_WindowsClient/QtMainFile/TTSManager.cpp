@@ -134,7 +134,7 @@ QJsonObject TTSManager::buildJsonFromParams(const TTSRequestParams& params) cons
 
 	// 调试：输出构建的JSON对象
 	QJsonDocument jsonDoc(json);
-    qDebug().noquote() << jsonDoc.toJson(QJsonDocument::Indented);
+    qDebug().noquote() << FINE_PR << "[TTS Operation]Generate data:\n" << jsonDoc.toJson(QJsonDocument::Indented);
 
     return json;
 }
@@ -270,7 +270,7 @@ void TTSManager::playAudio(const QByteArray& audioData)
     // 检查设备是否支持该格式
     QAudioDevice audioDevice = QMediaDevices::defaultAudioOutput();
     if (!audioDevice.isFormatSupported(format)) {
-        qWarning() << ERROR_PR << "Default format not supported, trying to use preferred format";
+        qWarning() << ERROR_PR << "[TTS Operation]Default format not supported, trying to use preferred format";
         format = audioDevice.preferredFormat();
     }
 
@@ -322,7 +322,7 @@ double TTSManager::getWavDuration(const QByteArray& audioData)
     };
 
     if (audioData.size() < sizeof(WavHeader)) {
-        qWarning() << "WAV数据太小，无法读取头部";
+        qWarning() << ERROR_PR << "[TTS Operation]This wav file is too small to read header!";
         return -1;
     }
 
@@ -334,7 +334,7 @@ double TTSManager::getWavDuration(const QByteArray& audioData)
     if (memcmp(header.riffId, "RIFF", 4) != 0 ||
         memcmp(header.waveId, "WAVE", 4) != 0 ||
         memcmp(header.fmtId, "fmt ", 4) != 0) {
-        qWarning() << "无效的WAV文件格式";
+        qWarning() << ERROR_PR << "[TTS Operation]Invailed wav file format!";
         return -1;
     }
 
@@ -355,12 +355,12 @@ double TTSManager::getWavDuration(const QByteArray& audioData)
             double duration = static_cast<double>(dataSize) /
                 (header.sampleRate * header.numChannels * (header.bitsPerSample / 8.0));
 
-            qDebug() << "WAV信息:"
-                << "采样率:" << header.sampleRate
-                << "声道数:" << header.numChannels
-                << "位深度:" << header.bitsPerSample
-                << "数据大小:" << dataSize
-                << "时长:" << duration << "秒";
+            qDebug().noquote() << FINE_PR << "[TTS Operation]WAV file information: "
+                << "sample rate: " << header.sampleRate
+                << "| channel num: " << header.numChannels
+                << "| bits per sample: " << header.bitsPerSample
+                << "| data size:" << dataSize
+                << "| duration:" << duration << " second";
 
             return duration;
         }
@@ -368,7 +368,7 @@ double TTSManager::getWavDuration(const QByteArray& audioData)
         offset += 8 + chunkSize;
     }
 
-    qWarning() << "未找到data块";
+    qWarning() << ERROR_PR << "[TTS Operation]Failed to find data";
     return -1;
 }
 

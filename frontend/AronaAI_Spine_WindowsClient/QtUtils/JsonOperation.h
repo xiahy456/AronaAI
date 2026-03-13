@@ -30,6 +30,12 @@ public:
 	// 直接获取int类型数据
 	int getInt(QString key);
 
+	// 直接获取double类型数据
+	double getDouble(QString key);
+
+	// 直接获取bool类型数据
+	bool getBool(QString key);
+
 	// 直接获取Json类型数据
 	JsonOperation getJson(QString key);
 

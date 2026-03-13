@@ -39,6 +39,9 @@
     <Filter Include="Dict">
       <UniqueIdentifier>{351be407-b2c2-464a-af96-967f92e6631a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="vosk">
+      <UniqueIdentifier>{09edced3-6ab2-49bc-8460-2a8048f17d8c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <QtUic Include="QtMainFile\MainWidget.ui">
@@ -49,9 +52,6 @@
     </QtUic>
   </ItemGroup>
   <ItemGroup>
-    <QtMoc Include="QtMainFile\MainWidget.h">
-      <Filter>Header Files</Filter>
-    </QtMoc>
     <QtMoc Include="spine-cpp\include\spine\QtSpineManager.h">
       <Filter>Spine\Include</Filter>
     </QtMoc>
@@ -66,6 +66,15 @@
     </QtMoc>
     <QtMoc Include="MainController.h">
       <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="QtMainFile\MainWidget.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="AudioRecorder.h">
+      <Filter>QtUtils</Filter>
+    </QtMoc>
+    <QtMoc Include="SpeechRecognizer.h">
+      <Filter>QtUtils</Filter>
     </QtMoc>
   </ItemGroup>
   <ItemGroup>
@@ -313,6 +322,12 @@
     </ClCompile>
     <ClCompile Include="MainController.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AudioRecorder.cpp">
+      <Filter>QtUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="SpeechRecognizer.cpp">
+      <Filter>QtUtils</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -612,6 +627,9 @@
     </ClInclude>
     <ClInclude Include="QtUtils\GlobalInclude.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\vosk\include\vosk_api.h">
+      <Filter>vosk</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -1,4 +1,4 @@
-﻿#include "MainWidget.h"
+#include "MainWidget.h"
 #include "SettingsWidget.h"
 #include "SystemTray.h"
 #include "MainController.h"
@@ -8,6 +8,7 @@
 #include <QDebug>
 #include <QString>
 #include <QJsonObject>
+#include <QElapsedTimer>
 
 #include <GlobalInclude.h>
 
