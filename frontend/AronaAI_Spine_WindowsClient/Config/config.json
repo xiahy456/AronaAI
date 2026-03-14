@@ -46,5 +46,8 @@
   },
   "short_cut_key": {
     "switch_audio_input": "Ctrl+Alt+V"
+  },
+  "program_path": {
+    "QQ": "D:/QQ/QQ.exe"
   }
 }

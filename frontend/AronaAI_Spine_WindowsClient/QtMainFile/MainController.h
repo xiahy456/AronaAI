@@ -7,6 +7,7 @@
 #include <QString>
 #include <QEventLoop>
 #include <QMessageBox>
+#include <QProcess>
 
 #include <MainWidget.h>
 #include <TTSManager.h>
@@ -43,5 +44,8 @@ private:
 	SpeechRecognizer* m_speechRecognizer;	// 语音识别器对象
 	TTSManager::TTSRequestParams ttsRequestParams;	// 语音合成请求参数
 	QString m_currentText = "";	// 当前正在处理的文本
+
+	// 处理用户语音输入的文本
+	void processInputText(const QString& text);
 
 };

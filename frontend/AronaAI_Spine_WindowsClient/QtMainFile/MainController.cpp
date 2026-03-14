@@ -138,23 +138,29 @@ void MainController::stopAudioProcessing()
     QByteArray audioData = m_audioRecorder->stopRecording();
     qDebug().noquote() << FINE_PR << "[Audio Input Processing]Recognizing...";
 
+    // 识别结果
+    QString input_text;
     if (!audioData.isEmpty()) {
         // 进行语音识别
         QString result = m_speechRecognizer->recognize(audioData);
-
-        // 解析JSON结果（简化处理）
+        // 输出JSON结果
         if (!result.isEmpty()) {
-            qDebug().noquote() << FINE_PR << "[Audio Input Processing]Audio recognize result: " << JsonOperation::analysisJson(result, "partial").toString();
+            input_text = JsonOperation::analysisJson(result, "partial").toString();
+            qDebug().noquote() << FINE_PR << "[Audio Input Processing]Audio recognize result: " << input_text;
         }
         else {
             qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Failed to recognize!";
+            return;
         }
     }
     else {
         qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Failed to capture audio!";
+        return;
     }
-
     qDebug().noquote() << FINE_PR << "[Audio Input Processing]Audio processing program is ready!";
+
+    // 处理结果
+    processInputText(input_text);
 }
 
 void MainController::onAudioError(const QString& error)
@@ -165,4 +171,19 @@ void MainController::onAudioError(const QString& error)
 void MainController::onRecognizeError(const QString& error)
 {
     qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Recognize error!";
+}
+
+void MainController::processInputText(const QString& text)
+{
+    // 检查指令
+    if (text.contains("QQ") || text.contains("qq")) {
+        QString qqPath = GET_STRING_FROM_JSON(_global_config, "program_path", "QQ");
+        if (QFile::exists(qqPath)) {
+            QProcess::startDetached(qqPath);
+            qDebug().noquote() << FINE_PR << "[Main Controller]Opening QQ...";
+        }
+        else {
+            qWarning().noquote() << ERROR_PR << "[Main Controller]Failed to open QQ!";
+        }
+    }
 }

@@ -7,6 +7,9 @@
 # unused_frontend
 **/AronaClient-PC/
 
+# config
+/frontend/AronaAI_Spine_WindowsClient/Config/
+
 # models
 /models/
 /llm/chatglm3/
@@ -68,3 +71,4 @@ bin/
 *.exe
 *.out
 *.app
+/frontend/AronaAI_Spine_WindowsClient/Config/config.json
