@@ -1,3 +1,22 @@
+/*
+ Copyright xia_hy456. All rights reserved.
+
+ @Author: xia_hy456
+ @Date: 2026/3/14 22:15:53
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+
 #include "MainController.h"
 
 MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer)
@@ -173,7 +192,7 @@ void MainController::processInputText(const QString& text)
     // 检查指令
     if (text.contains("QQ") || text.contains("qq")) {
         path = GET_STRING_FROM_JSON(_global_config, "program_path", "QQ");
-        executeOutput("好的，正在打开QQ。");
+        executeOutput("好的，正在打开QQ...");
     }
     else if (text.contains("微信")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "wechat");
     else if (text.contains("终末地")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "hypergryph");
