@@ -1,10 +1,10 @@
 #include "MainController.h"
 
-MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, SpeechRecognizer* speechRecognizer)
+MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer)
     : m_mainWidget(mainWidget)
     , m_ttsManager(ttsManager)
     , m_audioRecorder(audioRecorder)
-    , m_speechRecognizer(speechRecognizer)
+    , m_tencentRecognizer(speechRecognizer)
 {
     // 进行TTS初始化
     // 构建TTS请求参数
@@ -71,12 +71,14 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
         this, &MainController::onAudioError);
 
     // 连接语音识别对象信号
-    connect(m_speechRecognizer, &SpeechRecognizer::errorOccurred,
+    m_tencentRecognizer = new TencentSpeechRecognizer(this);
+    connect(m_tencentRecognizer, &TencentSpeechRecognizer::errorOccurred,
         this, &MainController::onRecognizeError);
+    connect(m_tencentRecognizer, &TencentSpeechRecognizer::recognizeFinished,
+		this, &MainController::onRecognizeFinished);
 
-    // 初始化 Vosk
-    if (!m_speechRecognizer->initialize(GET_STRING_FROM_JSON(_global_config, "vosk", "model_path"))) 
-        qWarning().noquote() << ERROR_PR << "[Vosk]Initiallized failed! Please check the model path";
+    // 设置你的腾讯云密钥 (请务必从安全的地方读取，不要硬编码)
+    m_tencentRecognizer->setCredentials(GET_STRING_FROM_JSON(_global_config, "tencent_speech_recognizer", "secret_id"), GET_STRING_FROM_JSON(_global_config, "tencent_speech_recognizer", "secret_key"));
 
 }
 
@@ -103,10 +105,10 @@ void MainController::onTTSFinished(const QByteArray& audioData, const QString& m
     // 显示文字
     m_mainWidget->showOutputText(m_currentText);
     // 计算播放时长
-    int duration = m_currentText.size() * 100; // 简单估算：每个字符100ms
+    int duration = m_currentText.size() * 100; // 每个字符100ms
     duration = (int)(1000 * (m_ttsManager->getWavDuration(audioData)));   // 按照实际音频时长设置，单位为毫秒
     // 启动动画
-    m_mainWidget->setAnimation("25", 1, true);   // 表情层
+    //m_mainWidget->setAnimation("25", 1, true);   // 表情层
     m_mainWidget->setAnimation("Arona_Work_In_1_CN", 2, true);   // 语言层
     // 在duration之后清除显示的文字，停止动画
     QTimer::singleShot(duration, this, [this]() {
@@ -118,11 +120,6 @@ void MainController::onTTSFinished(const QByteArray& audioData, const QString& m
 
 void MainController::startAudioProcessing()
 {
-    if (!m_speechRecognizer->isInitialized()) {
-        qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Speech recognizer havent been initiallized!";
-        return;
-    }
-
     if (m_audioRecorder->startRecording()) {
         qDebug().noquote() << FINE_PR << "[Audio Input Processing]Recording";
     }
@@ -141,26 +138,14 @@ void MainController::stopAudioProcessing()
     // 识别结果
     QString input_text;
     if (!audioData.isEmpty()) {
-        // 进行语音识别
-        QString result = m_speechRecognizer->recognize(audioData);
-        // 输出JSON结果
-        if (!result.isEmpty()) {
-            input_text = JsonOperation::analysisJson(result, "partial").toString();
-            qDebug().noquote() << FINE_PR << "[Audio Input Processing]Audio recognize result: " << input_text;
-        }
-        else {
-            qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Failed to recognize!";
-            return;
-        }
+        // 直接调用腾讯云的识别，结果会通过 recognizeFinished 信号返回
+        m_tencentRecognizer->recognize(audioData);
     }
     else {
         qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Failed to capture audio!";
         return;
     }
     qDebug().noquote() << FINE_PR << "[Audio Input Processing]Audio processing program is ready!";
-
-    // 处理结果
-    processInputText(input_text);
 }
 
 void MainController::onAudioError(const QString& error)
@@ -173,17 +158,33 @@ void MainController::onRecognizeError(const QString& error)
     qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Recognize error!";
 }
 
+void MainController::onRecognizeFinished(const QString& text)
+{
+    qDebug().noquote() << FINE_PR << "[Audio Input Processing]Recognize finished! Result: " << text;
+    // 处理识别结果
+	processInputText(text);
+}
+
 void MainController::processInputText(const QString& text)
 {
+    // 路径对象
+    QString path;
+
     // 检查指令
     if (text.contains("QQ") || text.contains("qq")) {
-        QString qqPath = GET_STRING_FROM_JSON(_global_config, "program_path", "QQ");
-        if (QFile::exists(qqPath)) {
-            QProcess::startDetached(qqPath);
-            qDebug().noquote() << FINE_PR << "[Main Controller]Opening QQ...";
-        }
-        else {
-            qWarning().noquote() << ERROR_PR << "[Main Controller]Failed to open QQ!";
-        }
+        path = GET_STRING_FROM_JSON(_global_config, "program_path", "QQ");
+        executeOutput("好的，正在打开QQ。");
+    }
+    else if (text.contains("微信")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "wechat");
+    else if (text.contains("终末地")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "hypergryph");
+    else if (text.contains("我的世界") || text.contains("PCL") || text.contains("Minecraft")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "minecraft");
+
+    // 执行指令
+    if (QFile::exists(path)) {
+        QProcess::startDetached(path);
+        qDebug().noquote() << FINE_PR << "[Main Controller]Opening program...";
+    }
+    else {
+        qWarning().noquote() << ERROR_PR << "[Main Controller]Failed to open program!";
     }
 }

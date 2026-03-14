@@ -73,10 +73,10 @@ int main(int argc, char *argv[])
 	AudioRecorder* audioRecorder = new AudioRecorder;
 
 	// 创建语音识别对象
-	SpeechRecognizer* speechRecognizer = new SpeechRecognizer;
+    TencentSpeechRecognizer* tencentSpeechRecognizer = new TencentSpeechRecognizer;
 
     // 创建总控制对象
-	MainController* mainController = new MainController(mainWidget, ttsManager, audioRecorder, speechRecognizer);
+	MainController* mainController = new MainController(mainWidget, ttsManager, audioRecorder, tencentSpeechRecognizer);
 
 	// 创建快捷键对象
 	ShortCutKey* shortCutKey = new ShortCutKey(mainController);

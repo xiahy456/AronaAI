@@ -88,6 +88,9 @@
     <QtMoc Include="QHotkey\qhotkey_p.h">
       <Filter>QHotkey</Filter>
     </QtMoc>
+    <QtMoc Include="QtUtils\TencentSpeechRecognizer.h">
+      <Filter>QtUtils</Filter>
+    </QtMoc>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="QtMainFile\MainWidget.qrc">
@@ -349,6 +352,9 @@
     </ClCompile>
     <ClCompile Include="QHotkey\qhotkey_win.cpp">
       <Filter>QHotkey</Filter>
+    </ClCompile>
+    <ClCompile Include="QtUtils\TencentSpeechRecognizer.cpp">
+      <Filter>QtUtils</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
