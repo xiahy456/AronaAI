@@ -41,6 +41,8 @@ public:
 	// 直接获取Json类型数据
 	JsonOperation getJson(QString key);
 
+	QVariant static analysisJson(QString json, QString key);
+
 	// JSON对象
 	QJsonObject m_jsonObj;
 

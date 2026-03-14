@@ -66,20 +66,17 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
     // 输出一段文本，验证TTS功能是否正常
     executeOutput(GET_STRING_FROM_JSON(_global_dict, "formed_text", "connected_to_os_operator"));
 
-    // 连接录音器AudioRecorder信号
-    connect(m_audioRecorder, &AudioRecorder::recordingStarted, this, &MainController::onRecordingStarted);
-    connect(m_audioRecorder, &AudioRecorder::recordingStopped, this, &MainController::onRecordingStopped);
-    connect(m_audioRecorder, &AudioRecorder::audioDataReady, this, &MainController::onAudioDataReady);
-    connect(m_audioRecorder, &AudioRecorder::audioLevelChanged, this, &MainController::onAudioLevelChanged);
-    connect(m_audioRecorder, &AudioRecorder::recordingError, this, &MainController::onError);
+    // 连接音频录制对象信号
+    connect(m_audioRecorder, &AudioRecorder::errorOccurred,
+        this, &MainController::onAudioError);
 
-    // 连接识别器SpeechRecognizer信号
-    connect(m_speechRecognizer, &SpeechRecognizer::resultReady, this, &MainController::onResultReady);
-    connect(m_speechRecognizer, &SpeechRecognizer::partialResultReady, this, &MainController::onPartialResultReady);
-    connect(m_speechRecognizer, &SpeechRecognizer::errorOccurred, this, &MainController::onError);
+    // 连接语音识别对象信号
+    connect(m_speechRecognizer, &SpeechRecognizer::errorOccurred,
+        this, &MainController::onRecognizeError);
 
     // 初始化 Vosk
-    if (!initializeVosk()) qWarning().noquote() << ERROR_PR << "[Vosk]Initiallized failed! Please check the model path";
+    if (!m_speechRecognizer->initialize(GET_STRING_FROM_JSON(_global_config, "vosk", "model_path"))) 
+        qWarning().noquote() << ERROR_PR << "[Vosk]Initiallized failed! Please check the model path";
 
 }
 
@@ -119,135 +116,53 @@ void MainController::onTTSFinished(const QByteArray& audioData, const QString& m
         });
 }
 
-bool MainController::initializeVosk()
-{
-    // 设置 Vosk 日志级别
-    SpeechRecognizer::setLogLevel(0);
-
-    // 启用 GPU 加速
-    SpeechRecognizer::initGPU();
-
-    // 模型路径
-    QString modelPath = GET_STRING_FROM_JSON(_global_config, "vosk", "model_path");
-
-    // 初始化识别器
-    bool success = m_speechRecognizer->initialize(modelPath, 16000.0f);
-
-    if (success) {
-        // 配置识别器选项
-        m_speechRecognizer->enableWords(true);           // 启用单词级结果
-        m_speechRecognizer->enablePartialWords(true);    // 启用部分单词结果
-        m_speechRecognizer->setMaxAlternatives(3);       // 设置最多3个备选结果
-
-        qDebug().noquote() << FINE_PR << "[Vosk]Vosk initiallized!";
-    }
-
-    return success;
-}
-bool MainController::startAudioProcessing()
+void MainController::startAudioProcessing()
 {
     if (!m_speechRecognizer->isInitialized()) {
-        qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Recognizer not initialized";
-        return false;
+        qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Speech recognizer havent been initiallized!";
+        return;
     }
 
-    m_speechRecognizer->startRecognition();
-    return m_audioRecorder->startRecording();
+    if (m_audioRecorder->startRecording()) {
+        qDebug().noquote() << FINE_PR << "[Audio Input Processing]Recording";
+    }
+    else {
+        qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Failed to start recording";
+    }
 }
 
 // 停止录音识别
 void MainController::stopAudioProcessing()
 {
-    m_audioRecorder->stopRecording();
-    m_speechRecognizer->stopRecognition();
-}
+    // 停止录制并获取音频数据
+    QByteArray audioData = m_audioRecorder->stopRecording();
+    qDebug().noquote() << FINE_PR << "[Audio Input Processing]Recognizing...";
 
-// 处理音频文件（离线识别）
-bool MainController::processAudioFile(const QString& filePath)
-{
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Cannot open file:" << filePath;
-        return false;
+    if (!audioData.isEmpty()) {
+        // 进行语音识别
+        QString result = m_speechRecognizer->recognize(audioData);
+
+        // 解析JSON结果（简化处理）
+        if (!result.isEmpty()) {
+            qDebug().noquote() << FINE_PR << "[Audio Input Processing]Audio recognize result: " << JsonOperation::analysisJson(result, "partial").toString();
+        }
+        else {
+            qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Failed to recognize!";
+        }
+    }
+    else {
+        qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Failed to capture audio!";
     }
 
-    QByteArray audioData = file.readAll();
-    file.close();
-
-    m_speechRecognizer->startRecognition();
-
-    // 一次性发送所有音频数据
-    m_speechRecognizer->acceptWaveform(audioData);
-
-    // 获取最终结果
-    RecognitionResult result = m_speechRecognizer->getFinalResult();
-    qDebug().noquote() << ERROR_PR << "[Audio Input Processing]File recognition result:" << result.text;
-
-    m_speechRecognizer->stopRecognition();
-
-    return true;
+    qDebug().noquote() << FINE_PR << "[Audio Input Processing]Audio processing program is ready!";
 }
 
-// 获取识别结果（同步方式）
-QString MainController::recognizeSync(int durationMs)
+void MainController::onAudioError(const QString& error)
 {
-    QString result;
-
-    // 连接临时信号处理器
-    QEventLoop loop;
-    QTimer::singleShot(durationMs, &loop, &QEventLoop::quit);
-
-    connect(m_speechRecognizer, &SpeechRecognizer::resultReady,
-        &loop, [&](const RecognitionResult& res) {
-            result = res.text;
-            loop.quit();
-        });
-
-    // 开始识别
-    startAudioProcessing();
-
-    // 等待指定时间或得到结果
-    loop.exec();
-
-    // 停止识别
-    stopAudioProcessing();
-
-    return result;
+    qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Audio error!";
 }
 
-void MainController::onAudioDataReady(const QByteArray& data)
+void MainController::onRecognizeError(const QString& error)
 {
-    m_speechRecognizer->acceptWaveform(data);
-}
-
-void MainController::onRecordingStarted()
-{
-    qDebug().noquote() << FINE_PR << "[Audio Input Processing]Recording started...";
-}
-
-void MainController::onRecordingStopped()
-{
-    qDebug().noquote() << FINE_PR << "[Audio Input Processing]Recording stopped.";
-}
-
-void MainController::onResultReady(const RecognitionResult& result)
-{
-    qDebug().noquote() << FINE_PR << "[Audio Input Processing]Final result:" << result.text;
-    emit resultAvailable(result.text);
-}
-
-void MainController::onPartialResultReady(const RecognitionResult& result)
-{
-    qDebug().noquote() << FINE_PR << "[Audio Input Processing]Partial:" << result.partialText;
-    emit partialResultAvailable(result.partialText);
-}
-
-void MainController::onError(const QString& error)
-{
-    qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Error:" << error;
-}
-
-void MainController::onAudioLevelChanged(int level)
-{
-
+    qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Recognize error!";
 }

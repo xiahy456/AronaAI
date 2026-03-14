@@ -71,7 +71,6 @@ int main(int argc, char *argv[])
 
     // 创建语音输入对象
 	AudioRecorder* audioRecorder = new AudioRecorder;
-    audioRecorder->setStreamMode(true);
 
 	// 创建语音识别对象
 	SpeechRecognizer* speechRecognizer = new SpeechRecognizer;

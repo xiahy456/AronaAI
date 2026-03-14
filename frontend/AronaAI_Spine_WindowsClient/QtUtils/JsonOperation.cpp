@@ -105,3 +105,14 @@ JsonOperation JsonOperation::getJson(QString key)
         return JsonOperation();
     }
 }
+
+QVariant JsonOperation::analysisJson(QString json, QString key)
+{
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(json.toUtf8());
+
+    if (jsonDoc.isObject()) {
+        return jsonDoc.object().value(key).toVariant();
+    }
+
+    return QVariant();
+}
