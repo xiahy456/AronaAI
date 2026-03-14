@@ -71,4 +71,4 @@ bin/
 *.exe
 *.out
 *.app
-/frontend/AronaAI_Spine_WindowsClient/Config/config.json
+/frontend/AronaAI_Spine_WindowsClient/Config/
