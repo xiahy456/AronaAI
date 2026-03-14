@@ -7,8 +7,8 @@
 # unused_frontend
 **/AronaClient-PC/
 
-# config
-/frontend/AronaAI_Spine_WindowsClient/Config/
+# frontend config
+**/Config/
 
 # models
 /models/
