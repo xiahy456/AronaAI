@@ -167,6 +167,69 @@ def test_dataloader():
         for file_path in current_dir.rglob("*"):
             print(f"  {file_path.relative_to(current_dir.parent)}")
 
+class PretrainDataset(Dataset):
+    """预训练数据集 - 用于因果语言建模"""
+    
+    def __init__(self, data_path, max_seq_length=MODEL_CONFIG.max_seq_len):
+        self.data_path = data_path
+        self.max_seq_length = max_seq_length
+        self.samples = self._load_samples()
+        print(f"加载了 {len(self.samples)} 个预训练样本")
+        
+    def _load_samples(self):
+        """加载样本"""
+        samples = []
+        with open(self.data_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                sample = json.loads(line)
+                samples.append(sample['token_ids'])
+        return samples
+    
+    def __len__(self):
+        return len(self.samples)
+    
+    def __getitem__(self, idx):
+        token_ids = self.samples[idx].copy()
+        
+        # 添加EOS token
+        token_ids.append(MODEL_CONFIG.eos_token_id)
+        
+        # 截断或填充
+        if len(token_ids) > self.max_seq_length:
+            token_ids = token_ids[:self.max_seq_length]
+        else:
+            padding = [MODEL_CONFIG.pad_token_id] * (self.max_seq_length - len(token_ids))
+            token_ids = token_ids + padding
+        
+        # 对于因果语言建模，输入和目标是一样的（偏移一位）
+        input_ids = torch.tensor(token_ids[:-1], dtype=torch.long)  # 去掉最后一个token作为输入
+        labels = torch.tensor(token_ids[1:], dtype=torch.long)      # 偏移一位作为目标
+        
+        return {
+            'input_ids': input_ids,
+            'labels': labels
+        }
+
+def create_pretrain_dataloader(data_path, batch_size=8, shuffle=True, num_workers=0):
+    """创建预训练数据加载器"""
+    dataset = PretrainDataset(data_path)
+    dataloader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        drop_last=True
+    )
+    return dataloader
+
 # 测试
 if __name__ == "__main__":
-    test_dataloader()
+    dataloader = create_pretrain_dataloader("data/processed/train.jsonl", batch_size=2)
+    for batch in dataloader:
+        print(f"输入形状: {batch['input_ids'].shape}")
+        print(f"标签形状: {batch['labels'].shape}")
+        break
+
+# # 测试
+# if __name__ == "__main__":
+#     test_dataloader()

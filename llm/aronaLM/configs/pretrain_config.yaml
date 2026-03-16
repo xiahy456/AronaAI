@@ -1,0 +1,29 @@
+# configs/pretrain_config.yaml
+pretrain:
+  # 数据配置
+  data_path: "data/processed/train.jsonl"
+  val_data_path: "data/processed/val.jsonl"
+  max_seq_length: 128
+  
+  # 训练配置
+  batch_size: 8
+  learning_rate: 5e-4
+  weight_decay: 0.01
+  num_epochs: 3
+  warmup_steps: 1000
+  
+  # 优化器配置
+  optimizer: "AdamW"
+  scheduler: "cosine"
+  
+  # 模型保存
+  checkpoint_dir: "./checkpoints/pretrain"
+  save_steps: 1000
+  eval_steps: 500
+  
+  # 分布式训练
+  gradient_accumulation_steps: 4
+  max_grad_norm: 1.0
+  
+  # 日志
+  logging_steps: 100
