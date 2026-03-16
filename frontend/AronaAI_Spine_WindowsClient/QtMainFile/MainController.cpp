@@ -194,9 +194,9 @@ void MainController::processInputText(const QString& text)
         path = GET_STRING_FROM_JSON(_global_config, "program_path", "QQ");
         executeOutput("好的，正在打开QQ...");
     }
-    else if (text.contains("微信")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "wechat");
-    else if (text.contains("终末地")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "hypergryph");
-    else if (text.contains("我的世界") || text.contains("PCL") || text.contains("Minecraft")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "minecraft");
+    if (text.contains("微信")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "wechat");
+    if (text.contains("终末地")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "hypergryph");
+    if (text.contains("我的世界") || text.contains("PCL") || text.contains("Minecraft")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "minecraft");
 
     // 执行指令
     if (QFile::exists(path)) {
