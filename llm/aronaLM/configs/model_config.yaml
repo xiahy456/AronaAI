@@ -11,9 +11,9 @@ model:
   # 模型架构参数
   max_seq_length: 128 # 最大序列长
   d_model: 128   # 模型维度256->128
-  n_layers: 2 # Transformer层数8->2
+  n_layers: 4 # Transformer层数8->4
   n_heads: 2  # 注意力头数4->2
-  d_ff: 256  # 前馈网络维度1024->256
+  d_ff: 512  # 前馈网络维度1024->512
   dropout: 0.1  # 丢弃率
 
   # 生成参数

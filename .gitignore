@@ -14,8 +14,9 @@
 /models/
 /llm/chatglm3/
 
-# aronaLM dialogue data
+# aronaLM training data
 /llm/aronaLM/data/raw/
+/llm/aronaLM/data/processed/
 
 # aronaLM checkpoints
 /llm/aronaLM/checkpoints/

@@ -6,254 +6,268 @@ from pathlib import Path
 import random
 from tqdm import tqdm
 import sys
+import re
+import psutil
+import gc
+import time
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from model.tokenizer import tokenizer
 from configs import MODEL_CONFIG
 
 class PretrainDataPreprocessor:
-    """预训练数据预处理器 - 支持多文件和多格式"""
+    """预训练数据预处理器 - 优化内存管理"""
     
-    def __init__(self, max_seq_length=MODEL_CONFIG.max_seq_len):
+    def __init__(self, max_seq_length=MODEL_CONFIG.max_seq_length, memory_limit_gb=4):
         self.max_seq_length = max_seq_length
         self.tokenizer = tokenizer
+        self.memory_limit = memory_limit_gb * 1024 * 1024 * 1024
+        self.memory_warning_count = 0
+        self.last_gc_time = time.time()
         
+    def check_memory(self, force_gc=False):
+        """检查内存使用情况，智能GC"""
+        memory_usage = psutil.Process().memory_info().rss
+        memory_gb = memory_usage / 1024 / 1024 / 1024
+        
+        if memory_usage > self.memory_limit:
+            self.memory_warning_count += 1
+            
+            # 只在第一次和每10次警告时显示
+            if self.memory_warning_count == 1 or self.memory_warning_count % 10 == 0:
+                print(f"\n⚠️ 内存使用: {memory_gb:.1f} GB (警告 #{self.memory_warning_count})")
+            
+            # 强制GC
+            if force_gc or memory_usage > self.memory_limit * 1.2:
+                gc.collect()
+                if hasattr(gc, 'garbage'):
+                    gc.garbage.clear()
+                
+                # 记录GC时间
+                self.last_gc_time = time.time()
+                
+                if self.memory_warning_count % 10 == 0:
+                    print(f"  执行垃圾回收，释放内存")
+            
+            return True
+        
+        # 定期GC（每5分钟）
+        if time.time() - self.last_gc_time > 300:  # 5分钟
+            gc.collect()
+            self.last_gc_time = time.time()
+            
+        return False
+    
     def process_cluecorpus_files(self, input_dir, output_path, sample_ratio=1.0):
-        """处理多个CLUECorpus文件
-        
-        Args:
-            input_dir: 包含多个json文件的目录
-            output_path: 输出文件路径
-            sample_ratio: 采样比例
-        """
+        """处理多个CLUECorpus文件 - 优化内存"""
         print(f"处理 CLUECorpus 目录: {input_dir}")
         
-        # 查找所有json文件
         json_files = glob.glob(os.path.join(input_dir, "*.json"))
         print(f"找到 {len(json_files)} 个CLUECorpus文件")
         
-        processed_samples = []
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        
+        total_samples = 0
+        failed_files = []
         
         for file_path in tqdm(json_files, desc="处理CLUECorpus文件"):
-            file_samples = self._process_single_cluecorpus(file_path, sample_ratio)
-            processed_samples.extend(file_samples)
+            try:
+                file_samples = self._process_single_cluecorpus_stream(file_path, output_path, sample_ratio)
+                total_samples += file_samples
+                print(f"\n当前总样本数: {total_samples:,}")
+            except Exception as e:
+                print(f"\n❌ 处理文件 {os.path.basename(file_path)} 时出错: {e}")
+                failed_files.append(os.path.basename(file_path))
             
-            # 定期保存中间结果，防止内存溢出
-            if len(processed_samples) >= 100000:
-                self._append_to_file(output_path, processed_samples)
-                processed_samples = []
+            # 每个文件处理后强制GC
+            gc.collect()
         
-        # 保存剩余样本
-        if processed_samples:
-            self._append_to_file(output_path, processed_samples)
-        
-        print(f"CLUECorpus处理完成，已保存到 {output_path}")
+        print(f"\nCLUECorpus处理完成，总样本数: {total_samples:,}")
+        if failed_files:
+            print(f"失败的文件: {failed_files}")
     
-    def _process_single_cluecorpus(self, file_path, sample_ratio):
-        """处理单个CLUECorpus文件"""
-        samples = []
+    def _process_single_cluecorpus_stream(self, file_path, output_path, sample_ratio):
+        """优化内存的流式处理"""
+        samples_processed = 0
+        
+        # 使用更小的批处理大小
+        batch_size = 5000  # 从10000减小到5000
+        batch_samples = []
         
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
-                # CLUECorpus是json数组格式
+                # 逐行读取，而不是一次性加载全部
                 data = json.load(f)
                 
+                # 使用迭代器而不是切片
                 for item in tqdm(data, desc=f"处理 {os.path.basename(file_path)}", leave=False):
-                    # 采样
                     if random.random() > sample_ratio:
                         continue
                     
                     text = item.get('text', '')
-                    if len(text) < 10:  # 过滤过短文本
+                    if len(text) < 10:
                         continue
                     
-                    # 分句处理
+                    # 限制文本长度，避免处理过长的文本
+                    if len(text) > 5000:  # 如果文本太长，截断
+                        text = text[:5000]
+                    
                     sentences = self._split_sentences(text)
                     
                     for sentence in sentences:
-                        if len(sentence) < 5:
+                        if len(sentence) < 5 or len(sentence) > 500:  # 过滤过长或过短的句子
                             continue
                         
-                        # 编码
                         token_ids = self.tokenizer.encode(sentence)
                         
                         if len(token_ids) > self.max_seq_length:
                             token_ids = token_ids[:self.max_seq_length]
                         
-                        samples.append({
+                        batch_samples.append({
                             'text': sentence,
                             'token_ids': token_ids,
                             'source': 'cluecorpus'
                         })
                         
+                        samples_processed += 1
+                        
+                        # 达到批量大小时写入并清空
+                        if len(batch_samples) >= batch_size:
+                            self._append_to_file(output_path, batch_samples)
+                            batch_samples = []
+                            
+                            # 检查内存
+                            self.check_memory(force_gc=True)
+                            
+                            # 可选：减少进度条更新频率
+                            if samples_processed % 50000 == 0:
+                                print(f"\n  已处理 {samples_processed:,} 条")
+                
+                # 写入剩余样本
+                if batch_samples:
+                    self._append_to_file(output_path, batch_samples)
+                        
         except Exception as e:
-            print(f"处理文件 {file_path} 时出错: {e}")
+            print(f"\n  详细错误: {e}")
+            raise
         
-        return samples
+        return samples_processed
     
     def process_lccc_files(self, input_dir, output_path, sample_ratio=1.0):
-        """处理多个LCCC文件
-        
-        Args:
-            input_dir: 包含多个json文件的目录
-            output_path: 输出文件路径
-            sample_ratio: 采样比例
-        """
+        """处理LCCC文件 - 优化内存"""
         print(f"处理 LCCC 目录: {input_dir}")
         
-        # 查找所有json文件
         json_files = glob.glob(os.path.join(input_dir, "*.json"))
         print(f"找到 {len(json_files)} 个LCCC文件")
         
-        processed_samples = []
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
+        total_samples = 0
         for file_path in tqdm(json_files, desc="处理LCCC文件"):
-            file_samples = self._process_single_lccc(file_path, sample_ratio)
-            processed_samples.extend(file_samples)
+            file_samples = self._process_single_lccc_stream(file_path, output_path, sample_ratio)
+            total_samples += file_samples
+            print(f"\n当前总样本数: {total_samples:,}")
             
-            # 定期保存中间结果
-            if len(processed_samples) >= 100000:
-                self._append_to_file(output_path, processed_samples)
-                processed_samples = []
-        
-        # 保存剩余样本
-        if processed_samples:
-            self._append_to_file(output_path, processed_samples)
-        
-        print(f"LCCC处理完成，已保存到 {output_path}")
+            gc.collect()
     
-    def _process_single_lccc(self, file_path, sample_ratio):
-        """处理单个LCCC文件"""
-        samples = []
+    def _process_single_lccc_stream(self, file_path, output_path, sample_ratio):
+        """优化内存的LCCC处理"""
+        samples_processed = 0
+        
+        batch_size = 5000
+        batch_samples = []
         
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
-                # LCCC是对话数组的数组
                 conversations = json.load(f)
                 
                 for conversation in tqdm(conversations, desc=f"处理 {os.path.basename(file_path)}", leave=False):
-                    # 采样
                     if random.random() > sample_ratio:
                         continue
                     
-                    # 将对话拼成连续的文本
-                    full_text = " ".join(conversation)
+                    # 限制对话长度
+                    if len(conversation) > 20:  # 如果对话太长，只取前20句
+                        conversation = conversation[:20]
                     
-                    if len(full_text) < 10:
+                    cleaned_utterances = []
+                    for utterance in conversation:
+                        cleaned = re.sub(r'\s+', '', utterance)
+                        if cleaned and len(cleaned) < 200:  # 过滤过长的句子
+                            cleaned_utterances.append(cleaned)
+                    
+                    if not cleaned_utterances:
                         continue
                     
-                    # 分句处理
+                    full_text = " ".join(cleaned_utterances)
+                    
+                    if len(full_text) < 10 or len(full_text) > 2000:  # 过滤过长对话
+                        continue
+                    
                     sentences = self._split_sentences(full_text)
                     
                     for sentence in sentences:
-                        if len(sentence) < 5:
+                        if len(sentence) < 5 or len(sentence) > 500:
                             continue
                         
-                        # 注意：LCCC数据中的空格需要保留，但分词器可能不需要
-                        # 这里保持原样
+                        sentence = re.sub(r'\s+', '', sentence)
+                        
                         token_ids = self.tokenizer.encode(sentence)
                         
                         if len(token_ids) > self.max_seq_length:
                             token_ids = token_ids[:self.max_seq_length]
                         
-                        samples.append({
+                        batch_samples.append({
                             'text': sentence,
                             'token_ids': token_ids,
                             'source': 'lccc'
                         })
                         
+                        samples_processed += 1
+                        
+                        if len(batch_samples) >= batch_size:
+                            self._append_to_file(output_path, batch_samples)
+                            batch_samples = []
+                            self.check_memory(force_gc=True)
+                
+                if batch_samples:
+                    self._append_to_file(output_path, batch_samples)
+                        
         except Exception as e:
             print(f"处理文件 {file_path} 时出错: {e}")
         
-        return samples
+        return samples_processed
     
     def _append_to_file(self, file_path, samples):
-        """追加样本到文件"""
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        
+        """追加样本到文件，添加进度提示"""
         with open(file_path, 'a', encoding='utf-8') as f:
             for sample in samples:
                 f.write(json.dumps(sample, ensure_ascii=False) + '\n')
         
-        print(f"已追加 {len(samples)} 个样本到 {file_path}")
+        # 只在重要时刻显示提示
+        if len(samples) >= 5000:
+            file_size = os.path.getsize(file_path) / 1024 / 1024
+            print(f"\n💾 已保存 {len(samples)} 个样本，当前文件大小: {file_size:.1f} MB")
     
     def _split_sentences(self, text):
         """简单分句"""
-        import re
-        # 中文分句：按句号、问号、感叹号、换行符分割
         sentences = re.split('[。！？!?\n]+', text)
         return [s.strip() for s in sentences if s.strip()]
-    
-    def create_train_val_split(self, data_files, output_dir, val_ratio=0.01):
-        """创建训练集和验证集
-        
-        Args:
-            data_files: 输入文件列表
-            output_dir: 输出目录
-            val_ratio: 验证集比例
-        """
-        print(f"创建训练集/验证集分割...")
-        
-        all_samples = []
-        
-        for data_file in data_files:
-            if not os.path.exists(data_file):
-                print(f"警告: 文件不存在 {data_file}")
-                continue
-                
-            with open(data_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    all_samples.append(json.loads(line))
-        
-        print(f"总样本数: {len(all_samples)}")
-        
-        # 随机打乱
-        random.shuffle(all_samples)
-        
-        # 分割
-        val_size = int(len(all_samples) * val_ratio)
-        train_samples = all_samples[val_size:]
-        val_samples = all_samples[:val_size]
-        
-        # 保存
-        train_path = os.path.join(output_dir, 'train.jsonl')
-        val_path = os.path.join(output_dir, 'val.jsonl')
-        
-        with open(train_path, 'w', encoding='utf-8') as f:
-            for sample in train_samples:
-                f.write(json.dumps(sample, ensure_ascii=False) + '\n')
-        
-        with open(val_path, 'w', encoding='utf-8') as f:
-            for sample in val_samples:
-                f.write(json.dumps(sample, ensure_ascii=False) + '\n')
-        
-        print(f"训练集: {len(train_samples)} 样本 -> {train_path}")
-        print(f"验证集: {len(val_samples)} 样本 -> {val_path}")
-        
-        return train_path, val_path
-    
-    def create_sample_data(self, input_path, output_path, num_samples=10000):
-        """创建小样本数据用于测试"""
-        print(f"创建 {num_samples} 个样本的小数据集...")
-        
-        samples = []
-        with open(input_path, 'r', encoding='utf-8') as f:
-            for i, line in enumerate(f):
-                if i >= num_samples:
-                    break
-                samples.append(json.loads(line))
-        
-        with open(output_path, 'w', encoding='utf-8') as f:
-            for sample in samples:
-                f.write(json.dumps(sample, ensure_ascii=False) + '\n')
-        
-        print(f"小数据集已保存到 {output_path}")
 
 def main():
     """主函数"""
-    preprocessor = PretrainDataPreprocessor()
+    print("="*60)
+    print("开始数据预处理")
+    print("="*60)
     
-    # 配置路径
+    # 设置内存限制为6GB（根据你的系统调整）
+    preprocessor = PretrainDataPreprocessor(memory_limit_gb=6)
+    
+    # 检查系统内存
+    total_memory = psutil.virtual_memory().total / 1024 / 1024 / 1024
+    available_memory = psutil.virtual_memory().available / 1024 / 1024 / 1024
+    print(f"系统总内存: {total_memory:.1f} GB")
+    print(f"可用内存: {available_memory:.1f} GB")
+    
     base_dir = "llm/aronaLM/data"
     
     # 1. 处理CLUECorpus
@@ -261,49 +275,32 @@ def main():
     clue_output = os.path.join(base_dir, "processed", "cluecorpus.jsonl")
     
     if os.path.exists(clue_input_dir):
+        print("\n" + "="*40)
+        print("处理CLUECorpus...")
+        print("="*40)
         preprocessor.process_cluecorpus_files(
             clue_input_dir,
             clue_output,
-            sample_ratio=0.1  # 先取10%做实验
-        )
-    else:
-        print(f"警告: CLUECorpus目录不存在 {clue_input_dir}")
-    
-    # 2. 处理LCCC
-    lccc_input_dir = os.path.join(base_dir, "raw", "lccc")
-    lccc_output = os.path.join(base_dir, "processed", "lccc.jsonl")
-    
-    if os.path.exists(lccc_input_dir):
-        preprocessor.process_lccc_files(
-            lccc_input_dir,
-            lccc_output,
             sample_ratio=1.0
         )
-    else:
-        print(f"警告: LCCC目录不存在 {lccc_input_dir}")
     
-    # 3. 合并创建训练/验证集
-    processed_files = []
-    for f in [clue_output, lccc_output]:
-        if os.path.exists(f):
-            processed_files.append(f)
+    # 2. 处理LCCC
+    # lccc_input_dir = os.path.join(base_dir, "raw", "lccc")
+    # lccc_output = os.path.join(base_dir, "processed", "lccc.jsonl")
     
-    if processed_files:
-        # 先创建完整的训练/验证集
-        train_path, val_path = preprocessor.create_train_val_split(
-            processed_files,
-            os.path.join(base_dir, "processed"),
-            val_ratio=0.01
-        )
-        
-        # 可选：创建小样本数据集用于快速测试
-        preprocessor.create_sample_data(
-            train_path,
-            os.path.join(base_dir, "processed", "train_sample.jsonl"),
-            num_samples=10000
-        )
-    else:
-        print("错误: 没有找到处理好的数据文件")
+    # if os.path.exists(lccc_input_dir):
+    #     print("\n" + "="*40)
+    #     print("处理LCCC...")
+    #     print("="*40)
+    #     preprocessor.process_lccc_files(
+    #         lccc_input_dir,
+    #         lccc_output,
+    #         sample_ratio=1.0
+    #     )
+    
+    print("\n" + "="*60)
+    print("✅ 数据处理完成！")
+    print("="*60)
 
 if __name__ == "__main__":
     main()
