@@ -17,6 +17,7 @@
 # aronaLM training data
 /llm/aronaLM/data/raw/
 /llm/aronaLM/data/processed/
+/llm/aronaLM/data/temp_processed/
 
 # aronaLM checkpoints
 /llm/aronaLM/checkpoints/
