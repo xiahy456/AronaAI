@@ -1,8 +1,8 @@
 # configs/pretrain_config.yaml
 pretrain:
   # 数据配置
-  data_path: "data/processed/train.jsonl"
-  val_data_path: "data/processed/val.jsonl"
+  data_path: "/root/autodl-tmp/data/processed/train_small.jsonl"
+  val_data_path: "/root/autodl-tmp/data/processed/val_small.jsonl"
   max_seq_length: 128
   
   # 训练配置
@@ -17,7 +17,7 @@ pretrain:
   scheduler: "cosine"
   
   # 模型保存
-  checkpoint_dir: "./checkpoints/pretrain"
+  checkpoint_dir: "/root/autodl-tmp/checkpoint/pretrain_small"
   save_steps: 1000
   eval_steps: 500
   
