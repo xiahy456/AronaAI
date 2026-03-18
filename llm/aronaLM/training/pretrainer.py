@@ -59,7 +59,7 @@ class Pretrainer:
         self.val_losses = []
         
         # 内存监控
-        self.memory_limit_gb = 8  # 内存限制
+        self.memory_limit_gb = 64  # 内存限制
         self.last_gc_time = time.time()
     
     def print_model_info(self):
@@ -373,7 +373,7 @@ class Pretrainer:
         return generated
 
 def load_config(config_path=None):
-    """加载配置，支持绝对路径"""
+    """加载配置，支持绝对路径，确保数值类型正确"""
     if config_path is None:
         # 默认路径
         root_dir = Path(__file__).parent.parent
@@ -388,6 +388,21 @@ def load_config(config_path=None):
     
     with open(config_path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)['pretrain']
+    
+    # 确保数值类型正确
+    numeric_fields = [
+        'max_seq_length', 'batch_size', 'learning_rate', 'weight_decay',
+        'num_epochs', 'warmup_steps', 'save_steps', 'eval_steps',
+        'gradient_accumulation_steps', 'max_grad_norm', 'logging_steps'
+    ]
+    
+    for field in numeric_fields:
+        if field in config and config[field] is not None:
+            # 转换为浮点数或整数
+            if field in ['learning_rate', 'weight_decay', 'max_grad_norm']:
+                config[field] = float(config[field])
+            else:
+                config[field] = int(config[field])
     
     # 重要：保持路径为绝对路径，不进行转换
     # 如果配置中的路径已经是绝对路径，直接使用

@@ -170,7 +170,7 @@ def test_dataloader():
 class PretrainDataset(Dataset):
     """预训练数据集 - 用于因果语言建模"""
     
-    def __init__(self, data_path, max_seq_length=MODEL_CONFIG.max_seq_len):
+    def __init__(self, data_path, max_seq_length=MODEL_CONFIG.max_seq_length):
         self.data_path = data_path
         self.max_seq_length = max_seq_length
         self.samples = self._load_samples()

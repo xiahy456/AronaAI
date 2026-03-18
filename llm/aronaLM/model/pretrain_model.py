@@ -41,8 +41,8 @@ class PretrainLM(nn.Module):
         
     def _create_positional_encoding(self):
         """创建正弦位置编码"""
-        pe = torch.zeros(self.config.max_seq_len, self.config.d_model)
-        position = torch.arange(0, self.config.max_seq_len, dtype=torch.float).unsqueeze(1)
+        pe = torch.zeros(self.config.max_seq_length, self.config.d_model)
+        position = torch.arange(0, self.config.max_seq_length, dtype=torch.float).unsqueeze(1)
         div_term = torch.exp(torch.arange(0, self.config.d_model, 2).float() * 
                            (-math.log(10000.0) / self.config.d_model))
         
@@ -100,8 +100,8 @@ class PretrainLM(nn.Module):
         
         for _ in range(max_new_tokens):
             # 获取当前序列
-            if input_ids.size(1) > self.config.max_seq_len:
-                current_ids = input_ids[:, -self.config.max_seq_len:]
+            if input_ids.size(1) > self.config.max_seq_length:
+                current_ids = input_ids[:, -self.config.max_seq_length:]
             else:
                 current_ids = input_ids
             
