@@ -35,6 +35,7 @@
     <ClCompile Include="QtUtils\OpacityAnimation.cpp" />
     <ClCompile Include="QtUtils\ShortCutKey.cpp" />
     <ClCompile Include="QtUtils\SpeechRecognizer.cpp" />
+    <ClCompile Include="QtUtils\SpineMouseController.cpp" />
     <ClCompile Include="QtUtils\TencentSpeechRecognizer.cpp" />
     <ClCompile Include="spine-cpp\src\spine\Animation.cpp" />
     <ClCompile Include="spine-cpp\src\spine\AnimationState.cpp" />
@@ -125,6 +126,7 @@
     <QtMoc Include="QtUtils\ShortCutKey.h" />
     <QtMoc Include="QtUtils\SpeechRecognizer.h" />
     <QtMoc Include="QtUtils\TencentSpeechRecognizer.h" />
+    <QtMoc Include="QtUtils\SpineMouseController.h" />
     <ClInclude Include="spine-cpp\include\spine\Animation.h" />
     <ClInclude Include="spine-cpp\include\spine\AnimationState.h" />
     <ClInclude Include="spine-cpp\include\spine\AnimationStateData.h" />

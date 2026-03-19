@@ -59,7 +59,7 @@ class Pretrainer:
         self.val_losses = []
         
         # 内存监控
-        self.memory_limit_gb = 64  # 内存限制
+        self.memory_limit_gb = 8  # 内存限制
         self.last_gc_time = time.time()
     
     def print_model_info(self):

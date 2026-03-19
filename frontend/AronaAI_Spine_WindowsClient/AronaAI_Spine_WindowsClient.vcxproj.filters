@@ -91,6 +91,9 @@
     <QtMoc Include="QtUtils\TencentSpeechRecognizer.h">
       <Filter>QtUtils</Filter>
     </QtMoc>
+    <QtMoc Include="QtUtils\SpineMouseController.h">
+      <Filter>QtUtils</Filter>
+    </QtMoc>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="QtMainFile\MainWidget.qrc">
@@ -354,6 +357,9 @@
       <Filter>QHotkey</Filter>
     </ClCompile>
     <ClCompile Include="QtUtils\TencentSpeechRecognizer.cpp">
+      <Filter>QtUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="QtUtils\SpineMouseController.cpp">
       <Filter>QtUtils</Filter>
     </ClCompile>
   </ItemGroup>
