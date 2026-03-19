@@ -21,7 +21,7 @@ public:
 
     // 初始化控制器
     void initialize(spine::Skeleton* skeleton, spine::AnimationState* animationState,
-        const QString& touchBoneName, const QString& headAnimationPrefix = "head");
+        const QString& touchBoneName, const QString& headAnimationPrefix = "Pat_01", const QString& headAnimationEndPrefix = "PatEnd_01");
 
     // 鼠标事件处理
     void handleMousePress(const QPointF& globalPos, const QPointF& localPos,
@@ -96,6 +96,7 @@ private:
     float vectorLength(const QPointF& vec) const;
     QPointF clampVectorLength(const QPointF& vec, float maxLength) const;
     bool isPointNearHead(const QPointF& point, float scale) const;
+    QPointF screenToSpineWorld(const QPointF& screenPoint, float spineX, float spineY, float scale);
 
     // 播放动画
     void playHeadAnimation(bool isTouch);

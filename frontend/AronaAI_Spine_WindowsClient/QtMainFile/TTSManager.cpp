@@ -151,9 +151,8 @@ QJsonObject TTSManager::buildJsonFromParams(const TTSRequestParams& params) cons
     json["sample_steps"] = params.sampleSteps;
     json["super_sampling"] = params.superSampling;
 
-	// 调试：输出构建的JSON对象
-	QJsonDocument jsonDoc(json);
-    qDebug().noquote() << FINE_PR << "[TTS Operation]Generate data:\n" << jsonDoc.toJson(QJsonDocument::Indented);
+	// 输出构建的文本
+    qDebug().noquote() << FINE_PR << "[TTS Operation]Generate text: " << params.text;
 
     return json;
 }

@@ -84,10 +84,10 @@ void SystemTray::showOrHideSettingsWidget()
 
 void SystemTray::ableEdit()
 {
-    m_mainWidget->setMouseAble(true);
+    m_mainWidget->setMouseTransparent(false);
 }
 
 void SystemTray::unableEdit()
 {
-    m_mainWidget->setMouseAble(false);
+    m_mainWidget->setMouseTransparent(true);
 }

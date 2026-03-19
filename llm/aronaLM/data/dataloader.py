@@ -168,7 +168,7 @@ def test_dataloader():
             print(f"  {file_path.relative_to(current_dir.parent)}")
 
 class PretrainDataset(Dataset):
-    """预训练数据集 - 用于因果语言建模"""
+    """预训练数据集"""
     
     def __init__(self, data_path, max_seq_length=MODEL_CONFIG.max_seq_length):
         self.data_path = data_path
@@ -202,34 +202,61 @@ class PretrainDataset(Dataset):
             token_ids = token_ids + padding
         
         # 对于因果语言建模，输入和目标是一样的（偏移一位）
-        input_ids = torch.tensor(token_ids[:-1], dtype=torch.long)  # 去掉最后一个token作为输入
-        labels = torch.tensor(token_ids[1:], dtype=torch.long)      # 偏移一位作为目标
+        input_ids = torch.tensor(token_ids[:-1], dtype=torch.long)
+        labels = torch.tensor(token_ids[1:], dtype=torch.long)
         
         return {
             'input_ids': input_ids,
             'labels': labels
         }
 
-def create_pretrain_dataloader(data_path, batch_size=8, shuffle=True, num_workers=0):
-    """创建预训练数据加载器"""
-    dataset = PretrainDataset(data_path)
+def create_pretrain_dataloader(data_path, batch_size=24, shuffle=True, num_workers=4, max_seq_length=128):
+    """创建预训练数据加载器
+    
+    Args:
+        data_path: 数据文件路径
+        batch_size: 批次大小
+        shuffle: 是否打乱数据
+        num_workers: 数据加载进程数
+        max_seq_length: 最大序列长度
+    
+    Returns:
+        DataLoader对象
+    """
+    dataset = PretrainDataset(data_path, max_seq_length)
+    
+    # 根据数据量动态调整num_workers
+    if len(dataset) < 10000:
+        num_workers = 0  # 小数据集不用多进程
+    
     dataloader = DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
-        drop_last=True
+        pin_memory=True if torch.cuda.is_available() else False,
+        prefetch_factor=2 if num_workers > 0 else None,
+        persistent_workers=True if num_workers > 0 else False,
+        drop_last=True  # 保留drop_last=True
     )
+    
+    print(f"数据加载器创建完成:")
+    print(f"  - 数据集大小: {len(dataset):,}")
+    print(f"  - Batch大小: {batch_size}")
+    print(f"  - 每个epoch批次: {len(dataloader)}")
+    print(f"  - 丢弃最后不足batch的样本: {len(dataset) % batch_size} 条 ({len(dataset) % batch_size / len(dataset) * 100:.4f}%)")
+    
     return dataloader
 
-# 测试
+# 测试函数
 if __name__ == "__main__":
-    dataloader = create_pretrain_dataloader("data/processed/train.jsonl", batch_size=2)
+    # 测试数据加载器
+    dataloader = create_pretrain_dataloader(
+        "data/processed/train_sample.jsonl",
+        batch_size=8
+    )
+    
     for batch in dataloader:
         print(f"输入形状: {batch['input_ids'].shape}")
         print(f"标签形状: {batch['labels'].shape}")
         break
-
-# # 测试
-# if __name__ == "__main__":
-#     test_dataloader()

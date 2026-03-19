@@ -24,7 +24,7 @@ SpineMouseController::~SpineMouseController()
 }
 
 void SpineMouseController::initialize(spine::Skeleton* skeleton, spine::AnimationState* animationState,
-    const QString& touchBoneName, const QString& headAnimationPrefix)
+    const QString& touchBoneName, const QString& headAnimationPrefix, const QString& headAnimationEndPrefix)
 {
     m_skeleton = skeleton;
     m_animationState = animationState;
@@ -32,33 +32,56 @@ void SpineMouseController::initialize(spine::Skeleton* skeleton, spine::Animatio
 
     if (m_skeleton) {
         m_touchBone = m_skeleton->findBone(touchBoneName.toStdString().c_str());
+        if (m_touchBone) {
+            qDebug() << "Found bone:" << touchBoneName
+                << "at position:" << m_touchBone->getWorldX()
+                << "," << m_touchBone->getWorldY();
+        }
     }
 
     // 设置默认头部动画名称
     m_headAnimation = headAnimationPrefix;
-    m_headAnimationEnd = headAnimationPrefix + "End";
+    m_headAnimationEnd = headAnimationPrefix;
 }
 
 void SpineMouseController::handleMousePress(const QPointF& globalPos, const QPointF& localPos,
     float spineX, float spineY, float scale)
 {
-    if (!m_touchBone) return;
+    if (!m_touchBone) {
+        qWarning() << "Touch bone not found!";
+        return;
+    }
 
     m_state.mouseDown = true;
 
-    // 启动长按定时器
-    m_longTouchTimer.start();
+    // 计算鼠标在Spine世界中的坐标
+    QPointF spineWorldPoint = screenToSpineWorld(globalPos, spineX, spineY, scale);
 
-    // 计算触摸点相对于角色的坐标
-    QPointF relativePoint = worldToLocal(globalPos, spineX, spineY, scale);
-    QPointF boneLocalPoint = localToBone(relativePoint);
+    // 获取骨骼的世界位置
+    float boneX = m_touchBone->getWorldX();
+    float boneY = m_touchBone->getWorldY();
+
+    qDebug() << "=== Mouse Press Debug in Controller ===";
+    qDebug() << "Bone world position:" << boneX << "," << boneY;
+    qDebug() << "Mouse world point:" << spineWorldPoint.x() << "," << spineWorldPoint.y();
+
+    // 计算相对于骨骼的偏移（用于判断触摸）
+    float dx = spineWorldPoint.x() - boneX;
+    float dy = spineWorldPoint.y() - boneY;
+    float distance = std::sqrt(dx * dx + dy * dy);
+
+    qDebug() << "Offset from bone:" << dx << "," << dy;
+    qDebug() << "Distance to bone:" << distance;
 
     // 判断是否触摸到头部
-    m_state.patHead = isPointNearHead(boneLocalPoint, scale);
+    m_state.patHead = distance <= (400.0f * scale);
     emit headTouched(m_state.patHead);
 
-    // 记录鼠标位置
-    m_state.mouseLocalPoint = boneLocalPoint;
+    // 设置鼠标位置（使用相对于骨骼的偏移，而不是绝对世界坐标）
+    m_state.mouseLocalPoint = QPointF(dx, dy);
+
+    qDebug() << "Mouse local offset:" << dx << "," << dy;
+    qDebug() << "Head touched:" << m_state.patHead;
 }
 
 void SpineMouseController::handleMouseRelease(const QPointF& globalPos)
@@ -89,17 +112,13 @@ void SpineMouseController::handleMouseRelease(const QPointF& globalPos)
 void SpineMouseController::handleMouseMove(const QPointF& globalPos, const QPointF& localPos,
     float spineX, float spineY, float scale)
 {
-    // 鼠标轨迹追踪
-    if (m_mouseTrial) {
-        // 可以在这里记录鼠标轨迹，用于特殊效果
-    }
+    if (!m_touchBone) return;
 
     // 鼠标追踪或长按时更新眼睛注视点
     if (m_mouseTracking || m_state.longTouch) {
-        QPointF relativePoint = worldToLocal(globalPos, spineX, spineY, scale);
-        QPointF boneLocalPoint = localToBone(relativePoint);
-
-        m_state.mouseLocalPoint = boneLocalPoint;
+        // 计算鼠标在Spine世界中的坐标
+        QPointF spineWorldPoint = screenToSpineWorld(globalPos, spineX, spineY, scale);
+        m_state.mouseLocalPoint = spineWorldPoint;
     }
 }
 
@@ -120,46 +139,53 @@ void SpineMouseController::onUpdateEyes()
 {
     if (!m_touchBone || !m_skeleton) return;
 
-    // 限制眼睛移动范围
-    QPointF clampedPoint = clampVectorLength(m_state.mouseLocalPoint, m_eyeRadius);
+    // 获取骨骼当前位置（局部坐标）
+    float boneX = m_touchBone->getX();
+    float boneY = m_touchBone->getY();
 
-    // 获取当前骨骼位置
-    float currentX = m_touchBone->getX();
-    float currentY = m_touchBone->getY();
+    // 目标位置是相对于骨骼的偏移
+    QPointF targetOffset = m_state.mouseLocalPoint;
 
-    // 平滑移动眼睛位置
-    if (std::abs(currentX - clampedPoint.x()) > 1.0f ||
-        std::abs(currentY - clampedPoint.y()) > 1.0f) {
+    // 限制移动范围
+    targetOffset = clampVectorLength(targetOffset, m_eyeRadius);
 
-        float newX = (currentX + clampedPoint.x()) / m_state.linearAlgebraScale;
-        float newY = (currentY + clampedPoint.y()) / m_state.linearAlgebraScale;
+    // 平滑移动 - 直接设置偏移
+    float newX = targetOffset.x();
+    float newY = targetOffset.y();
 
+    // 只有当变化足够大时才更新
+    if (std::abs(boneX - newX) > 0.1f || std::abs(boneY - newY) > 0.1f) {
         m_touchBone->setX(newX);
         m_touchBone->setY(newY);
 
         // 更新骨骼世界变换
         m_skeleton->updateWorldTransform(spine::Physics_Update);
+
+        qDebug() << "Updating bone - Old:" << boneX << "," << boneY
+            << "New:" << newX << "," << newY;
     }
 }
 
-QPointF SpineMouseController::worldToLocal(const QPointF& worldPoint,
+QPointF SpineMouseController::screenToSpineWorld(const QPointF& screenPoint,
     float spineX, float spineY, float scale)
 {
+    // 计算相对于Spine原点的偏移
+    float dx = screenPoint.x() - spineX;
+    float dy = screenPoint.y() - spineY;
+
+    // 应用缩放并翻转Y轴
     QPointF result;
-    result.setX((worldPoint.x() - spineX) / scale);
-    result.setY((worldPoint.y() - spineY) / scale);
+    result.setX(dx / scale);
+    result.setY(-dy / scale);  // 负号因为屏幕Y向下，Spine Y向上
+
+    qDebug() << "ScreenToSpineWorld -"
+        << "Screen:" << screenPoint.x() << "," << screenPoint.y()
+        << "SpineOrigin:" << spineX << "," << spineY
+        << "Offset:" << dx << "," << dy
+        << "Scale:" << scale
+        << "Result:" << result.x() << "," << result.y();
+
     return result;
-}
-
-QPointF SpineMouseController::localToBone(const QPointF& localPoint)
-{
-    if (!m_touchBone) return localPoint;
-
-    // 直接使用骨骼的worldToLocal方法
-    // 注意：localPoint已经是相对于spine显示位置的坐标
-    float outX, outY;
-    m_touchBone->worldToLocal(localPoint.x(), localPoint.y(), outX, outY);
-    return QPointF(outX, outY);
 }
 
 float SpineMouseController::vectorLength(const QPointF& vec) const
@@ -179,8 +205,23 @@ QPointF SpineMouseController::clampVectorLength(const QPointF& vec, float maxLen
 
 bool SpineMouseController::isPointNearHead(const QPointF& point, float scale) const
 {
-    float length = vectorLength(point);
-    return length <= (400.0f * scale);
+    if (!m_touchBone) return false;
+
+    // 获取骨骼的世界位置
+    float boneX = m_touchBone->getWorldX();
+    float boneY = m_touchBone->getWorldY();
+
+    // 计算点到骨骼的距离
+    float dx = point.x() - boneX;
+    float dy = point.y() - boneY;
+    float distance = std::sqrt(dx * dx + dy * dy);
+
+    qDebug() << "Distance check - Point:" << point.x() << "," << point.y()
+        << "Bone:" << boneX << "," << boneY
+        << "Distance:" << distance
+        << "Threshold:" << (400.0f * scale);
+
+    return distance <= (400.0f * scale);
 }
 
 void SpineMouseController::playHeadAnimation(bool isTouch)
@@ -194,9 +235,6 @@ void SpineMouseController::playHeadAnimation(bool isTouch)
 
     m_animationState->setAnimation(5, animA.c_str(), false);
     m_animationState->setAnimation(6, animM.c_str(), false);
-
-    // 动画结束时重置状态
-    // 可以通过AnimationState的监听器来实现
 }
 
 void SpineMouseController::playHeadAnimationEnd()

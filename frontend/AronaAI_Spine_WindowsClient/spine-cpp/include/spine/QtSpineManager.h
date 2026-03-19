@@ -21,6 +21,7 @@
 #define QTSPINEWIDGET_H
 
 #include <spine/QtTextureLoader.h>
+#include <SpineMouseController.h>
 
 #include <GlobalInclude.h>
 
@@ -79,10 +80,20 @@ public:
     void setAnimation(const QString& name, int track_idx, bool loop = true);
 	void clearAnimation(int track_idx);
 
+    // 鼠标控制器相关
+    void enableMouseControl(const QString& touchBoneName = "Head");
+    SpineMouseController* mouseController() const { return m_mouseController.get(); }
+
 protected:
+    // 重写OpenGL相关函数
     void initializeGL() override;
     void paintGL() override;
     void resizeGL(int w, int h) override;
+
+    // 重写鼠标事件
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
 
 private slots:
     void updateAnimation();
@@ -102,6 +113,14 @@ private:
     spine::Skeleton* m_skeleton = nullptr;
     spine::AnimationStateData* m_animationStateData = nullptr;
     spine::AnimationState* m_animationState = nullptr;
+
+    // 鼠标控制器
+    std::unique_ptr<SpineMouseController> m_mouseController;
+
+    // 骨骼显示位置（用于坐标转换）
+    float m_spineX = 0.0f;
+    float m_spineY = 0.0f;
+    float m_scale = 1.0f;
 
     // 定时器
     QTimer m_timer;

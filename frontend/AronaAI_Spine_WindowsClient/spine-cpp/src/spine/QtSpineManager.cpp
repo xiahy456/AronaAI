@@ -203,6 +203,54 @@ void QtSpineManager::resizeGL(int w, int h)
     glViewport(0, 0, w, h);
 }
 
+void QtSpineManager::mousePressEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::LeftButton && m_mouseController) {
+        // 获取Spine在屏幕上的位置
+        // 这些值必须与paintGL中的变换完全一致
+        m_spineX = 110.0f * WIDGET_ZOOM;  // translate X
+        m_spineY = 270.0f * WIDGET_ZOOM;  // translate Y
+        m_scale = 0.2f * WIDGET_ZOOM;      // scale
+
+        qDebug() << "\n=== Mouse Press Debug ===";
+        qDebug() << "Widget size:" << width() << "x" << height();
+        qDebug() << "Mouse global:" << event->globalPosition();
+        qDebug() << "Mouse local:" << event->position();
+        qDebug() << "Spine origin screen pos:" << m_spineX << "," << m_spineY;
+        qDebug() << "Scale:" << m_scale;
+
+        m_mouseController->handleMousePress(
+            event->globalPosition(),
+            event->position(),
+            m_spineX, m_spineY, m_scale
+        );
+    }
+
+    QOpenGLWidget::mousePressEvent(event);
+}
+
+void QtSpineManager::mouseReleaseEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::LeftButton && m_mouseController) {
+        m_mouseController->handleMouseRelease(event->globalPosition());
+    }
+
+    QOpenGLWidget::mouseReleaseEvent(event);
+}
+
+void QtSpineManager::mouseMoveEvent(QMouseEvent* event)
+{
+    if (event->buttons() & Qt::LeftButton && m_mouseController) {
+        m_mouseController->handleMouseMove(
+            event->globalPosition(),
+            event->position(),
+            m_spineX, m_spineY, m_scale
+        );
+    }
+
+    QOpenGLWidget::mouseMoveEvent(event);
+}
+
 void QtSpineManager::updateAnimation()
 {
     if (!m_animationState || !m_skeleton) {
@@ -302,6 +350,33 @@ void QtSpineManager::clearAnimation(int track_idx)
     m_animationState->clearTrack(track_idx);
     m_lastTime = 0;
 	qDebug().noquote() << FINE_PR << "[Spine Operation]Cleared animation on track:" << track_idx;
+}
+
+void QtSpineManager::enableMouseControl(const QString& touchBoneName)
+{
+    if (!m_skeleton || !m_animationState) {
+        qWarning() << "Skeleton or AnimationState not ready for mouse control";
+        return;
+    }
+
+    m_mouseController = std::make_unique<SpineMouseController>(this);
+    m_mouseController->initialize(m_skeleton, m_animationState, touchBoneName);
+
+    // 设置鼠标追踪
+    setMouseTracking(true);
+
+    // 可以连接信号
+    connect(m_mouseController.get(), &SpineMouseController::talkTriggered,
+        this, [this](int index) {
+            qDebug() << "Talk triggered, index:" << index;
+            // 这里可以触发对话动画或UI
+            // 例如：setAnimation("talk", 1, false);
+        });
+
+    connect(m_mouseController.get(), &SpineMouseController::headTouched,
+        this, [this](bool touched) {
+            qDebug() << "Head touched:" << touched;
+        });
 }
 
 void QtSpineManager::collectMeshAttachmentVertices(spine::MeshAttachment* attachment,

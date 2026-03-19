@@ -51,7 +51,7 @@ public:
     // 清除动画
 	void clearAnimation(int track_idx);
     // 更改鼠标可用性
-	void setMouseAble(bool able);
+	void setMouseTransparent(bool isMouseTransparent);
 
     // Debug-显示文本
 	void debug_showText();
@@ -61,13 +61,14 @@ protected:
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
 
+
 private:
     Ui::MainWidgetClass ui;
 
     // 鼠标事件
     bool m_dragging;
     QPoint m_dragPosition;
-    bool m_mouseAble = true;   // 鼠标是否可用
+	bool m_mouseTransparent;   // 鼠标可用性
 
     // 不透明度动画属性
 	OpacityAnimation* m_opacityAnimation_aronaOutputTextBox = nullptr;   // 文本框不透明度动画

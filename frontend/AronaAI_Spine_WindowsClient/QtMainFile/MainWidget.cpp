@@ -27,14 +27,13 @@ MainWidget::MainWidget(QWidget *parent)
 	// 加载UI界面
     ui.setupUi(this);
 
-
-
     // 100ms时间等待OpenGL初始化，然后加载spine文件并设置初始动画
     QTimer::singleShot(100, [this]() {
         ui.qtSpineManagerWidget->loadSpineFile(
             GET_STRING_FROM_JSON(_global_config, "spine", "atlas_path"),
             GET_STRING_FROM_JSON(_global_config, "spine", "skelOrJson_path")
             );
+        //ui.qtSpineManagerWidget->enableMouseControl("Head");
         ui.qtSpineManagerWidget->setAnimation("Idle_01", 0, true);  // 基础层
         ui.qtSpineManagerWidget->setAnimation("Idle_01", 1, true);  // 表情层
         ui.qtSpineManagerWidget->setAnimation("Idle_01", 2, true);  // 语言层
@@ -42,10 +41,11 @@ MainWidget::MainWidget(QWidget *parent)
 
     // 初始化相关控件
     m_opacityAnimation_aronaOutputTextBox = new OpacityAnimation(ui.aronaOutputTextBox, 0.0, 250, QEasingCurve::Linear); // 默认气泡文本不透明度为0
+    m_mouseTransparent = GET_BOOL_FROM_JSON(_global_config, "settings", "mouse_event_transparent");
 
     // 窗口设置
     this->setAttribute(Qt::WA_TranslucentBackground);	// 设置窗口背景透明
-    if (GET_BOOL_FROM_JSON(_global_config, "settings", "mouse_event_transparent")) this->setAttribute(Qt::WA_TransparentForMouseEvents, true); // 设置鼠标穿透点击
+    this->setMouseTransparent(m_mouseTransparent);    // 设置鼠标穿透点击
     this->setWindowFlag(Qt::FramelessWindowHint);	// 设置无边框窗口
     this->setWindowFlag(Qt::WindowStaysOnTopHint);	// 设置窗口始终在顶部
     this->setWindowFlag(Qt::Tool);	// 隐藏应用程序图标
@@ -60,6 +60,8 @@ MainWidget::MainWidget(QWidget *parent)
     QRect screenRect = screen->availableGeometry();
     // 移动窗口
     this->move(screenRect.left(), screenRect.bottom() - this->height() + GET_INT_FROM_JSON(_global_config, "settings", "offset_from_screen_bottom"));
+    // 安装事件过滤器
+	this->installEventFilter(this);
 
     // 界面控件设置
     ui.aronaOutputTextBox->resize(300 * WIDGET_ZOOM, 80 * WIDGET_ZOOM);
@@ -104,9 +106,21 @@ void MainWidget::clearAnimation(int track_idx)
 	ui.qtSpineManagerWidget->clearAnimation(track_idx);
 }
 
-void MainWidget::setMouseAble(bool able)
+void MainWidget::setMouseTransparent(bool isMouseTransparent)
 {
-    m_mouseAble = able;
+	m_mouseTransparent = isMouseTransparent;
+    if (m_mouseTransparent) {
+        qDebug() << FINE_PR << "[Qt Operation]Setting mouse event to transparent";
+        // 穿透点击
+        this->setWindowFlags(this->windowFlags() | Qt::WindowTransparentForInput);
+        this->show();
+    }
+    else {
+        qDebug() << FINE_PR << "[Qt Operation]Setting mouse event to non-transparent";
+		// 非穿透点击
+        this->setWindowFlags(this->windowFlags() & ~Qt::WindowTransparentForInput);
+        this->show();
+    }
 }
 
 void MainWidget::debug_showText()
@@ -118,7 +132,6 @@ void MainWidget::debug_showText()
 
 void MainWidget::mousePressEvent(QMouseEvent* event)
 {
-    if (!m_mouseAble) return;
     if (event->button() == Qt::RightButton) {
         m_dragging = true;
         m_dragPosition = event->globalPosition().toPoint() - frameGeometry().topLeft();
@@ -128,7 +141,6 @@ void MainWidget::mousePressEvent(QMouseEvent* event)
 
 void MainWidget::mouseMoveEvent(QMouseEvent* event)
 {
-    if (!m_mouseAble) return;
     if (m_dragging && (event->buttons() & Qt::RightButton)) {
         move(event->globalPosition().toPoint() - m_dragPosition);
         event->accept();
@@ -137,7 +149,6 @@ void MainWidget::mouseMoveEvent(QMouseEvent* event)
 
 void MainWidget::mouseReleaseEvent(QMouseEvent* event)
 {
-    if (!m_mouseAble) return;
     if (event->button() == Qt::RightButton) {
         m_dragging = false;
         event->accept();

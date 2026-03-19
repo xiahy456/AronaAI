@@ -1,28 +1,28 @@
 # configs/pretrain_config.yaml
 pretrain:
   # 数据配置
-  data_path: "/root/autodl-tmp/data/processed/train_small.jsonl"
-  val_data_path: "/root/autodl-tmp/data/processed/val_small.jsonl"
+  data_path: "/root/autodl-tmp/data/processed/train_large.jsonl"
+  val_data_path: "/root/autodl-tmp/data/processed/val_large.jsonl"
   max_seq_length: 128
   
   # 训练配置
-  batch_size: 8
-  learning_rate: 5e-4
+  batch_size: 24
+  learning_rate: 3e-4
   weight_decay: 0.01
   num_epochs: 3
-  warmup_steps: 1000
+  warmup_steps: 2000
   
   # 优化器配置
   optimizer: "AdamW"
   scheduler: "cosine"
   
   # 模型保存
-  checkpoint_dir: "/root/autodl-tmp/checkpoint/pretrain_small"
-  save_steps: 1000
-  eval_steps: 500
+  checkpoint_dir: "/root/autodl-tmp/checkpoint/pretrain_large"
+  save_steps: 5000
+  eval_steps: 2000
   
   # 分布式训练
-  gradient_accumulation_steps: 4
+  gradient_accumulation_steps: 2
   max_grad_norm: 1.0
   
   # 日志
