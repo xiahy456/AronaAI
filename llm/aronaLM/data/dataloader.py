@@ -1,262 +1,87 @@
 import json
 import torch
 from pathlib import Path
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, IterableDataset
 from typing import List, Dict, Tuple
 import sys
 import os
 # 添加项目根目录到Python路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(str(Path(__file__).parent.parent))
 from configs import MODEL_CONFIG, TRAINING_CONFIG
 from model.tokenizer import tokenizer
 
-# 对话数据集
-class DialogueDataset(Dataset):
-    def __init__(self, data_path: str):
-        self.data_path = self._resolve_data_path(data_path)
-        self.dialogues = self._load_data()
-        self.samples = self._prepare_samples()
-
-    # 加载数据路径
-    def _resolve_data_path(self, data_path:str) -> Path:
-        path = Path(data_path)
-        # 如果路径直接存在，直接返回
-        if path.exists():
-            return path
-        # 尝试相对于当前文件(dataloader.py)所在目录的路径
-        current_dir = Path(__file__).parent  # data目录
-        possible_paths = [
-            current_dir / data_path,                    # data/目录下
-            current_dir / "raw" / data_path,            # data/raw/目录下
-            current_dir / data_path,                    # 再次尝试data目录
-            Path.cwd() / "data" / "raw" / data_path,    # 项目根目录下的data/raw
-            Path.cwd() / data_path,                     # 项目根目录下
-        ]
-        for possible_path in possible_paths:
-            print(f"尝试路径: {possible_path}")  # 调试信息
-            if possible_path.exists():
-                print(f"找到文件: {possible_path}")  # 调试信息
-                return possible_path
-        # 如果都找不到，抛出详细错误
-        raise FileNotFoundError(
-            f"找不到数据文件: {data_path}\n"
-            f"当前工作目录: {Path.cwd()}\n"
-            f"data目录: {Path(__file__).parent}\n"
-            f"尝试过的路径: {[str(p) for p in possible_paths]}"
-        )
-
-    # 加载对话数据
-    def _load_data(self) -> List[Dict]:
-        print(f"正在加载数据文件: {self.data_path}")  # 调试信息
-        with open(self.data_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        print(f"成功加载 {len(data)} 条对话数据")  # 调试信息
-        return data
-
-    # # 准备单轮对话训练样本
-    # def _prepare_samples(self) -> List[Tuple[List[int], List[int]]]:
-    #     samples = []
-    #     for dialogue in self.dialogues:
-    #         input_text = dialogue["input"]
-    #         output_text = dialogue["output"]
-    #         # 编码为token
-    #         input_ids = tokenizer.encode(input_text)
-    #         output_ids = tokenizer.encode(output_text)
-    #         samples.append((input_ids, output_ids))
-    #     return samples
-
-    # 准备多轮对话训练样本
-    def _prepare_samples(self) -> List[Tuple[List[int], List[int]]]:
-        samples = []
-        for dialogue in self.dialogues:
-            if "conversation" in dialogue:
-                # 多轮对话格式
-                conversation = dialogue["conversation"]
-                # 为每轮对话构建训练样本
-                for i in range(1, len(conversation)):
-                    if conversation[i]["role"] == "Arona":
-                        # 构建上下文（之前的所有对话）
-                        context_parts = []
-                        for j in range(i):
-                            role = conversation[j]["role"]
-                            content = conversation[j]["content"]
-                            role_display = "User" if role == "User" else "Arona"
-                            context_parts.append(f"{role_display}: {content}")
-                        input_text = " ".join(context_parts)
-                        output_text = conversation[i]["content"] + "[EOS]"
-                        # 编码为token
-                        input_ids = tokenizer.encode(input_text)
-                        output_ids = tokenizer.encode(output_text)
-                        samples.append((input_ids, output_ids))
-                    # 兼容单轮对话格式
-            elif "input" in dialogue and "output" in dialogue:
-                input_text = dialogue["input"]
-                output_text = dialogue["output"] = "[EOS]"
-                # 编码为token
-                input_ids = tokenizer.encode(input_text)
-                output_ids = tokenizer.encode(output_text)
-                samples.append((input_ids, output_ids))
-
-        print(f"从对话数据中准备了 {len(samples)} 个训练样本")
-        return samples
+class PretrainIterableDataset(IterableDataset):
+    """可迭代的预训练数据集 - 流式加载，不占用内存"""
     
-    def __len__(self):
-        return len(self.samples)
-    
-    def __getitem__(self, idx):
-        input_ids, output_ids = self.samples[idx]
-
-        # 构建模型输入：input_ids + output_ids
-        # 输入：[input_ids]
-        # 输出：[output_ids]（偏移一位）
-
-        # 截断或填充到固定长度
-        input_ids = self._pad_or_truncate(input_ids, MODEL_CONFIG.max_seq_length)
-        output_ids = self._pad_or_truncate(output_ids, MODEL_CONFIG.max_seq_length)
-
-        return {
-            'input_ids': torch.tensor(input_ids, dtype=torch.long),
-            'output_ids': torch.tensor(output_ids, dtype=torch.long),
-        }
-    
-    # 填充或截断序列到固定长度
-    def _pad_or_truncate(self, token_ids: List[int], max_length: int) -> List[int]:
-        if len(token_ids) > max_length:
-            return token_ids[:max_length]
-        else:
-            padding = [MODEL_CONFIG.pad_token_id] * (max_length - len(token_ids))
-            return token_ids + padding
-
-# 创建数据加载器
-def create_data_loader(data_path: str, batch_size: int = None, shuffle: bool = True):
-    if data_path is None:
-        data_path = TRAINING_CONFIG.data_path
-    if batch_size is None:
-        batch_size = TRAINING_CONFIG.batch_size
-
-    print(f"创建数据加载器，数据路径: {data_path}")  # 调试信息
-    dataset = DialogueDataset(data_path)
-    dataloader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=TRAINING_CONFIG.num_workers
-    )
-    return dataloader
-
-# 测试数据加载器
-def test_dataloader():
-    try:
-        dataloader = create_data_loader("raw/training_dialogues.json")
-        for i, batch in enumerate(dataloader):
-            print(f"Batch {i}:")
-            print(f"  input_ids shape: {batch['input_ids'].shape}")
-            print(f"  output_ids shape: {batch['output_ids'].shape}")
-            # 解码回文本查看
-            input_text = tokenizer.decode(batch['input_ids'][0].tolist())
-            output_text = tokenizer.decode(batch['output_ids'][0].tolist())
-            print(f"  input text: {input_text}")
-            print(f"  output text: {output_text}")
-            print()
-            if i >= 1:
-                break
-    except Exception as e:
-        print(f"错误: {e}")
-        print("\n当前目录结构:")
-        current_dir = Path(__file__).parent
-        for file_path in current_dir.rglob("*"):
-            print(f"  {file_path.relative_to(current_dir.parent)}")
-
-class PretrainDataset(Dataset):
-    """预训练数据集"""
-    
-    def __init__(self, data_path, max_seq_length=MODEL_CONFIG.max_seq_length):
+    def __init__(self, data_path, max_seq_length=MODEL_CONFIG.max_gen_length):
         self.data_path = data_path
         self.max_seq_length = max_seq_length
-        self.samples = self._load_samples()
-        print(f"加载了 {len(self.samples)} 个预训练样本")
         
-    def _load_samples(self):
-        """加载样本"""
-        samples = []
+        # 只计算文件大小，不加载数据
+        self.file_size = Path(data_path).stat().st_size
+        print(f"数据集文件大小: {self.file_size / 1024**3:.2f} GB")
+    
+    def __iter__(self):
+        """迭代器 - 逐行读取，不加载到内存"""
         with open(self.data_path, 'r', encoding='utf-8') as f:
             for line in f:
                 sample = json.loads(line)
-                samples.append(sample['token_ids'])
-        return samples
+                token_ids = sample['token_ids'].copy()
+                
+                # 添加EOS token
+                token_ids.append(MODEL_CONFIG.eos_token_id)
+                
+                # 截断或填充
+                if len(token_ids) > self.max_seq_length:
+                    token_ids = token_ids[:self.max_seq_length]
+                else:
+                    padding = [MODEL_CONFIG.pad_token_id] * (self.max_seq_length - len(token_ids))
+                    token_ids = token_ids + padding
+                
+                # 创建输入和标签
+                input_ids = torch.tensor(token_ids[:-1], dtype=torch.long)
+                labels = torch.tensor(token_ids[1:], dtype=torch.long)
+                
+                yield {
+                    'input_ids': input_ids,
+                    'labels': labels
+                }
     
     def __len__(self):
-        return len(self.samples)
-    
-    def __getitem__(self, idx):
-        token_ids = self.samples[idx].copy()
-        
-        # 添加EOS token
-        token_ids.append(MODEL_CONFIG.eos_token_id)
-        
-        # 截断或填充
-        if len(token_ids) > self.max_seq_length:
-            token_ids = token_ids[:self.max_seq_length]
-        else:
-            padding = [MODEL_CONFIG.pad_token_id] * (self.max_seq_length - len(token_ids))
-            token_ids = token_ids + padding
-        
-        # 对于因果语言建模，输入和目标是一样的（偏移一位）
-        input_ids = torch.tensor(token_ids[:-1], dtype=torch.long)
-        labels = torch.tensor(token_ids[1:], dtype=torch.long)
-        
-        return {
-            'input_ids': input_ids,
-            'labels': labels
-        }
+        """返回一个估计的长度（用于进度条）"""
+        # 粗略估计：假设每条约100字节
+        return self.file_size // 100
 
-def create_pretrain_dataloader(data_path, batch_size=24, shuffle=True, num_workers=4, max_seq_length=128):
-    """创建预训练数据加载器
+def create_pretrain_dataloader(data_path, batch_size=24, shuffle=False, num_workers=2, max_seq_length=128):
+    """创建流式预训练数据加载器
     
     Args:
         data_path: 数据文件路径
         batch_size: 批次大小
-        shuffle: 是否打乱数据
-        num_workers: 数据加载进程数
+        shuffle: 是否打乱（对流式数据集无效）
+        num_workers: 数据加载进程数（30GB数据建议用2）
         max_seq_length: 最大序列长度
     
     Returns:
         DataLoader对象
     """
-    dataset = PretrainDataset(data_path, max_seq_length)
-    
-    # 根据数据量动态调整num_workers
-    if len(dataset) < 10000:
-        num_workers = 0  # 小数据集不用多进程
+    dataset = PretrainIterableDataset(data_path, max_seq_length)
     
     dataloader = DataLoader(
         dataset,
         batch_size=batch_size,
-        shuffle=shuffle,
         num_workers=num_workers,
         pin_memory=True if torch.cuda.is_available() else False,
         prefetch_factor=2 if num_workers > 0 else None,
         persistent_workers=True if num_workers > 0 else False,
-        drop_last=True  # 保留drop_last=True
+        drop_last=True
     )
     
-    print(f"数据加载器创建完成:")
-    print(f"  - 数据集大小: {len(dataset):,}")
+    print(f"流式数据加载器创建完成:")
+    print(f"  - 数据集类型: 流式迭代 (不占用内存)")
     print(f"  - Batch大小: {batch_size}")
-    print(f"  - 每个epoch批次: {len(dataloader)}")
-    print(f"  - 丢弃最后不足batch的样本: {len(dataset) % batch_size} 条 ({len(dataset) % batch_size / len(dataset) * 100:.4f}%)")
+    print(f"  - 数据加载进程: {num_workers}")
+    print(f"  - 预估每个epoch步数: {len(dataset) // batch_size:,}")
     
     return dataloader
-
-# 测试函数
-if __name__ == "__main__":
-    # 测试数据加载器
-    dataloader = create_pretrain_dataloader(
-        "data/processed/train_sample.jsonl",
-        batch_size=8
-    )
-    
-    for batch in dataloader:
-        print(f"输入形状: {batch['input_ids'].shape}")
-        print(f"标签形状: {batch['labels'].shape}")
-        break

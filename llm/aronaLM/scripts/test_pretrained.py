@@ -48,4 +48,4 @@ def test_pretrained_model(model_path):
         print("-" * 40)
 
 if __name__ == "__main__":
-    test_pretrained_model("/root/autodl-tmp/checkpoint/pretrain_small/final_model.pt")
+    test_pretrained_model("/root/autodl-tmp/checkpoint/pretrain_small/best_model.pt")

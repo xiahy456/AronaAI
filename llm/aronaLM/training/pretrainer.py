@@ -16,71 +16,15 @@ import gc
 import argparse
 from datetime import datetime
 sys.path.append(str(Path(__file__).parent.parent))
+# 添加项目根目录到Python路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from model.pretrain_model import PretrainLM
 from configs import MODEL_CONFIG
-
-# 预训练数据集类
-class PretrainDataset(torch.utils.data.Dataset):
-    """预训练数据集"""
-    
-    def __init__(self, data_path, max_seq_length=128):
-        self.data_path = data_path
-        self.max_seq_length = max_seq_length
-        self.samples = self._load_samples()
-        print(f"加载了 {len(self.samples)} 个预训练样本")
-        
-    def _load_samples(self):
-        """加载样本"""
-        samples = []
-        with open(self.data_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                sample = json.loads(line)
-                samples.append(sample['token_ids'])
-        return samples
-    
-    def __len__(self):
-        return len(self.samples)
-    
-    def __getitem__(self, idx):
-        token_ids = self.samples[idx].copy()
-        
-        # 添加EOS token
-        token_ids.append(1)  # eos_token_id
-        
-        # 截断或填充
-        if len(token_ids) > self.max_seq_length:
-            token_ids = token_ids[:self.max_seq_length]
-        else:
-            padding = [0] * (self.max_seq_length - len(token_ids))  # pad_token_id
-            token_ids = token_ids + padding
-        
-        # 对于因果语言建模，输入和目标是一样的（偏移一位）
-        input_ids = torch.tensor(token_ids[:-1], dtype=torch.long)
-        labels = torch.tensor(token_ids[1:], dtype=torch.long)
-        
-        return {
-            'input_ids': input_ids,
-            'labels': labels
-        }
-
-def create_pretrain_dataloader(data_path, batch_size=24, shuffle=True, num_workers=4, max_seq_length=128):
-    """创建预训练数据加载器"""
-    dataset = PretrainDataset(data_path, max_seq_length)
-    dataloader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=num_workers,
-        pin_memory=True,
-        prefetch_factor=2,
-        persistent_workers=True if num_workers > 0 else False,
-        drop_last=True
-    )
-    return dataloader
+from data.dataloader import create_pretrain_dataloader
 
 class Pretrainer:
-    """预训练训练器 - 支持RTX 4090优化"""
+    """预训练训练器 - 支持流式数据集"""
     
     def __init__(self, config):
         """
@@ -91,13 +35,22 @@ class Pretrainer:
         """
         self.config = config
         
+        # 日志文件 - 移到最前面
+        self.log_file = None
+        if 'log_file' in config and config['log_file']:
+            # 确保日志目录存在
+            log_path = Path(config['log_file'])
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            self.log_file = open(config['log_file'], 'a', encoding='utf-8')
+            print(f"日志将写入: {config['log_file']}")
+        
         # 设置设备
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        print(f"使用设备: {self.device}")
+        self.log(f"使用设备: {self.device}")
         
         if torch.cuda.is_available():
-            print(f"GPU: {torch.cuda.get_device_name(0)}")
-            print(f"GPU显存: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+            self.log(f"GPU: {torch.cuda.get_device_name(0)}")
+            self.log(f"GPU显存: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
         
         # 创建模型
         self.model = PretrainLM().to(self.device)
@@ -109,13 +62,15 @@ class Pretrainer:
         # 混合精度训练
         self.use_amp = True
         if self.use_amp and torch.cuda.is_available():
-            self.scaler = torch.cuda.amp.GradScaler()
-            print("使用混合精度训练(AMP)")
+            self.scaler = torch.amp.GradScaler('cuda')
+            self.log("使用混合精度训练(AMP) - 设备: cuda")
+        else:
+            self.use_amp = False
         
         # 创建保存目录
         self.checkpoint_dir = Path(config['checkpoint_dir'])
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        print(f"检查点保存路径: {self.checkpoint_dir.absolute()}")
+        self.log(f"检查点保存路径: {self.checkpoint_dir.absolute()}")
         
         # 训练状态
         self.global_step = 0
@@ -125,22 +80,23 @@ class Pretrainer:
         self.val_losses = []
         
         # 内存监控
-        self.memory_limit_gb = 20  # 4090有24GB，留点余量
+        self.memory_limit_gb = 20
         self.last_gc_time = time.time()
-        
-        # 日志文件
-        self.log_file = None
-        if 'log_file' in config:
-            self.log_file = open(config['log_file'], 'w', encoding='utf-8')
     
-    def log(self, message):
+    def log(self, message, print_to_console=True):
         """记录日志到文件和终端"""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_msg = f"[{timestamp}] {message}"
-        print(log_msg)
-        if self.log_file:
-            self.log_file.write(log_msg + '\n')
-            self.log_file.flush()
+        
+        if print_to_console:
+            print(log_msg)
+        
+        if hasattr(self, 'log_file') and self.log_file:
+            try:
+                self.log_file.write(log_msg + '\n')
+                self.log_file.flush()
+            except:
+                pass
     
     def print_model_info(self):
         """打印模型信息"""
@@ -176,9 +132,9 @@ class Pretrainer:
             eps=1e-8
         )
     
-    def _create_scheduler(self, train_loader):
+    def _create_scheduler(self, steps_per_epoch):
         """创建学习率调度器"""
-        total_steps = len(train_loader) * self.config['num_epochs']
+        total_steps = steps_per_epoch * self.config['num_epochs']
         warmup_steps = self.config.get('warmup_steps', 2000)
         
         # Warmup阶段
@@ -209,15 +165,14 @@ class Pretrainer:
         """检查内存使用情况"""
         if self.device.type == 'cuda':
             allocated = torch.cuda.memory_allocated() / 1024**3
-            cached = torch.cuda.memory_reserved() / 1024**3
             if allocated > self.memory_limit_gb:
-                self.log(f"⚠️ GPU内存使用过高: {allocated:.1f} GB / {cached:.1f} GB")
+                self.log(f"⚠️ GPU内存使用过高: {allocated:.1f} GB")
                 torch.cuda.empty_cache()
                 return True
         
         # 系统内存检查
         memory_usage = psutil.Process().memory_info().rss / 1024**3
-        if memory_usage > 80:  # 系统内存限制
+        if memory_usage > 80:
             if time.time() - self.last_gc_time > 300:
                 gc.collect()
                 self.last_gc_time = time.time()
@@ -227,10 +182,13 @@ class Pretrainer:
         return False
     
     def train_epoch(self, train_loader, epoch, scheduler):
-        """训练一个epoch"""
+        """训练一个epoch - 适配流式数据集"""
         self.model.train()
         total_loss = 0
-        num_batches = len(train_loader)
+        batch_count = 0
+        log_loss = 0
+        log_count = 0
+        start_time = time.time()
         
         progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{self.config['num_epochs']}")
         
@@ -240,24 +198,20 @@ class Pretrainer:
             labels = batch['labels'].to(self.device)
             
             if self.use_amp and torch.cuda.is_available():
-                # 混合精度前向传播
-                with torch.cuda.amp.autocast():
+                # 混合精度训练
+                with torch.amp.autocast('cuda'):
                     logits, loss = self.model(input_ids, labels)
                     loss = loss / self.config['gradient_accumulation_steps']
                 
-                # 反向传播
                 self.scaler.scale(loss).backward()
                 
-                # 梯度累积步进
                 if (batch_idx + 1) % self.config['gradient_accumulation_steps'] == 0:
-                    # 梯度裁剪
                     self.scaler.unscale_(self.optimizer)
                     torch.nn.utils.clip_grad_norm_(
                         self.model.parameters(), 
                         self.config['max_grad_norm']
                     )
                     
-                    # 优化器步进
                     self.scaler.step(self.optimizer)
                     self.scaler.update()
                     scheduler.step()
@@ -265,27 +219,36 @@ class Pretrainer:
                     
                     self.global_step += 1
                     
-                    # 记录损失
                     current_loss = loss.item() * self.config['gradient_accumulation_steps']
                     total_loss += current_loss
+                    log_loss += current_loss
+                    log_count += 1
                     
-                    # 更新进度条
                     progress_bar.set_postfix({
                         'loss': f"{current_loss:.4f}",
                         'lr': f"{scheduler.get_last_lr()[0]:.2e}",
                         'step': self.global_step
                     })
                     
-                    # 定期保存和评估
                     if self.global_step % self.config['save_steps'] == 0:
-                        self.save_checkpoint(epoch, total_loss/(batch_idx+1))
+                        avg_loss = total_loss / batch_count if batch_count > 0 else 0
+                        self.save_checkpoint(epoch, avg_loss)
+                    
+                    if self.global_step % self.config['logging_steps'] == 0:
+                        avg_log_loss = log_loss / log_count if log_count > 0 else 0
+                        self.log(f"Step {self.global_step}: loss={avg_log_loss:.4f}, "
+                               f"lr={scheduler.get_last_lr()[0]:.2e}, "
+                               f"batch_loss={current_loss:.4f}")
+                        log_loss = 0
+                        log_count = 0
                     
                     if self.global_step % self.config['eval_steps'] == 0:
-                        val_loss = self.evaluate(train_loader)
-                        self.log(f"\nStep {self.global_step}, Quick Eval Loss: {val_loss:.4f}")
+                        eval_loss = self.quick_evaluate(train_loader)
+                        self.log(f"Step {self.global_step}: quick_eval_loss={eval_loss:.4f}")
                     
-                    # 检查内存
-                    self.check_memory()
+                    if self.global_step % 1000 == 0:
+                        self.check_memory()
+                        
             else:
                 # 普通精度训练
                 logits, loss = self.model(input_ids, labels)
@@ -297,13 +260,17 @@ class Pretrainer:
                         self.model.parameters(), 
                         self.config['max_grad_norm']
                     )
+                    
                     self.optimizer.step()
                     scheduler.step()
                     self.optimizer.zero_grad()
                     
                     self.global_step += 1
+                    
                     current_loss = loss.item() * self.config['gradient_accumulation_steps']
                     total_loss += current_loss
+                    log_loss += current_loss
+                    log_count += 1
                     
                     progress_bar.set_postfix({
                         'loss': f"{current_loss:.4f}",
@@ -312,23 +279,39 @@ class Pretrainer:
                     })
                     
                     if self.global_step % self.config['save_steps'] == 0:
-                        self.save_checkpoint(epoch, total_loss/(batch_idx+1))
+                        avg_loss = total_loss / batch_count if batch_count > 0 else 0
+                        self.save_checkpoint(epoch, avg_loss)
+                    
+                    if self.global_step % self.config['logging_steps'] == 0:
+                        avg_log_loss = log_loss / log_count if log_count > 0 else 0
+                        self.log(f"Step {self.global_step}: loss={avg_log_loss:.4f}, "
+                               f"lr={scheduler.get_last_lr()[0]:.2e}")
+                        log_loss = 0
+                        log_count = 0
                     
                     if self.global_step % self.config['eval_steps'] == 0:
-                        val_loss = self.evaluate(train_loader)
-                        self.log(f"\nStep {self.global_step}, Quick Eval Loss: {val_loss:.4f}")
+                        eval_loss = self.quick_evaluate(train_loader)
+                        self.log(f"Step {self.global_step}: quick_eval_loss={eval_loss:.4f}")
+                    
+                    if self.global_step % 1000 == 0:
+                        self.check_memory()
             
-            # 定期记录日志
-            if self.global_step % self.config['logging_steps'] == 0 and self.global_step > 0:
-                avg_loss = total_loss / ((batch_idx + 1) // self.config['gradient_accumulation_steps'])
-                self.train_losses.append((self.global_step, avg_loss))
+            batch_count += 1
+            
+            # 每10000个batch打印一次进度
+            if batch_count % 10000 == 0:
+                elapsed = time.time() - start_time
+                speed = batch_count / elapsed
+                self.log(f"已处理 {batch_count:,} 个batch, 速度: {speed:.2f} batch/s, 当前步数: {self.global_step}")
         
-        avg_epoch_loss = total_loss / (num_batches // self.config['gradient_accumulation_steps'])
+        avg_epoch_loss = total_loss / batch_count if batch_count > 0 else 0
+        self.log(f"Epoch {epoch+1} 完成, 平均损失: {avg_epoch_loss:.4f}")
+        
         return avg_epoch_loss
     
     @torch.no_grad()
-    def evaluate(self, val_loader):
-        """评估模型"""
+    def quick_evaluate(self, val_loader):
+        """快速评估（只评估前100个batch）"""
         self.model.eval()
         total_loss = 0
         num_batches = 0
@@ -344,10 +327,8 @@ class Pretrainer:
             if num_batches >= 100:
                 break
         
-        avg_loss = total_loss / num_batches
-        self.val_losses.append((self.global_step, avg_loss))
-        
-        return avg_loss
+        self.model.train()
+        return total_loss / num_batches
     
     def save_checkpoint(self, epoch, loss, is_best=False, is_final=False):
         """保存检查点"""
@@ -421,8 +402,12 @@ class Pretrainer:
         if resume_from:
             self.load_checkpoint(resume_from)
         
+        # 对于流式数据集，我们需要估计steps_per_epoch
+        steps_per_epoch = 90000000 // (self.config['batch_size'] * self.config['gradient_accumulation_steps'])
+        self.log(f"预估每个epoch步数: {steps_per_epoch:,}")
+        
         # 创建学习率调度器
-        scheduler = self._create_scheduler(train_loader)
+        scheduler = self._create_scheduler(steps_per_epoch)
         
         self.log("开始训练...")
         start_time = time.time()
@@ -445,7 +430,7 @@ class Pretrainer:
             if val_loss is not None:
                 self.log(f"  验证损失: {val_loss:.4f}")
             self.log(f"  学习率: {scheduler.get_last_lr()[0]:.6f}")
-            self.log(f"  耗时: {epoch_time:.2f}秒")
+            self.log(f"  耗时: {epoch_time/3600:.2f} 小时")
             self.log("-" * 60)
             
             # 保存epoch检查点
@@ -467,6 +452,22 @@ class Pretrainer:
         
         if self.log_file:
             self.log_file.close()
+    
+    def evaluate(self, val_loader):
+        """完整评估"""
+        self.model.eval()
+        total_loss = 0
+        num_batches = 0
+        
+        for batch in val_loader:
+            input_ids = batch['input_ids'].to(self.device)
+            labels = batch['labels'].to(self.device)
+            
+            _, loss = self.model(input_ids, labels)
+            total_loss += loss.item()
+            num_batches += 1
+        
+        return total_loss / num_batches
     
     def generate_sample(self, prompt, max_length=50, temperature=0.8):
         """生成示例文本"""
@@ -593,8 +594,7 @@ def main():
         train_loader = create_pretrain_dataloader(
             str(data_path),
             batch_size=config['batch_size'],
-            shuffle=True,
-            num_workers=0 if args.debug else 4,
+            num_workers=0 if args.debug else 2,
             max_seq_length=config['max_seq_length']
         )
         
@@ -603,13 +603,9 @@ def main():
             val_loader = create_pretrain_dataloader(
                 str(val_path),
                 batch_size=config['batch_size'],
-                shuffle=False,
-                num_workers=0 if args.debug else 2,
+                num_workers=0 if args.debug else 1,
                 max_seq_length=config['max_seq_length']
             )
-            print(f"验证数据加载器创建完成，批次: {len(val_loader)}")
-        
-        print(f"训练数据加载器创建完成，批次: {len(train_loader)}")
         
         # 检查恢复路径
         resume_path = None
