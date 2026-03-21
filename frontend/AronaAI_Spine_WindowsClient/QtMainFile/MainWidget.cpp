@@ -33,10 +33,9 @@ MainWidget::MainWidget(QWidget *parent)
             GET_STRING_FROM_JSON(_global_config, "spine", "atlas_path"),
             GET_STRING_FROM_JSON(_global_config, "spine", "skelOrJson_path")
             );
-        //ui.qtSpineManagerWidget->enableMouseControl("Head");
         ui.qtSpineManagerWidget->setAnimation("Idle_01", 0, true);  // 基础层
-        ui.qtSpineManagerWidget->setAnimation("Idle_01", 1, true);  // 表情层
-        ui.qtSpineManagerWidget->setAnimation("Idle_01", 2, true);  // 语言层
+		//ui.qtSpineManagerWidget->setAnimation("Pat_01_A", 3, true);  // 摸头A层
+		//ui.qtSpineManagerWidget->setAnimation("Pat_01_M", 4, true);  // 摸头M层
         });
 
     // 初始化相关控件
@@ -70,11 +69,13 @@ MainWidget::MainWidget(QWidget *parent)
 	ui.aronaOutputText->move(10 * WIDGET_ZOOM, 10 * WIDGET_ZOOM);
 	ui.qtSpineManagerWidget->resize(220 * WIDGET_ZOOM, 290 * WIDGET_ZOOM);
 	ui.qtSpineManagerWidget->move(65 * WIDGET_ZOOM, 0);
+    
+    // 设置文本字体大小
 	QFont font = ui.aronaOutputText->font();
 	font.setPointSize(11 * WIDGET_ZOOM);
 	ui.aronaOutputText->setFont(font);
 
-    // 初始化输出
+	// 调试-输出文本
     debug_showText();
 }
 
@@ -101,9 +102,9 @@ void MainWidget::setAnimation(const QString& name, int track_idx, bool loop)
 	ui.qtSpineManagerWidget->setAnimation(name, track_idx, loop);
 }
 
-void MainWidget::clearAnimation(int track_idx)
+void MainWidget::clearAnimation(int track_idx, float mix_duration)
 {
-	ui.qtSpineManagerWidget->clearAnimation(track_idx);
+	ui.qtSpineManagerWidget->clearAnimation(track_idx, mix_duration);
 }
 
 void MainWidget::setMouseTransparent(bool isMouseTransparent)

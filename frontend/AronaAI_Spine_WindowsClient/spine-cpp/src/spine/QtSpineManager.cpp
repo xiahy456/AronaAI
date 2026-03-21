@@ -50,6 +50,10 @@ QtSpineManager::QtSpineManager(QWidget* parent) : QOpenGLWidget(parent)
     // 动画计时器
     connect(&m_timer, &QTimer::timeout, this, &QtSpineManager::updateAnimation);
     m_timer.start((int)(1000 / GET_INT_FROM_JSON(_global_config, "settings", "frame_rate")));
+    // 连接长按定时器
+    connect(&m_longTouchTimer, &QTimer::timeout, this, &QtSpineManager::onLongTouchTimeout);
+    m_longTouchTimer.setSingleShot(true);
+    m_longTouchTimer.setInterval(100);
 
 }
 
@@ -205,25 +209,9 @@ void QtSpineManager::resizeGL(int w, int h)
 
 void QtSpineManager::mousePressEvent(QMouseEvent* event)
 {
-    if (event->button() == Qt::LeftButton && m_mouseController) {
-        // 获取Spine在屏幕上的位置
-        // 这些值必须与paintGL中的变换完全一致
-        m_spineX = 110.0f * WIDGET_ZOOM;  // translate X
-        m_spineY = 270.0f * WIDGET_ZOOM;  // translate Y
-        m_scale = 0.2f * WIDGET_ZOOM;      // scale
-
-        qDebug() << "\n=== Mouse Press Debug ===";
-        qDebug() << "Widget size:" << width() << "x" << height();
-        qDebug() << "Mouse global:" << event->globalPosition();
-        qDebug() << "Mouse local:" << event->position();
-        qDebug() << "Spine origin screen pos:" << m_spineX << "," << m_spineY;
-        qDebug() << "Scale:" << m_scale;
-
-        m_mouseController->handleMousePress(
-            event->globalPosition(),
-            event->position(),
-            m_spineX, m_spineY, m_scale
-        );
+    if (event->button() == Qt::LeftButton) {
+        // 启动长按计时器
+        m_longTouchTimer.start();
     }
 
     QOpenGLWidget::mousePressEvent(event);
@@ -231,8 +219,14 @@ void QtSpineManager::mousePressEvent(QMouseEvent* event)
 
 void QtSpineManager::mouseReleaseEvent(QMouseEvent* event)
 {
-    if (event->button() == Qt::LeftButton && m_mouseController) {
-        m_mouseController->handleMouseRelease(event->globalPosition());
+    if (event->button() == Qt::LeftButton) {
+		// 停止长按计时器
+		m_longTouchTimer.stop();
+		// 如果之前确认了长按，则执行结束逻辑
+        if (m_isLongTouch) {
+            handlePatEnd();
+            m_isLongTouch = false; // 重置长按状态
+        }
     }
 
     QOpenGLWidget::mouseReleaseEvent(event);
@@ -240,12 +234,8 @@ void QtSpineManager::mouseReleaseEvent(QMouseEvent* event)
 
 void QtSpineManager::mouseMoveEvent(QMouseEvent* event)
 {
-    if (event->buttons() & Qt::LeftButton && m_mouseController) {
-        m_mouseController->handleMouseMove(
-            event->globalPosition(),
-            event->position(),
-            m_spineX, m_spineY, m_scale
-        );
+    if (event->buttons() & Qt::LeftButton) {
+
     }
 
     QOpenGLWidget::mouseMoveEvent(event);
@@ -279,6 +269,15 @@ void QtSpineManager::updateAnimation()
 
     // 请求重绘
     update();
+}
+
+void QtSpineManager::onLongTouchTimeout()
+{
+    // 确认鼠标长按
+    m_isLongTouch = true;
+	// 启动摸头动画
+	handlePat();
+    
 }
 
 void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skelOrJsonPath)
@@ -335,7 +334,14 @@ void QtSpineManager::setAnimation(const QString& name, int track_idx, bool loop)
 
     spine::Animation* anim = m_skeletonData->findAnimation(name.toStdString().c_str());
     if (anim) {
-        m_animationState->setAnimation(track_idx, anim, loop);
+        // 设置动画为空
+        if (!m_animationState->getCurrent(track_idx)) {
+            m_animationState->setEmptyAnimation(track_idx, 0.0f); // 设置一个空动画，确保骨骼回到初始状态
+		}
+        // 启动动画
+        spine::TrackEntry* entry = m_animationState->addAnimation(track_idx, anim, loop, 0.0f); // 添加动画到队列，确保连续播放
+		// 设置混合时间
+		entry->setMixDuration(GET_DOUBLE_FROM_JSON(_global_config, "spine", "animation_default_mix"));
         m_lastTime = 0;
         qDebug().noquote() << FINE_PR << "[Spine Operation]Set animation:" << name;
     }
@@ -344,39 +350,13 @@ void QtSpineManager::setAnimation(const QString& name, int track_idx, bool loop)
     }
 }
 
-void QtSpineManager::clearAnimation(int track_idx)
+void QtSpineManager::clearAnimation(int track_idx, float mix_duration)
 {
     if (!m_animationState) return;
-    m_animationState->clearTrack(track_idx);
+    //m_animationState->clearTrack(track_idx);
+	m_animationState->setEmptyAnimation(track_idx, mix_duration); // 设置一个空动画，确保骨骼回到初始状态
     m_lastTime = 0;
 	qDebug().noquote() << FINE_PR << "[Spine Operation]Cleared animation on track:" << track_idx;
-}
-
-void QtSpineManager::enableMouseControl(const QString& touchBoneName)
-{
-    if (!m_skeleton || !m_animationState) {
-        qWarning() << "Skeleton or AnimationState not ready for mouse control";
-        return;
-    }
-
-    m_mouseController = std::make_unique<SpineMouseController>(this);
-    m_mouseController->initialize(m_skeleton, m_animationState, touchBoneName);
-
-    // 设置鼠标追踪
-    setMouseTracking(true);
-
-    // 可以连接信号
-    connect(m_mouseController.get(), &SpineMouseController::talkTriggered,
-        this, [this](int index) {
-            qDebug() << "Talk triggered, index:" << index;
-            // 这里可以触发对话动画或UI
-            // 例如：setAnimation("talk", 1, false);
-        });
-
-    connect(m_mouseController.get(), &SpineMouseController::headTouched,
-        this, [this](bool touched) {
-            qDebug() << "Head touched:" << touched;
-        });
 }
 
 void QtSpineManager::collectMeshAttachmentVertices(spine::MeshAttachment* attachment,
@@ -579,6 +559,65 @@ void QtSpineManager::flushBatches()
     m_vao->release();
     m_vbo->release();
     m_batches.clear();
+}
+
+void QtSpineManager::setAttachmentRelativeTransform(const QString& slotName, float offsetX, float offsetY, float rotation, float scaleX, float scaleY)
+{
+    //spine::Slot* slot = m_skeleton->findSlot(slotName.toStdString().c_str());
+    //if (!slot) return;
+
+    //spine::Attachment* attachment = slot->getAttachment();
+    //if (!attachment) return;
+
+    //// 对于RegionAttachment
+    //if (attachment->getRTTI().instanceOf(spine::RegionAttachment::rtti)) {
+    //    auto* regionAtt = static_cast<spine::RegionAttachment*>(attachment);
+
+    //    // 获取原始的局部变换（相对于骨骼）
+    //    float originalX = regionAtt->getX();
+    //    float originalY = regionAtt->getY();
+    //    float originalRotation = regionAtt->getRotation();
+    //    float originalScaleX = regionAtt->getScaleX();
+    //    float originalScaleY = regionAtt->getScaleY();
+
+    //    // 设置新的相对变换（这些值是相对于骨骼的）
+    //    regionAtt->setX(originalX + offsetX);
+    //    regionAtt->setY(originalY + offsetY);
+    //    regionAtt->setRotation(originalRotation + rotation);
+    //    regionAtt->setScaleX(originalScaleX * scaleX);
+    //    regionAtt->setScaleY(originalScaleY * scaleY);
+
+    //    // 更新Attachment的偏移矩阵
+    //    regionAtt->updateOffset();
+    //}
+    //// 对于MeshAttachment
+    //else if (attachment->getRTTI().instanceOf(spine::MeshAttachment::rtti)) {
+    //    auto* meshAtt = static_cast<spine::MeshAttachment*>(attachment);
+
+    //    // MeshAttachment有类似的相对变换属性
+    //    meshAtt->setRelativeX(meshAtt->getRelativeX() + offsetX);
+    //    meshAtt->setRelativeY(meshAtt->getRelativeY() + offsetY);
+    //    meshAtt->setRelativeRotation(meshAtt->getRelativeRotation() + rotation);
+    //    meshAtt->setRelativeScaleX(meshAtt->getRelativeScaleX() * scaleX);
+    //    meshAtt->setRelativeScaleY(meshAtt->getRelativeScaleY() * scaleY);
+
+    //    // 需要重新计算顶点
+    //    meshAtt->updateUVs();
+    //}
+}
+
+void QtSpineManager::handlePat()
+{
+    // 启动摸头动画
+    this->setAnimation("Pat_01_A", 3, true);    // 启动摸头动画A
+	this->setAnimation("Pat_01_M", 4, true);    // 启动摸头动画M
+}
+
+void QtSpineManager::handlePatEnd()
+{
+    // 清除摸头动画
+    this->clearAnimation(3, 0.2f);
+    this->clearAnimation(4, 0.2f);
 }
 
 GLuint QtSpineManager::getTextureId(spine::RegionAttachment* attachment)

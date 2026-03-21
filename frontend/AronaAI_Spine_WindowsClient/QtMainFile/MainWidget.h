@@ -49,7 +49,7 @@ public:
     // 设置动画
 	void setAnimation(const QString& name, int track_idx, bool loop);
     // 清除动画
-	void clearAnimation(int track_idx);
+	void clearAnimation(int track_idx, float mix_duration);
     // 更改鼠标可用性
 	void setMouseTransparent(bool isMouseTransparent);
 
@@ -68,7 +68,7 @@ private:
     // 鼠标事件
     bool m_dragging;
     QPoint m_dragPosition;
-	bool m_mouseTransparent;   // 鼠标可用性
+	bool m_mouseTransparent;   // 是否鼠标穿透
 
     // 不透明度动画属性
 	OpacityAnimation* m_opacityAnimation_aronaOutputTextBox = nullptr;   // 文本框不透明度动画

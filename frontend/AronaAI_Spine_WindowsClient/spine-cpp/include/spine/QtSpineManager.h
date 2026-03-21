@@ -21,7 +21,6 @@
 #define QTSPINEWIDGET_H
 
 #include <spine/QtTextureLoader.h>
-#include <SpineMouseController.h>
 
 #include <GlobalInclude.h>
 
@@ -78,11 +77,9 @@ public:
 
     void loadSpineFile(const QString& atlasPath, const QString& skelOrJsonPath);
     void setAnimation(const QString& name, int track_idx, bool loop = true);
-	void clearAnimation(int track_idx);
+	void clearAnimation(int track_idx, float mix_duration);
 
-    // 鼠标控制器相关
-    void enableMouseControl(const QString& touchBoneName = "Head");
-    SpineMouseController* mouseController() const { return m_mouseController.get(); }
+    // 摸头相关函数
 
 protected:
     // 重写OpenGL相关函数
@@ -96,7 +93,10 @@ protected:
     void mouseMoveEvent(QMouseEvent* event) override;
 
 private slots:
+    // 更新动画
     void updateAnimation();
+	// 长按事件处理函数
+    void onLongTouchTimeout();
 
 private:
     // 辅助函数
@@ -105,6 +105,10 @@ private:
     void collectRegionAttachmentVertices(spine::RegionAttachment* attachment, spine::Slot* slot, const spine::Color& slotColor);
     void collectMeshAttachmentVertices(spine::MeshAttachment* attachment, spine::Slot* slot, const spine::Color& slotColor);
     void flushBatches();
+    void setAttachmentRelativeTransform(const QString& slotName, float offsetX, float offsetY, float rotation = 0.0f, float scaleX = 1.0f, float scaleY = 1.0f);
+    // 摸头函数
+    void handlePat();
+    void handlePatEnd();
 
     // Spine 对象
     spine::Atlas* m_atlas = nullptr;
@@ -113,9 +117,6 @@ private:
     spine::Skeleton* m_skeleton = nullptr;
     spine::AnimationStateData* m_animationStateData = nullptr;
     spine::AnimationState* m_animationState = nullptr;
-
-    // 鼠标控制器
-    std::unique_ptr<SpineMouseController> m_mouseController;
 
     // 骨骼显示位置（用于坐标转换）
     float m_spineX = 0.0f;
@@ -126,6 +127,10 @@ private:
     QTimer m_timer;
     QElapsedTimer m_elapsedTimer;
     float m_lastTime = 0.0f;
+
+    // 摸摸头
+    QTimer m_longTouchTimer;    // 长按计时器
+	bool m_isLongTouch = false; // 是否处于长按状态
 
     // OpenGL 资源
     QOpenGLShaderProgram* m_program = nullptr;

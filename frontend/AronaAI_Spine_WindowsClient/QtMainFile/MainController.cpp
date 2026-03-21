@@ -132,8 +132,8 @@ void MainController::onTTSFinished(const QByteArray& audioData, const QString& m
     // 在duration之后清除显示的文字，停止动画
     QTimer::singleShot(duration, this, [this]() {
         m_mainWidget->hideOutputText();
-        m_mainWidget->setAnimation("Idle_01", 2, true);
-        m_mainWidget->setAnimation("Idle_01", 1, true);
+		m_mainWidget->clearAnimation(1, 0.2f);   // 停止语言层动画
+		m_mainWidget->clearAnimation(2, 0.2f);   // 停止表情层动画
         });
 }
 

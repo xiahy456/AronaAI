@@ -78,6 +78,7 @@ class Pretrainer:
         self.best_loss = float('inf')
         self.train_losses = []
         self.val_losses = []
+        self.val_loader = None  # 添加验证集引用
         
         # 内存监控
         self.memory_limit_gb = 20
@@ -243,8 +244,12 @@ class Pretrainer:
                         log_count = 0
                     
                     if self.global_step % self.config['eval_steps'] == 0:
-                        eval_loss = self.quick_evaluate(train_loader)
-                        self.log(f"Step {self.global_step}: quick_eval_loss={eval_loss:.4f}")
+                        # 使用验证集进行评估
+                        if hasattr(self, 'val_loader') and self.val_loader is not None:
+                            eval_loss = self.quick_evaluate(self.val_loader)
+                            self.log(f"Step {self.global_step}: eval_loss={eval_loss:.4f}, train_loss={current_loss:.4f}, gap={eval_loss-current_loss:.4f}")
+                        else:
+                            self.log(f"Step {self.global_step}: 没有验证集，跳过评估")
                     
                     if self.global_step % 1000 == 0:
                         self.check_memory()
@@ -346,28 +351,48 @@ class Pretrainer:
         if self.use_amp and hasattr(self, 'scaler'):
             checkpoint['scaler_state_dict'] = self.scaler.state_dict()
         
+        # 生成文件名
         if is_best:
-            path = self.checkpoint_dir / 'best_model.pt'
+            filename = 'best_model.pt'
         elif is_final:
-            path = self.checkpoint_dir / 'final_model.pt'
+            filename = 'final_model.pt'
         else:
-            path = self.checkpoint_dir / f'checkpoint_step_{self.global_step}.pt'
+            filename = f'checkpoint_step_{self.global_step}.pt'
         
+        path = self.checkpoint_dir / filename
+        
+        # 保存模型
         torch.save(checkpoint, path)
-        
         file_size = path.stat().st_size / 1024 / 1024
         self.log(f"💾 模型已保存: {path} ({file_size:.1f} MB)")
         
-        # 删除旧的检查点，只保留最近3个
+        # 清理旧的检查点（在保存后执行）
         self._cleanup_old_checkpoints()
+
+        # 每20个检查点保留一个永久备份（根据你的 save_steps 调整）
+        if self.global_step % (self.config['save_steps'] * 20) == 0 and not is_best and not is_final:
+            backup_path = self.checkpoint_dir / f'backup_step_{self.global_step}.pt'
+            import shutil
+            shutil.copy2(path, backup_path)
+            self.log(f"📦 创建备份: {backup_path}")
     
     def _cleanup_old_checkpoints(self):
         """清理旧的检查点，只保留最近3个"""
+        # 获取所有检查点文件
         checkpoints = sorted(self.checkpoint_dir.glob('checkpoint_step_*.pt'))
+        
+        # 按修改时间排序（最新的在前）
+        checkpoints.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+        
+        # 保留最新的3个
         if len(checkpoints) > 3:
-            for old_cp in checkpoints[:-3]:
-                old_cp.unlink()
-                self.log(f"🗑️ 删除旧检查点: {old_cp.name}")
+            for old_cp in checkpoints[3:]:  # 从第4个开始删除
+                self.log(f"准备删除旧检查点: {old_cp.name}")
+                try:
+                    old_cp.unlink()
+                    self.log(f"🗑️ 已删除旧检查点: {old_cp.name}")
+                except Exception as e:
+                    self.log(f"❌ 删除检查点失败: {e}")
     
     def load_checkpoint(self, checkpoint_path):
         """加载检查点"""
@@ -398,6 +423,8 @@ class Pretrainer:
         """
         完整训练流程
         """
+        # 保存验证集引用
+        self.val_loader = val_loader  # 添加这行
         # 恢复训练
         if resume_from:
             self.load_checkpoint(resume_from)
