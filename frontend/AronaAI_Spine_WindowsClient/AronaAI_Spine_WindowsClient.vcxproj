@@ -31,6 +31,7 @@
     <ClCompile Include="QtMainFile\SystemTray.cpp" />
     <ClCompile Include="QtMainFile\TTSManager.cpp" />
     <ClCompile Include="QtUtils\AudioRecorder.cpp" />
+    <ClCompile Include="QtUtils\DebugOptions.cpp" />
     <ClCompile Include="QtUtils\JsonOperation.cpp" />
     <ClCompile Include="QtUtils\OpacityAnimation.cpp" />
     <ClCompile Include="QtUtils\ShortCutKey.cpp" />
@@ -119,6 +120,7 @@
     <QtMoc Include="QtMainFile\TTSManager.h" />
     <QtMoc Include="QtUtils\AudioRecorder.h" />
     <QtMoc Include="QtMainFile\MainController.h" />
+    <QtMoc Include="QtUtils\DebugOptions.h" />
     <ClInclude Include="QtUtils\Defines.h" />
     <ClInclude Include="QtUtils\GlobalInclude.h" />
     <ClInclude Include="QtUtils\JsonOperation.h" />

@@ -1,7 +1,7 @@
 import json
 
 # 读取你的原始JSON文件
-with open('llm/aronaLM/data/raw/training_dialogues.json', 'r', encoding='utf-8') as f:
+with open('llm/aronaLM/data/adjust/normal/total.json', 'r', encoding='utf-8') as f:
     data = json.load(f)
 
 # 转换为新格式
@@ -18,7 +18,7 @@ for item in data:
     converted_data.append({'messages': messages})
 
 # 保存为JSONL格式
-with open('llm/aronaLM/data/raw/training_data.jsonl', 'w', encoding='utf-8') as f:
+with open('llm/aronaLM/data/adjust/normal.jsonl', 'w', encoding='utf-8') as f:
     for item in converted_data:
         f.write(json.dumps(item, ensure_ascii=False) + '\n')
 

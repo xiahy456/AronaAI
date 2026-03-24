@@ -94,6 +94,9 @@
     <QtMoc Include="QtUtils\SpineMouseController.h">
       <Filter>QtUtils</Filter>
     </QtMoc>
+    <QtMoc Include="QtUtils\DebugOptions.h">
+      <Filter>QtUtils</Filter>
+    </QtMoc>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="QtMainFile\MainWidget.qrc">
@@ -360,6 +363,9 @@
       <Filter>QtUtils</Filter>
     </ClCompile>
     <ClCompile Include="QtUtils\SpineMouseController.cpp">
+      <Filter>QtUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="QtUtils\DebugOptions.cpp">
       <Filter>QtUtils</Filter>
     </ClCompile>
   </ItemGroup>

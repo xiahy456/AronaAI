@@ -52,8 +52,8 @@ QString getDict() {
 // 程序入口 main函数
 int main(int argc, char *argv[])
 {
-	// 输出启动信息
-	qDebug().noquote() << FINE_PR << "[Qt Operation]Starting application...";
+    // 输出启动信息
+    qDebug().noquote() << FINE_PR << "[Qt Operation]Starting application...";
 
 	// 设置OpenGL格式，启用抗锯齿和透明度支持
     QSurfaceFormat format;
@@ -99,10 +99,12 @@ int main(int argc, char *argv[])
 	// 创建快捷键对象
 	ShortCutKey* shortCutKey = new ShortCutKey(mainController);
 
-    // 鍒涘缓鎵樼洏鑿滃崟绫?
+    // 创建系统托盘类对象
     SystemTray* systemTray = new SystemTray(mainWidget, settingsWidget);
 
-	// 开始应用程序事件循环
-	qDebug().noquote() << FINE_PR << "[Qt Operation]Starting application loop...";
+    // 输出信息必要类实例化完毕，准备启动应用程序事件循环
+	FINE_DEBUG_OUTPUT("[Qt Operation]Necessary class instantiation complete! Starting application loop...");
+    
+    // 开始应用程序事件循环
     return app.exec();
 }

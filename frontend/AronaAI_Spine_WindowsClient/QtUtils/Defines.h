@@ -41,5 +41,10 @@
 // 获取全局缩放比例
 #define WIDGET_ZOOM _global_config->getJson("settings").getDouble("zoom")
 
+// 正常调试输出
+#define FINE_DEBUG_OUTPUT(text) do { \
+	qDebug().noquote() << FINE_PR << text; \
+} while(0);
+
 #endif // !DEFINES_H
 

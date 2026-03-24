@@ -15,9 +15,7 @@
 /llm/chatglm3/
 
 # aronaLM training data
-/llm/aronaLM/data/raw/
-/llm/aronaLM/data/processed/
-/llm/aronaLM/data/temp_processed/
+/llm/aronaLM/data/
 
 # aronaLM checkpoints
 /llm/aronaLM/checkpoints/
