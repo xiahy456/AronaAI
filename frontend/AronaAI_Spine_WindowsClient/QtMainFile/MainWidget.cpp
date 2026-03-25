@@ -69,6 +69,14 @@ MainWidget::MainWidget(QWidget *parent)
 	ui.aronaOutputText->move(10 * WIDGET_ZOOM, 10 * WIDGET_ZOOM);
 	ui.qtSpineManagerWidget->resize(220 * WIDGET_ZOOM, 290 * WIDGET_ZOOM);
 	ui.qtSpineManagerWidget->move(65 * WIDGET_ZOOM, 0);
+    ui.aronaOutputTextBox->setStyleSheet(
+        "#aronaOutputTextBox {"
+        "    border-image: url('" + GET_STRING_FROM_JSON(_global_config, "settings", "text_box_path") +  "');"
+        "    background-position: center;"
+        "    border: 1px solid rgb(191, 191, 191);"
+        "    border-radius: 10px;"
+        "}"
+    );
     
     // 设置文本字体大小
 	QFont font = ui.aronaOutputText->font();

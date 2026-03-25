@@ -64,9 +64,16 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
     connect(m_ttsManager, &TTSManager::modelSwitched, this,
         [&](bool success, const QString& message) {
             m_modelsLoaded++;
-            qDebug().noquote() << FINE_PR << "[TTS Operation]Model set: " << success
-                << ", Message: " << message
-                << "(" << m_modelsLoaded << "/" << TOTAL_MODELS << ")";
+            if (success) {
+                qDebug().noquote() << FINE_PR << "[TTS Operation]Model set: " << success
+                    << ", Message: " << message
+                    << "(" << m_modelsLoaded << "/" << TOTAL_MODELS << ")";
+            }
+            else {
+                qWarning().noquote() << ERROR_PR << "[TTS Operation]Model set: " << success
+                    << ", Message: " << message
+                    << "(" << m_modelsLoaded << "/" << TOTAL_MODELS << ")";
+            }
 
             // 当两个模型都加载完成时退出事件循环
             if (m_modelsLoaded >= TOTAL_MODELS) {

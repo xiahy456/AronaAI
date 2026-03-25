@@ -12,7 +12,7 @@ from datasets import Dataset
 import json
 
 def finetune_lora():
-    """简化版LoRA微调 - 不使用8bit量化"""
+    """LoRA微调"""
     
     print("="*60)
     print("LoRA微调阿罗娜模型")

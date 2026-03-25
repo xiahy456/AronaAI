@@ -36,12 +36,7 @@
     </rect>
    </property>
    <property name="styleSheet">
-    <string notr="true">#aronaOutputTextBox {
-	border-image: url('D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/TextBox.png');
-	background-position: center;
-	border: 1 px solid rgb(191, 191, 191);
-	border-radius: 10px;
-}</string>
+    <string notr="true"/>
    </property>
    <property name="frameShape">
     <enum>QFrame::StyledPanel</enum>

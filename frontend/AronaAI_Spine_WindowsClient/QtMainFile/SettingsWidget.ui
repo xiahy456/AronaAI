@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>640</width>
+    <width>960</width>
     <height>400</height>
    </rect>
   </property>
@@ -16,8 +16,47 @@
   <property name="styleSheet">
    <string notr="true"/>
   </property>
+  <widget class="ParallelogramButton" name="basicSettingsButton">
+   <property name="geometry">
+    <rect>
+     <x>170</x>
+     <y>30</y>
+     <width>160</width>
+     <height>30</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
+   <property name="text">
+    <string>基础设置</string>
+   </property>
+  </widget>
+  <widget class="ParallelogramButton" name="debugOutputButton">
+   <property name="geometry">
+    <rect>
+     <x>147</x>
+     <y>70</y>
+     <width>160</width>
+     <height>30</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
+   <property name="text">
+    <string>调试输出</string>
+   </property>
+  </widget>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>ParallelogramButton</class>
+   <extends>QPushButton</extends>
+   <header>parallelogrambutton.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

@@ -12,7 +12,7 @@ def test_lora_model():
     
     # 加载基础模型和tokenizer
     base_model_name = "/arona-ai/model/hunyuan"
-    lora_path = "/root/autodl-tmp/checkpoint/normal/final_model"
+    lora_path = "/root/autodl-tmp/checkpoint/intimate/final_model"
     
     tokenizer = AutoTokenizer.from_pretrained(
         base_model_name,
@@ -37,13 +37,12 @@ def test_lora_model():
     
     # 测试对话
     test_cases = [
-        "你好",
-        "请介绍一下自己",
+        "你好,请介绍一下自己",
         "早上好，阿罗娜",
         "阿罗娜喜欢喝什么？",
         "请介绍一下阿拜多斯高中",
         "你喜欢什么颜色？",
-        "明天见"
+        "再见，阿罗娜"
     ]
     
     for user_input in test_cases:
@@ -89,6 +88,9 @@ def test_lora_model():
             skip_special_tokens=True
         )
         
+        # 去除前缀
+        response = response.removeprefix("<answer>\n") 
+
         print(f"阿罗娜: {response}")
 
 if __name__ == "__main__":

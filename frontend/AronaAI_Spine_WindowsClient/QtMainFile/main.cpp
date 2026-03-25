@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
     getConfig();
 
     // 获取字典信息
-    qDebug().noquote() << FINE_PR << "[Qt Operation]Load dictionary succeed! Changing to language: " <<getDict();
+    qDebug().noquote() << FINE_PR << "[Qt Operation]Load dictionary succeed! Changing to language: " << getDict();
 
     // 应用程序设置
 	app.setApplicationName(GET_STRING_FROM_JSON(_global_dict, "application_data", "application_name")); // 设置应用程序名称
@@ -81,8 +81,9 @@ int main(int argc, char *argv[])
     MainWidget* mainWidget = new MainWidget;
     mainWidget->show();
 
-	// 创建设置窗口对象
+	// 创建设置窗口对象，如果配置设置其显示，那就显示
     SettingsWidget* settingsWidget = new SettingsWidget;
+    if (GET_BOOL_FROM_JSON(_global_config, "settings", "open_setting_widget")) settingsWidget->show();
 
     // 创建TTS对象
 	TTSManager* ttsManager = new TTSManager;
