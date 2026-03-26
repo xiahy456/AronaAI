@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>960</width>
+    <width>780</width>
     <height>400</height>
    </rect>
   </property>
@@ -19,7 +19,7 @@
   <widget class="ParallelogramButton" name="basicSettingsButton">
    <property name="geometry">
     <rect>
-     <x>170</x>
+     <x>115</x>
      <y>30</y>
      <width>160</width>
      <height>30</height>
@@ -35,8 +35,8 @@
   <widget class="ParallelogramButton" name="debugOutputButton">
    <property name="geometry">
     <rect>
-     <x>147</x>
-     <y>70</y>
+     <x>23</x>
+     <y>190</y>
      <width>160</width>
      <height>30</height>
     </rect>
@@ -48,6 +48,104 @@
     <string>调试输出</string>
    </property>
   </widget>
+  <widget class="ParallelogramButton" name="aronaLMSettingsButton">
+   <property name="geometry">
+    <rect>
+     <x>92</x>
+     <y>70</y>
+     <width>160</width>
+     <height>30</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
+   <property name="text">
+    <string>AronaLM设置</string>
+   </property>
+  </widget>
+  <widget class="ParallelogramButton" name="spineSettingsButton">
+   <property name="geometry">
+    <rect>
+     <x>69</x>
+     <y>110</y>
+     <width>160</width>
+     <height>30</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
+   <property name="text">
+    <string>Spine设置</string>
+   </property>
+  </widget>
+  <widget class="ParallelogramButton" name="gptSOVITSSettingsButton">
+   <property name="geometry">
+    <rect>
+     <x>46</x>
+     <y>150</y>
+     <width>160</width>
+     <height>30</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
+   <property name="text">
+    <string>GPT-SOVITS设置</string>
+   </property>
+  </widget>
+  <widget class="ParallelogramButton" name="aboutDeveloperButton">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>230</y>
+     <width>160</width>
+     <height>30</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
+   <property name="text">
+    <string>关于开发者</string>
+   </property>
+  </widget>
+  <widget class="ParallelogramWidget" name="topInformationWidget" native="true">
+   <property name="geometry">
+    <rect>
+     <x>130</x>
+     <y>0</y>
+     <width>640</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">background-color: rgb(255, 255, 255);</string>
+   </property>
+  </widget>
+  <widget class="ParallelogramWidget" name="mainBGWidget" native="true">
+   <property name="geometry">
+    <rect>
+     <x>160</x>
+     <y>20</y>
+     <width>610</width>
+     <height>380</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">background-color: rgb(170, 255, 255);</string>
+   </property>
+  </widget>
+  <zorder>mainBGWidget</zorder>
+  <zorder>basicSettingsButton</zorder>
+  <zorder>debugOutputButton</zorder>
+  <zorder>aronaLMSettingsButton</zorder>
+  <zorder>spineSettingsButton</zorder>
+  <zorder>gptSOVITSSettingsButton</zorder>
+  <zorder>aboutDeveloperButton</zorder>
+  <zorder>topInformationWidget</zorder>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>
@@ -55,6 +153,12 @@
    <class>ParallelogramButton</class>
    <extends>QPushButton</extends>
    <header>parallelogrambutton.h</header>
+  </customwidget>
+  <customwidget>
+   <class>ParallelogramWidget</class>
+   <extends>QWidget</extends>
+   <header>parallelogramwidget.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

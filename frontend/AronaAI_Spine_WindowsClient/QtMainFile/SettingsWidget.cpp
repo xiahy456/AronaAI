@@ -35,17 +35,25 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     this->setWindowTitle(GET_STRING_FROM_JSON(_global_dict, "application_data", "settings_widget_name"));  // 设置窗口名称
 
     // 设置窗口大小
-    this->resize(960 * WIDGET_ZOOM, 400 * WIDGET_ZOOM);
+    this->resize(780 * WIDGET_ZOOM, 400 * WIDGET_ZOOM);
 
     // 控件设置
-    ui.basicSettingsButton->move(170 * WIDGET_ZOOM, 30 * WIDGET_ZOOM);
-    ui.basicSettingsButton->setFixedSize(160 * WIDGET_ZOOM, 30 * WIDGET_ZOOM);
-    ui.basicSettingsButton->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "push_button_path"));
-    ui.basicSettingsButton->setImageScaleMode(Qt::IgnoreAspectRatio);  // 拉伸模式
-    ui.debugOutputButton->move((170-40*0.5773) * WIDGET_ZOOM, (30+40) * WIDGET_ZOOM);
-    ui.debugOutputButton->setFixedSize(160 * WIDGET_ZOOM, 30 * WIDGET_ZOOM);
-    ui.debugOutputButton->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "push_button_path"));
-    ui.debugOutputButton->setImageScaleMode(Qt::IgnoreAspectRatio);  // 拉伸模式
+    // 界面切换按钮
+    WIDGET_SWITCH_SETTING(ui.basicSettingsButton, 0)
+    WIDGET_SWITCH_SETTING(ui.aronaLMSettingsButton, 1)
+    WIDGET_SWITCH_SETTING(ui.spineSettingsButton, 2)
+    WIDGET_SWITCH_SETTING(ui.gptSOVITSSettingsButton, 3)
+    WIDGET_SWITCH_SETTING(ui.debugOutputButton, 4)
+    WIDGET_SWITCH_SETTING(ui.aboutDeveloperButton, 5)
+
+    // 上方信息栏
+    ui.topInformationWidget->move((widgetSwitchButton_start_x + 40*0.5574 - 2) * WIDGET_ZOOM, (widgetSwitchButton_start_y - 30) * WIDGET_ZOOM);
+    ui.topInformationWidget->setFixedSize(640, 20);
+
+    // 主界面背景
+    ui.mainBGWidget->move(80 * WIDGET_ZOOM, 20 * WIDGET_ZOOM);
+    ui.mainBGWidget->setFixedSize(684 * WIDGET_ZOOM, 380 * WIDGET_ZOOM);
+    ui.mainBGWidget->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "settings_bg_path"));
 }
 
 SettingsWidget::~SettingsWidget()
@@ -60,3 +68,43 @@ void SettingsWidget::closeEvent(QCloseEvent * event)
     this->hide();
 }
 
+void SettingsWidget::mousePressEvent(QMouseEvent* event)
+{
+    // 检查是否点击在可拖动的控件上
+    if (ui.topInformationWidget && ui.topInformationWidget->geometry().contains(event->pos()))
+    {
+        m_isDragging = true;
+        m_dragPosition = event->globalPosition() - frameGeometry().topLeft();
+        event->accept();
+    }
+    else
+    {
+        QWidget::mousePressEvent(event);
+    }
+}
+
+void SettingsWidget::mouseMoveEvent(QMouseEvent* event)
+{
+    if (m_isDragging && (event->buttons() & Qt::LeftButton))
+    {
+        move((event->globalPosition() - m_dragPosition).toPoint());
+        event->accept();
+    }
+    else
+    {
+        QWidget::mouseMoveEvent(event);
+    }
+}
+
+void SettingsWidget::mouseReleaseEvent(QMouseEvent* event)
+{
+    if (m_isDragging)
+    {
+        m_isDragging = false;
+        event->accept();
+    }
+    else
+    {
+        QWidget::mouseReleaseEvent(event);
+    }
+}

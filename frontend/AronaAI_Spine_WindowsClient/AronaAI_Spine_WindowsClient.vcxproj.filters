@@ -100,6 +100,9 @@
     <QtMoc Include="QtUtils\ParallelogramButton.h">
       <Filter>QtUtils</Filter>
     </QtMoc>
+    <QtMoc Include="QtUtils\ParallelogramWidget.h">
+      <Filter>QtUtils</Filter>
+    </QtMoc>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="QtMainFile\MainWidget.qrc">
@@ -372,6 +375,9 @@
       <Filter>QtUtils</Filter>
     </ClCompile>
     <ClCompile Include="QtUtils\ParallelogramButton.cpp">
+      <Filter>QtUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="QtUtils\ParallelogramWidget.cpp">
       <Filter>QtUtils</Filter>
     </ClCompile>
   </ItemGroup>

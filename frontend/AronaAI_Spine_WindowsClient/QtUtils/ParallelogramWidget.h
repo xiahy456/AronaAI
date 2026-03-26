@@ -1,0 +1,56 @@
+#pragma once
+#ifndef PARALLELOGRAMWIDGET_H
+#define PARALLELOGRAMWIDGET_H
+
+#include <QWidget>
+#include <QPainter>
+#include <QPainterPath>
+#include <QBrush>
+#include <QPen>
+#include <QPixmap>
+
+class ParallelogramWidget : public QWidget
+{
+    Q_OBJECT
+        Q_PROPERTY(double skewFactor READ skewFactor WRITE setSkewFactor)
+
+public:
+    explicit ParallelogramWidget(QWidget* parent = nullptr);
+
+    // 设置倾斜系数（0.0 = 矩形，正值向右倾斜，负值向左倾斜）
+    void setSkewFactor(double factor);
+    double skewFactor() const { return m_skewFactor; }
+
+    // 设置填充颜色
+    void setFillColor(const QColor& color);
+    QColor fillColor() const { return m_fillColor; }
+
+    // 设置边框颜色和宽度
+    void setBorderColor(const QColor& color);
+    void setBorderWidth(int width);
+
+    // 重写setFixedSize以保持正确绘制
+    void setFixedSize(int w, int h);
+    void setFixedSize(const QSize& size);
+
+    // 设置背景图片
+    void setBackgroundImage(const QString& imagePath);
+    void setBackgroundImage(const QPixmap& pixmap);
+
+protected:
+    void paintEvent(QPaintEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
+
+private:
+    QPainterPath createParallelogramPath() const;
+
+    double m_skewFactor;      // 倾斜系数
+    QColor m_fillColor;       // 填充颜色
+    QColor m_borderColor;     // 边框颜色
+    int m_borderWidth;        // 边框宽度
+    QPixmap m_backgroundImage;  // 背景图片
+    bool m_hasBackgroundImage;  // 是否有背景图片
+    Qt::AspectRatioMode m_imageScaleMode;  // 图片缩放模式
+};
+
+#endif // PARALLELOGRAMWIDGET_H

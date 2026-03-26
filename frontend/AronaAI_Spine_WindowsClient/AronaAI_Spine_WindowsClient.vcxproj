@@ -35,6 +35,7 @@
     <ClCompile Include="QtUtils\JsonOperation.cpp" />
     <ClCompile Include="QtUtils\OpacityAnimation.cpp" />
     <ClCompile Include="QtUtils\ParallelogramButton.cpp" />
+    <ClCompile Include="QtUtils\ParallelogramWidget.cpp" />
     <ClCompile Include="QtUtils\ShortCutKey.cpp" />
     <ClCompile Include="QtUtils\SpeechRecognizer.cpp" />
     <ClCompile Include="QtUtils\SpineMouseController.cpp" />
@@ -131,6 +132,7 @@
     <QtMoc Include="QtUtils\TencentSpeechRecognizer.h" />
     <QtMoc Include="QtUtils\SpineMouseController.h" />
     <QtMoc Include="QtUtils\ParallelogramButton.h" />
+    <QtMoc Include="QtUtils\ParallelogramWidget.h" />
     <ClInclude Include="spine-cpp\include\spine\Animation.h" />
     <ClInclude Include="spine-cpp\include\spine\AnimationState.h" />
     <ClInclude Include="spine-cpp\include\spine\AnimationStateData.h" />

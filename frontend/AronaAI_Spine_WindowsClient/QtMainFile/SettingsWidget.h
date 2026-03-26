@@ -26,6 +26,17 @@
 
 #include "ui_SettingsWidget.h"
 
+// 按键排布位移
+#define STEP_POSITION_POINT(_start_x, _start_y, _gap, _step) (_start_x - _gap*_step*0.5773) * WIDGET_ZOOM, (_start_y + _gap*_step) * WIDGET_ZOOM
+
+// 界面切换按钮设置
+#define WIDGET_SWITCH_SETTING(button, _cur_step) do { \
+	button->move(STEP_POSITION_POINT(widgetSwitchButton_start_x, widgetSwitchButton_start_y, widgetSwitchButton_gap, _cur_step)); \
+	button->setFixedSize(widgetSwitchButton_size_x * WIDGET_ZOOM, widgetSwitchButton_size_y * WIDGET_ZOOM); \
+	button->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "push_button_path")); \
+	button->setImageScaleMode(Qt::IgnoreAspectRatio); \
+} while (0); \
+
 class SettingsWidget : public QWidget
 {
 	Q_OBJECT
@@ -36,8 +47,24 @@ public:
 
 protected:
 	void closeEvent(QCloseEvent* event) override;
-
+	void mousePressEvent(QMouseEvent* event) override;
+	void mouseMoveEvent(QMouseEvent* event) override;
+	void mouseReleaseEvent(QMouseEvent* event) override;
+	
 private:
+	// 界面切换按钮实现函数
+
 	Ui::SettingsWidgetClass ui;
+
+	// 界面切换按钮
+	int widgetSwitchButton_start_x = 115;	// 最上方的控件x坐标
+	int widgetSwitchButton_start_y = 30;	// 最上方的控件y坐标
+	int widgetSwitchButton_gap = 40;	// y坐标高度差
+	int widgetSwitchButton_size_x = 160;	// 按钮x尺寸
+	int widgetSwitchButton_size_y = 30;	// 按钮y尺寸
+
+	// 鼠标拖动
+	QPointF m_dragPosition;  // 记录拖动起始位置
+	bool m_isDragging;       // 是否正在拖动
 };
 
