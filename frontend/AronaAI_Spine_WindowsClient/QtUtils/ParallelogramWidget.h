@@ -25,9 +25,10 @@ public:
     void setFillColor(const QColor& color);
     QColor fillColor() const { return m_fillColor; }
 
-    // 设置边框颜色和宽度
+    // 设置边框属性
     void setBorderColor(const QColor& color);
     void setBorderWidth(int width);
+    void setBorderPosition(bool top = false, bool bottom = false, bool left = false, bool right = false);
 
     // 重写setFixedSize以保持正确绘制
     void setFixedSize(int w, int h);
@@ -46,11 +47,17 @@ private:
 
     double m_skewFactor;      // 倾斜系数
     QColor m_fillColor;       // 填充颜色
-    QColor m_borderColor;     // 边框颜色
-    int m_borderWidth;        // 边框宽度
     QPixmap m_backgroundImage;  // 背景图片
     bool m_hasBackgroundImage;  // 是否有背景图片
     Qt::AspectRatioMode m_imageScaleMode;  // 图片缩放模式
+
+    // 边框属性
+    QColor m_borderColor;     // 边框颜色
+    int m_borderWidth;        // 边框宽度
+    bool is_top_border = false;
+    bool is_bottom_border = false;
+    bool is_left_border = false;
+    bool is_right_border = false;
 };
 
 #endif // PARALLELOGRAMWIDGET_H

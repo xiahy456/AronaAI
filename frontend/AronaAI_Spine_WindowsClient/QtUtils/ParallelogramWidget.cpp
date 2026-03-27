@@ -57,6 +57,15 @@ void ParallelogramWidget::setBorderWidth(int width)
     update();
 }
 
+void ParallelogramWidget::setBorderPosition(bool top, bool bottom, bool left, bool right)
+{
+    is_top_border = top;
+    is_bottom_border = bottom;
+    is_left_border = left;
+    is_right_border = right;
+    update();
+}
+
 void ParallelogramWidget::setFixedSize(int w, int h)
 {
     QWidget::setFixedSize(w, h);
@@ -117,9 +126,14 @@ QPainterPath ParallelogramWidget::createParallelogramPath() const
 
 void ParallelogramWidget::paintEvent(QPaintEvent* event)
 {
+    // 宽高倾斜度与各个顶点
     int w = width();
     int h = height();
     int skewOffset = static_cast<int>(h * m_skewFactor);
+    QPointF topLeft(skewOffset, 0);
+    QPointF topRight(w, 0);
+    QPointF bottomRight(w - skewOffset, h);
+    QPointF bottomLeft(0, h);
 
     Q_UNUSED(event);
 
@@ -162,16 +176,27 @@ void ParallelogramWidget::paintEvent(QPaintEvent* event)
 
     // 绘制边框
     if (m_borderWidth > 0) {
-        QPen pen(m_borderColor);
-        pen.setWidth(m_borderWidth);
-        painter.setPen(pen);
-        painter.drawPath(path);
+        if (is_top_border) {
+            QPen topPen(m_borderColor, m_borderWidth);
+            painter.setPen(topPen);
+            painter.drawLine(topLeft, topRight);
+        }
+        if (is_bottom_border) {
+            QPen bottomPen(m_borderColor, m_borderWidth);
+            painter.setPen(bottomPen);
+            painter.drawLine(bottomLeft, bottomRight);
+        }
+        if (is_left_border) {
+            QPen leftPen(m_borderColor, m_borderWidth);
+            painter.setPen(leftPen);
+            painter.drawLine(topLeft, bottomLeft);
+        }
+        if (is_right_border) {
+            QPen rightPen(m_borderColor, m_borderWidth);
+            painter.setPen(rightPen);
+            painter.drawLine(topRight, bottomRight);
+        }
     }
-    //QPointF bottomRight(w - skewOffset, h);
-    //QPointF bottomLeft(0, h);
-    //QPen leftPen(QColor(100, 100, 100), 6);
-    //painter.setPen(leftPen);
-    //painter.drawLine(bottomLeft, bottomRight);
 }
 
 void ParallelogramWidget::resizeEvent(QResizeEvent* event)

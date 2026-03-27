@@ -20,7 +20,7 @@
    <property name="geometry">
     <rect>
      <x>115</x>
-     <y>30</y>
+     <y>40</y>
      <width>160</width>
      <height>30</height>
     </rect>
@@ -36,7 +36,7 @@
    <property name="geometry">
     <rect>
      <x>23</x>
-     <y>190</y>
+     <y>200</y>
      <width>160</width>
      <height>30</height>
     </rect>
@@ -52,7 +52,7 @@
    <property name="geometry">
     <rect>
      <x>92</x>
-     <y>70</y>
+     <y>80</y>
      <width>160</width>
      <height>30</height>
     </rect>
@@ -68,7 +68,7 @@
    <property name="geometry">
     <rect>
      <x>69</x>
-     <y>110</y>
+     <y>120</y>
      <width>160</width>
      <height>30</height>
     </rect>
@@ -84,7 +84,7 @@
    <property name="geometry">
     <rect>
      <x>46</x>
-     <y>150</y>
+     <y>160</y>
      <width>160</width>
      <height>30</height>
     </rect>
@@ -100,7 +100,7 @@
    <property name="geometry">
     <rect>
      <x>0</x>
-     <y>230</y>
+     <y>240</y>
      <width>160</width>
      <height>30</height>
     </rect>
@@ -112,25 +112,12 @@
     <string>关于开发者</string>
    </property>
   </widget>
-  <widget class="ParallelogramWidget" name="topInformationWidget" native="true">
-   <property name="geometry">
-    <rect>
-     <x>130</x>
-     <y>0</y>
-     <width>940</width>
-     <height>20</height>
-    </rect>
-   </property>
-   <property name="styleSheet">
-    <string notr="true">background-color: rgb(255, 255, 255);</string>
-   </property>
-  </widget>
   <widget class="ParallelogramWidget" name="mainBGWidget" native="true">
    <property name="geometry">
     <rect>
-     <x>160</x>
+     <x>80</x>
      <y>20</y>
-     <width>984</width>
+     <width>990</width>
      <height>380</height>
     </rect>
    </property>
@@ -138,42 +125,89 @@
     <string notr="true">background-color: rgb(170, 255, 255);</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="CloseButton">
+  <widget class="QWidget" name="topInformationWidget" native="true">
    <property name="geometry">
     <rect>
-     <x>1030</x>
-     <y>5</y>
-     <width>30</width>
-     <height>30</height>
+     <x>130</x>
+     <y>0</y>
+     <width>940</width>
+     <height>25</height>
     </rect>
    </property>
    <property name="styleSheet">
-    <string notr="true">QPushButton {
-    border-radius: 15px;
-    background-color: #3498db;
-    color: white;
-    font-size: 16px;
-}
-QPushButton:hover {
-    background-color: #2980b9;
-}
-QPushButton:pressed {
-    background-color: #1f618d;
+    <string notr="true">QWidget {
+     background-color: white;
+	border-image: url(D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/TopInformationWidget.png);
+     border: none;
+     border-bottom-left-radius: 6px;
+     border-bottom-right-radius: 6px;
 }</string>
    </property>
+  </widget>
+  <widget class="QWidget" name="topInformationShadowWidget" native="true">
+   <property name="geometry">
+    <rect>
+     <x>130</x>
+     <y>3</y>
+     <width>940</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QWidget {
+	background-color: rgba(0, 0, 0, 0.3);
+    border: none;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+}</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="closeButton">
+   <property name="geometry">
+    <rect>
+     <x>1040</x>
+     <y>3</y>
+     <width>19</width>
+     <height>19</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
    <property name="text">
-    <string>X</string>
+    <string/>
+   </property>
+  </widget>
+  <widget class="QLabel" name="widgetNameLabel">
+   <property name="geometry">
+    <rect>
+     <x>140</x>
+     <y>0</y>
+     <width>160</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>微软雅黑</family>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>阿罗娜AI-设置界面</string>
    </property>
   </widget>
   <zorder>mainBGWidget</zorder>
+  <zorder>topInformationShadowWidget</zorder>
+  <zorder>topInformationWidget</zorder>
   <zorder>basicSettingsButton</zorder>
   <zorder>debugOutputButton</zorder>
   <zorder>aronaLMSettingsButton</zorder>
   <zorder>spineSettingsButton</zorder>
   <zorder>gptSOVITSSettingsButton</zorder>
   <zorder>aboutDeveloperButton</zorder>
-  <zorder>topInformationWidget</zorder>
-  <zorder>CloseButton</zorder>
+  <zorder>closeButton</zorder>
+  <zorder>widgetNameLabel</zorder>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>
