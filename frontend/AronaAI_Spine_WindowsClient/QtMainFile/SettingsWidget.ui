@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>780</width>
+    <width>1080</width>
     <height>400</height>
    </rect>
   </property>
@@ -117,7 +117,7 @@
     <rect>
      <x>130</x>
      <y>0</y>
-     <width>640</width>
+     <width>940</width>
      <height>20</height>
     </rect>
    </property>
@@ -130,12 +130,39 @@
     <rect>
      <x>160</x>
      <y>20</y>
-     <width>610</width>
+     <width>984</width>
      <height>380</height>
     </rect>
    </property>
    <property name="styleSheet">
     <string notr="true">background-color: rgb(170, 255, 255);</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="CloseButton">
+   <property name="geometry">
+    <rect>
+     <x>1030</x>
+     <y>5</y>
+     <width>30</width>
+     <height>30</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QPushButton {
+    border-radius: 15px;
+    background-color: #3498db;
+    color: white;
+    font-size: 16px;
+}
+QPushButton:hover {
+    background-color: #2980b9;
+}
+QPushButton:pressed {
+    background-color: #1f618d;
+}</string>
+   </property>
+   <property name="text">
+    <string>X</string>
    </property>
   </widget>
   <zorder>mainBGWidget</zorder>
@@ -146,6 +173,7 @@
   <zorder>gptSOVITSSettingsButton</zorder>
   <zorder>aboutDeveloperButton</zorder>
   <zorder>topInformationWidget</zorder>
+  <zorder>CloseButton</zorder>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>

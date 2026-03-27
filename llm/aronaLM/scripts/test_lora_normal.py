@@ -90,6 +90,7 @@ def test_lora_model():
         
         # 去除前缀
         response = response.removeprefix("<answer>\n") 
+        response = response.removeprefix("<answer>")
 
         print(f"阿罗娜: {response}")
 

@@ -42,8 +42,8 @@ def finetune_lora():
     # 2. 配置LoRA
     lora_config = LoraConfig(
         task_type=TaskType.CAUSAL_LM,
-        r=24,   # 16
-        lora_alpha=48,  # 16
+        r=24,   # 24
+        lora_alpha=48,  # 48
         lora_dropout=0.1,
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
         bias="none"
@@ -92,7 +92,7 @@ def finetune_lora():
     # 5. 训练参数
     training_args = TrainingArguments(
         output_dir="/root/autodl-tmp/checkpoint/intimate",
-        num_train_epochs=12,    #10->12
+        num_train_epochs=12,    #12
         per_device_train_batch_size=4,
         gradient_accumulation_steps=2,
         learning_rate=2e-4,

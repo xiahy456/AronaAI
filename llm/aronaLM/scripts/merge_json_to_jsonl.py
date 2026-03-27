@@ -4,12 +4,6 @@ import argparse
 from pathlib import Path
 
 def merge_json_to_jsonl(input_dir, output_file):
-    """
-    将指定目录下的所有JSON文件合并为一个JSONL文件
-    转换规则：
-    - User -> user
-    - Arona -> assistant
-    """
     # 确保输入目录存在
     input_path = Path(input_dir)
     if not input_path.is_dir():
@@ -58,7 +52,7 @@ def merge_json_to_jsonl(input_dir, output_file):
                             role = 'user'
                         elif role == 'Arona':
                             role = 'assistant'
-                        # 其他角色保持不变（如有需要可扩展）
+                        # 其他角色保持不变
                         
                         messages.append({
                             "role": role,

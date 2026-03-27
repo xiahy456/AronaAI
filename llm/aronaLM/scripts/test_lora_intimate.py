@@ -42,7 +42,9 @@ def test_lora_model():
         "阿罗娜喜欢喝什么？",
         "请介绍一下阿拜多斯高中",
         "你喜欢什么颜色？",
-        "再见，阿罗娜"
+        "再见，阿罗娜",
+        "阿罗娜，我想你了",
+        "我喜欢你"
     ]
     
     for user_input in test_cases:
@@ -90,6 +92,7 @@ def test_lora_model():
         
         # 去除前缀
         response = response.removeprefix("<answer>\n") 
+        response = response.removeprefix("<answer>")
 
         print(f"阿罗娜: {response}")
 

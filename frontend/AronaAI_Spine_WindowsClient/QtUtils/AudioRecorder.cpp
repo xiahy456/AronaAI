@@ -28,7 +28,7 @@ AudioRecorder::AudioRecorder(QObject* parent)
     // 配置音频格式
     m_format.setSampleRate(16000);      // 采样率 16kHz
     m_format.setChannelCount(1);         // 单声道
-    m_format.setSampleFormat(QAudioFormat::Int16); // 16-bit 有符号整数 PCM
+    m_format.setSampleFormat(QAudioFormat::Int16); // 16-bit
 
     // 检查设备支持情况
     QAudioDevice inputDevice = QMediaDevices::defaultAudioInput();

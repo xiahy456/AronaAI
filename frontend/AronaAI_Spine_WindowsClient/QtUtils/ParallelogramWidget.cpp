@@ -117,6 +117,10 @@ QPainterPath ParallelogramWidget::createParallelogramPath() const
 
 void ParallelogramWidget::paintEvent(QPaintEvent* event)
 {
+    int w = width();
+    int h = height();
+    int skewOffset = static_cast<int>(h * m_skewFactor);
+
     Q_UNUSED(event);
 
     QPainter painter(this);
@@ -163,6 +167,11 @@ void ParallelogramWidget::paintEvent(QPaintEvent* event)
         painter.setPen(pen);
         painter.drawPath(path);
     }
+    //QPointF bottomRight(w - skewOffset, h);
+    //QPointF bottomLeft(0, h);
+    //QPen leftPen(QColor(100, 100, 100), 6);
+    //painter.setPen(leftPen);
+    //painter.drawLine(bottomLeft, bottomRight);
 }
 
 void ParallelogramWidget::resizeEvent(QResizeEvent* event)

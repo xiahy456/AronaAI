@@ -35,7 +35,7 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     this->setWindowTitle(GET_STRING_FROM_JSON(_global_dict, "application_data", "settings_widget_name"));  // 设置窗口名称
 
     // 设置窗口大小
-    this->resize(780 * WIDGET_ZOOM, 400 * WIDGET_ZOOM);
+    this->resize(1080 * WIDGET_ZOOM, 400 * WIDGET_ZOOM);
 
     // 控件设置
     // 界面切换按钮
@@ -48,12 +48,13 @@ SettingsWidget::SettingsWidget(QWidget *parent)
 
     // 上方信息栏
     ui.topInformationWidget->move((widgetSwitchButton_start_x + 40*0.5574 - 2) * WIDGET_ZOOM, (widgetSwitchButton_start_y - 30) * WIDGET_ZOOM);
-    ui.topInformationWidget->setFixedSize(640, 20);
+    ui.topInformationWidget->setFixedSize(940, 20);
 
     // 主界面背景
     ui.mainBGWidget->move(80 * WIDGET_ZOOM, 20 * WIDGET_ZOOM);
-    ui.mainBGWidget->setFixedSize(684 * WIDGET_ZOOM, 380 * WIDGET_ZOOM);
-    ui.mainBGWidget->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "settings_bg_path"));
+    ui.mainBGWidget->setFixedSize(984 * WIDGET_ZOOM, 380 * WIDGET_ZOOM);
+    ui.mainBGWidget->setFillColor(Qt::blue);
+    //ui.mainBGWidget->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "settings_bg_path"));
 }
 
 SettingsWidget::~SettingsWidget()
