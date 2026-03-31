@@ -22,6 +22,7 @@
 #include "ui_MainWidget.h"
 
 #include <GlobalInclude.h>
+#include <BlueakaFontLoader.h>
 
 #include <QtWidgets/QWidget>
 #include <QVBoxLayout>

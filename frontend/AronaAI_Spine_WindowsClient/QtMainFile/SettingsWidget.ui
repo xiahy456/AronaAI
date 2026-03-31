@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1080</width>
-    <height>400</height>
+    <height>410</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -26,7 +26,7 @@
     </rect>
    </property>
    <property name="styleSheet">
-    <string notr="true"/>
+    <string notr="true">color: rgb(44, 69, 99);</string>
    </property>
    <property name="text">
     <string>基础设置</string>
@@ -42,7 +42,7 @@
     </rect>
    </property>
    <property name="styleSheet">
-    <string notr="true"/>
+    <string notr="true">color: rgb(44, 69, 99);</string>
    </property>
    <property name="text">
     <string>调试输出</string>
@@ -58,7 +58,7 @@
     </rect>
    </property>
    <property name="styleSheet">
-    <string notr="true"/>
+    <string notr="true">color: rgb(44, 69, 99);</string>
    </property>
    <property name="text">
     <string>AronaLM设置</string>
@@ -74,7 +74,7 @@
     </rect>
    </property>
    <property name="styleSheet">
-    <string notr="true"/>
+    <string notr="true">color: rgb(44, 69, 99);</string>
    </property>
    <property name="text">
     <string>Spine设置</string>
@@ -90,7 +90,7 @@
     </rect>
    </property>
    <property name="styleSheet">
-    <string notr="true"/>
+    <string notr="true">color: rgb(44, 69, 99);</string>
    </property>
    <property name="text">
     <string>GPT-SOVITS设置</string>
@@ -106,7 +106,7 @@
     </rect>
    </property>
    <property name="styleSheet">
-    <string notr="true"/>
+    <string notr="true">color: rgb(44, 69, 99);</string>
    </property>
    <property name="text">
     <string>关于开发者</string>
@@ -183,21 +183,159 @@
     <rect>
      <x>140</x>
      <y>0</y>
-     <width>160</width>
+     <width>240</width>
      <height>25</height>
     </rect>
    </property>
-   <property name="font">
-    <font>
-     <family>微软雅黑</family>
-     <pointsize>10</pointsize>
-    </font>
+   <property name="styleSheet">
+    <string notr="true">color: rgb(44, 69, 99);</string>
    </property>
    <property name="text">
     <string>阿罗娜AI-设置界面</string>
    </property>
   </widget>
+  <widget class="QStackedWidget" name="stackedWidget">
+   <property name="geometry">
+    <rect>
+     <x>80</x>
+     <y>20</y>
+     <width>990</width>
+     <height>380</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QStackedWidget{
+background-color: transparent;
+}</string>
+   </property>
+   <property name="currentIndex">
+    <number>4</number>
+   </property>
+   <widget class="QWidget" name="basicSettingsWidget">
+    <widget class="QLabel" name="basicSettings_frameRateLabel">
+     <property name="geometry">
+      <rect>
+       <x>230</x>
+       <y>20</y>
+       <width>100</width>
+       <height>24</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>帧率</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignBottom|Qt::AlignLeading|Qt::AlignLeft</set>
+     </property>
+    </widget>
+    <widget class="QLineEdit" name="basicSettings_frameRateLineEdit">
+     <property name="geometry">
+      <rect>
+       <x>330</x>
+       <y>20</y>
+       <width>100</width>
+       <height>24</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>60</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+    <widget class="QLabel" name="basicSettings_widgetZoomLabel">
+     <property name="geometry">
+      <rect>
+       <x>230</x>
+       <y>60</y>
+       <width>100</width>
+       <height>24</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>界面缩放</string>
+     </property>
+    </widget>
+    <widget class="QLineEdit" name="basicSettings_widgetZoomLabelLineEdit">
+     <property name="geometry">
+      <rect>
+       <x>330</x>
+       <y>60</y>
+       <width>100</width>
+       <height>24</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>1.0</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+    <widget class="QLabel" name="basicSettings_shortCutLabel">
+     <property name="geometry">
+      <rect>
+       <x>230</x>
+       <y>100</y>
+       <width>100</width>
+       <height>24</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>语音快捷键</string>
+     </property>
+    </widget>
+    <widget class="QLineEdit" name="basicSettings_shortCutLineEdit">
+     <property name="geometry">
+      <rect>
+       <x>330</x>
+       <y>100</y>
+       <width>100</width>
+       <height>24</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Shift+Ctrl+V</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QWidget" name="aronaLMSettingsWidget"/>
+   <widget class="QWidget" name="spineSettingsWidget"/>
+   <widget class="QWidget" name="gptSOVITSSettings"/>
+   <widget class="QWidget" name="debugOutputWidget">
+    <widget class="QTextBrowser" name="debugOutput_outputTextBrowser">
+     <property name="geometry">
+      <rect>
+       <x>220</x>
+       <y>20</y>
+       <width>540</width>
+       <height>350</height>
+      </rect>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QWidget" name="aboutDeveloper"/>
+  </widget>
+  <widget class="QWidget" name="mainBGShadowWidget" native="true">
+   <property name="geometry">
+    <rect>
+     <x>80</x>
+     <y>400</y>
+     <width>700</width>
+     <height>3</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">background-color: rgba(0, 0, 0, 0.3);
+border: none;</string>
+   </property>
+  </widget>
   <zorder>mainBGWidget</zorder>
+  <zorder>stackedWidget</zorder>
   <zorder>topInformationShadowWidget</zorder>
   <zorder>topInformationWidget</zorder>
   <zorder>basicSettingsButton</zorder>
@@ -208,6 +346,7 @@
   <zorder>aboutDeveloperButton</zorder>
   <zorder>closeButton</zorder>
   <zorder>widgetNameLabel</zorder>
+  <zorder>mainBGShadowWidget</zorder>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>

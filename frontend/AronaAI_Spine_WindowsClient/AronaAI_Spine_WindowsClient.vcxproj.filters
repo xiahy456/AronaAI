@@ -53,6 +53,12 @@
     <QtUic Include="QtMainFile\SettingsWidget.ui">
       <Filter>Form Files</Filter>
     </QtUic>
+    <QtUic Include="QtMainFile\BasicSettingsWidget.ui">
+      <Filter>Form Files</Filter>
+    </QtUic>
+    <QtUic Include="QtMainFile\DebugOutputWidget.ui">
+      <Filter>Form Files</Filter>
+    </QtUic>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="spine-cpp\include\spine\QtSpineManager.h">
@@ -102,6 +108,15 @@
     </QtMoc>
     <QtMoc Include="QtUtils\ParallelogramWidget.h">
       <Filter>QtUtils</Filter>
+    </QtMoc>
+    <QtMoc Include="QtUtils\BlueakaFontLoader.h">
+      <Filter>QtUtils</Filter>
+    </QtMoc>
+    <QtMoc Include="QtMainFile\BasicSettingsWidget.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="QtMainFile\DebugOutputWidget.h">
+      <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
   <ItemGroup>
@@ -379,6 +394,15 @@
     </ClCompile>
     <ClCompile Include="QtUtils\ParallelogramWidget.cpp">
       <Filter>QtUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="QtUtils\BlueakaFontLoader.cpp">
+      <Filter>QtUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="QtMainFile\BasicSettingsWidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="QtMainFile\DebugOutputWidget.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

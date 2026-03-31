@@ -76,7 +76,9 @@ QVariant JsonOperation::getValue(QString key)
 	// 定义万能类QVariant对象value，接收JSON对象中对应key的value
     QVariant value;
 	value = m_jsonObj[key].toVariant();
-
+    if (!value.isValid()) {
+        qWarning().noquote() << ERROR_PR << "[Qt Operation]Failed getting value! Target key: " << key;
+	}
 	// 返回value对象
     return value;
 }
@@ -94,7 +96,8 @@ QString JsonOperation::getString(QString key)
 
 int JsonOperation::getInt(QString key)
 {
-    int value = 0;
+    int value = (0xffff-5);
+    if (value == 0xffff-5) qWarning().noquote() << ERROR_PR << "[Qt Operation]Failed getting int! Target key: " << key;
     value = m_jsonObj[key].toInt();
     return value;
 }

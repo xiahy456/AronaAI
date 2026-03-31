@@ -21,10 +21,10 @@
 #define DEFINES_H
 
 // 可爱的qDebug正常输出前缀
-#define FINE_PR "ദ്ദി˶˃ ᵕ ˂ )✧ "
+#define FINE_PR "ദ്ദി˶˃ ᵕ ˂ )✧\t"
 
 // 可爱的qWarning、qCritical错误输出前缀
-#define ERROR_PR "૮₍ ˶•‸•˶₎ა "
+#define ERROR_PR "૮₍ ˶•‸•˶₎ა  \t"
 
 // 获取Json->Json->String
 #define GET_STRING_FROM_JSON(global_json, sec_json, trd_string) global_json->getJson(sec_json).getString(trd_string)

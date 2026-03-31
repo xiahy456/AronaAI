@@ -13,7 +13,13 @@
     "showOrHide_settings_widget": "显示/隐藏设置界面",
     "able_edit": "允许互动",
     "unable_edit": "禁止互动（穿透点击）",
-    "quit": "退出"
+    "quit": "退出",
+    "basic_settings_button_name": "基础设置",
+    "arona_lm_settings_button_name": "AronaLM设置",
+    "spine_settings_button_name": "Spine设置",
+    "gpt_sovits_settings_button_name": "GPT-Sovits设置",
+    "debug_output_button_name": "调试输出",
+    "about_developer_button_name": "关于开发者"
   },
   "formed_text": {
     "connected_to_os_operator": "已连接至系统管理员阿罗娜。欢迎回来，老师。",
@@ -24,5 +30,10 @@
     "what_important_is_not_experience_but_choice": "重要的不是经历，是选择。",
     "sensei_you_are_the_very_person_that_i_believe": "老师，你是我唯一可以信任的大人了。",
     "i_believe_that_you_will_find_the_true_choice": "我相信你一定可以找到，与通往这扭曲终点所截然不同的，另一个结局的正确选项。"
+  },
+  "settings": {
+    "frame_rate": "帧率",
+    "widget_zoom": "界面缩放",
+    "voiceInput_shortCut": "语音快捷键"
   }
 }

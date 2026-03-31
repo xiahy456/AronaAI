@@ -23,6 +23,7 @@
 #include <QCloseEvent>
 
 #include "GlobalInclude.h"
+#include "BlueakaFontLoader.h"
 
 #include "ui_SettingsWidget.h"
 
@@ -30,12 +31,67 @@
 #define STEP_POSITION_POINT(_start_x, _start_y, _gap, _step) (_start_x - _gap*_step*0.5773) * WIDGET_ZOOM, (_start_y + _gap*_step) * WIDGET_ZOOM
 
 // 界面切换按钮设置
-#define WIDGET_SWITCH_SETTING(button, _cur_step) do { \
-	button->move(STEP_POSITION_POINT(widgetSwitchButton_start_x, widgetSwitchButton_start_y, widgetSwitchButton_gap, _cur_step)); \
-	button->setFixedSize(widgetSwitchButton_size_x * WIDGET_ZOOM, widgetSwitchButton_size_y * WIDGET_ZOOM); \
-	button->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "push_button_path")); \
-	button->setImageScaleMode(Qt::IgnoreAspectRatio); \
-} while (0) \
+#define WIDGET_SWITCH_SETTING(_button, _cur_step) do { \
+	_button->move(STEP_POSITION_POINT(widgetSwitchButton_start_x, widgetSwitchButton_start_y, widgetSwitchButton_gap, _cur_step)); \
+	_button->setFixedSize(widgetSwitchButton_size_x * WIDGET_ZOOM, widgetSwitchButton_size_y * WIDGET_ZOOM); \
+	_button->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "push_button_path")); \
+	_button->setImageScaleMode(Qt::IgnoreAspectRatio); \
+	_button->setFont(BlueakaFontLoader::instance()->createFont(11)); \
+} while (0)
+
+// 界面内设置控件设置-数字输入
+#define WIDGET_CHILD_SETTING_NUMBER(_label, _lineEdit, _text, _config_sort, _cur_data, _cur_step) do { \
+	_label->move(STEP_POSITION_POINT(230, 20, 40, _cur_step)); \
+	_label->resize(100 * WIDGET_ZOOM, 24 * WIDGET_ZOOM); \
+	_label->setFont(BlueakaFontLoader::instance()->createFont(11 * WIDGET_ZOOM)); \
+	_label->setText(GET_STRING_FROM_JSON(_global_dict, "settings", _text)); \
+	_lineEdit->move(STEP_POSITION_POINT(330, 20, 40, _cur_step)); \
+	_lineEdit->resize(100 * WIDGET_ZOOM, 24 * WIDGET_ZOOM); \
+	_lineEdit->setFont(BlueakaFontLoader::instance()->createFont(12 * WIDGET_ZOOM)); \
+	_lineEdit->setText(QString::number(GET_INT_FROM_JSON(_global_config, _config_sort, _cur_data))); \
+	_lineEdit->setStyleSheet( \
+			"QLineEdit {" \
+			"    background-color: transparent;" \
+			"    border: none;" \
+			"    border-bottom: 2px solid #e0e0e0;" \
+			"    padding: 3px 2px 0px 2px;" \
+			"    color: #333333;" \
+			"}" \
+			"QLineEdit:focus {" \
+			"    border-bottom: 2px solid #9e9e9e;" \
+			"}" \
+			"QLineEdit:hover {" \
+			"    border-bottom: 2px solid #3498db;" \
+			"}" \
+		); \
+} while (0)
+
+// 界面内设置控件设置-字符串输入
+#define WIDGET_CHILD_SETTING_STRING(_label, _lineEdit, _text, _config_sort, _cur_data, _cur_step) do { \
+	_label->move(STEP_POSITION_POINT(230, 20, 40, _cur_step)); \
+	_label->resize(100 * WIDGET_ZOOM, 24 * WIDGET_ZOOM); \
+	_label->setFont(BlueakaFontLoader::instance()->createFont(11 * WIDGET_ZOOM)); \
+	_label->setText(GET_STRING_FROM_JSON(_global_dict, "settings", _text)); \
+	_lineEdit->move(STEP_POSITION_POINT(330, 20, 40, _cur_step)); \
+	_lineEdit->resize(100 * WIDGET_ZOOM, 24 * WIDGET_ZOOM); \
+	_lineEdit->setFont(BlueakaFontLoader::instance()->createFont(12 * WIDGET_ZOOM)); \
+	_lineEdit->setText(GET_STRING_FROM_JSON(_global_config, _config_sort, _cur_data)); \
+	_lineEdit->setStyleSheet( \
+			"QLineEdit {" \
+			"    background-color: transparent;" \
+			"    border: none;" \
+			"    border-bottom: 2px solid #e0e0e0;" \
+			"    padding: 3px 2px 0px 2px;" \
+			"    color: #333333;" \
+			"}" \
+			"QLineEdit:focus {" \
+			"    border-bottom: 2px solid #9e9e9e;" \
+			"}" \
+			"QLineEdit:hover {" \
+			"    border-bottom: 2px solid #3498db;" \
+			"}" \
+		); \
+} while (0)
 
 class SettingsWidget : public QWidget
 {

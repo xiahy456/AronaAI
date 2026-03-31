@@ -68,6 +68,12 @@ void ParallelogramButton::setImageScaleMode(Qt::AspectRatioMode mode)
     update();
 }
 
+void ParallelogramButton::setTextColor(const QColor& color)
+{
+    m_textColor = color;
+    update();  // 触发重绘
+}
+
 void ParallelogramButton::paintEvent(QPaintEvent* event)
 {
     Q_UNUSED(event);
@@ -163,7 +169,7 @@ void ParallelogramButton::paintEvent(QPaintEvent* event)
     painter.drawLine(bottomLeft, topLeft);
 
     // 绘制文字
-    painter.setPen(Qt::black);
+    painter.setPen(m_textColor);
     QFont font = painter.font();
     //font.setBold(true); // 粗体
     painter.setFont(font);

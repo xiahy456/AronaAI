@@ -14,6 +14,9 @@
 /models/
 /llm/chatglm3/
 
+#font
+/font/
+
 # aronaLM training data
 /llm/aronaLM/data/
 

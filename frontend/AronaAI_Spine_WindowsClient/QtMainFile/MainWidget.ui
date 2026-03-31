@@ -59,6 +59,9 @@
       <pointsize>11</pointsize>
      </font>
     </property>
+    <property name="styleSheet">
+     <string notr="true">color: rgb(44, 69, 99);</string>
+    </property>
     <property name="text">
      <string>示例文本</string>
     </property>

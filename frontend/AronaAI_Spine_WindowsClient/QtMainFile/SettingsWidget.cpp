@@ -35,7 +35,7 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     this->setWindowTitle(GET_STRING_FROM_JSON(_global_dict, "application_data", "settings_widget_name"));  // 设置窗口名称
 
     // 设置窗口大小
-    this->resize(1080 * WIDGET_ZOOM, 400 * WIDGET_ZOOM);
+    this->resize(1080 * WIDGET_ZOOM, 410 * WIDGET_ZOOM);
 
     // 控件设置
     // 界面切换按钮
@@ -45,17 +45,23 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     WIDGET_SWITCH_SETTING(ui.gptSOVITSSettingsButton, 3);
     WIDGET_SWITCH_SETTING(ui.debugOutputButton, 4);
     WIDGET_SWITCH_SETTING(ui.aboutDeveloperButton, 5);
+    ui.basicSettingsButton->setText(GET_STRING_FROM_JSON(_global_dict, "application_data", "basic_settings_button_name"));
+    ui.aronaLMSettingsButton->setText(GET_STRING_FROM_JSON(_global_dict, "application_data", "arona_lm_settings_button_name"));
+    ui.spineSettingsButton->setText(GET_STRING_FROM_JSON(_global_dict, "application_data", "spine_settings_button_name"));
+    ui.gptSOVITSSettingsButton->setText(GET_STRING_FROM_JSON(_global_dict, "application_data", "gpt_sovits_settings_button_name"));
+    ui.debugOutputButton->setText(GET_STRING_FROM_JSON(_global_dict, "application_data", "debug_output_button_name"));
+    ui.aboutDeveloperButton->setText(GET_STRING_FROM_JSON(_global_dict, "application_data", "about_developer_button_name"));
 
     // 上方栏
     ui.topInformationWidget->move(130 * WIDGET_ZOOM, 0 * WIDGET_ZOOM);
     ui.topInformationWidget->resize(940 * WIDGET_ZOOM, 25 * WIDGET_ZOOM);
     ui.topInformationWidget->setStyleSheet(
         "QWidget{"
-        "background-color: white;"
+        "background-color: rgb(250, 251, 253);"
         "border-image: url(" + GET_STRING_FROM_JSON(_global_config, "settings", "top_information_path") + ");"
         "border: none;"
-        "border-bottom-left-radius: 6px;"
-        "border-bottom-right-radius: 6px;"
+        "border-bottom-left-radius: 8px;"
+        "border-bottom-right-radius: 8px;"
         "}"
     );
 
@@ -68,18 +74,44 @@ SettingsWidget::SettingsWidget(QWidget *parent)
         "QPushButton {"
         "border: none;"
         "border-image: url(" + GET_STRING_FROM_JSON(_global_config, "settings", "close_button_path") + ");"
-        "border-radius: 8px;"
+        "border-radius: " + (QString::number(8 * WIDGET_ZOOM)) + "px; "
         "}"
     );
 
     ui.widgetNameLabel->move(140 * WIDGET_ZOOM, 0 * WIDGET_ZOOM);
+    ui.widgetNameLabel->resize(240 * WIDGET_ZOOM, 25 * WIDGET_ZOOM);
+    ui.widgetNameLabel->setFont(BlueakaFontLoader::instance()->createFont(12 * WIDGET_ZOOM));
     ui.widgetNameLabel->setText(GET_STRING_FROM_JSON(_global_dict, "application_data", "settings_widget_name"));
+    ui.widgetNameLabel->setStyleSheet("color: rgb(44, 69, 99); ");
 
     // 主界面背景
     ui.mainBGWidget->move(80 * WIDGET_ZOOM, 20 * WIDGET_ZOOM);
     ui.mainBGWidget->setFixedSize(990 * WIDGET_ZOOM, 380 * WIDGET_ZOOM);
-    ui.mainBGWidget->setFillColor(QColor(250, 251, 253));
-    //ui.mainBGWidget->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "settings_bg_path"));
+    ui.mainBGWidget->setFillBackground(true);
+    ui.mainBGWidget->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "settings_bg_path"));
+
+	ui.mainBGShadowWidget->move(80 * WIDGET_ZOOM, 400 * WIDGET_ZOOM);
+	ui.mainBGShadowWidget->resize(772 * WIDGET_ZOOM, 3 * WIDGET_ZOOM);
+
+    // stackedWidget控件
+	ui.stackedWidget->move(80 * WIDGET_ZOOM, 20 * WIDGET_ZOOM);
+	ui.stackedWidget->resize(990 * WIDGET_ZOOM, 380 * WIDGET_ZOOM);
+    ui.stackedWidget->setCurrentIndex(4);
+
+    // 基础设置控件
+    WIDGET_CHILD_SETTING_NUMBER(ui.basicSettings_frameRateLabel, ui.basicSettings_frameRateLineEdit, "frame_rate", "settings", "frame_rate", 0);
+    WIDGET_CHILD_SETTING_NUMBER(ui.basicSettings_widgetZoomLabel, ui.basicSettings_widgetZoomLabelLineEdit, "widget_zoom", "settings", "zoom", 1);
+    WIDGET_CHILD_SETTING_STRING(ui.basicSettings_shortCutLabel, ui.basicSettings_shortCutLineEdit, "voiceInput_shortCut", "short_cut_key", "switch_audio_input", 2);
+
+	// AronaLM设置控件
+
+	// Spine设置控件
+
+	// GPT-SOVITS设置控件
+
+	// 调试输出控件
+
+	// 关于开发者控件
 
     // 连接信号与槽
     connect(ui.closeButton, &QPushButton::clicked, this, &SettingsWidget::onCloseButtonClicked);    // CloseButton

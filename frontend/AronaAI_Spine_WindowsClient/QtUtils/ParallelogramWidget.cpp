@@ -11,12 +11,8 @@ ParallelogramWidget::ParallelogramWidget(QWidget* parent)
     , m_hasBackgroundImage(false)
     , m_imageScaleMode(Qt::IgnoreAspectRatio)  // 默认裁剪模式
 {
-    // 设置窗口标志为无边框
     setWindowFlags(Qt::FramelessWindowHint);
-
-    // 设置背景透明（可选）
     setAttribute(Qt::WA_TranslucentBackground);
-
     // 设置默认大小
     setFixedSize(200, 100);
 }
@@ -36,6 +32,12 @@ void ParallelogramWidget::setFillColor(const QColor& color)
         return;
 
     m_fillColor = color;
+    update();
+}
+
+void ParallelogramWidget::setFillBackground(bool fill)
+{
+    m_fillBackground = fill;
     update();
 }
 
@@ -146,32 +148,34 @@ void ParallelogramWidget::paintEvent(QPaintEvent* event)
     QPainterPath path = createParallelogramPath();
 
     // 绘制背景
-    if (m_hasBackgroundImage && !m_backgroundImage.isNull()) {
-        // 方法1：使用图片作为背景填充
-        painter.save();
-        painter.setClipPath(path);  // 设置裁剪区域为平行四边形
+    if (m_fillBackground) {
+        if (m_hasBackgroundImage && !m_backgroundImage.isNull()) {
+            // 方法1：使用图片作为背景填充
+            painter.save();
+            painter.setClipPath(path);  // 设置裁剪区域为平行四边形
 
-        // 缩放图片以适应控件大小
-        QPixmap scaledPixmap;
-        if (m_imageScaleMode == Qt::IgnoreAspectRatio) {
-            // 拉伸填充
-            scaledPixmap = m_backgroundImage.scaled(width(), height(),
-                Qt::IgnoreAspectRatio,
-                Qt::SmoothTransformation);
+            // 缩放图片以适应控件大小
+            QPixmap scaledPixmap;
+            if (m_imageScaleMode == Qt::IgnoreAspectRatio) {
+                // 拉伸填充
+                scaledPixmap = m_backgroundImage.scaled(width(), height(),
+                    Qt::IgnoreAspectRatio,
+                    Qt::SmoothTransformation);
+            }
+            else {
+                // 保持比例
+                scaledPixmap = m_backgroundImage.scaled(width(), height(),
+                    m_imageScaleMode,
+                    Qt::SmoothTransformation);
+            }
+
+            painter.drawPixmap(0, 0, scaledPixmap);
+            painter.restore();
         }
         else {
-            // 保持比例
-            scaledPixmap = m_backgroundImage.scaled(width(), height(),
-                m_imageScaleMode,
-                Qt::SmoothTransformation);
+            // 使用纯色填充（原有逻辑）
+            painter.fillPath(path, m_fillColor);
         }
-
-        painter.drawPixmap(0, 0, scaledPixmap);
-        painter.restore();
-    }
-    else {
-        // 使用纯色填充（原有逻辑）
-        painter.fillPath(path, m_fillColor);
     }
 
     // 绘制边框

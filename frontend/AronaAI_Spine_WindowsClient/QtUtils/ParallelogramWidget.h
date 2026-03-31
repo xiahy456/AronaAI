@@ -24,6 +24,7 @@ public:
     // 设置填充颜色
     void setFillColor(const QColor& color);
     QColor fillColor() const { return m_fillColor; }
+    void setFillBackground(bool fill);
 
     // 设置边框属性
     void setBorderColor(const QColor& color);
@@ -47,6 +48,7 @@ private:
 
     double m_skewFactor;      // 倾斜系数
     QColor m_fillColor;       // 填充颜色
+    bool m_fillBackground = false;  // 是否填充背景
     QPixmap m_backgroundImage;  // 背景图片
     bool m_hasBackgroundImage;  // 是否有背景图片
     Qt::AspectRatioMode m_imageScaleMode;  // 图片缩放模式

@@ -67,6 +67,7 @@ MainWidget::MainWidget(QWidget *parent)
 	ui.aronaOutputTextBox->move(25 * WIDGET_ZOOM, 170 * WIDGET_ZOOM);
 	ui.aronaOutputText->resize(280 * WIDGET_ZOOM, 60 * WIDGET_ZOOM);
 	ui.aronaOutputText->move(10 * WIDGET_ZOOM, 10 * WIDGET_ZOOM);
+    ui.aronaOutputText->setFont(BlueakaFontLoader::instance()->createFont(12));
 	ui.qtSpineManagerWidget->resize(220 * WIDGET_ZOOM, 290 * WIDGET_ZOOM);
 	ui.qtSpineManagerWidget->move(65 * WIDGET_ZOOM, 0);
     ui.aronaOutputTextBox->setStyleSheet(
@@ -96,13 +97,13 @@ void MainWidget::showOutputText(const QString& text)
     // 更新文本内容
     ui.aronaOutputText->setText(text);
     // 气泡不透明度从0到1
-	m_opacityAnimation_aronaOutputTextBox->startAnimation(0.0, 0.7);
+	m_opacityAnimation_aronaOutputTextBox->startAnimation(0.0, 0.85);
 }
 
 void MainWidget::hideOutputText()
 {
     // 气泡不透明度从1到0
-    m_opacityAnimation_aronaOutputTextBox->startAnimation(0.7, 0.0);
+    m_opacityAnimation_aronaOutputTextBox->startAnimation(0.85, 0.0);
 }
 
 void MainWidget::setAnimation(const QString& name, int track_idx, bool loop)

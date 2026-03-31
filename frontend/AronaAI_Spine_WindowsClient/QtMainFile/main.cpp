@@ -25,6 +25,7 @@
 #include "AudioRecorder.h"
 #include "SpeechRecognizer.h"
 #include "ShortCutKey.h"
+#include "BlueakaFontLoader.h"
 
 #include <QtWidgets/QApplication>
 #include <QDebug>
@@ -76,6 +77,16 @@ int main(int argc, char *argv[])
 	app.setWindowIcon(QIcon(GET_STRING_FROM_JSON(_global_config, "settings", "icon_path")));    // 设置应用程序图标
 	app.setQuitOnLastWindowClosed(false);   // 设置当最后一个窗口关闭时不退出应用程序
     qputenv("QT_FRAME_RATE_OVERRIDE", QByteArray::number(GET_INT_FROM_JSON(_global_config, "settings", "frame_rate")));    // 设置全局帧率
+
+    // 加载Blueaka字体
+    QString blueaka_fontDir = GET_STRING_FROM_JSON(_global_config, "settings", "font_path");
+    if (BlueakaFontLoader::instance()->loadFromDirectory(blueaka_fontDir)) {
+        qDebug().noquote() << FINE_PR << "[Font Loader]Fonts loaded successfully!";
+        qDebug().noquote() << FINE_PR << "[Font Loader]Font families:" << BlueakaFontLoader::instance()->getFontFamilies();
+    }
+    else {
+        qWarning() << ERROR_PR << "[Font Loader]Failed to load Blueaka fonts, using system fonts";
+    }
 
 	// 创建主窗口对象并显示
     MainWidget* mainWidget = new MainWidget;
