@@ -96,12 +96,19 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     // stackedWidget控件
 	ui.stackedWidget->move(80 * WIDGET_ZOOM, 20 * WIDGET_ZOOM);
 	ui.stackedWidget->resize(990 * WIDGET_ZOOM, 380 * WIDGET_ZOOM);
-    ui.stackedWidget->setCurrentIndex(4);
+    ui.stackedWidget->setCurrentIndex(0);
 
     // 基础设置控件
-    WIDGET_CHILD_SETTING_NUMBER(ui.basicSettings_frameRateLabel, ui.basicSettings_frameRateLineEdit, "frame_rate", "settings", "frame_rate", 0);
-    WIDGET_CHILD_SETTING_NUMBER(ui.basicSettings_widgetZoomLabel, ui.basicSettings_widgetZoomLabelLineEdit, "widget_zoom", "settings", "zoom", 1);
-    WIDGET_CHILD_SETTING_STRING(ui.basicSettings_shortCutLabel, ui.basicSettings_shortCutLineEdit, "voiceInput_shortCut", "short_cut_key", "switch_audio_input", 2);
+    WIDGET_CHILD_SETTING_LABEL(ui.basicSettings_frameRateLabel, "frame_rate", 0);
+    WIDGET_CHILD_SETTING_INPUT_NUMBER(ui.basicSettings_frameRateLineEdit, "settings", "frame_rate", 0);
+
+    WIDGET_CHILD_SETTING_LABEL(ui.basicSettings_widgetZoomLabel, "widget_zoom", 1);
+    WIDGET_CHILD_SETTING_INPUT_NUMBER(ui.basicSettings_widgetZoomLabelLineEdit, "settings", "zoom", 1);
+
+    WIDGET_CHILD_SETTING_LABEL(ui.basicSettings_shortCutLabel, "voiceInput_shortCut", 2);
+    WIDGET_CHILD_SETTING_INPUT_STRING(ui.basicSettings_shortCutLineEdit, "short_cut_key", "switch_audio_input", 2);
+
+    WIDGET_CHILD_SETTING_LABEL(ui.basicSettings_aronaAIModeLabel, "arona_ai_mode", 3);
 
 	// AronaLM设置控件
 
@@ -110,11 +117,20 @@ SettingsWidget::SettingsWidget(QWidget *parent)
 	// GPT-SOVITS设置控件
 
 	// 调试输出控件
+    ui.debugOutput_outputTextBrowser->setFont(BlueakaFontLoader::instance()->createFont(9 * WIDGET_ZOOM));
 
 	// 关于开发者控件
 
     // 连接信号与槽
     connect(ui.closeButton, &QPushButton::clicked, this, &SettingsWidget::onCloseButtonClicked);    // CloseButton
+	connect(ui.basicSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onBasicSettingsButtonClicked);    // 基础设置按钮
+	connect(ui.aronaLMSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onAronaLMSettingsButtonClicked);    // AronaLM设置按钮
+	connect(ui.spineSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onSpineSettingsButtonClicked);    // Spine设置按钮
+	connect(ui.gptSOVITSSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onGptSOVITSSettingsButtonClicked);    // GPT-SOVITS设置按钮
+	connect(ui.debugOutputButton, &QPushButton::clicked, this, &SettingsWidget::onDebugOutputButtonClicked);    // 调试输出按钮
+	connect(ui.aboutDeveloperButton, &QPushButton::clicked, this, &SettingsWidget::onAboutDeveloperButtonClicked);    // 关于开发者按钮
+    connect(DebugManager::instance(), &DebugManager::debugMessageReceived, this, &SettingsWidget::receiveDebugMessage); // 接收调试输出
+
 }
 
 SettingsWidget::~SettingsWidget()
@@ -168,6 +184,44 @@ void SettingsWidget::mouseReleaseEvent(QMouseEvent* event)
     {
         QWidget::mouseReleaseEvent(event);
     }
+}
+
+void SettingsWidget::onBasicSettingsButtonClicked()
+{
+    // 切换页面
+    ui.stackedWidget->setCurrentIndex(0);
+}
+
+void SettingsWidget::onAronaLMSettingsButtonClicked()
+{
+    // 切换页面
+    ui.stackedWidget->setCurrentIndex(1);
+}
+
+void SettingsWidget::onSpineSettingsButtonClicked()
+{    // 切换页面
+    ui.stackedWidget->setCurrentIndex(2);
+}
+
+void SettingsWidget::onGptSOVITSSettingsButtonClicked()
+{    // 切换页面
+    ui.stackedWidget->setCurrentIndex(3);
+}
+
+void SettingsWidget::onDebugOutputButtonClicked()
+{    // 切换页面
+    ui.stackedWidget->setCurrentIndex(4);
+}
+
+void SettingsWidget::onAboutDeveloperButtonClicked()
+{    // 切换页面
+    ui.stackedWidget->setCurrentIndex(5);
+}
+
+void SettingsWidget::receiveDebugMessage(const QString& message)
+{
+    // 追加文字
+    ui.debugOutput_outputTextBrowser->append(message);
 }
 
 void SettingsWidget::onCloseButtonClicked()

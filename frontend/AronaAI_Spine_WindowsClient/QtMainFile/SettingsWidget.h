@@ -39,43 +39,19 @@
 	_button->setFont(BlueakaFontLoader::instance()->createFont(11)); \
 } while (0)
 
-// 界面内设置控件设置-数字输入
-#define WIDGET_CHILD_SETTING_NUMBER(_label, _lineEdit, _text, _config_sort, _cur_data, _cur_step) do { \
+// 界面内设置控件设置-描述文本
+#define WIDGET_CHILD_SETTING_LABEL(_label, _text, _cur_step) do { \
 	_label->move(STEP_POSITION_POINT(230, 20, 40, _cur_step)); \
 	_label->resize(100 * WIDGET_ZOOM, 24 * WIDGET_ZOOM); \
 	_label->setFont(BlueakaFontLoader::instance()->createFont(11 * WIDGET_ZOOM)); \
 	_label->setText(GET_STRING_FROM_JSON(_global_dict, "settings", _text)); \
-	_lineEdit->move(STEP_POSITION_POINT(330, 20, 40, _cur_step)); \
-	_lineEdit->resize(100 * WIDGET_ZOOM, 24 * WIDGET_ZOOM); \
-	_lineEdit->setFont(BlueakaFontLoader::instance()->createFont(12 * WIDGET_ZOOM)); \
-	_lineEdit->setText(QString::number(GET_INT_FROM_JSON(_global_config, _config_sort, _cur_data))); \
-	_lineEdit->setStyleSheet( \
-			"QLineEdit {" \
-			"    background-color: transparent;" \
-			"    border: none;" \
-			"    border-bottom: 2px solid #e0e0e0;" \
-			"    padding: 3px 2px 0px 2px;" \
-			"    color: #333333;" \
-			"}" \
-			"QLineEdit:focus {" \
-			"    border-bottom: 2px solid #9e9e9e;" \
-			"}" \
-			"QLineEdit:hover {" \
-			"    border-bottom: 2px solid #3498db;" \
-			"}" \
-		); \
 } while (0)
 
-// 界面内设置控件设置-字符串输入
-#define WIDGET_CHILD_SETTING_STRING(_label, _lineEdit, _text, _config_sort, _cur_data, _cur_step) do { \
-	_label->move(STEP_POSITION_POINT(230, 20, 40, _cur_step)); \
-	_label->resize(100 * WIDGET_ZOOM, 24 * WIDGET_ZOOM); \
-	_label->setFont(BlueakaFontLoader::instance()->createFont(11 * WIDGET_ZOOM)); \
-	_label->setText(GET_STRING_FROM_JSON(_global_dict, "settings", _text)); \
+// 界面内设置控件设置-输入框-数字输入
+#define WIDGET_CHILD_SETTING_INPUT(_lineEdit, _cur_step) do { \
 	_lineEdit->move(STEP_POSITION_POINT(330, 20, 40, _cur_step)); \
 	_lineEdit->resize(100 * WIDGET_ZOOM, 24 * WIDGET_ZOOM); \
-	_lineEdit->setFont(BlueakaFontLoader::instance()->createFont(12 * WIDGET_ZOOM)); \
-	_lineEdit->setText(GET_STRING_FROM_JSON(_global_config, _config_sort, _cur_data)); \
+	_lineEdit->setFont(BlueakaFontLoader::instance()->createFont(11 * WIDGET_ZOOM)); \
 	_lineEdit->setStyleSheet( \
 			"QLineEdit {" \
 			"    background-color: transparent;" \
@@ -90,7 +66,19 @@
 			"QLineEdit:hover {" \
 			"    border-bottom: 2px solid #3498db;" \
 			"}" \
-		); \
+	); \
+} while (0)
+
+// 界面内设置控件设置-输入框-数字输入
+#define WIDGET_CHILD_SETTING_INPUT_NUMBER(_lineEdit, _config_sort, _cur_data, _cur_step) do { \
+	WIDGET_CHILD_SETTING_INPUT(_lineEdit, _cur_step); \
+	_lineEdit->setText(QString::number(GET_INT_FROM_JSON(_global_config, _config_sort, _cur_data))); \
+} while (0)
+
+// 界面内设置控件设置-输入框-字符串输入
+#define WIDGET_CHILD_SETTING_INPUT_STRING(_lineEdit, _config_sort, _cur_data, _cur_step) do { \
+	WIDGET_CHILD_SETTING_INPUT(_lineEdit, _cur_step); \
+	_lineEdit->setText(GET_STRING_FROM_JSON(_global_config, _config_sort, _cur_data)); \
 } while (0)
 
 class SettingsWidget : public QWidget
@@ -108,7 +96,14 @@ protected:
 	void mouseReleaseEvent(QMouseEvent* event) override;
 	
 private slots:
-	void onCloseButtonClicked();           // CloseButton被按了 
+	void onCloseButtonClicked();           // CloseButton被按了
+	void onBasicSettingsButtonClicked();     // 基础设置按钮被按了
+	void onAronaLMSettingsButtonClicked();     // AronaLM设置按钮被按了
+	void onSpineSettingsButtonClicked();     // Spine设置按钮被按了
+	void onGptSOVITSSettingsButtonClicked();     // GPT-SOVITS设置按钮被按了
+	void onDebugOutputButtonClicked();     // 调试输出按钮被按了
+	void onAboutDeveloperButtonClicked();     // 关于开发者按钮被按了
+	void receiveDebugMessage(const QString& message);	// 接收到调试信息
 
 private:
 	// 界面切换按钮实现函数

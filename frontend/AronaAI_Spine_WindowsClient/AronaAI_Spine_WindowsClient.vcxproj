@@ -11,8 +11,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <QtUic Include="QtMainFile\BasicSettingsWidget.ui" />
-    <QtUic Include="QtMainFile\DebugOutputWidget.ui" />
     <QtUic Include="QtMainFile\MainWidget.ui" />
     <QtUic Include="QtMainFile\SettingsWidget.ui" />
   </ItemGroup>
@@ -25,8 +23,6 @@
   <ItemGroup>
     <ClCompile Include="QHotkey\qhotkey.cpp" />
     <ClCompile Include="QHotkey\qhotkey_win.cpp" />
-    <ClCompile Include="QtMainFile\BasicSettingsWidget.cpp" />
-    <ClCompile Include="QtMainFile\DebugOutputWidget.cpp" />
     <ClCompile Include="QtMainFile\GlobalVariables.cpp" />
     <ClCompile Include="QtMainFile\main.cpp" />
     <ClCompile Include="QtMainFile\MainController.cpp" />
@@ -36,6 +32,7 @@
     <ClCompile Include="QtMainFile\TTSManager.cpp" />
     <ClCompile Include="QtUtils\AudioRecorder.cpp" />
     <ClCompile Include="QtUtils\BlueakaFontLoader.cpp" />
+    <ClCompile Include="QtUtils\DebugManager.cpp" />
     <ClCompile Include="QtUtils\DebugOptions.cpp" />
     <ClCompile Include="QtUtils\JsonOperation.cpp" />
     <ClCompile Include="QtUtils\OpacityAnimation.cpp" />
@@ -121,8 +118,6 @@
     <ClInclude Include="..\..\vosk\include\vosk_api.h" />
     <QtMoc Include="QHotkey\qhotkey.h" />
     <QtMoc Include="QHotkey\qhotkey_p.h" />
-    <QtMoc Include="QtMainFile\BasicSettingsWidget.h" />
-    <QtMoc Include="QtMainFile\DebugOutputWidget.h" />
     <ClInclude Include="QtMainFile\GlobalVariables.h" />
     <QtMoc Include="QtMainFile\SettingsWidget.h" />
     <QtMoc Include="QtMainFile\SystemTray.h" />
@@ -131,6 +126,7 @@
     <QtMoc Include="QtMainFile\MainController.h" />
     <QtMoc Include="QtUtils\DebugOptions.h" />
     <QtMoc Include="QtUtils\BlueakaFontLoader.h" />
+    <QtMoc Include="QtUtils\DebugManager.h" />
     <ClInclude Include="QtUtils\Defines.h" />
     <ClInclude Include="QtUtils\GlobalInclude.h" />
     <ClInclude Include="QtUtils\JsonOperation.h" />

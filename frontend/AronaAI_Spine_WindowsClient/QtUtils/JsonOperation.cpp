@@ -97,8 +97,8 @@ QString JsonOperation::getString(QString key)
 int JsonOperation::getInt(QString key)
 {
     int value = (0xffff-5);
-    if (value == 0xffff-5) qWarning().noquote() << ERROR_PR << "[Qt Operation]Failed getting int! Target key: " << key;
     value = m_jsonObj[key].toInt();
+    if (value == 0xffff - 5) qWarning().noquote() << ERROR_PR << "[Qt Operation]Failed getting int! Target key: " << key;
     return value;
 }
 

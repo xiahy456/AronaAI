@@ -209,7 +209,7 @@ background-color: transparent;
 }</string>
    </property>
    <property name="currentIndex">
-    <number>4</number>
+    <number>0</number>
    </property>
    <widget class="QWidget" name="basicSettingsWidget">
     <widget class="QLabel" name="basicSettings_frameRateLabel">
@@ -238,7 +238,7 @@ background-color: transparent;
       </rect>
      </property>
      <property name="text">
-      <string>60</string>
+      <string>120</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
@@ -267,7 +267,7 @@ background-color: transparent;
       </rect>
      </property>
      <property name="text">
-      <string>1.0</string>
+      <string>2.0</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
@@ -296,10 +296,23 @@ background-color: transparent;
       </rect>
      </property>
      <property name="text">
-      <string>Shift+Ctrl+V</string>
+      <string>Shift+Ctrl+F</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+    <widget class="QLabel" name="basicSettings_aronaAIModeLabel">
+     <property name="geometry">
+      <rect>
+       <x>230</x>
+       <y>140</y>
+       <width>100</width>
+       <height>24</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>阿罗娜AI模式</string>
      </property>
     </widget>
    </widget>

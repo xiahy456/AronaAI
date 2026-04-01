@@ -17,6 +17,7 @@
  limitations under the License.
 */
 
+#include "Defines.h"
 #include "MainWidget.h"
 #include "SettingsWidget.h"
 #include "SystemTray.h"
@@ -115,8 +116,8 @@ int main(int argc, char *argv[])
     SystemTray* systemTray = new SystemTray(mainWidget, settingsWidget);
 
     // 输出信息必要类实例化完毕，准备启动应用程序事件循环
-	FINE_DEBUG_OUTPUT("[Qt Operation]Necessary class instantiation complete! Starting application loop...");
-    
+    FINE_DEBUG_OUTPUT("[Qt Operation]Necessary class instantiation complete! Starting application loop...");
+
     // 开始应用程序事件循环
     return app.exec();
 }

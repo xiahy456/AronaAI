@@ -20,6 +20,8 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
+#include "DebugManager.h"
+
 // 可爱的qDebug正常输出前缀
 #define FINE_PR "ദ്ദി˶˃ ᵕ ˂ )✧\t"
 
@@ -42,9 +44,10 @@
 #define WIDGET_ZOOM _global_config->getJson("settings").getDouble("zoom")
 
 // 正常调试输出
-#define FINE_DEBUG_OUTPUT(text) do { \
-	qDebug().noquote() << FINE_PR << text; \
-} while(0);
+#define FINE_DEBUG_OUTPUT(_text) do { \
+	qDebug().noquote() << FINE_PR << _text; \
+	DebugManager::instance()->sendDebugMessage(QString(FINE_PR) + _text, __FUNCTION__); \
+} while(0)
 
 #endif // !DEFINES_H
 
