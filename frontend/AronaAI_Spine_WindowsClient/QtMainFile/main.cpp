@@ -55,7 +55,7 @@ QString getDict() {
 int main(int argc, char *argv[])
 {
     // 输出启动信息
-    qDebug().noquote() << FINE_PR << "[Qt Operation]Starting application...";
+    FINE_DEBUG_OUTPUT("[Qt Operation]Starting application...");
 
 	// 设置OpenGL格式，启用抗锯齿和透明度支持
     QSurfaceFormat format;
@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
     getConfig();
 
     // 获取字典信息
-    qDebug().noquote() << FINE_PR << "[Qt Operation]Load dictionary succeed! Changing to language: " << getDict();
+    FINE_DEBUG_OUTPUT("[Qt Operation]Load dictionary succeed! Changing to language: " + getDict());
 
     // 应用程序设置
 	app.setApplicationName(GET_STRING_FROM_JSON(_global_dict, "application_data", "application_name")); // 设置应用程序名称
@@ -82,11 +82,11 @@ int main(int argc, char *argv[])
     // 加载Blueaka字体
     QString blueaka_fontDir = GET_STRING_FROM_JSON(_global_config, "settings", "font_path");
     if (BlueakaFontLoader::instance()->loadFromDirectory(blueaka_fontDir)) {
-        qDebug().noquote() << FINE_PR << "[Font Loader]Fonts loaded successfully!";
-        qDebug().noquote() << FINE_PR << "[Font Loader]Font families:" << BlueakaFontLoader::instance()->getFontFamilies();
+        FINE_DEBUG_OUTPUT("[Font Loader]Fonts loaded successfully!");
+        FINE_DEBUG_OUTPUT("[Font Loader]Head of font families:" + BlueakaFontLoader::instance()->getFontFamilies()[0]);
     }
     else {
-        qWarning() << ERROR_PR << "[Font Loader]Failed to load Blueaka fonts, using system fonts";
+        ERROR_DEBUG_OUTPUT("[Font Loader]Failed to load Blueaka fonts, using system fonts");
     }
 
 	// 创建主窗口对象并显示

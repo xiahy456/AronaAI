@@ -40,13 +40,32 @@
 // 获取Json->Json->bool
 #define GET_BOOL_FROM_JSON(global_json, sec_json, trd_bool) global_json->getJson(sec_json).getBool(trd_bool)
 
+// 修改Json->Json->String
+#define SET_STRING_TO_JSON(global_json, sec_key, trd_key, val) global_json->setStringInJson(sec_key, trd_key, val)
+
+// 修改Json->Json->int
+#define SET_INT_TO_JSON(global_json, sec_key, trd_key, val) global_json->setIntInJson(sec_key, trd_key, val)
+
+// 修改Json->Json->double
+#define SET_DOUBLE_TO_JSON(global_json, sec_key, trd_key, val) global_json->setDoubleInJson(sec_key, trd_key, val)
+
+// 修改Json->Json->bool
+#define SET_BOOL_TO_JSON(global_json, sec_key, trd_key, val) global_json->setBoolInJson(sec_key, trd_key, val)
+
 // 获取全局缩放比例
-#define WIDGET_ZOOM _global_config->getJson("settings").getDouble("zoom")
+//#define WIDGET_ZOOM _global_config->getJson("settings").getDouble("zoom")
+#define WIDGET_ZOOM GET_DOUBLE_FROM_JSON(_global_config, "settings", "zoom")
 
 // 正常调试输出
 #define FINE_DEBUG_OUTPUT(_text) do { \
 	qDebug().noquote() << FINE_PR << _text; \
 	DebugManager::instance()->sendDebugMessage(QString(FINE_PR) + _text, __FUNCTION__); \
+} while(0)
+
+// 错误调试输出
+#define ERROR_DEBUG_OUTPUT(_text) do { \
+	qWarning().noquote() << ERROR_PR << _text; \
+	DebugManager::instance()->sendDebugMessage(QString(ERROR_PR) + _text, __FUNCTION__); \
 } while(0)
 
 #endif // !DEFINES_H

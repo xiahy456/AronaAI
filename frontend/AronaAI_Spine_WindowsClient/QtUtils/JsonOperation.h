@@ -37,7 +37,7 @@ public:
 	// 传入文件路径
 	JsonOperation(QString file_path);
 	// 直接传入Json对象
-	JsonOperation(QJsonObject jsonObj);
+	JsonOperation(const QJsonObject& jsonObj);
 	
 	// 析构函数
 	~JsonOperation();
@@ -62,7 +62,32 @@ public:
 
 	QVariant static analysisJson(QString json, QString key);
 
-	// JSON对象
+	// 设置/修改值（通用方法）
+	void setValue(QString key, const QVariant& value);
+
+	// 设置字符串值
+	void setString(QString key, const QString& value);
+
+	// 设置整数值
+	void setInt(QString key, int value);
+
+	// 设置双精度浮点数值
+	void setDouble(QString key, double value);
+
+	// 设置布尔值
+	void setBool(QString key, bool value);
+
+	// 设置JSON对象值
+	void setJson(QString key, const JsonOperation& jsonObj);
+	void setJsonObject(QString key, const QJsonObject& jsonObj);
+
+	// 链式修改Json->Json->值
+	bool setIntInJson(QString jsonKey, QString valueKey, int value);
+	bool setDoubleInJson(QString jsonKey, QString valueKey, double value);
+	bool setStringInJson(QString jsonKey, QString valueKey, QString value);
+	bool setBoolInJson(QString jsonKey, QString valueKey, bool value);
+
+	// JSON对象引用
 	QJsonObject m_jsonObj;
 
 };

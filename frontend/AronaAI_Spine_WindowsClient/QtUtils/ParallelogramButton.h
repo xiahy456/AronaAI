@@ -23,6 +23,7 @@ public:
     void setBackgroundImage(const QPixmap& pixmap);
     void setImageScaleMode(Qt::AspectRatioMode mode);  // 图片缩放模式
     void setTextColor(const QColor& color);
+	void setBorderWidth(int width);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -42,6 +43,7 @@ private:
     bool m_hasBackgroundImage;  // 是否有背景图片
     Qt::AspectRatioMode m_imageScaleMode;  // 图片缩放模式
     QColor m_textColor = QColor(44, 69, 99);  // 默认深蓝色
+    int m_borderWidth = 0;
 };
 
 #endif

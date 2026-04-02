@@ -109,6 +109,25 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     WIDGET_CHILD_SETTING_INPUT_STRING(ui.basicSettings_shortCutLineEdit, "short_cut_key", "switch_audio_input", 2);
 
     WIDGET_CHILD_SETTING_LABEL(ui.basicSettings_aronaAIModeLabel, "arona_ai_mode", 3);
+    ui.basicSettings_aronaAIModeSwitchBGWidget->move(STEP_POSITION_POINT(369, 19, 40, 3));
+    ui.basicSettings_aronaAIModeSwitchBGWidget->setFixedSize(WIDTH_X(142, 24), 26 * WIDGET_ZOOM);
+    ui.basicSettings_aronaAIModeSwitchBGWidget->setFillBackground(true);
+    ui.basicSettings_aronaAIModeSwitchBGWidget->setFillColor(QColor(240, 240, 240));
+	ui.basicSettings_aronaAIModeSwitchButtonWidget->setFixedSize(WIDTH_X(80, 24), 24 * WIDGET_ZOOM);
+    ui.basicSettings_aronaAIModeSwitchButtonWidget->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "push_button_path"));
+    ui.basicSettings_aronaAIModeSwitchButtonWidget->setImageScaleMode(Qt::IgnoreAspectRatio);
+    ui.basicSettings_aronaAIModeSwitchButtonWidget->setFont(BlueakaFontLoader::instance()->createFont(11 * WIDGET_ZOOM));
+    int aronaAIModeIndex = GET_INT_FROM_JSON(_global_config, "settings", "arona_ai_mode");
+    switch (aronaAIModeIndex) {
+    case 0:
+        ui.basicSettings_aronaAIModeSwitchButtonWidget->move(2 * WIDGET_ZOOM, 1 * WIDGET_ZOOM);
+        ui.basicSettings_aronaAIModeSwitchButtonWidget->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "arona_ai_mode_0"));
+        break;
+    case 1:
+        ui.basicSettings_aronaAIModeSwitchButtonWidget->move(60 * WIDGET_ZOOM, 1 * WIDGET_ZOOM);
+        ui.basicSettings_aronaAIModeSwitchButtonWidget->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "arona_ai_mode_1"));
+        break;
+    };
 
 	// AronaLM设置控件
 
@@ -129,7 +148,11 @@ SettingsWidget::SettingsWidget(QWidget *parent)
 	connect(ui.gptSOVITSSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onGptSOVITSSettingsButtonClicked);    // GPT-SOVITS设置按钮
 	connect(ui.debugOutputButton, &QPushButton::clicked, this, &SettingsWidget::onDebugOutputButtonClicked);    // 调试输出按钮
 	connect(ui.aboutDeveloperButton, &QPushButton::clicked, this, &SettingsWidget::onAboutDeveloperButtonClicked);    // 关于开发者按钮
+	connect(ui.basicSettings_aronaAIModeSwitchButtonWidget, &QPushButton::clicked, this, &SettingsWidget::onAronaAIModeSwitchButtonClicked);    // AronaAI模式切换按钮
     connect(DebugManager::instance(), &DebugManager::debugMessageReceived, this, &SettingsWidget::receiveDebugMessage); // 接收调试输出
+    
+    // 重放缓存的消息
+    DebugManager::instance()->flushPendingMessages();
 
 }
 
@@ -216,6 +239,46 @@ void SettingsWidget::onDebugOutputButtonClicked()
 void SettingsWidget::onAboutDeveloperButtonClicked()
 {    // 切换页面
     ui.stackedWidget->setCurrentIndex(5);
+}
+
+void SettingsWidget::onAronaAIModeSwitchButtonClicked()
+{
+    // 获取当前状态
+	int currentModeIdx = GET_INT_FROM_JSON(_global_config, "settings", "arona_ai_mode");
+    int timeLast = 500; // 位移动画持续时间
+    // 播放按键动画
+    if (!currentModeIdx) {
+		// 助手模式->档案模式
+        // 前置状态保证
+        ui.basicSettings_aronaAIModeSwitchButtonWidget->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "arona_ai_mode_0"));
+        // 位移动画
+        QPropertyAnimation* animation_aronaAIModeSwitchButton_0_1 = new QPropertyAnimation(ui.basicSettings_aronaAIModeSwitchButtonWidget, "pos");
+        animation_aronaAIModeSwitchButton_0_1->setDuration(timeLast);
+        animation_aronaAIModeSwitchButton_0_1->setStartValue(QPoint(2 * WIDGET_ZOOM, 1 * WIDGET_ZOOM));
+        animation_aronaAIModeSwitchButton_0_1->setEndValue(QPoint(60 * WIDGET_ZOOM, 1 * WIDGET_ZOOM));
+        animation_aronaAIModeSwitchButton_0_1->setEasingCurve(QEasingCurve::InOutQuint);
+        animation_aronaAIModeSwitchButton_0_1->start();
+        // 更改文字
+        QTimer::singleShot(timeLast/2, [this]() {ui.basicSettings_aronaAIModeSwitchButtonWidget->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "arona_ai_mode_1")); });
+        // 设置_global_config
+        if (!SET_INT_TO_JSON(_global_config, "settings", "arona_ai_mode", 1)) qWarning() << ERROR_PR << "[Setting Widget]Set arona AI mode to 1 failed!";
+    }
+    else {
+        // 助手模式<-档案模式
+        // 前置状态保证
+        ui.basicSettings_aronaAIModeSwitchButtonWidget->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "arona_ai_mode_1"));
+        // 位移动画
+        QPropertyAnimation* animation_aronaAIModeSwitchButton_1_0 = new QPropertyAnimation(ui.basicSettings_aronaAIModeSwitchButtonWidget, "pos");
+        animation_aronaAIModeSwitchButton_1_0->setDuration(timeLast);
+        animation_aronaAIModeSwitchButton_1_0->setStartValue(QPoint(60 * WIDGET_ZOOM, 1 * WIDGET_ZOOM));
+        animation_aronaAIModeSwitchButton_1_0->setEndValue(QPoint(2 * WIDGET_ZOOM, 1 * WIDGET_ZOOM));
+        animation_aronaAIModeSwitchButton_1_0->setEasingCurve(QEasingCurve::InOutQuint);
+        animation_aronaAIModeSwitchButton_1_0->start();
+        // 更改文字
+        QTimer::singleShot(timeLast / 2, [this]() {ui.basicSettings_aronaAIModeSwitchButtonWidget->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "arona_ai_mode_0")); });
+        // 设置_global_config
+        if (!SET_INT_TO_JSON(_global_config, "settings", "arona_ai_mode", 0)) qWarning() << ERROR_PR << "[Setting Widget]Set arona AI mode to 0 failed!";
+    }
 }
 
 void SettingsWidget::receiveDebugMessage(const QString& message)

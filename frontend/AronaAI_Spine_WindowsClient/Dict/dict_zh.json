@@ -35,6 +35,8 @@
     "frame_rate": "帧率",
     "widget_zoom": "界面缩放",
     "voiceInput_shortCut": "语音快捷键",
-    "arona_ai_mode": "阿罗娜AI模式"
+    "arona_ai_mode": "阿罗娜AI模式",
+    "arona_ai_mode_0": "助手模式",
+    "arona_ai_mode_1": "档案模式"
   }
 }

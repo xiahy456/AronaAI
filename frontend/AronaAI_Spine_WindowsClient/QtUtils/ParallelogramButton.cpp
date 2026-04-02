@@ -74,6 +74,12 @@ void ParallelogramButton::setTextColor(const QColor& color)
     update();  // ´¥·¢ÖØ»æ
 }
 
+void ParallelogramButton::setBorderWidth(int width)
+{
+    m_borderWidth = width;
+	update();
+}
+
 void ParallelogramButton::paintEvent(QPaintEvent* event)
 {
     Q_UNUSED(event);
@@ -164,9 +170,11 @@ void ParallelogramButton::paintEvent(QPaintEvent* event)
     }
 
     // »æÖÆ±ß¿ò
-    QPen leftPen(QColor(147, 230, 255), 4);  // Ç³À¶É«£¬´Ö4
-    painter.setPen(leftPen);
-    painter.drawLine(bottomLeft, topLeft);
+    if (m_borderWidth) {
+        QPen leftPen(QColor(147, 230, 255), m_borderWidth);  // Ç³À¶É«£¬´Ö4
+        painter.setPen(leftPen);
+        painter.drawLine(bottomLeft, topLeft);
+    }
 
     // »æÖÆÎÄ×Ö
     painter.setPen(m_textColor);

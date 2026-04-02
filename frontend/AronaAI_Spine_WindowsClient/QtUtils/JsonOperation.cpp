@@ -62,9 +62,10 @@ JsonOperation::JsonOperation(QString file_path)
 	qDebug().noquote() << FINE_PR << "[Json Operation]Successfully opened json file: " << file_path;
 }
 
-JsonOperation::JsonOperation(QJsonObject jsonObj)
+JsonOperation::JsonOperation(const QJsonObject& jsonObj)
+    : m_jsonObj(jsonObj)
 {
-	m_jsonObj = jsonObj;
+
 }
 
 JsonOperation::~JsonOperation()
@@ -137,4 +138,126 @@ QVariant JsonOperation::analysisJson(QString json, QString key)
     }
 
     return QVariant();
+}
+
+void JsonOperation::setValue(QString key, const QVariant& value)
+{
+    m_jsonObj.insert(key, QJsonValue::fromVariant(value));
+    qDebug().noquote() << FINE_PR << "[Json Operation]Set value for key: " << key;
+}
+
+void JsonOperation::setString(QString key, const QString& value)
+{
+    m_jsonObj.insert(key, QJsonValue(value));
+    qDebug().noquote() << FINE_PR << "[Json Operation]Set string for key: " << key;
+}
+
+void JsonOperation::setInt(QString key, int value)
+{
+    m_jsonObj.insert(key, QJsonValue(value));
+    qDebug().noquote() << FINE_PR << "[Json Operation]Set int for key: " << key;
+}
+
+void JsonOperation::setDouble(QString key, double value)
+{
+    m_jsonObj.insert(key, QJsonValue(value));
+    qDebug().noquote() << FINE_PR << "[Json Operation]Set double for key: " << key;
+}
+
+void JsonOperation::setBool(QString key, bool value)
+{
+    m_jsonObj.insert(key, QJsonValue(value));
+    qDebug().noquote() << FINE_PR << "[Json Operation]Set bool for key: " << key;
+}
+
+void JsonOperation::setJson(QString key, const JsonOperation& jsonObj)
+{
+    m_jsonObj.insert(key, jsonObj.m_jsonObj);
+    qDebug().noquote() << FINE_PR << "[Json Operation]Set JSON object for key: " << key;
+}
+
+void JsonOperation::setJsonObject(QString key, const QJsonObject& jsonObj)
+{
+    m_jsonObj.insert(key, jsonObj);
+    qDebug().noquote() << FINE_PR << "[Json Operation]Set JSON object for key: " << key;
+}
+
+bool JsonOperation::setIntInJson(QString jsonKey, QString valueKey, int value)
+{
+    if (!m_jsonObj.contains(jsonKey)) {
+        qWarning() << ERROR_PR << "[Json Operation]Key not found:" << jsonKey;
+        return false;
+    }
+
+    QJsonValue target = m_jsonObj[jsonKey];
+    if (!target.isObject()) {
+        qWarning() << ERROR_PR << "[Json Operation]Target is not a JSON object:" << jsonKey;
+        return false;
+    }
+
+    QJsonObject targetObj = target.toObject();
+    targetObj.insert(valueKey, value);
+    m_jsonObj.insert(jsonKey, targetObj);
+
+    return true;
+}
+
+bool JsonOperation::setDoubleInJson(QString jsonKey, QString valueKey, double value)
+{
+    if (!m_jsonObj.contains(jsonKey)) {
+        qWarning() << ERROR_PR << "[Json Operation]Key not found:" << jsonKey;
+        return false;
+    }
+
+    QJsonValue target = m_jsonObj[jsonKey];
+    if (!target.isObject()) {
+        qWarning() << ERROR_PR << "[Json Operation]Target is not a JSON object:" << jsonKey;
+        return false;
+    }
+
+    QJsonObject targetObj = target.toObject();
+    targetObj.insert(valueKey, value);
+    m_jsonObj.insert(jsonKey, targetObj);
+
+    return true;
+}
+
+bool JsonOperation::setStringInJson(QString jsonKey, QString valueKey, QString value)
+{
+    if (!m_jsonObj.contains(jsonKey)) {
+        qWarning() << ERROR_PR << "[Json Operation]Key not found:" << jsonKey;
+        return false;
+    }
+
+    QJsonValue target = m_jsonObj[jsonKey];
+    if (!target.isObject()) {
+        qWarning() << ERROR_PR << "[Json Operation]Target is not a JSON object:" << jsonKey;
+        return false;
+    }
+
+    QJsonObject targetObj = target.toObject();
+    targetObj.insert(valueKey, value);
+    m_jsonObj.insert(jsonKey, targetObj);
+
+    return true;
+}
+
+bool JsonOperation::setBoolInJson(QString jsonKey, QString valueKey, bool value)
+{
+    if (!m_jsonObj.contains(jsonKey)) {
+        qWarning() << ERROR_PR << "[Json Operation]Key not found:" << jsonKey;
+        return false;
+    }
+
+    QJsonValue target = m_jsonObj[jsonKey];
+    if (!target.isObject()) {
+        qWarning() << ERROR_PR << "[Json Operation]Target is not a JSON object:" << jsonKey;
+        return false;
+    }
+
+    QJsonObject targetObj = target.toObject();
+    targetObj.insert(valueKey, value);
+    m_jsonObj.insert(jsonKey, targetObj);
+
+    return true;
 }

@@ -217,7 +217,7 @@ background-color: transparent;
       <rect>
        <x>230</x>
        <y>20</y>
-       <width>100</width>
+       <width>140</width>
        <height>24</height>
       </rect>
      </property>
@@ -231,9 +231,9 @@ background-color: transparent;
     <widget class="QLineEdit" name="basicSettings_frameRateLineEdit">
      <property name="geometry">
       <rect>
-       <x>330</x>
+       <x>370</x>
        <y>20</y>
-       <width>100</width>
+       <width>140</width>
        <height>24</height>
       </rect>
      </property>
@@ -249,7 +249,7 @@ background-color: transparent;
       <rect>
        <x>230</x>
        <y>60</y>
-       <width>100</width>
+       <width>140</width>
        <height>24</height>
       </rect>
      </property>
@@ -260,9 +260,9 @@ background-color: transparent;
     <widget class="QLineEdit" name="basicSettings_widgetZoomLabelLineEdit">
      <property name="geometry">
       <rect>
-       <x>330</x>
+       <x>370</x>
        <y>60</y>
-       <width>100</width>
+       <width>140</width>
        <height>24</height>
       </rect>
      </property>
@@ -278,7 +278,7 @@ background-color: transparent;
       <rect>
        <x>230</x>
        <y>100</y>
-       <width>100</width>
+       <width>140</width>
        <height>24</height>
       </rect>
      </property>
@@ -289,9 +289,9 @@ background-color: transparent;
     <widget class="QLineEdit" name="basicSettings_shortCutLineEdit">
      <property name="geometry">
       <rect>
-       <x>330</x>
+       <x>370</x>
        <y>100</y>
-       <width>100</width>
+       <width>140</width>
        <height>24</height>
       </rect>
      </property>
@@ -307,13 +307,36 @@ background-color: transparent;
       <rect>
        <x>230</x>
        <y>140</y>
-       <width>100</width>
+       <width>140</width>
        <height>24</height>
       </rect>
      </property>
      <property name="text">
       <string>阿罗娜AI模式</string>
      </property>
+    </widget>
+    <widget class="ParallelogramWidget" name="basicSettings_aronaAIModeSwitchBGWidget" native="true">
+     <property name="geometry">
+      <rect>
+       <x>370</x>
+       <y>140</y>
+       <width>140</width>
+       <height>24</height>
+      </rect>
+     </property>
+     <widget class="ParallelogramButton" name="basicSettings_aronaAIModeSwitchButtonWidget">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>100</width>
+        <height>24</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>助手模式</string>
+      </property>
+     </widget>
     </widget>
    </widget>
    <widget class="QWidget" name="aronaLMSettingsWidget"/>

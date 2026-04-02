@@ -21,14 +21,25 @@
 
 #include <QWidget>
 #include <QCloseEvent>
+#include <QPropertyAnimation>
+#include <QTimer>
 
 #include "GlobalInclude.h"
 #include "BlueakaFontLoader.h"
 
 #include "ui_SettingsWidget.h"
 
+// 获取平行四边形的width
+#define WIDTH_X(_width, _height) (_width + _height*0.5773) * WIDGET_ZOOM
+
+// 按照tan60度获取x坐标
+#define POSITION_X(_start_x, _gap, _step) (_start_x - _gap*_step*0.5773) * WIDGET_ZOOM
+
+// 获取y坐标
+#define POSITION_Y(_start_y, _gap, _step) (_start_y + _gap*_step) * WIDGET_ZOOM
+
 // 按键排布位移
-#define STEP_POSITION_POINT(_start_x, _start_y, _gap, _step) (_start_x - _gap*_step*0.5773) * WIDGET_ZOOM, (_start_y + _gap*_step) * WIDGET_ZOOM
+#define STEP_POSITION_POINT(_start_x, _start_y, _gap, _step) POSITION_X(_start_x, _gap, _step), POSITION_Y(_start_y, _gap, _step)
 
 // 界面切换按钮设置
 #define WIDGET_SWITCH_SETTING(_button, _cur_step) do { \
@@ -36,21 +47,22 @@
 	_button->setFixedSize(widgetSwitchButton_size_x * WIDGET_ZOOM, widgetSwitchButton_size_y * WIDGET_ZOOM); \
 	_button->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "push_button_path")); \
 	_button->setImageScaleMode(Qt::IgnoreAspectRatio); \
-	_button->setFont(BlueakaFontLoader::instance()->createFont(11)); \
+	_button->setFont(BlueakaFontLoader::instance()->createFont(11 * WIDGET_ZOOM)); \
+	_button->setBorderWidth(4); \
 } while (0)
 
 // 界面内设置控件设置-描述文本
 #define WIDGET_CHILD_SETTING_LABEL(_label, _text, _cur_step) do { \
 	_label->move(STEP_POSITION_POINT(230, 20, 40, _cur_step)); \
-	_label->resize(100 * WIDGET_ZOOM, 24 * WIDGET_ZOOM); \
+	_label->resize(140 * WIDGET_ZOOM, 24 * WIDGET_ZOOM); \
 	_label->setFont(BlueakaFontLoader::instance()->createFont(11 * WIDGET_ZOOM)); \
 	_label->setText(GET_STRING_FROM_JSON(_global_dict, "settings", _text)); \
 } while (0)
 
-// 界面内设置控件设置-输入框-数字输入
+// 界面内设置控件设置-输入框
 #define WIDGET_CHILD_SETTING_INPUT(_lineEdit, _cur_step) do { \
-	_lineEdit->move(STEP_POSITION_POINT(330, 20, 40, _cur_step)); \
-	_lineEdit->resize(100 * WIDGET_ZOOM, 24 * WIDGET_ZOOM); \
+	_lineEdit->move(STEP_POSITION_POINT(370, 20, 40, _cur_step)); \
+	_lineEdit->resize(140 * WIDGET_ZOOM, 24 * WIDGET_ZOOM); \
 	_lineEdit->setFont(BlueakaFontLoader::instance()->createFont(11 * WIDGET_ZOOM)); \
 	_lineEdit->setStyleSheet( \
 			"QLineEdit {" \
@@ -103,6 +115,7 @@ private slots:
 	void onGptSOVITSSettingsButtonClicked();     // GPT-SOVITS设置按钮被按了
 	void onDebugOutputButtonClicked();     // 调试输出按钮被按了
 	void onAboutDeveloperButtonClicked();     // 关于开发者按钮被按了
+	void onAronaAIModeSwitchButtonClicked();	// AronaAI模式切换按钮被按了
 	void receiveDebugMessage(const QString& message);	// 接收到调试信息
 
 private:
