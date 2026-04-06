@@ -53,7 +53,6 @@
 #define SET_BOOL_TO_JSON(global_json, sec_key, trd_key, val) global_json->setBoolInJson(sec_key, trd_key, val)
 
 // 获取全局缩放比例
-//#define WIDGET_ZOOM _global_config->getJson("settings").getDouble("zoom")
 #define WIDGET_ZOOM GET_DOUBLE_FROM_JSON(_global_config, "settings", "zoom")
 
 // 正常调试输出

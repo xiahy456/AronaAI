@@ -237,6 +237,9 @@ background-color: transparent;
        <height>24</height>
       </rect>
      </property>
+     <property name="styleSheet">
+      <string notr="true">color: rgb(44, 69, 99);</string>
+     </property>
      <property name="text">
       <string>120</string>
      </property>
@@ -265,6 +268,9 @@ background-color: transparent;
        <width>140</width>
        <height>24</height>
       </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">color: rgb(44, 69, 99);</string>
      </property>
      <property name="text">
       <string>2.0</string>
@@ -295,6 +301,9 @@ background-color: transparent;
        <height>24</height>
       </rect>
      </property>
+     <property name="styleSheet">
+      <string notr="true">color: rgb(44, 69, 99);</string>
+     </property>
      <property name="text">
       <string>Shift+Ctrl+F</string>
      </property>
@@ -302,39 +311,88 @@ background-color: transparent;
       <set>Qt::AlignCenter</set>
      </property>
     </widget>
-    <widget class="QLabel" name="basicSettings_aronaAIModeLabel">
+    <widget class="QWidget" name="basicSettings_aronaAIModeWidget" native="true">
      <property name="geometry">
       <rect>
        <x>230</x>
        <y>140</y>
-       <width>140</width>
-       <height>24</height>
+       <width>300</width>
+       <height>120</height>
       </rect>
      </property>
-     <property name="text">
-      <string>阿罗娜AI模式</string>
-     </property>
-    </widget>
-    <widget class="ParallelogramWidget" name="basicSettings_aronaAIModeSwitchBGWidget" native="true">
-     <property name="geometry">
-      <rect>
-       <x>370</x>
-       <y>140</y>
-       <width>140</width>
-       <height>24</height>
-      </rect>
-     </property>
-     <widget class="ParallelogramButton" name="basicSettings_aronaAIModeSwitchButtonWidget">
+     <widget class="QLabel" name="basicSettings_aronaAIModeLabel">
       <property name="geometry">
        <rect>
-        <x>0</x>
-        <y>0</y>
-        <width>100</width>
+        <x>10</x>
+        <y>10</y>
+        <width>140</width>
         <height>24</height>
        </rect>
       </property>
       <property name="text">
-       <string>助手模式</string>
+       <string>阿罗娜AI模式</string>
+      </property>
+     </widget>
+     <widget class="ParallelogramWidget" name="basicSettings_aronaAIModeSwitchBGWidget" native="true">
+      <property name="geometry">
+       <rect>
+        <x>140</x>
+        <y>10</y>
+        <width>140</width>
+        <height>24</height>
+       </rect>
+      </property>
+      <widget class="ParallelogramButton" name="basicSettings_aronaAIModeSwitchButton">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>100</width>
+         <height>24</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>日程模式</string>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QLabel" name="basicSettings_aronaAIModePSLabel_0">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>40</y>
+        <width>54</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>TextLabel</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="basicSettings_aronaAIModePSLabel_1">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>60</y>
+        <width>54</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>TextLabel</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="basicSettings_aronaAIModePSLabel_2">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>90</y>
+        <width>54</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>TextLabel</string>
       </property>
      </widget>
     </widget>

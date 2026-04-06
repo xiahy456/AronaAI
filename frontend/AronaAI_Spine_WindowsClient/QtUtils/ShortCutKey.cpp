@@ -28,10 +28,10 @@ ShortCutKey::ShortCutKey(MainController* mainController)
 
 	// ◊¢≤·øÏΩ›º¸
 	// «–ªª“Ù∆µ ‰»Î
-	if (m_switchAudioInput->isRegistered()) qDebug().noquote() << FINE_PR << "[Short Cut Key]Key 'Switch Audio Input' registered succeed! Registered to: "
-		<< GET_STRING_FROM_JSON(_global_config, "short_cut_key", "switch_audio_input");
-	else qWarning() << ERROR_PR << "[Short Cut Key]Key 'Switch Audio Input' registered failed! It might be occupied! Registered to:"
-		<< GET_STRING_FROM_JSON(_global_config, "short_cut_key", "switch_audio_input");
+	if (m_switchAudioInput->isRegistered()) FINE_DEBUG_OUTPUT("[Short Cut Key]Key 'Switch Audio Input' registered succeed! Registered to: "
+		+ GET_STRING_FROM_JSON(_global_config, "short_cut_key", "switch_audio_input"));
+	else ERROR_DEBUG_OUTPUT("[Short Cut Key]Key 'Switch Audio Input' registered failed! It might be occupied! Registered to:"
+		+ GET_STRING_FROM_JSON(_global_config, "short_cut_key", "switch_audio_input"));
 
 	// ¡¨Ω”–≈∫≈≤€
 	// «–ªª“Ù∆µ ‰»Î
@@ -46,7 +46,7 @@ ShortCutKey::~ShortCutKey()
 
 void ShortCutKey::onSwitchAudioInput()
 {
-	qDebug().noquote() << FINE_PR << "[Short Cut Key]Key 'Switch Audio Input' activated!";
+	FINE_DEBUG_OUTPUT("[Short Cut Key]Key 'Switch Audio Input' activated!");
 	if (m_switchAudioInputEnabled) {
 		m_mainController->stopAudioProcessing();
 		m_switchAudioInputEnabled = false;

@@ -22,7 +22,7 @@
 MainWidget::MainWidget(QWidget *parent)
     : QWidget(parent)
 {
-    qDebug().noquote() << FINE_PR << "[Qt Operation]Loading MainWidget...";  // 调试信息
+    FINE_DEBUG_OUTPUT("[Qt Operation]Loading MainWidget...");   // 调试信息
 
 	// 加载UI界面
     ui.setupUi(this);
@@ -120,13 +120,13 @@ void MainWidget::setMouseTransparent(bool isMouseTransparent)
 {
 	m_mouseTransparent = isMouseTransparent;
     if (m_mouseTransparent) {
-        qDebug() << FINE_PR << "[Qt Operation]Setting mouse event to transparent";
+        FINE_DEBUG_OUTPUT("[Qt Operation]Setting mouse event to transparent");
         // 穿透点击
         this->setWindowFlags(this->windowFlags() | Qt::WindowTransparentForInput);
         this->show();
     }
     else {
-        qDebug() << FINE_PR << "[Qt Operation]Setting mouse event to non-transparent";
+        FINE_DEBUG_OUTPUT("[Qt Operation]Setting mouse event to non-transparent");
 		// 非穿透点击
         this->setWindowFlags(this->windowFlags() & ~Qt::WindowTransparentForInput);
         this->show();

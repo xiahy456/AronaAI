@@ -26,13 +26,13 @@ void QtTextureLoader::load(spine::AtlasPage& page, const spine::String& path) {
     // 使用QImage加载图片
     QImage image;
     if (!image.load(qImgPath)) {
-        qDebug().noquote() << ERROR_PR << "[Spine Operation] Texture Load Failed! Texture：" << qImgPath;
+        FINE_DEBUG_OUTPUT("[Spine Operation] Texture Load Failed! Texture：" + qImgPath);
         return;
     }
 
-    qDebug().noquote() << FINE_PR << "[Spine Operation] Original image format:" << image.format()
-        << "Size:" << image.width() << "x" << image.height()
-        << "Has Alpha:" << image.hasAlphaChannel();
+    FINE_DEBUG_OUTPUT(QString("[Spine Operation]Original image format:") //+ image.format()
+        + "Size:" + QString::number(image.width()) + "x" + QString::number(image.height())
+        + "Has Alpha:" + QString(image.hasAlphaChannel()?"true":"false"));
 
     // 确保图片是RGBA格式
     if (image.format() != QImage::Format_RGBA8888) {
@@ -59,10 +59,10 @@ void QtTextureLoader::load(spine::AtlasPage& page, const spine::String& path) {
     page.width = image.width();
     page.height = image.height();
 
-    qDebug().noquote() << FINE_PR << "[Spine Operation] Texture Load Succeed! "
-        << " Path: " << qImgPath
-        << "| Size: " << page.width << "x" << page.height
-        << "| Texture ID: " << textureId;
+    FINE_DEBUG_OUTPUT(QString("[Spine Operation] Texture Load Succeed! ")
+        + " Path: " + qImgPath
+        + "| Size: " + QString::number(page.width) + "x" + QString::number(page.height)
+        + "| Texture ID: " + QString::number(textureId));
 }
 
 void QtTextureLoader::unload(void* texture) {
@@ -80,5 +80,5 @@ void QtTextureLoader::unload(void* texture) {
         // 删除纹理ID指针
         delete textureIdPtr;
     }
-    qDebug().noquote() << FINE_PR << "[Spine Operation] Texture Unload Succeed! ";
+    FINE_DEBUG_OUTPUT("[Spine Operation] Texture Unload Succeed! ");
 }

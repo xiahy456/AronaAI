@@ -49,6 +49,7 @@
 	_button->setImageScaleMode(Qt::IgnoreAspectRatio); \
 	_button->setFont(BlueakaFontLoader::instance()->createFont(11 * WIDGET_ZOOM)); \
 	_button->setBorderWidth(4); \
+	_button->setStyleSheet("color: rgb(44, 69, 99);"); \
 } while (0)
 
 // 界面内设置控件设置-描述文本
@@ -57,6 +58,7 @@
 	_label->resize(140 * WIDGET_ZOOM, 24 * WIDGET_ZOOM); \
 	_label->setFont(BlueakaFontLoader::instance()->createFont(11 * WIDGET_ZOOM)); \
 	_label->setText(GET_STRING_FROM_JSON(_global_dict, "settings", _text)); \
+	_label->setStyleSheet("color: rgb(44, 69, 99);"); \
 } while (0)
 
 // 界面内设置控件设置-输入框
@@ -70,7 +72,7 @@
 			"    border: none;" \
 			"    border-bottom: 2px solid #e0e0e0;" \
 			"    padding: 3px 2px 0px 2px;" \
-			"    color: #333333;" \
+			"    color: rgb(44, 69, 99);" \
 			"}" \
 			"QLineEdit:focus {" \
 			"    border-bottom: 2px solid #9e9e9e;" \

@@ -42,7 +42,7 @@ SpeechRecognizer::~SpeechRecognizer()
 bool SpeechRecognizer::initialize(const QString& modelPath)
 {
     if (m_initialized) {
-        qDebug().noquote() << FINE_PR << "[Vosk]Already initialized";
+        FINE_DEBUG_OUTPUT("[Vosk]Already initialized");
         return true;
     }
 
@@ -50,7 +50,7 @@ bool SpeechRecognizer::initialize(const QString& modelPath)
     m_model = vosk_model_new(modelPath.toStdString().c_str());
     if (!m_model) {
         QString error = "[Vosk]Failed to load vosk! Please check out the model path: " + modelPath;
-        qWarning().noquote() << ERROR_PR << error;
+        ERROR_DEBUG_OUTPUT(error);
         emit errorOccurred(error);
         return false;
     }
@@ -65,19 +65,19 @@ bool SpeechRecognizer::initialize(const QString& modelPath)
     }
 
     m_initialized = true;
-    qDebug().noquote() << FINE_PR << "[Vosk]Vosk initialized successfully!";
+    FINE_DEBUG_OUTPUT("[Vosk]Vosk initialized successfully!");
     return true;
 }
 
 QString SpeechRecognizer::recognize(const QByteArray& audioData)
 {
     if (!m_initialized) {
-        qWarning().noquote() << ERROR_PR << "[Vosk]Recognizer not initialized!";
+        ERROR_DEBUG_OUTPUT("[Vosk]Recognizer not initialized!");
         return QString();
     }
 
     if (audioData.isEmpty()) {
-        qWarning().noquote() << ERROR_PR << "[Vosk]Audio data is empty!";
+        ERROR_DEBUG_OUTPUT("[Vosk]Audio data is empty!");
         return QString();
     }
 
@@ -89,14 +89,14 @@ QString SpeechRecognizer::recognize(const QByteArray& audioData)
         // 获取最终结果
         const char* result = vosk_recognizer_result(m_recognizer);
         QString resultStr = QString::fromUtf8(result);
-        qDebug().noquote() << FINE_PR << "[Vosk]Final result:" << resultStr;
+        FINE_DEBUG_OUTPUT("[Vosk]Final result:" + resultStr);
         return resultStr;
     }
     else {
         // 获取部分结果（这里只获取最终结果）
         const char* partial = vosk_recognizer_partial_result(m_recognizer);
         QString partialStr = QString::fromUtf8(partial);
-        qDebug().noquote() << FINE_PR << "[Vosk]Partial result:" << partialStr;
+        FINE_DEBUG_OUTPUT("[Vosk]Partial result:" + partialStr);
         return partialStr;
     }
 }

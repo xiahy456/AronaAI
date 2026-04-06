@@ -29,7 +29,7 @@ bool BlueakaFontLoader::loadFromDirectory(const QString& directory)
 {
     QDir fontDir(directory);
     if (!fontDir.exists()) {
-        qWarning().noquote() << ERROR_PR << "[Font Loader]Font directory not found:" << directory;
+        ERROR_DEBUG_OUTPUT("[Font Loader]Font directory not found:" + directory);
         return false;
     }
 
@@ -39,11 +39,11 @@ bool BlueakaFontLoader::loadFromDirectory(const QString& directory)
     QFileInfoList fontFiles = fontDir.entryInfoList(filters, QDir::Files);
 
     if (fontFiles.isEmpty()) {
-        qWarning() << ERROR_PR << "[Font Loader]No TTF/OTF files found in:" << directory;
+        ERROR_DEBUG_OUTPUT("[Font Loader]No TTF/OTF files found in:" + directory);
         return false;
     }
 
-    qDebug().noquote() << FINE_PR << "[Font Loader]Found" << fontFiles.size() << "font files";
+    FINE_DEBUG_OUTPUT("[Font Loader]Found" + QString::number(fontFiles.size()) + "font files");
 
     QFontDatabase fontDb;
     int loadedCount = 0;
@@ -64,15 +64,15 @@ bool BlueakaFontLoader::loadFromDirectory(const QString& directory)
                 }
             }
 
-            qDebug().noquote() << FINE_PR << "[Font Loader]Loaded:" << fontFile.fileName() << "->" << families;
+            FINE_DEBUG_OUTPUT("[Font Loader]Head loaded:" + fontFile.fileName() + "->" + families[0]);
         }
         else {
-            qWarning() << ERROR_PR << "[Font Loader]Failed:" << fontFile.fileName();
+            ERROR_DEBUG_OUTPUT("[Font Loader]Failed:" + fontFile.fileName());
         }
     }
 
-    qDebug().noquote() << FINE_PR << "[Font Loader]Total loaded:" << loadedCount << "fonts";
-    qDebug().noquote() << FINE_PR << "[Font Loader]Font families:" << m_fontFamilies;
+    FINE_DEBUG_OUTPUT("[Font Loader]Total loaded:" + QString::number(loadedCount) + "fonts");
+    FINE_DEBUG_OUTPUT("[Font Loader]Font families:" + m_fontFamilies[0]);
 
     return !m_fontFamilies.isEmpty();
 }
@@ -86,7 +86,7 @@ bool BlueakaFontLoader::loadFromResource(const QString& resourcePath)
 QFont BlueakaFontLoader::createFont(int pointSize, bool bold, bool italic)
 {
     if (m_fontFamilies.isEmpty()) {
-        qWarning() << ERROR_PR << "[Font Loader]No Blueaka font loaded, using default font";
+        ERROR_DEBUG_OUTPUT("[Font Loader]No Blueaka font loaded, using default font");
         return QFont();
     }
 
@@ -102,7 +102,7 @@ QFont BlueakaFontLoader::createFont(int pointSize, bool bold, bool italic)
 QFont BlueakaFontLoader::createFont(int pointSize, QFont::Weight weight, bool italic)
 {
     if (m_fontFamilies.isEmpty()) {
-        qWarning() << ERROR_PR << "[Font Loader]No Blueaka font loaded, using default font";
+        ERROR_DEBUG_OUTPUT("[Font Loader]No Blueaka font loaded, using default font");
         return QFont();
     }
 

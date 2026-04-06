@@ -142,7 +142,7 @@ void QtSpineManager::initializeGL()
     m_vao = new QOpenGLVertexArrayObject();
     m_vao->create();
 
-    qDebug().noquote() << FINE_PR << "[Spine Operation]OpenGL initialized successfully";
+    FINE_DEBUG_OUTPUT("[Spine Operation]OpenGL initialized successfully");
 }
 
 void QtSpineManager::paintGL()
@@ -286,7 +286,7 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
     m_atlas = new spine::Atlas(atlasPath.toStdString().c_str(), m_textureLoader);
 
     if (!m_atlas) {
-        qCritical().noquote() << ERROR_PR << "Failed to load atlas:" << atlasPath;
+        ERROR_DEBUG_OUTPUT("Failed to load atlas:" + atlasPath);
         return;
     }
 
@@ -311,7 +311,7 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
     }
 
     if (!m_skeletonData) {
-        qCritical().noquote() << ERROR_PR << "Failed to load skeleton data:" << skelOrJsonPath;
+        ERROR_DEBUG_OUTPUT("Failed to load skeleton data:" + skelOrJsonPath);
         return;
     }
 
@@ -322,13 +322,13 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
     m_animationState = new spine::AnimationState(m_animationStateData);
     m_skeleton->setToSetupPose();
 
-    qDebug().noquote() << FINE_PR << "[Spine Operation]Spine file loaded successfully!";
+    FINE_DEBUG_OUTPUT("[Spine Operation]Spine file loaded successfully!");
 }
 
 void QtSpineManager::setAnimation(const QString& name, int track_idx, bool loop)
 {
     if (!m_animationState || !m_skeletonData) {
-        qWarning().noquote() << ERROR_PR << "[Spine Operation]Animation state not ready";
+        ERROR_DEBUG_OUTPUT("[Spine Operation]Animation state not ready");
         return;
     }
 
@@ -343,10 +343,10 @@ void QtSpineManager::setAnimation(const QString& name, int track_idx, bool loop)
 		// 设置混合时间
 		entry->setMixDuration(GET_DOUBLE_FROM_JSON(_global_config, "spine", "animation_default_mix"));
         m_lastTime = 0;
-        qDebug().noquote() << FINE_PR << "[Spine Operation]Set animation:" << name;
+        FINE_DEBUG_OUTPUT("[Spine Operation]Set animation:" + name);
     }
     else {
-        qWarning().noquote() << ERROR_PR << "[Spine Operation]Animation not found:" << name;
+        ERROR_DEBUG_OUTPUT("[Spine Operation]Animation not found:" + name);
     }
 }
 
@@ -356,7 +356,7 @@ void QtSpineManager::clearAnimation(int track_idx, float mix_duration)
     //m_animationState->clearTrack(track_idx);
 	m_animationState->setEmptyAnimation(track_idx, mix_duration); // 设置一个空动画，确保骨骼回到初始状态
     m_lastTime = 0;
-	qDebug().noquote() << FINE_PR << "[Spine Operation]Cleared animation on track:" << track_idx;
+    FINE_DEBUG_OUTPUT("[Spine Operation]Cleared animation on track:" + QString::number(track_idx));
 }
 
 void QtSpineManager::collectMeshAttachmentVertices(spine::MeshAttachment* attachment,
@@ -552,7 +552,7 @@ void QtSpineManager::flushBatches()
 
         GLenum error = glGetError();
         if (error != GL_NO_ERROR) {
-            qWarning().noquote() << ERROR_PR << "[Spine Operation]OpenGL error:" << error;
+            ERROR_DEBUG_OUTPUT("[Spine Operation]OpenGL error:" + QString::number(error));
         }
     }
 

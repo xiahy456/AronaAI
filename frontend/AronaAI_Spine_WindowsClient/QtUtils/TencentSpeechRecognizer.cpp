@@ -72,8 +72,8 @@ QString TencentSpeechRecognizer::recognize(const QByteArray& audioData)
         return QString();
     }
 
-    qDebug().noquote() << FINE_PR << "[Tencent Speech Recognizer]Start TencentCloud Speech Recoginizing...";
-    qDebug().noquote() << FINE_PR << "[Tencent Speech Recognizer]Audio data size: " << audioData.size() << "Bytes";
+    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Start TencentCloud Speech Recoginizing...");
+    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Audio data size: " + QString::number(audioData.size()) + "Bytes");
 
     // 1. 构建请求体
     QByteArray audioBase64 = audioData.toBase64();
@@ -91,8 +91,8 @@ QString TencentSpeechRecognizer::recognize(const QByteArray& audioData)
     qint64 timestamp = QDateTime::currentSecsSinceEpoch();
     QString timestampStr = QString::number(timestamp);
 
-    qDebug().noquote() << FINE_PR << "[Tencent Speech Recognizer]Current timestamp: " << timestampStr;
-    qDebug().noquote() << FINE_PR << "[Tencent Speech Recognizer]Current time:" << QDateTime::fromSecsSinceEpoch(timestamp).toString("yyyy-MM-dd hh:mm:ss");
+    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Current timestamp: " + timestampStr);
+    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Current time:" + QDateTime::fromSecsSinceEpoch(timestamp).toString("yyyy-MM-dd hh:mm:ss"));
 
     // 3. 生成签名
     QByteArray signature = generateSignature(SERVICE, ACTION, VERSION, REGION, requestBody, timestampStr);
@@ -109,14 +109,6 @@ QString TencentSpeechRecognizer::recognize(const QByteArray& audioData)
     request.setRawHeader("X-TC-Language", "zh-CN");
     request.setRawHeader("Authorization", signature);
 
-    // 发送请求
-    //qDebug().noquote() << FINE_PR << "[Tencent Speech Recognizer]Sent request to: " << request.url().toString();
-    //qDebug().noquote() << FINE_PR << "[Tencent Speech Recognizer]Request head: ";
-    //for (const auto& header : request.rawHeaderList()) {
-    //    qDebug() << "  " << header << ":" << request.rawHeader(header);
-    //}
-    //qDebug().noquote() << FINE_PR << "[Tencent Speech Recognizer]Request body: " << requestBody;
-
     m_networkManager->post(request, requestBody);
 
     return QString();
@@ -124,11 +116,11 @@ QString TencentSpeechRecognizer::recognize(const QByteArray& audioData)
 
 void TencentSpeechRecognizer::onNetworkReplyFinished(QNetworkReply* reply)
 {
-	qDebug().noquote() << FINE_PR << "[Tencent Speech Recognizer]Get network reply succeed!";
+    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Get network reply succeed!");
 
     if (!reply) {
         // 无回复消息
-		qWarning().noquote() << ERROR_PR << "[Tencent Speech Recognizer]Network reply is null!";
+        ERROR_DEBUG_OUTPUT("[Tencent Speech Recognizer]Network reply is null!");
         return;
     }
 
@@ -136,7 +128,7 @@ void TencentSpeechRecognizer::onNetworkReplyFinished(QNetworkReply* reply)
 
     if (reply->error() != QNetworkReply::NoError) {
         // 网络请求失败
-        qWarning().noquote() << ERROR_PR << "[Tencent Speech Recognizer]Request failed!";
+        ERROR_DEBUG_OUTPUT("[Tencent Speech Recognizer]Request failed!");
         emit errorOccurred("[Tencent Speech Recognizer]Request failed: " + reply->errorString());
         return;
     }
@@ -144,7 +136,7 @@ void TencentSpeechRecognizer::onNetworkReplyFinished(QNetworkReply* reply)
     // 读取响应数据
     QByteArray responseData = reply->readAll();
 	// 输出原始返回数据用于调试
-	qDebug().noquote() << FINE_PR << "[Tencent Speech Recognizer]Raw response data: " << QString(responseData);
+    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Raw response data: " + QString(responseData));
 
     // 解析 JSON
     QJsonParseError parseError;
@@ -197,8 +189,6 @@ QByteArray TencentSpeechRecognizer::generateSignature(const QString& service, co
     QString httpRequestMethod = "POST";
     QString canonicalUri = "/";
     QString canonicalQueryString = "";
-
-    // ✅ 修正：必须包含 x-tc-action，且值必须是小写
     QString actionLower = action.toLower();
     QString canonicalHeaders = QString("content-type:application/json; charset=utf-8\n") +
         "host:" + ENDPOINT + "\n" +
@@ -213,7 +203,7 @@ QByteArray TencentSpeechRecognizer::generateSignature(const QString& service, co
         signedHeaders + "\n" +
         hashedRequestPayload;
 
-    // 2. 构建 StringToSign
+    // 构建 StringToSign
     QByteArray hashedCanonicalRequest = QCryptographicHash::hash(canonicalRequest.toUtf8(), QCryptographicHash::Sha256).toHex();
     QString date = QDateTime::fromSecsSinceEpoch(timestamp.toLongLong()).toString("yyyy-MM-dd");
     QString credentialScope = date + "/" + service + "/tc3_request";
@@ -222,22 +212,22 @@ QByteArray TencentSpeechRecognizer::generateSignature(const QString& service, co
         credentialScope + "\n" +
         hashedCanonicalRequest;
 
-    // 3. 计算签名 - ✅ 严格按照官方示例
+    // 计算签名
     QByteArray secretKeyBytes = m_secretKey.toUtf8();
 
     // kKey = "TC3" + SecretKey
     QByteArray kKey = "TC3" + secretKeyBytes;
 
-    // kDate = HMAC_SHA256(kKey, Date)  ✅ 返回二进制
+    // kDate = HMAC_SHA256(kKey, Date)
     QByteArray kDate = hmacSha256(kKey, date.toUtf8());
 
-    // kService = HMAC_SHA256(kDate, Service)  ✅ kDate 是二进制
+    // kService = HMAC_SHA256(kDate, Service)
     QByteArray kService = hmacSha256(kDate, service.toUtf8());
 
-    // kSigning = HMAC_SHA256(kService, "tc3_request")  ✅ kService 是二进制
+    // kSigning = HMAC_SHA256(kService, "tc3_request")
     QByteArray kSigning = hmacSha256(kService, "tc3_request");
 
-    // Signature = HexEncode(HMAC_SHA256(kSigning, StringToSign))  ✅ 只在最后一步转十六进制
+    // Signature = HexEncode(HMAC_SHA256(kSigning, StringToSign))
     QByteArray signature = hexEncode(hmacSha256(kSigning, stringToSign.toUtf8()));
 
     // 4. 构建 Authorization
@@ -245,21 +235,6 @@ QByteArray TencentSpeechRecognizer::generateSignature(const QString& service, co
         "Credential=" + m_secretId + "/" + credentialScope + ", " +
         "SignedHeaders=" + signedHeaders + ", " +
         "Signature=" + signature;
-
-    // 调试输出
-    //qDebug() << "\n=== 签名验证信息 ===";
-    //qDebug() << "SecretId:" << m_secretId;
-    //qDebug() << "Date:" << date;
-    //qDebug() << "CredentialScope:" << credentialScope;
-    //qDebug() << "CanonicalHeaders:\n" << canonicalHeaders;
-    //qDebug() << "CanonicalRequest:\n" << canonicalRequest;
-    //qDebug() << "StringToSign:\n" << stringToSign;
-    //qDebug() << "kDate (hex):" << kDate.toHex();
-    //qDebug() << "kService (hex):" << kService.toHex();
-    //qDebug() << "kSigning (hex):" << kSigning.toHex();
-    //qDebug() << "Final Signature:" << signature;
-    //qDebug() << "Authorization:" << authorization;
-    //qDebug() << "===================\n";
 
     return authorization.toUtf8();
 }

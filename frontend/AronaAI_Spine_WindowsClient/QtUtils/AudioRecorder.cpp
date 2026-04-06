@@ -33,8 +33,7 @@ AudioRecorder::AudioRecorder(QObject* parent)
     // 检查设备支持情况
     QAudioDevice inputDevice = QMediaDevices::defaultAudioInput();
     if (!inputDevice.isFormatSupported(m_format)) {
-        qWarning().noquote() << ERROR_PR << "[Audio Recorder]Default format not supported, trying to use nearest...";
-        // Qt 6 中，QAudioDevice 也有 nearestFormat 方法
+        ERROR_DEBUG_OUTPUT("[Audio Recorder]Default format not supported, trying to use nearest...");
         m_format = inputDevice.preferredFormat();
     }
 }
@@ -82,7 +81,7 @@ bool AudioRecorder::startRecording()
     m_audioSource->start(m_audioBuffer);
     m_isRecording = true;
 
-    qDebug().noquote() << FINE_PR << "[Audio Recorder]Recording started";
+    FINE_DEBUG_OUTPUT("[Audio Recorder]Recording started");
     return true;
 }
 
@@ -99,7 +98,7 @@ QByteArray AudioRecorder::stopRecording()
     }
     m_isRecording = false;
 
-    qDebug().noquote() << FINE_PR << "[Audio Recorder]Recording stopped, captured" << m_audioData.size() << "bytes";
+    FINE_DEBUG_OUTPUT("[Audio Recorder]Recording stopped, captured" + QString::number(m_audioData.size())+ "bytes");
     return m_audioData;
 }
 

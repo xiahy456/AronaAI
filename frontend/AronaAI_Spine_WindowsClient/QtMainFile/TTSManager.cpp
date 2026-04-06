@@ -34,7 +34,7 @@ TTSManager::TTSManager(QObject* parent)
 {
     // 设置服务器地址
     setServerAddress(GET_STRING_FROM_JSON(_global_config, "tts", "host"), GET_INT_FROM_JSON(_global_config, "tts", "port"));
-    qDebug().noquote() << FINE_PR << "[TTS Operation]Set server : Host: " << serverHost << " | Port: " << serverPort;
+    FINE_DEBUG_OUTPUT("[TTS Operation]Set server : Host: " + serverHost + " | Port: " + QString::number(serverPort));
 
 	// 连接网络请求完成的信号到槽函数
     connect(networkManager, &QNetworkAccessManager::finished,
@@ -152,7 +152,7 @@ QJsonObject TTSManager::buildJsonFromParams(const TTSRequestParams& params) cons
     json["super_sampling"] = params.superSampling;
 
 	// 输出构建的文本
-    qDebug().noquote() << FINE_PR << "[TTS Operation]Generate text: " << params.text;
+    FINE_DEBUG_OUTPUT("[TTS Operation]Generate text: " + params.text);
 
     return json;
 }
@@ -288,7 +288,7 @@ void TTSManager::playAudio(const QByteArray& audioData)
     // 检查设备是否支持该格式
     QAudioDevice audioDevice = QMediaDevices::defaultAudioOutput();
     if (!audioDevice.isFormatSupported(format)) {
-        qWarning() << ERROR_PR << "[TTS Operation]Default format not supported, trying to use preferred format";
+        ERROR_DEBUG_OUTPUT("[TTS Operation]Default format not supported, trying to use preferred format");
         format = audioDevice.preferredFormat();
     }
 
@@ -340,7 +340,7 @@ double TTSManager::getWavDuration(const QByteArray& audioData)
     };
 
     if (audioData.size() < sizeof(WavHeader)) {
-        qWarning() << ERROR_PR << "[TTS Operation]This wav file is too small to read header!";
+        ERROR_DEBUG_OUTPUT("[TTS Operation]This wav file is too small to read header!");
         return -1;
     }
 
@@ -352,7 +352,7 @@ double TTSManager::getWavDuration(const QByteArray& audioData)
     if (memcmp(header.riffId, "RIFF", 4) != 0 ||
         memcmp(header.waveId, "WAVE", 4) != 0 ||
         memcmp(header.fmtId, "fmt ", 4) != 0) {
-        qWarning() << ERROR_PR << "[TTS Operation]Invailed wav file format!";
+        ERROR_DEBUG_OUTPUT("[TTS Operation]Invailed wav file format!");
         return -1;
     }
 
@@ -373,12 +373,12 @@ double TTSManager::getWavDuration(const QByteArray& audioData)
             double duration = static_cast<double>(dataSize) /
                 (header.sampleRate * header.numChannels * (header.bitsPerSample / 8.0));
 
-            qDebug().noquote() << FINE_PR << "[TTS Operation]WAV file information: "
-                << "sample rate: " << header.sampleRate
-                << "| channel num: " << header.numChannels
-                << "| bits per sample: " << header.bitsPerSample
-                << "| data size:" << dataSize
-                << "| duration:" << duration << " second";
+            FINE_DEBUG_OUTPUT(QString("[TTS Operation]WAV file information: ")
+                + "sample rate: " + QString::number(header.sampleRate)
+                + "| channel num: " + QString::number(header.numChannels)
+                + "| bits per sample: " + QString::number(header.bitsPerSample)
+                + "| data size:" + QString::number(dataSize)
+                + "| duration:" + QString::number(duration) + " second");
 
             return duration;
         }
@@ -386,7 +386,7 @@ double TTSManager::getWavDuration(const QByteArray& audioData)
         offset += 8 + chunkSize;
     }
 
-    qWarning() << ERROR_PR << "[TTS Operation]Failed to find data";
+    ERROR_DEBUG_OUTPUT("[TTS Operation]Failed to find data");
     return -1;
 }
 

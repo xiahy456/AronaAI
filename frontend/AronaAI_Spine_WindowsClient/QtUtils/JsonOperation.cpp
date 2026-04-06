@@ -29,10 +29,10 @@ JsonOperation::JsonOperation(QString file_path)
 	// 打开文件
 	QFile file(file_path);
 	if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-		qWarning().noquote() << ERROR_PR << "[Json Operation]Failed to open file: " << file_path;
+		ERROR_DEBUG_OUTPUT("[Json Operation]Failed to open file: " + file_path);
 		return;
 	}
-    qDebug().noquote() << FINE_PR << "[Json Operation]Open file succeed! Path: " << file_path;
+    FINE_DEBUG_OUTPUT("[Json Operation]Open file succeed! Path: " + file_path);
 
 	// 读取文件内容，解析为QByteArray对象
 	QByteArray jsonData = file.readAll();
@@ -46,12 +46,12 @@ JsonOperation::JsonOperation(QString file_path)
 
     // 检查解析是否成功
     if (parseError.error != QJsonParseError::NoError) {
-        qWarning().noquote() << ERROR_PR << "[Json Operation]Failed to analsis file:" << parseError.errorString();
-        qWarning().noquote() << ERROR_PR << "[Json Operation]Error at:" << parseError.offset;
+        ERROR_DEBUG_OUTPUT("[Json Operation]Failed to analsis file:" + parseError.errorString());
+        ERROR_DEBUG_OUTPUT("[Json Operation]Error at:" + QString::number(parseError.offset));
         return;
     }
     if (jsonDoc.isNull() || !jsonDoc.isObject()) {
-        qWarning().noquote() << ERROR_PR << "[Json Operation]Invailed json file!";
+        ERROR_DEBUG_OUTPUT("[Json Operation]Invailed json file!");
         return;
     }
 
@@ -59,7 +59,7 @@ JsonOperation::JsonOperation(QString file_path)
     m_jsonObj = jsonDoc.object();
 
 	// 输出调试信息
-	qDebug().noquote() << FINE_PR << "[Json Operation]Successfully opened json file: " << file_path;
+	FINE_DEBUG_OUTPUT("[Json Operation]Successfully opened json file: " + file_path);
 }
 
 JsonOperation::JsonOperation(const QJsonObject& jsonObj)
@@ -78,7 +78,7 @@ QVariant JsonOperation::getValue(QString key)
     QVariant value;
 	value = m_jsonObj[key].toVariant();
     if (!value.isValid()) {
-        qWarning().noquote() << ERROR_PR << "[Qt Operation]Failed getting value! Target key: " << key;
+        ERROR_DEBUG_OUTPUT("[Qt Operation]Failed getting value! Target key: " + key);
 	}
 	// 返回value对象
     return value;
@@ -90,7 +90,7 @@ QString JsonOperation::getString(QString key)
     // 判断是不是字符串并返回
     if (target_pair.isString()) return target_pair.toString();
     else {
-        qWarning().noquote() << ERROR_PR << "[Qt Operation]Failed getting string! Target key: " << key;
+        ERROR_DEBUG_OUTPUT("[Qt Operation]Failed getting string! Target key: " + key);
         return "";
     }
 }
@@ -124,7 +124,7 @@ JsonOperation JsonOperation::getJson(QString key)
     // 判断是不是Json并返回
     if (target_pair.isObject()) return target_pair.toObject();
     else {
-        qWarning().noquote() << ERROR_PR << "[Qt Operation]Failed getting json object! Target key: " << key;
+        ERROR_DEBUG_OUTPUT("[Qt Operation]Failed getting json object! Target key: " + key);
         return JsonOperation();
     }
 }
@@ -143,55 +143,55 @@ QVariant JsonOperation::analysisJson(QString json, QString key)
 void JsonOperation::setValue(QString key, const QVariant& value)
 {
     m_jsonObj.insert(key, QJsonValue::fromVariant(value));
-    qDebug().noquote() << FINE_PR << "[Json Operation]Set value for key: " << key;
+    FINE_DEBUG_OUTPUT("[Json Operation]Set value for key: " + key);
 }
 
 void JsonOperation::setString(QString key, const QString& value)
 {
     m_jsonObj.insert(key, QJsonValue(value));
-    qDebug().noquote() << FINE_PR << "[Json Operation]Set string for key: " << key;
+    FINE_DEBUG_OUTPUT("[Json Operation]Set string for key: " + key);
 }
 
 void JsonOperation::setInt(QString key, int value)
 {
     m_jsonObj.insert(key, QJsonValue(value));
-    qDebug().noquote() << FINE_PR << "[Json Operation]Set int for key: " << key;
+    FINE_DEBUG_OUTPUT("[Json Operation]Set int for key: " + key);
 }
 
 void JsonOperation::setDouble(QString key, double value)
 {
     m_jsonObj.insert(key, QJsonValue(value));
-    qDebug().noquote() << FINE_PR << "[Json Operation]Set double for key: " << key;
+    FINE_DEBUG_OUTPUT("[Json Operation]Set double for key: " + key);
 }
 
 void JsonOperation::setBool(QString key, bool value)
 {
     m_jsonObj.insert(key, QJsonValue(value));
-    qDebug().noquote() << FINE_PR << "[Json Operation]Set bool for key: " << key;
+    FINE_DEBUG_OUTPUT("[Json Operation]Set bool for key: " + key);
 }
 
 void JsonOperation::setJson(QString key, const JsonOperation& jsonObj)
 {
     m_jsonObj.insert(key, jsonObj.m_jsonObj);
-    qDebug().noquote() << FINE_PR << "[Json Operation]Set JSON object for key: " << key;
+    FINE_DEBUG_OUTPUT("[Json Operation]Set JSON object for key: " + key);
 }
 
 void JsonOperation::setJsonObject(QString key, const QJsonObject& jsonObj)
 {
     m_jsonObj.insert(key, jsonObj);
-    qDebug().noquote() << FINE_PR << "[Json Operation]Set JSON object for key: " << key;
+    FINE_DEBUG_OUTPUT("[Json Operation]Set JSON object for key: " + key);
 }
 
 bool JsonOperation::setIntInJson(QString jsonKey, QString valueKey, int value)
 {
     if (!m_jsonObj.contains(jsonKey)) {
-        qWarning() << ERROR_PR << "[Json Operation]Key not found:" << jsonKey;
+        ERROR_DEBUG_OUTPUT("[Json Operation]Key not found:" + jsonKey);
         return false;
     }
 
     QJsonValue target = m_jsonObj[jsonKey];
     if (!target.isObject()) {
-        qWarning() << ERROR_PR << "[Json Operation]Target is not a JSON object:" << jsonKey;
+        ERROR_DEBUG_OUTPUT("[Json Operation]Target is not a JSON object:" + jsonKey);
         return false;
     }
 
@@ -205,13 +205,13 @@ bool JsonOperation::setIntInJson(QString jsonKey, QString valueKey, int value)
 bool JsonOperation::setDoubleInJson(QString jsonKey, QString valueKey, double value)
 {
     if (!m_jsonObj.contains(jsonKey)) {
-        qWarning() << ERROR_PR << "[Json Operation]Key not found:" << jsonKey;
+        ERROR_DEBUG_OUTPUT("[Json Operation]Key not found:" + jsonKey);
         return false;
     }
 
     QJsonValue target = m_jsonObj[jsonKey];
     if (!target.isObject()) {
-        qWarning() << ERROR_PR << "[Json Operation]Target is not a JSON object:" << jsonKey;
+        ERROR_DEBUG_OUTPUT("[Json Operation]Target is not a JSON object:" + jsonKey);
         return false;
     }
 
@@ -225,13 +225,13 @@ bool JsonOperation::setDoubleInJson(QString jsonKey, QString valueKey, double va
 bool JsonOperation::setStringInJson(QString jsonKey, QString valueKey, QString value)
 {
     if (!m_jsonObj.contains(jsonKey)) {
-        qWarning() << ERROR_PR << "[Json Operation]Key not found:" << jsonKey;
+        ERROR_DEBUG_OUTPUT("[Json Operation]Key not found:" + jsonKey);
         return false;
     }
 
     QJsonValue target = m_jsonObj[jsonKey];
     if (!target.isObject()) {
-        qWarning() << ERROR_PR << "[Json Operation]Target is not a JSON object:" << jsonKey;
+        ERROR_DEBUG_OUTPUT("[Json Operation]Target is not a JSON object:" + jsonKey);
         return false;
     }
 
@@ -245,13 +245,13 @@ bool JsonOperation::setStringInJson(QString jsonKey, QString valueKey, QString v
 bool JsonOperation::setBoolInJson(QString jsonKey, QString valueKey, bool value)
 {
     if (!m_jsonObj.contains(jsonKey)) {
-        qWarning() << ERROR_PR << "[Json Operation]Key not found:" << jsonKey;
+        ERROR_DEBUG_OUTPUT("[Json Operation]Key not found:" + jsonKey);
         return false;
     }
 
     QJsonValue target = m_jsonObj[jsonKey];
     if (!target.isObject()) {
-        qWarning() << ERROR_PR << "[Json Operation]Target is not a JSON object:" << jsonKey;
+        ERROR_DEBUG_OUTPUT("[Json Operation]Target is not a JSON object:" + jsonKey);
         return false;
     }
 

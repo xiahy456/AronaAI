@@ -65,14 +65,14 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
         [&](bool success, const QString& message) {
             m_modelsLoaded++;
             if (success) {
-                qDebug().noquote() << FINE_PR << "[TTS Operation]Model set: " << success
-                    << ", Message: " << message
-                    << "(" << m_modelsLoaded << "/" << TOTAL_MODELS << ")";
+                FINE_DEBUG_OUTPUT("[TTS Operation]Model set: " + QString(success?"true":"false")
+                    + ", Message: " + message 
+                    + "(" + QString::number(m_modelsLoaded) + "/" + QString::number(TOTAL_MODELS) + ")");
             }
             else {
-                qWarning().noquote() << ERROR_PR << "[TTS Operation]Model set: " << success
-                    << ", Message: " << message
-                    << "(" << m_modelsLoaded << "/" << TOTAL_MODELS << ")";
+                ERROR_DEBUG_OUTPUT("[TTS Operation]Model set: " + QString(success?"true":"false")
+                    + ", Message: " + message 
+					+ "(" + QString::number(m_modelsLoaded) + "/" + QString::number(TOTAL_MODELS) + ")");
             }
 
             // 当两个模型都加载完成时退出事件循环
@@ -84,7 +84,7 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
     if (m_modelsLoaded < TOTAL_MODELS) {
         loop.exec();
     }
-    qDebug().noquote() << FINE_PR << "[TTS Operation]All models loaded!";
+    FINE_DEBUG_OUTPUT("[TTS Operation]All models loaded!");
 
     // 设置信号与槽
     connect(m_ttsManager, &TTSManager::ttsFinished, this, &MainController::onTTSFinished);
@@ -147,10 +147,10 @@ void MainController::onTTSFinished(const QByteArray& audioData, const QString& m
 void MainController::startAudioProcessing()
 {
     if (m_audioRecorder->startRecording()) {
-        qDebug().noquote() << FINE_PR << "[Audio Input Processing]Recording";
+        FINE_DEBUG_OUTPUT("[Audio Input Processing]Recording");
     }
     else {
-        qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Failed to start recording";
+        ERROR_DEBUG_OUTPUT("[Audio Input Processing]Failed to start recording");
     }
 }
 
@@ -159,7 +159,7 @@ void MainController::stopAudioProcessing()
 {
     // 停止录制并获取音频数据
     QByteArray audioData = m_audioRecorder->stopRecording();
-    qDebug().noquote() << FINE_PR << "[Audio Input Processing]Recognizing...";
+    FINE_DEBUG_OUTPUT("[Audio Input Processing]Recognizing...");
 
     // 识别结果
     QString input_text;
@@ -168,25 +168,25 @@ void MainController::stopAudioProcessing()
         m_tencentRecognizer->recognize(audioData);
     }
     else {
-        qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Failed to capture audio!";
+        ERROR_DEBUG_OUTPUT("[Audio Input Processing]Failed to capture audio!");
         return;
     }
-    qDebug().noquote() << FINE_PR << "[Audio Input Processing]Audio processing program is ready!";
+    FINE_DEBUG_OUTPUT("[Audio Input Processing]Audio processing program is ready!");
 }
 
 void MainController::onAudioError(const QString& error)
 {
-    qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Audio error!";
+    ERROR_DEBUG_OUTPUT("[Audio Input Processing]Audio error!");
 }
 
 void MainController::onRecognizeError(const QString& error)
 {
-    qWarning().noquote() << ERROR_PR << "[Audio Input Processing]Recognize error!";
+    ERROR_DEBUG_OUTPUT("[Audio Input Processing]Recognize error!");
 }
 
 void MainController::onRecognizeFinished(const QString& text)
 {
-    qDebug().noquote() << FINE_PR << "[Audio Input Processing]Recognize finished! Result: " << text;
+    FINE_DEBUG_OUTPUT("[Audio Input Processing]Recognize finished! Result: " + text);
     // 处理识别结果
 	processInputText(text);
 }
@@ -208,9 +208,9 @@ void MainController::processInputText(const QString& text)
     // 执行指令
     if (QFile::exists(path)) {
         QProcess::startDetached(path);
-        qDebug().noquote() << FINE_PR << "[Main Controller]Opening program...";
+        FINE_DEBUG_OUTPUT("[Main Controller]Opening program...");
     }
     else {
-        qWarning().noquote() << ERROR_PR << "[Main Controller]Failed to open program!";
+        ERROR_DEBUG_OUTPUT("[Main Controller]Failed to open program!");
     }
 }
