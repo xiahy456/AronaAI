@@ -137,6 +137,7 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     ui.basicSettings_aronaAIModePSLabel_2->move(-3 * WIDGET_ZOOM, 60 * WIDGET_ZOOM);
     ui.basicSettings_aronaAIModePSLabel_2->resize(400 * WIDGET_ZOOM, 15 * WIDGET_ZOOM);
     ui.basicSettings_aronaAIModePSLabel_2->setFont(BlueakaFontLoader::instance()->createFont(8 * WIDGET_ZOOM));
+    ui.basicSettings_aronaAIModePSLabel_2->setStyleSheet("color: rgb(58, 91, 130);");
 
     ui.basicSettings_aronaAIModeSwitchButton->setFixedSize(WIDTH_X(80, 24), 24 * WIDGET_ZOOM);
     ui.basicSettings_aronaAIModeSwitchButton->setImageScaleMode(Qt::IgnoreAspectRatio);
@@ -171,6 +172,22 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     ui.debugOutput_outputTextBrowser->setFont(BlueakaFontLoader::instance()->createFont(9 * WIDGET_ZOOM));
 
 	// 关于开发者控件
+    // 开发者
+    WIDGET_CHILD_SETTING_LABEL(ui.aboutDeveloper_developerLable, "developer", 0);
+    ui.aboutDeveloper_developerLable->move(STEP_POSITION_POINT(230, 58, 100, 0));
+    
+    // 原作
+    WIDGET_CHILD_SETTING_LABEL(ui.aboutDeveloper_originLable, "origin", 1);
+    ui.aboutDeveloper_originLable->move(STEP_POSITION_POINT(230, 58, 100, 1));
+
+    ui.aboutDeveloper_originWidget->move(STEP_POSITION_POINT(280, 20, 100, 1));
+	ui.aboutDeveloper_originWidget->resize(200 * WIDGET_ZOOM, 100 * WIDGET_ZOOM);
+    ui.aboutDeveloper_originWidget->setStyleSheet(
+        "QWidget{"
+        "border-image: url(" + GET_STRING_FROM_JSON(_global_config, "settings", "origin_logo_path") + ");"
+        "border: none;"
+        "}"
+    );
 
     // 连接信号与槽
     connect(ui.closeButton, &QPushButton::clicked, this, &SettingsWidget::onCloseButtonClicked);    // CloseButton
@@ -290,14 +307,14 @@ void SettingsWidget::onAronaAIModeSwitchButtonClicked()
         animation_aronaAIModeSwitchButton_0_1->setEndValue(QPoint(60 * WIDGET_ZOOM, 1 * WIDGET_ZOOM));
         animation_aronaAIModeSwitchButton_0_1->setEasingCurve(QEasingCurve::InOutQuint);
         animation_aronaAIModeSwitchButton_0_1->start();
-        // 更改文字
+        // 瞬时更改
         QTimer::singleShot(timeLast/2, [this]() {
             ui.basicSettings_aronaAIModeSwitchButton->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "arona_ai_mode_1"));
             ui.basicSettings_aronaAIModeSwitchButton->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "arona_ai_mode_switch_button_1"));
+            ui.basicSettings_aronaAIModePSLabel_0->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_1_text_0"));
+            ui.basicSettings_aronaAIModePSLabel_1->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_1_text_1"));
+            ui.basicSettings_aronaAIModePSLabel_2->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_1_text_2"));
             });
-        ui.basicSettings_aronaAIModePSLabel_0->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_1_text_0"));
-        ui.basicSettings_aronaAIModePSLabel_1->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_1_text_1"));
-        ui.basicSettings_aronaAIModePSLabel_2->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_1_text_2"));
         // 设置_global_config
         if (!SET_INT_TO_JSON(_global_config, "settings", "arona_ai_mode", 1)) qWarning() << ERROR_PR << "[Setting Widget]Set arona AI mode to 1 failed!";
     }
@@ -312,14 +329,14 @@ void SettingsWidget::onAronaAIModeSwitchButtonClicked()
         animation_aronaAIModeSwitchButton_1_0->setEndValue(QPoint(2 * WIDGET_ZOOM, 1 * WIDGET_ZOOM));
         animation_aronaAIModeSwitchButton_1_0->setEasingCurve(QEasingCurve::InOutQuint);
         animation_aronaAIModeSwitchButton_1_0->start();
-        // 更改文字
+        // 瞬时更改
         QTimer::singleShot(timeLast / 2, [this]() {
             ui.basicSettings_aronaAIModeSwitchButton->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "arona_ai_mode_0"));
             ui.basicSettings_aronaAIModeSwitchButton->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "arona_ai_mode_switch_button_0"));
+            ui.basicSettings_aronaAIModePSLabel_0->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_0_text_0"));
+            ui.basicSettings_aronaAIModePSLabel_1->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_0_text_1"));
+            ui.basicSettings_aronaAIModePSLabel_2->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_0_text_2"));
             });
-        ui.basicSettings_aronaAIModePSLabel_0->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_0_text_0"));
-        ui.basicSettings_aronaAIModePSLabel_1->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_0_text_1"));
-        ui.basicSettings_aronaAIModePSLabel_2->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_0_text_2"));
         // 设置_global_config
         if (!SET_INT_TO_JSON(_global_config, "settings", "arona_ai_mode", 0)) qWarning() << ERROR_PR << "[Setting Widget]Set arona AI mode to 0 failed!";
     }

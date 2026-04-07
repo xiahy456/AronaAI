@@ -209,7 +209,7 @@ background-color: transparent;
 }</string>
    </property>
    <property name="currentIndex">
-    <number>0</number>
+    <number>5</number>
    </property>
    <widget class="QWidget" name="basicSettingsWidget">
     <widget class="QLabel" name="basicSettings_frameRateLabel">
@@ -412,7 +412,60 @@ background-color: transparent;
      </property>
     </widget>
    </widget>
-   <widget class="QWidget" name="aboutDeveloper"/>
+   <widget class="QWidget" name="aboutDeveloper">
+    <widget class="QLabel" name="aboutDeveloper_originLable">
+     <property name="geometry">
+      <rect>
+       <x>230</x>
+       <y>158</y>
+       <width>140</width>
+       <height>24</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>原作</string>
+     </property>
+    </widget>
+    <widget class="QWidget" name="aboutDeveloper_originWidget" native="true">
+     <property name="geometry">
+      <rect>
+       <x>280</x>
+       <y>120</y>
+       <width>200</width>
+       <height>100</height>
+      </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QWidget{
+border-image: url(&quot;D:/Code/projects/Arona/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/BALogo.png&quot;);
+border: none;
+}</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="aboutDeveloper_developerLable">
+     <property name="geometry">
+      <rect>
+       <x>230</x>
+       <y>58</y>
+       <width>140</width>
+       <height>24</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>阿罗娜AI开发者</string>
+     </property>
+    </widget>
+    <widget class="QWidget" name="aboutDeveloper_developerWidget" native="true">
+     <property name="geometry">
+      <rect>
+       <x>280</x>
+       <y>20</y>
+       <width>200</width>
+       <height>100</height>
+      </rect>
+     </property>
+    </widget>
+   </widget>
   </widget>
   <widget class="QWidget" name="mainBGShadowWidget" native="true">
    <property name="geometry">

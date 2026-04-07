@@ -42,6 +42,7 @@ void getConfig()
     _global_config = new JsonOperation("Config/config.json");
 }
 
+// 获取字典
 QString getDict() {
 	// 获取字典路径并加载字典
     QString dict_path = GET_STRING_FROM_JSON(_global_config, "settings", "dict_path");
@@ -51,17 +52,26 @@ QString getDict() {
     if (dict_path.endsWith("en.json", Qt::CaseInsensitive)) return "English";
 }
 
-// 程序入口 main函数
+// 加载Blueaka字体
+void loadBlueakaFont() {
+    QString blueaka_fontDir = GET_STRING_FROM_JSON(_global_config, "settings", "font_path");
+    if (BlueakaFontLoader::instance()->loadFromDirectory(blueaka_fontDir)) {
+        FINE_DEBUG_OUTPUT("[Font Loader]Fonts loaded successfully!");
+        FINE_DEBUG_OUTPUT("[Font Loader]Head of font families:" + BlueakaFontLoader::instance()->getFontFamilies()[0]);
+    }
+    else {
+        ERROR_DEBUG_OUTPUT("[Font Loader]Failed to load Blueaka fonts, using system fonts");
+    }
+}
+
+// 程序入口main函数
 int main(int argc, char *argv[])
 {
     // 输出启动信息
     FINE_DEBUG_OUTPUT("[Qt Operation]Starting application...");
 
 	// 设置OpenGL格式，启用抗锯齿和透明度支持
-    QSurfaceFormat format;
-    format.setAlphaBufferSize(8);
-    format.setSamples(4);
-    QSurfaceFormat::setDefaultFormat(format);
+    OPENGL_INITIALLIZE;
 
 	// 创建应用程序对象
     QApplication app(argc, argv);
@@ -72,30 +82,17 @@ int main(int argc, char *argv[])
     // 获取字典信息
     FINE_DEBUG_OUTPUT("[Qt Operation]Load dictionary succeed! Changing to language: " + getDict());
 
-    // 应用程序设置
-	app.setApplicationName(GET_STRING_FROM_JSON(_global_dict, "application_data", "application_name")); // 设置应用程序名称
-	app.setApplicationVersion("0.0.1"); // 设置应用程序版本
-	app.setWindowIcon(QIcon(GET_STRING_FROM_JSON(_global_config, "settings", "icon_path")));    // 设置应用程序图标
-	app.setQuitOnLastWindowClosed(false);   // 设置当最后一个窗口关闭时不退出应用程序
-    qputenv("QT_FRAME_RATE_OVERRIDE", QByteArray::number(GET_INT_FROM_JSON(_global_config, "settings", "frame_rate")));    // 设置全局帧率
+    // 应用程序初始化
+    APPLICATION_INITIALLIZE;
 
     // 加载Blueaka字体
-    QString blueaka_fontDir = GET_STRING_FROM_JSON(_global_config, "settings", "font_path");
-    if (BlueakaFontLoader::instance()->loadFromDirectory(blueaka_fontDir)) {
-        FINE_DEBUG_OUTPUT("[Font Loader]Fonts loaded successfully!");
-        FINE_DEBUG_OUTPUT("[Font Loader]Head of font families:" + BlueakaFontLoader::instance()->getFontFamilies()[0]);
-    }
-    else {
-        ERROR_DEBUG_OUTPUT("[Font Loader]Failed to load Blueaka fonts, using system fonts");
-    }
+    loadBlueakaFont();
 
-	// 创建主窗口对象并显示
+	// 创建主窗口对象
     MainWidget* mainWidget = new MainWidget;
-    mainWidget->show();
 
-	// 创建设置窗口对象，如果配置设置其显示，那就显示
+	// 创建设置窗口对象
     SettingsWidget* settingsWidget = new SettingsWidget;
-    if (GET_BOOL_FROM_JSON(_global_config, "settings", "open_setting_widget")) settingsWidget->show();
 
     // 创建TTS对象
 	TTSManager* ttsManager = new TTSManager;
@@ -117,6 +114,10 @@ int main(int argc, char *argv[])
 
     // 输出信息必要类实例化完毕，准备启动应用程序事件循环
     FINE_DEBUG_OUTPUT("[Qt Operation]Necessary class instantiation complete! Starting application loop...");
+
+    // 界面显示
+    mainWidget->show();
+    if (GET_BOOL_FROM_JSON(_global_config, "settings", "open_setting_widget")) settingsWidget->show();
 
     // 开始应用程序事件循环
     return app.exec();

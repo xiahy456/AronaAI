@@ -67,5 +67,22 @@
 	DebugManager::instance()->sendDebugMessage(QString(ERROR_PR) + _text, __FUNCTION__); \
 } while(0)
 
+// OpenGL初始化，启用抗锯齿和透明度支持
+#define OPENGL_INITIALLIZE do { \
+	QSurfaceFormat format; \
+	format.setAlphaBufferSize(8); \
+	format.setSamples(4); \
+	QSurfaceFormat::setDefaultFormat(format); \
+} while(0)
+
+// 应用程序相关初始化设置
+#define APPLICATION_INITIALLIZE do { \
+	app.setApplicationName(GET_STRING_FROM_JSON(_global_dict, "application_data", "application_name")); /*设置应用程序名称*/ \
+	app.setApplicationVersion("0.0.1"); /*设置应用程序版本*/ \
+	app.setWindowIcon(QIcon(GET_STRING_FROM_JSON(_global_config, "settings", "icon_path")));    /*设置应用程序图标*/ \
+	app.setQuitOnLastWindowClosed(false);   /*设置当最后一个窗口关闭时不退出应用程序*/ \
+	qputenv("QT_FRAME_RATE_OVERRIDE", QByteArray::number(GET_INT_FROM_JSON(_global_config, "settings", "frame_rate")));    /*设置全局帧率*/ \
+} while(0)
+
 #endif // !DEFINES_H
 

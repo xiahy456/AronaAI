@@ -2,6 +2,7 @@
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel
+import time
 
 def test_lora_model():
     """测试LoRA微调后的模型"""
@@ -11,8 +12,8 @@ def test_lora_model():
     print("="*60)
     
     # 加载基础模型和tokenizer
-    base_model_name = "/arona-ai/model/hunyuan"
-    lora_path = "/root/autodl-tmp/checkpoint/normal/final_model"
+    base_model_name = "D:/Code/projects/Arona/arona-ai/models/hunyuan"
+    lora_path = "D:/Code/projects/Arona/arona-ai/models/aronalm/normal"
     
     tokenizer = AutoTokenizer.from_pretrained(
         base_model_name,
@@ -67,6 +68,9 @@ def test_lora_model():
             truncation=True,
             max_length=512
         ).to(model.device)
+
+        # 记录生成时间
+        start_time = time.time()
         
         # 生成
         with torch.no_grad():
@@ -93,6 +97,8 @@ def test_lora_model():
         response = response.removeprefix("<answer>")
 
         print(f"阿罗娜: {response}")
+        
+        print(f"生成时间: {time.time() - start_time:.2f}秒")
 
 if __name__ == "__main__":
     test_lora_model()
