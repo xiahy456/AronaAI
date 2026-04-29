@@ -75,3 +75,4 @@ DATA_DIR = str(PROJECT_ROOT / "backend" / "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(VECTOR_DB_CONFIG["persist_directory"], exist_ok=True)
 os.makedirs(CACHE_CONFIG["cache_dir"], exist_ok=True)
+
