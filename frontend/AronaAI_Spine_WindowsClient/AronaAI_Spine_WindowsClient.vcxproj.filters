@@ -109,6 +109,9 @@
     <QtMoc Include="QtUtils\DebugManager.h">
       <Filter>QtUtils</Filter>
     </QtMoc>
+    <QtMoc Include="QtMainFile\WebSocketController.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="QtMainFile\MainWidget.qrc">
@@ -391,6 +394,9 @@
     </ClCompile>
     <ClCompile Include="QtUtils\DebugManager.cpp">
       <Filter>QtUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="QtMainFile\WebSocketController.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

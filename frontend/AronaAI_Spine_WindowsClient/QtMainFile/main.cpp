@@ -27,6 +27,7 @@
 #include "SpeechRecognizer.h"
 #include "ShortCutKey.h"
 #include "BlueakaFontLoader.h"
+#include "WebSocketController.h"
 
 #include <QtWidgets/QApplication>
 #include <QDebug>
@@ -103,8 +104,11 @@ int main(int argc, char *argv[])
 	// 创建腾讯语音识别对象
     TencentSpeechRecognizer* tencentSpeechRecognizer = new TencentSpeechRecognizer;
 
+	// 创建WebSocket控制器对象
+    WebSocketController* webSocketController = new WebSocketController;
+
     // 创建主控制对象
-	MainController* mainController = new MainController(mainWidget, ttsManager, audioRecorder, tencentSpeechRecognizer);
+	MainController* mainController = new MainController(mainWidget, ttsManager, audioRecorder, tencentSpeechRecognizer, webSocketController);
 
 	// 创建快捷键对象
 	ShortCutKey* shortCutKey = new ShortCutKey(mainController);

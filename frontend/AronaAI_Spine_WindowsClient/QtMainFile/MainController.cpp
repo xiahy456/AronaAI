@@ -19,11 +19,12 @@
 
 #include "MainController.h"
 
-MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer)
+MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer, WebSocketController* webSocketController)
     : m_mainWidget(mainWidget)
     , m_ttsManager(ttsManager)
     , m_audioRecorder(audioRecorder)
     , m_tencentRecognizer(speechRecognizer)
+    , m_webSocketController(webSocketController)
 {
     // 进行TTS初始化
     // 构建TTS请求参数
@@ -89,9 +90,6 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
     // 设置信号与槽
     connect(m_ttsManager, &TTSManager::ttsFinished, this, &MainController::onTTSFinished);
 
-    // 输出一段文本，验证TTS功能是否正常
-    executeOutput(GET_STRING_FROM_JSON(_global_dict, "formed_text", "connected_to_os_operator"));
-
     // 连接音频录制对象信号
     connect(m_audioRecorder, &AudioRecorder::errorOccurred,
         this, &MainController::onAudioError);
@@ -105,6 +103,26 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
 
     // 设置你的腾讯云密钥 (请务必从安全的地方读取，不要硬编码)
     m_tencentRecognizer->setCredentials(GET_STRING_FROM_JSON(_global_config, "tencent_speech_recognizer", "secret_id"), GET_STRING_FROM_JSON(_global_config, "tencent_speech_recognizer", "secret_key"));
+
+    // 与服务端建立WebSocket连接
+    // 连接 WebSocket 信号到 MainController 槽函数
+    connect(m_webSocketController, &WebSocketController::connected,
+        this, &MainController::onWebSocketConnected);
+    connect(m_webSocketController, &WebSocketController::chatResponseReceived,
+        this, &MainController::onWebSocketChatResponse);
+    connect(m_webSocketController, &WebSocketController::chatStreamReceived,
+        this, &MainController::onWebSocketChatStream);
+    connect(m_webSocketController, &WebSocketController::errorOccurred,
+        this, &MainController::onWebSocketError);
+    connect(m_webSocketController, &WebSocketController::connectionStateChanged,
+        this, &MainController::onWebSocketStateChanged);
+
+    // 开始连接服务端
+    m_webSocketController->connectToServer();
+    FINE_DEBUG_OUTPUT("[WebSocket] Connecting to: " + GET_STRING_FROM_JSON(_global_config, "aronalm", "websocket_url"));
+
+    // 输出一段文本，验证TTS功能是否正常
+    executeOutput(GET_STRING_FROM_JSON(_global_dict, "formed_text", "connected_to_os_operator"));
 
 }
 
@@ -193,24 +211,161 @@ void MainController::onRecognizeFinished(const QString& text)
 
 void MainController::processInputText(const QString& text)
 {
-    // 路径对象
-    QString path;
+    FINE_DEBUG_OUTPUT("[Main Controller] Processing input: " + text);
 
-    // 检查指令
-    if (text.contains("QQ") || text.contains("qq")) {
-        path = GET_STRING_FROM_JSON(_global_config, "program_path", "QQ");
-        executeOutput("好的，正在打开QQ...");
+    // 检查 WebSocket 是否已连接
+    if (!m_webSocketController->isConnected()) {
+        // 如果未连接，给出本地提示
+        executeOutput("AI服务未连接，请检查网络后重试");
+        ERROR_DEBUG_OUTPUT("[Main Controller] WebSocket not connected, cannot process input");
+        return;
     }
-    if (text.contains("微信")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "wechat");
-    if (text.contains("终末地")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "hypergryph");
-    if (text.contains("我的世界") || text.contains("PCL") || text.contains("Minecraft")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "minecraft");
 
-    // 执行指令
-    if (QFile::exists(path)) {
-        QProcess::startDetached(path);
-        FINE_DEBUG_OUTPUT("[Main Controller]Opening program...");
+    // 检查是否正在等待上一次回复
+    if (m_waitingForAIResponse) {
+        executeOutput("正在处理上一条消息，请稍候");
+        FINE_DEBUG_OUTPUT("[Main Controller] Waiting for previous AI response");
+        return;
+    }
+
+    // 标记正在等待AI回复
+    m_waitingForAIResponse = true;
+
+    // 给用户一个等待提示
+    executeOutput("正在思考中...");
+
+    // 发送消息给AI服务端（非流式）
+    // 可以从配置中读取是否使用缓存、RAG、记忆等功能
+    bool useCache = GET_BOOL_FROM_JSON(_global_config, "aronalm", "use_cache");
+    bool useRag = GET_BOOL_FROM_JSON(_global_config, "aronalm", "use_rag");
+    bool useMemory = GET_BOOL_FROM_JSON(_global_config, "aronalm", "use_memory");
+
+    m_webSocketController->sendChatMessage(text, useCache, useRag, useMemory);
+
+    FINE_DEBUG_OUTPUT("[Main Controller] Sent to AI service: " + text.left(50) + "...");
+}
+
+//void MainController::processInputText(const QString& text)
+//{
+//    // 将文本交给ai服务端处理
+//     
+//    // 
+//    
+//    //// 路径对象
+//    //QString path;
+//
+//    //// 检查指令
+//    //if (text.contains("QQ") || text.contains("qq")) {
+//    //    path = GET_STRING_FROM_JSON(_global_config, "program_path", "QQ");
+//    //    executeOutput("好的，正在打开QQ...");
+//    //}
+//    //if (text.contains("微信")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "wechat");
+//    //if (text.contains("终末地")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "hypergryph");
+//    //if (text.contains("我的世界") || text.contains("PCL") || text.contains("Minecraft")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "minecraft");
+//
+//    //// 执行指令
+//    //if (QFile::exists(path)) {
+//    //    QProcess::startDetached(path);
+//    //    FINE_DEBUG_OUTPUT("[Main Controller]Opening program...");
+//    //}
+//    //else {
+//    //    ERROR_DEBUG_OUTPUT("[Main Controller]Failed to open program!");
+//    //}
+//}
+
+void MainController::onWebSocketConnected(const QString& sessionId)
+{
+    FINE_DEBUG_OUTPUT("[WebSocket] Connected! Session ID: " + sessionId);
+    // 连接成功后可以发送欢迎消息或其他初始化操作
+}
+
+void MainController::onWebSocketChatResponse(const QString& content, bool fromCache, bool contextUsed, double latency)
+{
+    FINE_DEBUG_OUTPUT("[WebSocket] Received AI response: " + content.left(50) + "...");
+    FINE_DEBUG_OUTPUT(QString("[WebSocket] Cache: %1, Context: %2, Latency: %3s")
+        .arg(fromCache ? "yes" : "no")
+        .arg(contextUsed ? "yes" : "no")
+        .arg(latency));
+
+    // 重置等待状态
+    m_waitingForAIResponse = false;
+
+    // 通过TTS播放AI回复
+    executeOutput(content);
+}
+
+void MainController::onWebSocketChatStream(const QString& content, bool done)
+{
+    if (done) {
+        // 流式传输完成
+        FINE_DEBUG_OUTPUT("[WebSocket] Stream completed");
+        m_waitingForAIResponse = false;
     }
     else {
-        ERROR_DEBUG_OUTPUT("[Main Controller]Failed to open program!");
+        // 流式传输中，可以实时显示片段
+        FINE_DEBUG_OUTPUT("[WebSocket] Stream chunk: " + content);
+        // 如果需要实时显示流式内容，可以在这里处理
+    }
+}
+
+void MainController::onWebSocketError(WebSocketController::ErrorCode code, const QString& message)
+{
+    ERROR_DEBUG_OUTPUT(QString("[WebSocket] Error (code: %1): %2").arg(static_cast<int>(code)).arg(message));
+
+    // 重置等待状态
+    m_waitingForAIResponse = false;
+
+    // 根据错误类型给出不同的用户提示
+    QString userMessage;
+    switch (code) {
+    case WebSocketController::ErrorCode::ConnectionRefused:
+        userMessage = "无法连接到AI服务，请检查服务是否启动";
+        break;
+    case WebSocketController::ErrorCode::ConnectionTimeout:
+        userMessage = "连接AI服务超时，请检查网络";
+        break;
+    case WebSocketController::ErrorCode::HeartbeatTimeout:
+        userMessage = "与AI服务连接中断，正在尝试重连";
+        break;
+    case WebSocketController::ErrorCode::ReconnectFailed:
+        userMessage = "无法重新连接到AI服务";
+        break;
+    default:
+        userMessage = "AI服务出现错误: " + message;
+        break;
+    }
+
+    // 显示文字
+    m_mainWidget->showOutputText(userMessage);
+    // 计算播放时长
+    int duration = userMessage.size() * 100; // 每个字符100ms
+    // 在duration之后清除显示的文字，停止动画
+    QTimer::singleShot(duration, this, [this]() {
+        m_mainWidget->hideOutputText();
+        });
+}
+
+void MainController::onWebSocketStateChanged(WebSocketController::ConnectionState state)
+{
+    QString stateStr;
+    switch (state) {
+    case WebSocketController::ConnectionState::Disconnected:
+        stateStr = "Disconnected";
+        break;
+    case WebSocketController::ConnectionState::Connecting:
+        stateStr = "Connecting";
+        break;
+    case WebSocketController::ConnectionState::Connected:
+        stateStr = "Connected";
+        break;
+    case WebSocketController::ConnectionState::Reconnecting:
+        stateStr = "Reconnecting";
+        break;
+    }
+    FINE_DEBUG_OUTPUT("[WebSocket] State changed: " + stateStr);
+
+    // 如果连接断开，更新UI状态
+    if (state == WebSocketController::ConnectionState::Disconnected) {
+        m_waitingForAIResponse = false;
     }
 }

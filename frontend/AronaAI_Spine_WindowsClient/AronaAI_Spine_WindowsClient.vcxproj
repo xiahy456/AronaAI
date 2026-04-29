@@ -30,6 +30,7 @@
     <ClCompile Include="QtMainFile\SettingsWidget.cpp" />
     <ClCompile Include="QtMainFile\SystemTray.cpp" />
     <ClCompile Include="QtMainFile\TTSManager.cpp" />
+    <ClCompile Include="QtMainFile\WebSocketController.cpp" />
     <ClCompile Include="QtUtils\AudioRecorder.cpp" />
     <ClCompile Include="QtUtils\BlueakaFontLoader.cpp" />
     <ClCompile Include="QtUtils\DebugManager.cpp" />
@@ -127,6 +128,7 @@
     <QtMoc Include="QtUtils\DebugOptions.h" />
     <QtMoc Include="QtUtils\BlueakaFontLoader.h" />
     <QtMoc Include="QtUtils\DebugManager.h" />
+    <QtMoc Include="QtMainFile\WebSocketController.h" />
     <ClInclude Include="QtUtils\Defines.h" />
     <ClInclude Include="QtUtils\GlobalInclude.h" />
     <ClInclude Include="QtUtils\JsonOperation.h" />

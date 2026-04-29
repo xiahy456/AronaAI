@@ -33,13 +33,14 @@
 #include <AudioRecorder.h>
 #include <SpeechRecognizer.h>
 #include <TencentSpeechRecognizer.h>
+#include "WebSocketController.h"
 
 class MainController : public QObject
 {
 	Q_OBJECT
 
 public:
-	MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer);
+	MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer, WebSocketController* webSocketController);
 	~MainController();
 
 	// 执行输出
@@ -58,6 +59,12 @@ private slots:
 	void onRecognizeError(const QString& error);
 	// 处理识别结果
 	void onRecognizeFinished(const QString& text);
+	// WebSocket 相关槽函数
+	void onWebSocketConnected(const QString& sessionId);
+	void onWebSocketChatResponse(const QString& content, bool fromCache, bool contextUsed, double latency);
+	void onWebSocketChatStream(const QString& content, bool done);
+	void onWebSocketError(WebSocketController::ErrorCode code, const QString& message);
+	void onWebSocketStateChanged(WebSocketController::ConnectionState state);
 
 private:
 	MainWidget* m_mainWidget;	// 主界面对象引用
@@ -65,8 +72,10 @@ private:
 	AudioRecorder* m_audioRecorder;	// 音频录制器对象
 	//SpeechRecognizer* m_speechRecognizer;	// 语音识别器对象
 	TencentSpeechRecognizer* m_tencentRecognizer; // 腾讯的语音识别
+	WebSocketController* m_webSocketController;	// 服务端websocket连接
 	TTSManager::TTSRequestParams ttsRequestParams;	// 语音合成请求参数
 	QString m_currentText = "";	// 当前正在处理的文本
+	bool m_waitingForAIResponse = false;	// 是否正在等待AI回复
 
 	// 处理用户语音输入的文本
 	void processInputText(const QString& text);
