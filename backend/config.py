@@ -23,6 +23,7 @@ MODEL_CONFIG = {
 
 # ========== 嵌入模型配置 ==========
 EMBEDDING_CONFIG = {
+    "use_external": True,  # True=使用外部sentence-transformers模型, False=使用本地TF-IDF+SVD
     "model_name": "paraphrase-multilingual-MiniLM-L12-v2",  # 支持中文的轻量级嵌入模型
     "device": "cpu",
 }
@@ -37,7 +38,7 @@ VECTOR_DB_CONFIG = {
 # ========== 语义缓存配置 ==========
 CACHE_CONFIG = {
     "cache_dir": str(PROJECT_ROOT / "backend" / "data" / "cache"),
-    "similarity_threshold": 0.85,  # 语义相似度阈值，高于此值命中缓存
+    "similarity_threshold": 0.92,  # 语义相似度阈值，高于此值命中缓存（提高阈值减少误匹配）
     "max_cache_size": 1000,        # 最大缓存条目数
     "ttl": 3600,                   # 缓存过期时间（秒）
 }
