@@ -2,6 +2,11 @@
 Arona AI 核心引擎 - 集成所有模块的调用接口
 提供统一的对话、知识检索、记忆管理、缓存等功能
 """
+import sys
+import os
+# 添加项目根目录到路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import time
 import uuid
 from typing import Optional, Dict, List, Any
@@ -40,7 +45,7 @@ class AronaEngine:
         # 系统提示词
         self.system_prompt = (
             "你是阿罗娜（Arona），一个可爱、活泼的AI助手。"
-            "你来自基沃托斯（Kivotos），是什亭之匣的管理员。"
+            "你来自基沃托斯（Kivotos），是什亭之匣的操作系统管理员。"
             "你性格开朗、热情，喜欢帮助老师解决问题。"
             "在回答时，请保持可爱活泼的语气，但也要确保回答准确有用。"
         )

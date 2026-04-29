@@ -81,6 +81,10 @@ class ModelLoader:
             max_length=MODEL_CONFIG["max_length"]
         ).to(model.device)
 
+        # 移除模型不支持的参数（如 token_type_ids）
+        if "token_type_ids" in inputs:
+            inputs.pop("token_type_ids")
+
         # 生成
         with torch.no_grad():
             outputs = model.generate(
