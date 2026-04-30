@@ -78,3 +78,6 @@ bin/
 
 # db data
 backend/data/
+
+# psd
+*.psd
