@@ -12,15 +12,19 @@
   <em>An AI assistant based on "Arona" from "Blue Archive"</em>
 </p>
 
+<p align="center">
+  <em>项目地址：https://github.com/xiahy456/AronaAI</em>
+</p>
+
 ---
 
 ## 📖 项目简介 / Introduction
 
-**阿罗娜AI** 是一个以游戏《蔚蓝档案》（Blue Archive）中角色"阿罗娜"为原型打造的桌面AI助手项目。在设定上，她是“什亭之匣”的操作系统管理员，性格开朗、热情，乐于帮助老师解决问题。
+**阿罗娜AI** 是一个以游戏《蔚蓝档案》（Blue Archive）中角色"阿罗娜"为原型打造的桌面AI助手项目。在设定上，她是“什亭之匣”的操作系统管理员，性格开朗、热情，乐于帮助老师（用户）解决问题。
 
 本项目集成了Arona语言模型（AronaLM）、语音合成（TTS）、语音识别（ASR）、Spine 2D 角色动画等技术，旨在提供一个可爱、有趣且功能完整的桌面交互体验。
 
-**AronaAI** is a desktop AI assistant project based on the character "Arona" from the mobile game "Blue Archive". She comes from Kivotos, serves as the operating system administrator of the Shittim Chest, and has a cheerful, warm personality who loves helping Sensei solve problems.
+**AronaAI** is a desktop AI assistant project based on the character "Arona" from the mobile game "Blue Archive". She comes from Kivotos, serves as the operating system administrator of the Shittim Chest, and has a cheerful, warm personality who loves helping Sensei (user) solve problems.
 
 This project integrates Arona Language Models (AronaLM), Text-to-Speech (TTS), Automatic Speech Recognition (ASR), Spine 2D character animation, and other technologies to provide a cute, lively, and fully-featured desktop interaction experience.
 
@@ -65,17 +69,16 @@ arona-ai/
 │       ├── documents/          # 角色设定文档
 │       └── data/               # 训练数据
 │
-├── gpt-sovits/                 # GPT-SoVITS 语音合成（需用户手动添加）
+├── gpt-sovits/                 # GPT-SoVITS 语音合成（需用户手动部署，或使用外部服务）
 │   ├── GPT_SoVITS/             # 核心模型
 │   ├── GPT_weights/            # 模型权重
 │   ├── api_v2.py               # API 服务
-│   ├── webui.py                # Web 界面
 │   └── ref_audio/              # 参考音频
 │
+├── docs/                       # 相关文档
+│   └── requirements.txt        # 依赖项文件
 ├── models/                     # 预训练模型存放目录
-├── vosk/                       # Vosk 离线语音识别
-├── scripts/                    # 环境测试脚本
-├── docs/                       # 文档
+├── vosk/                       # Vosk 离线语音识别（（可选）需用户手动部署，推荐直接使用腾讯云语音识别服务）
 ├── font/                       # 字体文件
 └── assets/                     # 项目资源
 ```
@@ -121,12 +124,13 @@ arona-ai/
 | Node.js | (可选) 用于部分工具脚本 |
 | CUDA | 11.8+ (GPU 加速，可选) |
 | 操作系统 | Windows 10/11 (客户端) / Linux 及其衍生系统 |
+| AronaLM | 请放在models/aronaLM目录下 |
 
 ### 后端启动 / Backend Setup
 
 ```bash
 # 1. 安装 Python 依赖
-pip install -r scripts/requirements.txt
+pip install -r docs/requirements.txt
 
 # 2. 启动 WebSocket 服务
 python -m backend.ai_service.py --host 0.0.0.0 --port 20456
@@ -139,7 +143,7 @@ python backend/test_engine.py
 
 Windows 客户端使用 Visual Studio 2022（后改为Visual Studio 2026） 和 Qt 构建：
 
-1. 安装 [Qt 6.x](https://www.qt.io/download) 和 [Visual Studio 2026](https://visualstudio.microsoft.com/)
+1. 安装 [Qt 6.x](https://www.qt.io/download)（推荐6.5.3） 和 [Visual Studio 2026](https://visualstudio.microsoft.com/)
 2. 打开 `frontend/AronaAI_Spine_WindowsClient/AronaAI_Spine_WindowsClient.sln`
 3. 配置 Qt 版本和编译选项
 4. 编译运行
@@ -215,6 +219,7 @@ python api_v2.py
 - [x] Windows 桌面客户端
 - [x] Spine 2D 角色动画
 - [x] GPT-SoVITS 语音合成
+- [ ] 模型优化
 - [ ] 语音唤醒功能完善
 - [ ] macOS/Linux 客户端支持
 - [ ] 多语言支持
@@ -258,6 +263,14 @@ limitations under the License.
 
 ---
 
+## ⭐ 关于开发者 / About Developer
+
+- **阿罗娜AI开发者**: xia_hy456
+- **开发者个人博客**: https://xia-hy456.top/
+- **反馈问题**: 2066961858@qq.com
+
+---
+
 <p align="center">
-  <sub>/ **  就像草莓牛奶一样的，甜蜜的奇迹  ** /</sub>
+  <sub>/* 就像草莓牛奶一样的，甜蜜的奇迹 */</sub>
 </p>
