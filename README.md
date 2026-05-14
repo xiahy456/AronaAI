@@ -79,7 +79,6 @@ arona-ai/
 │   └── requirements.txt        # 依赖项文件
 ├── models/                     # 预训练模型存放目录
 ├── vosk/                       # Vosk 离线语音识别（（可选）需用户手动部署，推荐直接使用腾讯云语音识别服务）
-├── font/                       # 字体文件
 └── assets/                     # 项目资源
 ```
 
