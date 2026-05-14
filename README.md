@@ -1,24 +1,24 @@
-# AronaAI
+# 阿罗娜AI / AronaAI
 
 <p align="center">
   <img src="assets/logo.png" alt="AronaAI Logo" width="200"/>
 </p>
 
 <p align="center">
-  <em>基于《蔚蓝档案》角色"阿罗娜"的实验性人工智能助手</em>
+  <em>基于《蔚蓝档案》角色"阿罗娜"的人工智能助手</em>
 </p>
 
 <p align="center">
-  <em>An experimental AI assistant based on "Arona" from "Blue Archive"</em>
+  <em>An AI assistant based on "Arona" from "Blue Archive"</em>
 </p>
 
 ---
 
 ## 📖 项目简介 / Introduction
 
-**AronaAI** 是一个以游戏《蔚蓝档案》（Blue Archive）中角色"阿罗娜"（Arona）为原型打造的桌面AI助手项目。在设定上，她是“什亭之匣”的操作系统管理员，性格开朗、热情，乐于帮助老师解决问题。
+**阿罗娜AI** 是一个以游戏《蔚蓝档案》（Blue Archive）中角色"阿罗娜"为原型打造的桌面AI助手项目。在设定上，她是“什亭之匣”的操作系统管理员，性格开朗、热情，乐于帮助老师解决问题。
 
-本项目集成了Arona语言模型（AronaLM）、语音合成（TTS）、语音识别（ASR）、Spine 2D 角色动画等技术，旨在提供一个可爱、活泼且功能完整的桌面交互体验。
+本项目集成了Arona语言模型（AronaLM）、语音合成（TTS）、语音识别（ASR）、Spine 2D 角色动画等技术，旨在提供一个可爱、有趣且功能完整的桌面交互体验。
 
 **AronaAI** is a desktop AI assistant project based on the character "Arona" from the mobile game "Blue Archive". She comes from Kivotos, serves as the operating system administrator of the Shittim Chest, and has a cheerful, warm personality who loves helping Sensei solve problems.
 
@@ -253,11 +253,11 @@ limitations under the License.
 - **ChromaDB** - 向量数据库
 - **GPT-SoVITS** - 语音合成模型
 - **Vosk** - 离线语音识别
-- **腾讯云** - 在线语音识别
+- **腾讯云语音识别** - 在线语音识别
 - **Sentence-Transformers** - 文本嵌入模型
 
 ---
 
 <p align="center">
-  <sub>就像草莓牛奶一样的，甜蜜的奇迹</sub>
+  <sub>/ **  就像草莓牛奶一样的，甜蜜的奇迹  ** /</sub>
 </p>
