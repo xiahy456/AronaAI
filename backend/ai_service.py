@@ -387,13 +387,13 @@ async def health_check():
 
 # ========== 启动入口 ==========
 
-def start_server(host: str = "0.0.0.0", port: int = 8765, reload: bool = False):
+def start_server(host: str = "0.0.0.0", port: int = 20456, reload: bool = False):
     """
     启动 WebSocket 服务
 
     Args:
         host: 监听地址，默认 0.0.0.0
-        port: 监听端口，默认 8765
+        port: 监听端口，默认 20456
         reload: 是否启用热重载（开发模式）
     """
     logger.info(f"正在启动 Arona AI WebSocket 服务（单客户端模式）...")
@@ -416,7 +416,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Arona AI WebSocket 服务（单客户端模式）")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="监听地址")
-    parser.add_argument("--port", type=int, default=8765, help="监听端口")
+    parser.add_argument("--port", type=int, default=20456, help="监听端口")
     parser.add_argument("--reload", action="store_true", help="启用热重载（开发模式）")
     args = parser.parse_args()
 

@@ -42,6 +42,9 @@ bin/
 .vs/
 *.user
 
+# VSCode Files
+.vscode/
+
 # Prerequisites
 *.d
 
