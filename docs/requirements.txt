@@ -63,6 +63,7 @@ pydantic_core==2.46.4
 Pygments==2.20.0
 PyPika==0.51.1
 pyproject_hooks==1.2.0
+# 只有Windows系统需要安装pyreadline3库一个命令行输入库，提供了类似于GNU Readline的功能，允许用户在命令行界面中编辑输入的文本。
 pyreadline3==3.5.4; sys_platform == 'win32'
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
