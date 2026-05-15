@@ -201,6 +201,22 @@ def test_chain_compressor():
     )
     print(f"  关键信息: {key_info}")
 
+    # BGE嵌入模型默认关闭，_get_sentence_scores 应走 TF-IDF
+    scores = compressor._get_sentence_scores(
+        "阿罗娜职责",
+        ["食堂今天提供咖喱饭。", "阿罗娜负责管理什亭之匣并协助老师。", "操场上有学生训练。"]
+    )
+    assert scores[1] == max(scores), "默认应使用TF-IDF且提高相关句子分数"
+
+    # BGE模型不可用时，开启开关仍应自动回退TF-IDF
+    compressor.use_bge_embedding = True
+    fallback_scores = compressor._get_sentence_scores(
+        "阿罗娜职责",
+        ["食堂今天提供咖喱饭。", "阿罗娜负责管理什亭之匣并协助老师。", "操场上有学生训练。"]
+    )
+    assert fallback_scores[1] == max(fallback_scores), "BGE不可用时回退TF-IDF应生效"
+    compressor.use_bge_embedding = False
+
     print("  ✓ 链路压缩测试通过")
 
 

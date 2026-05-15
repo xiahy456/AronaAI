@@ -66,6 +66,10 @@ COMPRESSOR_CONFIG = {
     "simple_query_context_ratio": 0.6,   # 简单问题使用更强压缩
     "medium_query_context_ratio": 0.8,   # 中等复杂度问题保留更多上下文
     "complex_query_context_ratio": 1.0,  # 复杂问题保留调用方允许的完整长度
+    "use_bge_embedding": False,           # 是否启用BGE微模型替换TF-IDF辅助句子打分
+    "bge_model_name": "BAAI/bge-small-zh-v1.5",  # BGE小中文嵌入模型（~95MB，首次自动下载）
+    "bge_device": "auto",                   # BGE模型运行设备（auto自动选CUDA/CPU）
+    "bge_score_weight": 3.0,              # BGE相似度在句子打分中的权重
 }
 
 # ========== 知识库配置 ==========
