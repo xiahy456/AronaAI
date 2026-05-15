@@ -5,6 +5,7 @@ Arona AI 后端测试脚本
 import sys
 import os
 import time
+import tempfile
 
 # 设置控制台编码为UTF-8
 if sys.platform == "win32":
@@ -69,28 +70,52 @@ def test_semantic_cache():
     """测试语义缓存"""
     print("\n" + "=" * 60)
     print("测试语义缓存...")
-    from backend.semantic_cache import SemanticCache
+    import backend.semantic_cache as semantic_cache_module
 
-    cache = SemanticCache()
-    print(f"  缓存大小: {cache.get_stats()['size']}")
+    class FakeEmbedding:
+        def encode_single(self, text: str, normalize: bool = True):
+            if "你好" in text and "阿罗娜" in text:
+                return [1.0, 0.0, 0.0]
+            if "天气" in text:
+                return [0.0, 1.0, 0.0]
+            return [0.0, 0.0, 1.0]
 
-    # 测试设置和获取
-    cache.set("你好，阿罗娜", "你好呀！老师！", context="")
-    result = cache.get("你好，阿罗娜")
-    assert result is not None, "缓存命中失败"
-    print(f"  精确匹配: {result['response']}")
+    original_get_embedding = semantic_cache_module.get_embedding
+    original_cache_dir = semantic_cache_module.CACHE_CONFIG["cache_dir"]
 
-    # 测试语义相似匹配
-    result2 = cache.get("你好阿罗娜")
-    if result2:
-        print(f"  语义匹配: {result2['response']} (相似度: {result2.get('similarity', 0):.3f})")
+    with tempfile.TemporaryDirectory() as temp_dir:
+        semantic_cache_module.get_embedding = lambda: FakeEmbedding()
+        semantic_cache_module.CACHE_CONFIG["cache_dir"] = temp_dir
+        try:
+            cache = semantic_cache_module.SemanticCache()
+            print(f"  缓存大小: {cache.get_stats()['size']}")
 
-    # 测试不相关查询
-    result3 = cache.get("今天天气怎么样")
-    assert result3 is None, "不相关查询不应命中缓存"
-    print("  不相关查询未命中缓存 ✓")
+            short_threshold = cache._get_dynamic_threshold("你好")
+            assert short_threshold <= 1.0, "短文本阈值不应超过余弦相似度上限"
+            assert short_threshold == cache.max_similarity_threshold, "短文本阈值应被安全上限截断"
+            print(f"  短文本阈值: {short_threshold:.2f}")
 
-    cache.clear()
+            # 测试设置和获取
+            cache.set("你好，阿罗娜", "你好呀！老师！", context="")
+            result = cache.get("你好，阿罗娜")
+            assert result is not None, "缓存命中失败"
+            print(f"  精确匹配: {result['response']}")
+
+            # 测试短文本语义相似匹配
+            result2 = cache.get("你好阿罗娜")
+            assert result2 is not None, "短文本相似查询应命中缓存"
+            print(f"  语义匹配: {result2['response']} (相似度: {result2.get('similarity', 0):.3f})")
+
+            # 测试不相关查询
+            result3 = cache.get("今天天气怎么样")
+            assert result3 is None, "不相关查询不应命中缓存"
+            print("  不相关查询未命中缓存 ✓")
+
+            cache.clear()
+        finally:
+            semantic_cache_module.get_embedding = original_get_embedding
+            semantic_cache_module.CACHE_CONFIG["cache_dir"] = original_cache_dir
+
     print("  ✓ 语义缓存测试通过")
 
 
@@ -138,6 +163,36 @@ def test_chain_compressor():
     compressed = compressor.compress(documents, "阿罗娜是谁")
     print(f"  压缩后长度: {len(compressed)} 字符")
     print(f"  压缩内容: {compressed[:100]}...")
+    assert "阿罗娜" in compressed, "压缩结果应保留查询相关内容"
+
+    # 简单问题压缩更强，复杂问题保留更多上下文
+    simple_limit = compressor._get_adaptive_max_length("阿罗娜是谁", 100)
+    complex_limit = compressor._get_adaptive_max_length(
+        "请详细分析阿罗娜的职责、性格以及她和老师之间的关系？", 100
+    )
+    assert simple_limit < complex_limit, "复杂问题应保留更多上下文"
+
+    # TF-IDF辅助句子相关性排序
+    candidate_sentences = [
+        "食堂今天提供咖喱饭和味噌汤。",
+        "阿罗娜负责管理什亭之匣并协助老师处理事务。",
+        "操场上有很多学生正在训练。",
+    ]
+    tfidf_scores = compressor._tfidf_scores("阿罗娜什亭之匣管理职责", candidate_sentences)
+    assert tfidf_scores[1] == max(tfidf_scores), "TF-IDF应提高相关句子的分数"
+
+    # 截断优先保留完整句子
+    truncated = compressor._truncate_to_sentence(
+        "第一句是完整信息。第二句会被截断，因为长度不够。", 18
+    )
+    assert truncated.endswith("。"), "截断应优先停在句子边界"
+
+    # 规范化去重应忽略空白和标点差异
+    duplicate_docs = [
+        {"document": "阿罗娜是管理员。", "distance": 0.1},
+        {"document": "阿罗娜 是 管理员!", "distance": 0.2},
+    ]
+    assert len(compressor._deduplicate(duplicate_docs)) == 1, "去重应忽略空白和标点差异"
 
     # 测试关键信息提取
     key_info = compressor.extract_key_info(

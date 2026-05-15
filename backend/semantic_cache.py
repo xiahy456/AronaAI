@@ -8,10 +8,15 @@ import json
 import time
 import hashlib
 import pickle
+import math
 from typing import Optional, Dict, List, Any
-import numpy as np
 from backend.config import CACHE_CONFIG
-from backend.embeddings import get_embedding
+
+
+def get_embedding():
+    """懒加载嵌入模块，避免导入缓存模块时立即加载ML依赖。"""
+    from backend.embeddings import get_embedding as load_embedding
+    return load_embedding()
 
 
 class SemanticCache:
@@ -26,6 +31,7 @@ class SemanticCache:
     def __init__(self):
         self.cache_dir = CACHE_CONFIG["cache_dir"]
         self.base_similarity_threshold = CACHE_CONFIG["similarity_threshold"]
+        self.max_similarity_threshold = CACHE_CONFIG.get("max_similarity_threshold", 0.99)
         self.max_cache_size = CACHE_CONFIG["max_cache_size"]
         self.ttl = CACHE_CONFIG["ttl"]
 
@@ -68,16 +74,19 @@ class SemanticCache:
     def _get_embedding(self, text: str) -> List[float]:
         """获取文本的嵌入向量"""
         embedding = self.embedding_model.encode_single(text, normalize=True)
-        return embedding.tolist()
+        if hasattr(embedding, "tolist"):
+            return embedding.tolist()
+        return list(embedding)
 
     def _cosine_similarity(self, emb1: List[float], emb2: List[float]) -> float:
         """计算余弦相似度"""
-        emb1 = np.array(emb1, dtype=np.float64)
-        emb2 = np.array(emb2, dtype=np.float64)
-        dot_product = np.dot(emb1, emb2)
-        # 数值稳定性处理
-        dot_product = np.clip(dot_product, -1.0, 1.0)
-        return float(dot_product)
+        dot_product = sum(left * right for left, right in zip(emb1, emb2))
+        norm1 = math.sqrt(sum(value * value for value in emb1))
+        norm2 = math.sqrt(sum(value * value for value in emb2))
+        if norm1 == 0 or norm2 == 0:
+            return 0.0
+        similarity = dot_product / (norm1 * norm2)
+        return max(-1.0, min(1.0, similarity))
 
     def _get_dynamic_threshold(self, query: str) -> float:
         """
@@ -87,7 +96,7 @@ class SemanticCache:
         threshold = self.base_similarity_threshold
         if len(query) <= self.short_text_length:
             threshold += self.short_text_threshold_boost
-        return threshold
+        return min(threshold, self.max_similarity_threshold)
 
     def _clean_expired(self):
         """清理过期缓存"""
@@ -227,6 +236,7 @@ class SemanticCache:
             "max_size": self.max_cache_size,
             "ttl": self.ttl,
             "base_threshold": self.base_similarity_threshold,
+            "max_similarity_threshold": self.max_similarity_threshold,
             "short_text_threshold_boost": self.short_text_threshold_boost,
             "min_similarity_gap": self.min_similarity_gap,
         }

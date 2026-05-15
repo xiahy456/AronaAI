@@ -39,6 +39,7 @@ VECTOR_DB_CONFIG = {
 CACHE_CONFIG = {
     "cache_dir": str(PROJECT_ROOT / "backend" / "data" / "cache"),
     "similarity_threshold": 0.92,  # 语义相似度阈值，高于此值命中缓存（提高阈值减少误匹配）
+    "max_similarity_threshold": 0.99,  # 动态阈值上限，避免短文本阈值超过余弦相似度上限
     "max_cache_size": 1000,        # 最大缓存条目数
     "ttl": 3600,                   # 缓存过期时间（秒）
 }
@@ -61,6 +62,10 @@ MEMORY_CONFIG = {
 COMPRESSOR_CONFIG = {
     "max_context_length": 4096,    # 压缩后的最大上下文长度
     "summary_ratio": 0.3,          # 摘要压缩比例
+    "tfidf_score_weight": 3.0,      # TF-IDF相似度在句子打分中的权重
+    "simple_query_context_ratio": 0.6,   # 简单问题使用更强压缩
+    "medium_query_context_ratio": 0.8,   # 中等复杂度问题保留更多上下文
+    "complex_query_context_ratio": 1.0,  # 复杂问题保留调用方允许的完整长度
 }
 
 # ========== 知识库配置 ==========
