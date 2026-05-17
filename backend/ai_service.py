@@ -276,6 +276,165 @@ async def handle_get_stats(websocket: WebSocket):
         })
 
 
+async def handle_list_knowledge(websocket: WebSocket):
+    """处理列出知识库请求"""
+    engine = get_engine()
+
+    try:
+        items = engine.list_knowledge()
+        await websocket.send_json({
+            "type": "knowledge_list",
+            "data": {
+                "items": items,
+                "total": len(items)
+            },
+            "timestamp": datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"列出知识库失败 | 错误: {e}")
+        await websocket.send_json({
+            "type": "error",
+            "code": "KNOWLEDGE_LIST_ERROR",
+            "message": f"列出知识库失败: {str(e)}"
+        })
+
+
+async def handle_search_knowledge(websocket: WebSocket, data: Dict[str, Any]):
+    """处理搜索知识库请求"""
+    engine = get_engine()
+    query = data.get("query", "").strip()
+    k = data.get("k", 3)
+
+    if not query:
+        await websocket.send_json({
+            "type": "error",
+            "code": "EMPTY_QUERY",
+            "message": "搜索关键词不能为空"
+        })
+        return
+
+    try:
+        items = engine.search_knowledge(query, k=k)
+        await websocket.send_json({
+            "type": "knowledge_search",
+            "data": {
+                "query": query,
+                "items": items,
+                "total": len(items)
+            },
+            "timestamp": datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"搜索知识库失败 | 错误: {e}")
+        await websocket.send_json({
+            "type": "error",
+            "code": "KNOWLEDGE_SEARCH_ERROR",
+            "message": f"搜索知识库失败: {str(e)}"
+        })
+
+
+async def handle_add_knowledge(websocket: WebSocket, data: Dict[str, Any]):
+    """处理添加知识请求"""
+    engine = get_engine()
+    content = data.get("content", data.get("text", "")).strip()
+    source = data.get("source", "")
+
+    if not content:
+        await websocket.send_json({
+            "type": "error",
+            "code": "EMPTY_KNOWLEDGE_CONTENT",
+            "message": "知识内容不能为空"
+        })
+        return
+
+    try:
+        ids = engine.add_knowledge(content, source=source)
+        await websocket.send_json({
+            "type": "result",
+            "success": True,
+            "message": "知识已添加",
+            "ids": ids,
+            "count": len(ids)
+        })
+    except Exception as e:
+        logger.error(f"添加知识失败 | 错误: {e}")
+        await websocket.send_json({
+            "type": "error",
+            "code": "KNOWLEDGE_ADD_ERROR",
+            "message": f"添加知识失败: {str(e)}"
+        })
+
+
+async def handle_delete_knowledge(websocket: WebSocket, data: Dict[str, Any]):
+    """处理删除知识请求"""
+    engine = get_engine()
+    ids = data.get("ids", [])
+
+    if not isinstance(ids, list) or not ids:
+        await websocket.send_json({
+            "type": "error",
+            "code": "EMPTY_KNOWLEDGE_IDS",
+            "message": "删除ID列表不能为空"
+        })
+        return
+
+    try:
+        deleted_count = engine.delete_knowledge(ids)
+        await websocket.send_json({
+            "type": "result",
+            "success": True,
+            "message": "知识已删除",
+            "deleted_count": deleted_count
+        })
+    except Exception as e:
+        logger.error(f"删除知识失败 | 错误: {e}")
+        await websocket.send_json({
+            "type": "error",
+            "code": "KNOWLEDGE_DELETE_ERROR",
+            "message": f"删除知识失败: {str(e)}"
+        })
+
+
+async def handle_clear_knowledge(websocket: WebSocket):
+    """处理清空知识库请求"""
+    engine = get_engine()
+
+    try:
+        engine.clear_knowledge()
+        await websocket.send_json({
+            "type": "result",
+            "success": True,
+            "message": "知识库已清空"
+        })
+    except Exception as e:
+        logger.error(f"清空知识库失败 | 错误: {e}")
+        await websocket.send_json({
+            "type": "error",
+            "code": "KNOWLEDGE_CLEAR_ERROR",
+            "message": f"清空知识库失败: {str(e)}"
+        })
+
+
+async def handle_get_knowledge_stats(websocket: WebSocket):
+    """处理获取知识库统计请求"""
+    engine = get_engine()
+
+    try:
+        stats = engine.get_knowledge_stats()
+        stats["timestamp"] = datetime.now().isoformat()
+        await websocket.send_json({
+            "type": "knowledge_stats",
+            "data": stats
+        })
+    except Exception as e:
+        logger.error(f"获取知识库统计失败 | 错误: {e}")
+        await websocket.send_json({
+            "type": "error",
+            "code": "KNOWLEDGE_STATS_ERROR",
+            "message": f"获取知识库统计失败: {str(e)}"
+        })
+
+
 async def handle_ping(websocket: WebSocket):
     """处理心跳请求"""
     await websocket.send_json({
@@ -296,6 +455,18 @@ async def route_message(websocket: WebSocket, data: Dict[str, Any]):
         await handle_clear_session(websocket)
     elif msg_type == "get_stats":
         await handle_get_stats(websocket)
+    elif msg_type == "list_knowledge":
+        await handle_list_knowledge(websocket)
+    elif msg_type == "search_knowledge":
+        await handle_search_knowledge(websocket, data)
+    elif msg_type == "add_knowledge":
+        await handle_add_knowledge(websocket, data)
+    elif msg_type == "delete_knowledge":
+        await handle_delete_knowledge(websocket, data)
+    elif msg_type == "clear_knowledge":
+        await handle_clear_knowledge(websocket)
+    elif msg_type == "get_knowledge_stats":
+        await handle_get_knowledge_stats(websocket)
     elif msg_type == "ping":
         await handle_ping(websocket)
     else:

@@ -202,9 +202,21 @@ class AronaEngine:
         """搜索知识库"""
         return self.knowledge_base.retrieve(query, k=k)
 
+    def list_knowledge(self) -> List[Dict]:
+        """列出知识库文档"""
+        return self.knowledge_base.list_documents()
+
+    def delete_knowledge(self, ids: List[str]) -> int:
+        """删除知识库文档"""
+        return self.knowledge_base.delete_documents(ids)
+
     def get_knowledge_count(self) -> int:
         """获取知识库文档数量"""
         return self.knowledge_base.count()
+
+    def get_knowledge_stats(self) -> Dict:
+        """获取知识库统计信息"""
+        return self.knowledge_base.get_stats()
 
     def clear_knowledge(self):
         """清空知识库"""

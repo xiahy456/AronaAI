@@ -38,6 +38,7 @@
 bin/
 .vs/
 *.user
+**/QtMsBuild/
 
 # VSCode Files
 .vscode/
