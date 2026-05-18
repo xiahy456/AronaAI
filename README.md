@@ -71,13 +71,20 @@ arona-ai/
 │
 ├── gpt-sovits/                 # GPT-SoVITS 语音合成（需用户手动部署，或使用外部服务）
 │   ├── GPT_SoVITS/             # 核心模型
-│   ├── GPT_weights/            # 模型权重
+│   ├── GPT_weights_v2/         # GPT权重
+│       └── ALuoNa_cn-e15.ckpt  # 阿罗娜GPT权重
+│   ├── SoVITS_weights_v2/      # SoVITS权重
+│       └── ALuoNa_cn_e16_s256.pth    # 阿罗娜SoVITS权重
 │   ├── api_v2.py               # API 服务
 │   └── ref_audio/              # 参考音频
+│       └── Arona/              # 阿罗娜参考音频目录
+│            └── arona_academy_in_2.ogg   # 参考音频
 │
 ├── docs/                       # 相关文档
 │   └── requirements.txt        # 依赖项文件
-├── models/                     # 预训练模型存放目录
+├── models/                     # 相关模型存放目录
+│   └── bge-small-zh-v1.5/      # BGE模型
+│   └── paraphrase-multilingual-MiniLM-L12-v2/  # 向量嵌入模型
 ├── vosk/                       # Vosk 离线语音识别（（可选）需用户手动部署，推荐直接使用腾讯云语音识别服务）
 └── assets/                     # 项目资源
 ```
@@ -120,12 +127,54 @@ arona-ai/
 | 组件 | 要求 |
 |------|------|
 | Python | 3.10+ |
-| Node.js | (可选) 用于部分工具脚本 |
 | CUDA | 11.8+ (GPU 加速，可选) |
-| 操作系统 | Windows 10/11 (客户端) / Linux 及其衍生系统 |
-| AronaLM | 请放在models/aronaLM目录下 |
+| 操作系统 | Windows 10/11 (客户端) / Linux 及其衍生系统 (服务端) |
+| 相关环境 | 请按照docs/requirement.txt配置 |
 
 ### 后端启动 / Backend Setup
+
+#### 启动前准备 / Pre-startup Preparation
+
+在启动后端服务之前，请完成以下准备工作：
+
+**1. 放置模型文件**
+
+根据项目目录结构，将所需模型文件放置在 `models/` 目录下：
+
+```
+models/
+├── bge-small-zh-v1.5/                # BGE 中文嵌入模型（用于链路压缩句子打分）
+└── paraphrase-multilingual-MiniLM-L12-v2/  # 多语言嵌入模型（用于向量检索）
+```
+
+> **提示**：如果使用本地 TF-IDF 嵌入模式（`embedding.use_external: false`），则无需放置 `paraphrase-multilingual-MiniLM-L12-v2` 模型。
+
+**2. 配置 `config.yaml`**
+
+复制并重命名配置文件，然后根据实际模型路径修改配置：
+
+```bash
+# 复制配置文件
+cp backend/config.example.yaml backend/config.yaml
+```
+
+编辑 `backend/config.yaml`，将以下路径替换为你的实际模型**绝对**路径：
+
+```yaml
+model:
+  base_model_name: "你的/基础/模型/路径"  # 很抱歉，虽然key中写的是name，但是value确实需要一个路径，我之后会改进的
+  lora_path: "你的/LoRA/模型/路径"  # LoRA 模型路径
+
+embedding:
+  model_path: "你的/嵌入/模型/路径"  # 嵌入模型路径
+
+compressor:
+  bge_model_path: "你的/BGE/模型/路径"     # BGE 模型路径
+```
+
+> **注意**：`config.yaml` 已在 `.gitignore` 中，不会被提交到版本控制，请放心修改。
+
+**3. 启动服务**
 
 ```bash
 # 1. 安装 Python 依赖
@@ -146,6 +195,79 @@ Windows 客户端使用 Visual Studio 2022（后改为Visual Studio 2026） 和 
 2. 打开 `frontend/AronaAI_Spine_WindowsClient/AronaAI_Spine_WindowsClient.sln`
 3. 配置 Qt 版本和编译选项
 4. 编译运行
+
+#### 启动前准备 / Pre-startup Preparation
+
+在启动客户端之前，请完成以下准备工作：
+
+**1. 配置 `config.json`**
+
+找到 `frontend/AronaAI_Spine_WindowsClient/Config/config.example.json`，复制并重命名配置文件，然后根据实际模型路径修改配置：
+
+```bash
+# 复制并重命名配置文件
+cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/AronaAI_Spine_WindowsClient/Config/config.json
+```
+
+```json
+{
+  "settings": {
+    "dict_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Dict/dict_zh.json",
+    "icon_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/Icon.png",
+    "qhotkey_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/QHotkey",
+    "text_box_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/TextBox.png",
+    "push_button_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/PushButton.png",
+    "settings_bg_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/SettingsMainBGWidget.png",
+    "close_button_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/CloseButton.png",
+    "top_information_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/TopInformationWidget.png",
+    "font_path": "D:/arona-ai/assets/font/Blueaka/BlueakaBeta2GBKDemiBold-Regular.ttf",
+    "arona_ai_mode_switch_button_0": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/AronaAIModeSwitchButton_0.png",
+    "arona_ai_mode_switch_button_1": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/AronaAIModeSwitchButton_1.png",
+    "origin_logo_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/BALogo.png",
+    ...
+  },
+  "aronalm": {
+    "websocket_url": "ws://your.aronalm.ip:20456/ws",
+    ...
+  },
+  "spine": {
+    "skelOrJson_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/AronaSpineAssets/arona_spr.json",
+    "atlas_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/AronaSpineAssets/Arona01.atlas",
+    ...
+  },
+  "tts": {
+    "host": "your.gpt.sovits.ip",
+    "port": 9880,
+    "gpt_path": "GPT_weights_v2/ALuoNa_cn-e15.ckpt",
+    "sovits_path": "SoVITS_weights_v2/ALuoNa_cn_e16_s256.pth",
+    "ref_audio_path": "ref_audio/Arona/arona_academy_in_2.ogg",
+    "prompt_text": "这里为您准备了各种课程和活动，请按您喜欢的方式安排日程吧！",
+    ...
+  },
+  "vosk": {
+    "model_path": "path/to/vosk-model-small-cn-0.22"
+  },
+  ...
+}
+```
+
+> **注意**：请将上述路径中的 `D:/arona-ai` 替换为你本地的项目实际**绝对路径**。
+> **注意**：请将AronaLM后端服务、GPT-SoVITS服务地址的地址、端口按照你的实际情况进行填写
+
+**2. 配置腾讯云语音识别（可选）**
+
+如果使用腾讯云语音识别服务，需要在 `tencent_speech_recognizer` 中填写自己的 `secret_id` 和 `secret_key`，或者通过环境变量配置：
+
+- **方式一（推荐）**：设置环境变量 `TENCENT_SECRET_ID` 和 `TENCENT_SECRET_KEY`，配置文件中的 `${TENCENT_SECRET_ID}` 和 `${TENCENT_SECRET_KEY}` 会自动读取环境变量。
+- **方式二**：直接在配置文件中填写你的腾讯云 API 密钥：
+  ```json
+  "tencent_speech_recognizer": {
+    "secret_id": "your_secret_id_here",
+    "secret_key": "your_secret_key_here"
+  }
+  ```
+
+> **注意**：`config.json` 已在 `.gitignore` 中，不会被提交到版本控制，请放心修改。
 
 ### 语音合成服务 / TTS Service
 
@@ -218,12 +340,12 @@ python api_v2.py
 - [x] Windows 桌面客户端
 - [x] Spine 2D 角色动画
 - [x] GPT-SoVITS 语音合成
+- [ ] 知识库可视化编辑
 - [ ] 模型优化
 - [ ] 语音唤醒功能完善
 - [ ] macOS/Linux 客户端支持
 - [ ] 多语言支持
 - [ ] 插件系统
-- [ ] 知识库可视化编辑
 
 ---
 
