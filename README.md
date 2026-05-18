@@ -251,8 +251,9 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
 }
 ```
 
-> **注意**：请将上述路径中的 `D:/arona-ai` 替换为你本地的项目实际**绝对路径**。
-> **注意**：请将AronaLM后端服务、GPT-SoVITS服务地址的地址、端口按照你的实际情况进行填写
+> **注意**：
+ - 请将上述路径中的 `D:/arona-ai` 替换为你本地的项目实际**绝对路径**。
+ - 请将AronaLM后端服务、GPT-SoVITS服务地址的地址、端口按照你的实际情况进行填写。
 
 **2. 配置腾讯云语音识别（可选）**
 
