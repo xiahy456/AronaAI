@@ -68,6 +68,12 @@ class VectorStore:
         if metadatas is None:
             metadatas = [{} for _ in texts]
 
+        # ChromaDB 要求 metadata 不能为空字典，为空时添加占位字段
+        metadatas = [
+            md if md else {"_placeholder": "true"}
+            for md in metadatas
+        ]
+
         # 去重：检查已存在的ID
         existing_ids = set()
         try:

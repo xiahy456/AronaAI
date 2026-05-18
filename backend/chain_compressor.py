@@ -23,6 +23,7 @@ class ChainCompressor:
         self.medium_query_context_ratio = COMPRESSOR_CONFIG.get("medium_query_context_ratio", 0.8)
         self.complex_query_context_ratio = COMPRESSOR_CONFIG.get("complex_query_context_ratio", 1.0)
         self.use_bge_embedding = COMPRESSOR_CONFIG.get("use_bge_embedding", False)
+        self.bge_model_path = COMPRESSOR_CONFIG.get("bge_model_path")
         self.bge_model_name = COMPRESSOR_CONFIG.get("bge_model_name", "BAAI/bge-small-zh-v1.5")
         self.bge_device = COMPRESSOR_CONFIG.get("bge_device", "auto")
         self.bge_score_weight = COMPRESSOR_CONFIG.get("bge_score_weight", 3.0)
@@ -106,13 +107,24 @@ class ChainCompressor:
         if not text:
             return ""
 
-        # 如果文本很短，直接返回
-        if len(text) < 100:
-            return text.strip()
-
-        # 尝试找到包含查询关键词的句子
+        # 对短文本也进行相关性判断，避免不相关内容混入
         query_keywords = set(self._tokenize(query))
         sentences = self._split_sentences(text)
+
+        if not sentences:
+            return ""
+
+        # 如果文本很短，用BGE/TF-IDF判断相关性后再决定是否返回
+        if len(text) < 100:
+            sentence_scores = self._get_sentence_scores(query, sentences)
+            if sentence_scores and max(sentence_scores) > 0.3:
+                return text.strip()
+            # 关键词匹配作为辅助
+            text_lower = text.lower()
+            has_keyword = any(keyword.lower() in text_lower for keyword in query_keywords)
+            if has_keyword and sentence_scores and max(sentence_scores) > 0.15:
+                return text.strip()
+            return ""
 
         if len(sentences) <= 3:
             return text.strip()
@@ -150,7 +162,13 @@ class ChainCompressor:
             if idx in selected:
                 ordered.append(sentence)
 
-        return " ".join(ordered)
+        result = " ".join(ordered)
+
+        # 如果提取结果与查询完全不相关（最高分低于阈值），返回空字符串
+        if scored_sentences and scored_sentences[0][1] < 0.5:
+            return ""
+
+        return result
 
     def _get_adaptive_max_length(self, query: str, max_length: int) -> int:
         """根据问题复杂度调整上下文长度，但不超过调用方传入的上限。"""
@@ -199,22 +217,45 @@ class ChainCompressor:
         return score
 
     def _load_bge_model(self) -> bool:
-        """懒加载BGE嵌入模型，仅首次调用时初始化。"""
+        """从本地路径加载BGE嵌入模型，支持降级到HuggingFace在线加载"""
         if self._bge_model is not None:
             return True
+        
         try:
             from sentence_transformers import SentenceTransformer
             import torch
+            import os
+            
             device = self.bge_device
             if device == "auto":
                 device = "cuda" if torch.cuda.is_available() else "cpu"
-            self._bge_model = SentenceTransformer(
-                self.bge_model_name,
-                device=device
-            )
-            return True
+            
+            # 优先从本地路径加载
+            if self.bge_model_path and os.path.exists(self.bge_model_path):
+                print(f"从本地路径加载模型: {self.bge_model_path}")
+                self._bge_model = SentenceTransformer(
+                    self.bge_model_path,
+                    device=device
+                )
+            else:
+                # 降级方案：如果本地路径不存在，尝试从HuggingFace下载
+                print(f"本地路径不存在或未配置: {self.bge_model_path}")
+                print(f"尝试从HuggingFace下载: {self.bge_model_name}")
+                self._bge_model = SentenceTransformer(
+                    self.bge_model_name,
+                    device=device
+                )
+            
+            # 验证模型是否加载成功
+            if self._bge_model is not None:
+                print(f"BGE模型加载成功，设备: {device}")
+                return True
+            else:
+                print("BGE模型加载失败")
+                return False
+                
         except Exception as e:
-            print(f"BGE模型加载失败，回退到TF-IDF: {e}")
+            print(f"BGE模型加载失败: {e}")
             self._bge_model = None
             return False
 

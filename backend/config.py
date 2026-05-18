@@ -25,6 +25,7 @@ MODEL_CONFIG = {
 EMBEDDING_CONFIG = {
     "use_external": True,  # True=使用外部sentence-transformers模型, False=使用本地TF-IDF+SVD
     "model_name": "paraphrase-multilingual-MiniLM-L12-v2",  # 支持中文的轻量级嵌入模型
+    "model_path": "D:/Code/projects/Arona/arona-ai/models/paraphrase-multilingual-MiniLM-L12-v2",  # 本地模型路径
     "device": "cpu",
 }
 
@@ -55,7 +56,7 @@ CONVERSATION_CONFIG = {
 MEMORY_CONFIG = {
     "memory_collection": "arona_memory",
     "similarity_top_k": 5,
-    "min_memory_length": 10,       # 最小记忆长度（字符数）
+    "min_memory_length": 2,        # 最小记忆长度（字符数），降低以支持短记忆如名字
 }
 
 # ========== 链路压缩配置 ==========
@@ -66,10 +67,11 @@ COMPRESSOR_CONFIG = {
     "simple_query_context_ratio": 0.6,   # 简单问题使用更强压缩
     "medium_query_context_ratio": 0.8,   # 中等复杂度问题保留更多上下文
     "complex_query_context_ratio": 1.0,  # 复杂问题保留调用方允许的完整长度
-    "use_bge_embedding": False,           # 是否启用BGE微模型替换TF-IDF辅助句子打分
-    "bge_model_name": "BAAI/bge-small-zh-v1.5",  # BGE小中文嵌入模型（~95MB，首次自动下载）
+    "use_bge_embedding": True,           # 是否启用BGE微模型替换TF-IDF辅助句子打分
+    "bge_model_name": "BAAI/bge-small-zh-v1.5",  # BGE小中文嵌入模型
     "bge_device": "auto",                   # BGE模型运行设备（auto自动选CUDA/CPU）
     "bge_score_weight": 3.0,              # BGE相似度在句子打分中的权重
+    "bge_model_path": "D:/Code/projects/Arona/arona-ai/models/bge-small-zh-v1.5"  # 本地BGE模型路径
 }
 
 # ========== 知识库配置 ==========
@@ -84,4 +86,3 @@ DATA_DIR = str(PROJECT_ROOT / "backend" / "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(VECTOR_DB_CONFIG["persist_directory"], exist_ok=True)
 os.makedirs(CACHE_CONFIG["cache_dir"], exist_ok=True)
-

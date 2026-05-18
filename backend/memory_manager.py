@@ -24,15 +24,26 @@ class MemoryManager:
         self.min_memory_length = MEMORY_CONFIG["min_memory_length"]
 
         # 需要记忆的关键词模式
+        # 使用 [^，。！？\n]+ 匹配到句尾标点或换行为止，捕获完整信息
+        # 注意：更具体的模式放在前面，避免被通用模式错误匹配
         self.memory_patterns = [
-            r"(?:我叫|我是|我的名字叫|你可以叫我)\s*(.+?)(?:[，。！？]|$)",
-            r"(?:我喜欢|我爱|我讨厌|我不喜欢|我最喜欢)\s*(.+?)(?:[，。！？]|$)",
-            r"(?:我住在|我来自|我家在)\s*(.+?)(?:[，。！？]|$)",
-            r"(?:我今年|我\s*(\d+)\s*岁)(?:[，。！？]|$)",
-            r"(?:我的工作|我的职业|我是做)\s*(.+?)(?:[，。！？]|$)",
-            r"(?:我的爱好|我的兴趣|我喜欢做)\s*(.+?)(?:[，。！？]|$)",
-            r"(?:请记住|记住|别忘了|记一下)\s*(.+?)(?:[，。！？]|$)",
-            r"(?:我有|我养了|我有个)\s*(.+?)(?:[，。！？]|$)",
+            # 身份信息（优先匹配）
+            # "我是" 模式要求后面跟的是用户自称的名字，排除 "我是Arona" 这种AI自我介绍
+            r"(?:我叫|我的名字叫|你可以叫我)\s*([^，。！？\n]{1,20})",
+            # 年龄
+            r"(?:我今年)\s*(\d+)\s*岁",
+            # 偏好（在"记住"之前匹配，避免"请记住我最喜欢的颜色"被"记住"截胡）
+            r"(?<!请记住)(?:我最喜欢|我喜欢|我爱|我讨厌|我不喜欢)\s*([^，。！？\n]{1,20})",
+            # 位置
+            r"(?:我住在|我来自|我家在)\s*([^，。！？\n]{1,20})",
+            # 职业
+            r"(?:我的工作|我的职业|我是做)\s*([^，。！？\n]{1,20})",
+            # 爱好
+            r"(?:我的爱好|我的兴趣|我喜欢做)\s*([^，。！？\n]{1,20})",
+            # 显式要求记住
+            r"(?:请记住|记住|别忘了|记一下)\s*([^，。！？\n]{1,20})",
+            # 拥有物
+            r"(?:我有|我养了|我有个)\s*([^，。！？\n]{1,20})",
         ]
 
     def extract_memories(self, text: str) -> List[Dict]:
@@ -47,6 +58,11 @@ class MemoryManager:
         """
         memories = []
 
+        # 如果文本是疑问句（包含问号或疑问语气词），跳过提取
+        # 疑问句中的匹配很可能是反问/提问，不是陈述事实
+        question_markers = ["?", "？", "吗", "呢", "吧", "什么", "怎么", "为什么", "如何", "哪"]
+        is_question = any(marker in text for marker in question_markers)
+
         for pattern in self.memory_patterns:
             matches = re.findall(pattern, text)
             for match in matches:
@@ -58,6 +74,9 @@ class MemoryManager:
 
                 content = content.strip()
                 if len(content) >= self.min_memory_length:
+                    # 疑问句中的匹配很可能是反问/提问，不是陈述事实，跳过
+                    if is_question:
+                        continue
                     # 判断记忆类型
                     memory_type = self._classify_memory(pattern, content)
                     memories.append({

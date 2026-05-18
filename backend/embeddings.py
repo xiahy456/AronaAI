@@ -9,6 +9,7 @@ from typing import List, Optional, Union
 import re
 import os
 from pathlib import Path
+from backend.config import EMBEDDING_CONFIG
 
 
 class LocalEmbedding:
@@ -129,22 +130,26 @@ class ExternalEmbedding:
     模型会自动下载到 models/ 目录下
     """
 
-    def __init__(self, model_name: str = "paraphrase-multilingual-MiniLM-L12-v2",
-                 device: str = "cpu"):
+    def __init__(self, model_name: str = None, device: str = None):
         from sentence_transformers import SentenceTransformer
 
-        # 优先从本地 models 目录加载
-        project_root = Path(__file__).parent.parent
-        local_model_path = str(project_root / "models" / model_name)
+        # 使用 config.py 中的配置作为默认值
+        if model_name is None:
+            model_name = EMBEDDING_CONFIG["model_name"]
+        if device is None:
+            device = EMBEDDING_CONFIG["device"]
+
+        # 优先从 config.py 中配置的本地路径加载
+        local_model_path = EMBEDDING_CONFIG["model_path"]
 
         if os.path.exists(local_model_path):
             print(f"从本地加载嵌入模型: {local_model_path}")
             self.model = SentenceTransformer(local_model_path, device=device)
         else:
-            print(f"正在下载嵌入模型 {model_name} 到 {local_model_path} ...")
-            # 先下载到临时目录，再移动到目标位置
+            print(f"本地模型路径不存在: {local_model_path}")
+            print(f"正在从 HuggingFace 下载嵌入模型 {model_name} ...")
             self.model = SentenceTransformer(model_name, device=device)
-            # 保存到本地 models 目录
+            # 保存到 config.py 中配置的本地路径
             os.makedirs(os.path.dirname(local_model_path), exist_ok=True)
             self.model.save(local_model_path)
             print(f"嵌入模型已保存到: {local_model_path}")
@@ -182,14 +187,12 @@ def get_embedding() -> Union[LocalEmbedding, ExternalEmbedding]:
     """
     global _global_embedding
     if _global_embedding is None:
-        from backend.config import EMBEDDING_CONFIG
-
-        use_external = EMBEDDING_CONFIG.get("use_external", False)
+        use_external = EMBEDDING_CONFIG["use_external"]
         if use_external:
             print("使用外部嵌入模型 (sentence-transformers)")
             _global_embedding = ExternalEmbedding(
                 model_name=EMBEDDING_CONFIG["model_name"],
-                device=EMBEDDING_CONFIG["device"]
+                device=EMBEDDING_CONFIG["device"],
             )
         else:
             print("使用本地嵌入模型 (TF-IDF + SVD)")
