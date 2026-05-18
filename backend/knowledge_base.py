@@ -59,6 +59,17 @@ class KnowledgeBase:
         """
         return self.vector_store.search_knowledge(query, k=k)
 
+    def list_documents(self) -> List[Dict]:
+        """列出知识库中的所有文档分块"""
+        return self.vector_store.get_all_documents()
+
+    def delete_documents(self, ids: List[str]) -> int:
+        """根据ID删除知识库文档分块"""
+        existing = self.vector_store.collection.get(ids=ids)
+        existing_count = len(existing.get("ids", [])) if existing else 0
+        self.vector_store.delete_by_ids(ids)
+        return existing_count
+
     def retrieve_and_compress(self, query: str, k: int = None,
                                max_length: int = None) -> str:
         """
@@ -96,6 +107,10 @@ class KnowledgeBase:
     def count(self) -> int:
         """获取知识库文档数量"""
         return self.vector_store.count()
+
+    def get_stats(self) -> Dict:
+        """获取知识库统计信息"""
+        return {"count": self.count()}
 
     def clear(self):
         """清空知识库"""

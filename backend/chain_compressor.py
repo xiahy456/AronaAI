@@ -5,7 +5,7 @@
 import re
 import math
 from collections import Counter
-from typing import List, Dict
+from typing import List, Dict, Optional
 from backend.config import COMPRESSOR_CONFIG
 
 
@@ -22,6 +22,11 @@ class ChainCompressor:
         self.simple_query_context_ratio = COMPRESSOR_CONFIG.get("simple_query_context_ratio", 0.6)
         self.medium_query_context_ratio = COMPRESSOR_CONFIG.get("medium_query_context_ratio", 0.8)
         self.complex_query_context_ratio = COMPRESSOR_CONFIG.get("complex_query_context_ratio", 1.0)
+        self.use_bge_embedding = COMPRESSOR_CONFIG.get("use_bge_embedding", False)
+        self.bge_model_name = COMPRESSOR_CONFIG.get("bge_model_name", "BAAI/bge-small-zh-v1.5")
+        self.bge_device = COMPRESSOR_CONFIG.get("bge_device", "auto")
+        self.bge_score_weight = COMPRESSOR_CONFIG.get("bge_score_weight", 3.0)
+        self._bge_model = None
 
     def compress(self, documents: List[Dict], query: str,
                  max_length: int = None) -> str:
@@ -112,7 +117,7 @@ class ChainCompressor:
         if len(sentences) <= 3:
             return text.strip()
 
-        tfidf_scores = self._tfidf_scores(query, sentences)
+        sentence_scores = self._get_sentence_scores(query, sentences)
         summary_ratio = self._get_adaptive_summary_ratio(query)
 
         # 给每个句子打分
@@ -126,7 +131,7 @@ class ChainCompressor:
                 if keyword.lower() in sentence_lower:
                     score += 2.0
 
-            score += tfidf_scores[idx] * self.tfidf_score_weight
+            score += sentence_scores[idx] * (self.bge_score_weight if self.use_bge_embedding else self.tfidf_score_weight)
 
             # 位置权重只作为轻微辅助，避免覆盖相关性判断
             if idx == 0 or idx == len(sentences) - 1:
@@ -192,6 +197,55 @@ class ChainCompressor:
             score += 1
 
         return score
+
+    def _load_bge_model(self) -> bool:
+        """懒加载BGE嵌入模型，仅首次调用时初始化。"""
+        if self._bge_model is not None:
+            return True
+        try:
+            from sentence_transformers import SentenceTransformer
+            import torch
+            device = self.bge_device
+            if device == "auto":
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+            self._bge_model = SentenceTransformer(
+                self.bge_model_name,
+                device=device
+            )
+            return True
+        except Exception as e:
+            print(f"BGE模型加载失败，回退到TF-IDF: {e}")
+            self._bge_model = None
+            return False
+
+    def _bge_scores(self, query: str, sentences: List[str]) -> Optional[List[float]]:
+        """使用BGE微模型计算查询与候选句子的语义相似度。"""
+        if not self._load_bge_model():
+            return None
+        try:
+            embeddings = self._bge_model.encode(
+                [query] + sentences,
+                normalize_embeddings=True,
+                show_progress_bar=False
+            )
+            query_vec = embeddings[0].tolist()
+            scores = []
+            for i in range(1, len(embeddings)):
+                sent_vec = embeddings[i].tolist()
+                dot = sum(q * s for q, s in zip(query_vec, sent_vec))
+                scores.append(max(-1.0, min(1.0, float(dot))))
+            return scores
+        except Exception as e:
+            print(f"BGE编码失败，回退到TF-IDF: {e}")
+            return None
+
+    def _get_sentence_scores(self, query: str, sentences: List[str]) -> List[float]:
+        """获取句子相关性分数，优先使用BGE，不可用时回退TF-IDF。"""
+        if self.use_bge_embedding:
+            bge_scores = self._bge_scores(query, sentences)
+            if bge_scores is not None:
+                return bge_scores
+        return self._tfidf_scores(query, sentences)
 
     def _tfidf_scores(self, query: str, sentences: List[str]) -> List[float]:
         """计算查询与候选句子的字符级TF-IDF相似度。"""

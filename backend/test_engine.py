@@ -6,6 +6,7 @@ import sys
 import os
 import time
 import tempfile
+import asyncio
 
 # 设置控制台编码为UTF-8
 if sys.platform == "win32":
@@ -201,6 +202,22 @@ def test_chain_compressor():
     )
     print(f"  关键信息: {key_info}")
 
+    # BGE嵌入模型默认关闭，_get_sentence_scores 应走 TF-IDF
+    scores = compressor._get_sentence_scores(
+        "阿罗娜职责",
+        ["食堂今天提供咖喱饭。", "阿罗娜负责管理什亭之匣并协助老师。", "操场上有学生训练。"]
+    )
+    assert scores[1] == max(scores), "默认应使用TF-IDF且提高相关句子分数"
+
+    # BGE模型不可用时，开启开关仍应自动回退TF-IDF
+    compressor.use_bge_embedding = True
+    fallback_scores = compressor._get_sentence_scores(
+        "阿罗娜职责",
+        ["食堂今天提供咖喱饭。", "阿罗娜负责管理什亭之匣并协助老师。", "操场上有学生训练。"]
+    )
+    assert fallback_scores[1] == max(fallback_scores), "BGE不可用时回退TF-IDF应生效"
+    compressor.use_bge_embedding = False
+
     print("  ✓ 链路压缩测试通过")
 
 
@@ -262,6 +279,126 @@ def test_knowledge_base():
     print("  ✓ 知识库测试通过")
 
 
+def test_knowledge_management_api():
+    """测试知识库管理API（使用Fake对象，不依赖真实模型和ChromaDB）"""
+    print("\n" + "=" * 60)
+    print("测试知识库管理API...")
+    import backend.ai_service as ai_service
+
+    class FakeKnowledgeBase:
+        def __init__(self):
+            self.items = [
+                {
+                    "id": "doc1",
+                    "document": "阿罗娜是什亭之匣的管理员。",
+                    "metadata": {"source": "test", "chunk_index": 0, "total_chunks": 1}
+                }
+            ]
+
+        def list_documents(self):
+            return list(self.items)
+
+        def retrieve(self, query, k=None):
+            return [item for item in self.items if query in item["document"]][:k or 3]
+
+        def add_document(self, text, source=""):
+            doc_id = f"doc{len(self.items) + 1}"
+            self.items.append({
+                "id": doc_id,
+                "document": text,
+                "metadata": {"source": source, "chunk_index": 0, "total_chunks": 1}
+            })
+            return [doc_id]
+
+        def delete_documents(self, ids):
+            before = len(self.items)
+            self.items = [item for item in self.items if item["id"] not in ids]
+            return before - len(self.items)
+
+        def count(self):
+            return len(self.items)
+
+        def get_stats(self):
+            return {"count": self.count()}
+
+        def clear(self):
+            self.items = []
+
+    class FakeEngine:
+        def __init__(self):
+            self.knowledge_base = FakeKnowledgeBase()
+
+        def list_knowledge(self):
+            return self.knowledge_base.list_documents()
+
+        def search_knowledge(self, query, k=3):
+            return self.knowledge_base.retrieve(query, k=k)
+
+        def add_knowledge(self, text, source=""):
+            return self.knowledge_base.add_document(text, source)
+
+        def delete_knowledge(self, ids):
+            return self.knowledge_base.delete_documents(ids)
+
+        def get_knowledge_stats(self):
+            return self.knowledge_base.get_stats()
+
+        def clear_knowledge(self):
+            self.knowledge_base.clear()
+
+    class FakeWebSocket:
+        def __init__(self):
+            self.messages = []
+
+        async def send_json(self, message):
+            self.messages.append(message)
+
+    async def run_api_tests():
+        original_get_engine = ai_service.get_engine
+        fake_engine = FakeEngine()
+        ai_service.get_engine = lambda: fake_engine
+        try:
+            websocket = FakeWebSocket()
+
+            await ai_service.route_message(websocket, {"type": "list_knowledge"})
+            assert websocket.messages[-1]["type"] == "knowledge_list"
+            assert websocket.messages[-1]["data"]["total"] == 1
+
+            await ai_service.route_message(websocket, {"type": "search_knowledge", "query": "阿罗娜", "k": 2})
+            assert websocket.messages[-1]["type"] == "knowledge_search"
+            assert websocket.messages[-1]["data"]["total"] == 1
+
+            await ai_service.route_message(websocket, {"type": "add_knowledge", "content": "基沃托斯有很多学生。", "source": "manual"})
+            assert websocket.messages[-1]["type"] == "result"
+            assert websocket.messages[-1]["success"] is True
+            assert websocket.messages[-1]["ids"] == ["doc2"]
+
+            await ai_service.route_message(websocket, {"type": "get_knowledge_stats"})
+            assert websocket.messages[-1]["type"] == "knowledge_stats"
+            assert websocket.messages[-1]["data"]["count"] == 2
+
+            await ai_service.route_message(websocket, {"type": "delete_knowledge", "ids": ["doc1"]})
+            assert websocket.messages[-1]["type"] == "result"
+            assert websocket.messages[-1]["deleted_count"] == 1
+
+            await ai_service.route_message(websocket, {"type": "clear_knowledge"})
+            assert websocket.messages[-1]["type"] == "result"
+            assert fake_engine.get_knowledge_stats()["count"] == 0
+
+            await ai_service.route_message(websocket, {"type": "search_knowledge", "query": ""})
+            assert websocket.messages[-1]["type"] == "error"
+            assert websocket.messages[-1]["code"] == "EMPTY_QUERY"
+
+            await ai_service.route_message(websocket, {"type": "delete_knowledge", "ids": []})
+            assert websocket.messages[-1]["type"] == "error"
+            assert websocket.messages[-1]["code"] == "EMPTY_KNOWLEDGE_IDS"
+        finally:
+            ai_service.get_engine = original_get_engine
+
+    asyncio.run(run_api_tests())
+    print("  ✓ 知识库管理API测试通过")
+
+
 def test_arona_engine():
     """测试核心引擎（不实际调用模型）"""
     print("\n" + "=" * 60)
@@ -309,6 +446,7 @@ def main():
         test_chain_compressor,
         test_memory_manager,
         test_knowledge_base,
+        test_knowledge_management_api,
         test_arona_engine,
     ]
 
