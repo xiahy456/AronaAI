@@ -1,8 +1,40 @@
 """
 Arona AI 后端配置文件
+支持从 config.yaml 加载配置，同时保持向后兼容
 """
 import os
+import yaml
 from pathlib import Path
+
+# 当前文件所在目录
+_BACKEND_DIR = Path(__file__).parent
+
+# YAML 配置文件路径
+_CONFIG_YAML_PATH = _BACKEND_DIR / "config.yaml"
+
+
+def _load_yaml_config() -> dict:
+    """
+    从 YAML 文件加载配置
+    如果文件不存在或加载失败，返回空字典
+    """
+    if not _CONFIG_YAML_PATH.exists():
+        print(f"警告: 配置文件 {_CONFIG_YAML_PATH} 不存在，将使用默认配置")
+        return {}
+
+    try:
+        with open(_CONFIG_YAML_PATH, "r", encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+        if config is None:
+            return {}
+        return config
+    except Exception as e:
+        print(f"警告: 加载配置文件失败: {e}，将使用默认配置")
+        return {}
+
+
+# 加载 YAML 配置
+_YAML_CONFIG = _load_yaml_config()
 
 # 项目根目录
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -21,6 +53,10 @@ MODEL_CONFIG = {
     "max_length": 512,
 }
 
+# 从 YAML 覆盖（如果存在）
+if "model" in _YAML_CONFIG:
+    MODEL_CONFIG.update(_YAML_CONFIG["model"])
+
 # ========== 嵌入模型配置 ==========
 EMBEDDING_CONFIG = {
     "use_external": True,  # True=使用外部sentence-transformers模型, False=使用本地TF-IDF+SVD
@@ -29,12 +65,28 @@ EMBEDDING_CONFIG = {
     "device": "cpu",
 }
 
+# 从 YAML 覆盖（如果存在）
+if "embedding" in _YAML_CONFIG:
+    EMBEDDING_CONFIG.update(_YAML_CONFIG["embedding"])
+
 # ========== 向量数据库配置 ==========
 VECTOR_DB_CONFIG = {
     "persist_directory": str(PROJECT_ROOT / "backend" / "data" / "vector_db"),
     "collection_name": "arona_knowledge",
     "similarity_top_k": 3,
 }
+
+# 从 YAML 覆盖（如果存在）
+if "vector_db" in _YAML_CONFIG:
+    yaml_vdb = _YAML_CONFIG["vector_db"]
+    # 处理相对路径：如果 persist_directory 是相对路径，则相对于 backend 目录
+    if "persist_directory" in yaml_vdb:
+        persist_path = yaml_vdb["persist_directory"]
+        if not os.path.isabs(persist_path):
+            persist_path = str(_BACKEND_DIR / persist_path)
+        VECTOR_DB_CONFIG["persist_directory"] = persist_path
+    VECTOR_DB_CONFIG["collection_name"] = yaml_vdb.get("collection_name", VECTOR_DB_CONFIG["collection_name"])
+    VECTOR_DB_CONFIG["similarity_top_k"] = yaml_vdb.get("similarity_top_k", VECTOR_DB_CONFIG["similarity_top_k"])
 
 # ========== 语义缓存配置 ==========
 CACHE_CONFIG = {
@@ -45,6 +97,20 @@ CACHE_CONFIG = {
     "ttl": 3600,                   # 缓存过期时间（秒）
 }
 
+# 从 YAML 覆盖（如果存在）
+if "cache" in _YAML_CONFIG:
+    yaml_cache = _YAML_CONFIG["cache"]
+    # 处理相对路径：如果 cache_dir 是相对路径，则相对于 backend 目录
+    if "cache_dir" in yaml_cache:
+        cache_path = yaml_cache["cache_dir"]
+        if not os.path.isabs(cache_path):
+            cache_path = str(_BACKEND_DIR / cache_path)
+        CACHE_CONFIG["cache_dir"] = cache_path
+    CACHE_CONFIG["similarity_threshold"] = yaml_cache.get("similarity_threshold", CACHE_CONFIG["similarity_threshold"])
+    CACHE_CONFIG["max_similarity_threshold"] = yaml_cache.get("max_similarity_threshold", CACHE_CONFIG["max_similarity_threshold"])
+    CACHE_CONFIG["max_cache_size"] = yaml_cache.get("max_cache_size", CACHE_CONFIG["max_cache_size"])
+    CACHE_CONFIG["ttl"] = yaml_cache.get("ttl", CACHE_CONFIG["ttl"])
+
 # ========== 对话历史配置 ==========
 CONVERSATION_CONFIG = {
     "max_history_turns": 10,       # 保留的最大对话轮次
@@ -52,12 +118,20 @@ CONVERSATION_CONFIG = {
     "session_ttl": 1800,           # 会话过期时间（秒）
 }
 
+# 从 YAML 覆盖（如果存在）
+if "conversation" in _YAML_CONFIG:
+    CONVERSATION_CONFIG.update(_YAML_CONFIG["conversation"])
+
 # ========== 记忆配置 ==========
 MEMORY_CONFIG = {
     "memory_collection": "arona_memory",
     "similarity_top_k": 5,
     "min_memory_length": 2,        # 最小记忆长度（字符数），降低以支持短记忆如名字
 }
+
+# 从 YAML 覆盖（如果存在）
+if "memory" in _YAML_CONFIG:
+    MEMORY_CONFIG.update(_YAML_CONFIG["memory"])
 
 # ========== 链路压缩配置 ==========
 COMPRESSOR_CONFIG = {
@@ -74,12 +148,20 @@ COMPRESSOR_CONFIG = {
     "bge_model_path": "D:/Code/projects/Arona/arona-ai/models/bge-small-zh-v1.5"  # 本地BGE模型路径
 }
 
+# 从 YAML 覆盖（如果存在）
+if "compressor" in _YAML_CONFIG:
+    COMPRESSOR_CONFIG.update(_YAML_CONFIG["compressor"])
+
 # ========== 知识库配置 ==========
 KNOWLEDGE_CONFIG = {
     "chunk_size": 256,
     "chunk_overlap": 32,
     "knowledge_collection": "arona_knowledge",
 }
+
+# 从 YAML 覆盖（如果存在）
+if "knowledge" in _YAML_CONFIG:
+    KNOWLEDGE_CONFIG.update(_YAML_CONFIG["knowledge"])
 
 # ========== 数据目录 ==========
 DATA_DIR = str(PROJECT_ROOT / "backend" / "data")
