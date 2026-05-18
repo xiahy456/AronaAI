@@ -191,10 +191,12 @@ python backend/test_engine.py
 
 Windows 客户端使用 Visual Studio 2022（后改为Visual Studio 2026） 和 Qt 构建：
 
-1. 安装 [Qt 6.x](https://www.qt.io/download)（推荐6.5.3） 和 [Visual Studio 2026](https://visualstudio.microsoft.com/)
-2. 打开 `frontend/AronaAI_Spine_WindowsClient/AronaAI_Spine_WindowsClient.sln`
-3. 配置 Qt 版本和编译选项
-4. 编译运行
+1. 安装 [Qt 6.x](https://www.qt.io/download)（推荐6.5.3） 和 [Visual Studio 2026](https://visualstudio.microsoft.com/)，并在VS2026中安装`Qt VS Tools`扩展
+2. 确保你拥有v143 (Visual Studio 2022)平台工具集，在该项目中需要使用此平台工具集
+3. 确保你拥有Qt6.5.3的msvc2019_64，该项目中需要使用此Qt版本（Qt Version可在`Qt VS Tools`的设置中配置）
+4. 打开 `frontend/AronaAI_Spine_WindowsClient/AronaAI_Spine_WindowsClient.sln`
+5. 配置 Qt 版本和编译选项
+6. 编译运行
 
 #### 启动前准备 / Pre-startup Preparation
 
@@ -275,7 +277,7 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
 ```bash
 # 启动 GPT-SoVITS API 服务
 cd gpt-sovits
-python api_v2.py
+python api_v2.py # 或直接使用./api_v2.bat
 ```
 
 ---
