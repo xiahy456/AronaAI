@@ -32,6 +32,7 @@
     <ClCompile Include="QtMainFile\TTSManager.cpp" />
     <ClCompile Include="QtMainFile\WebSocketController.cpp" />
     <ClCompile Include="QtUtils\AudioRecorder.cpp" />
+    <ClCompile Include="QtUtils\AudioWorker.cpp" />
     <ClCompile Include="QtUtils\BlueakaFontLoader.cpp" />
     <ClCompile Include="QtUtils\DebugManager.cpp" />
     <ClCompile Include="QtUtils\DebugOptions.cpp" />
@@ -43,6 +44,7 @@
     <ClCompile Include="QtUtils\SpeechRecognizer.cpp" />
     <ClCompile Include="QtUtils\SpineMouseController.cpp" />
     <ClCompile Include="QtUtils\TencentSpeechRecognizer.cpp" />
+    <ClCompile Include="QtUtils\WakeWordDetector.cpp" />
     <ClCompile Include="spine-cpp\src\spine\Animation.cpp" />
     <ClCompile Include="spine-cpp\src\spine\AnimationState.cpp" />
     <ClCompile Include="spine-cpp\src\spine\AnimationStateData.cpp" />
@@ -117,6 +119,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\vosk\include\vosk_api.h" />
+    <ClInclude Include="..\..\sherpa-onnx\include\sherpa-onnx\c-api\c-api.h" />
     <QtMoc Include="QHotkey\qhotkey.h" />
     <QtMoc Include="QHotkey\qhotkey_p.h" />
     <ClInclude Include="QtMainFile\GlobalVariables.h" />
@@ -296,24 +299,24 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QHotkey;D:\Code\projects\Arona\arona-ai\vosk\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QHotkey;D:\Code\projects\Arona\arona-ai\vosk\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;..\..\sherpa-onnx\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
-      <AdditionalLibraryDirectories>D:\Code\projects\Arona\arona-ai\vosk\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libvosk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>D:\Code\projects\Arona\arona-ai\vosk\lib;..\..\sherpa-onnx\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libvosk.lib;sherpa-onnx-c-api.lib;onnxruntime.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QHotkey;D:\Code\projects\Arona\arona-ai\vosk\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QHotkey;D:\Code\projects\Arona\arona-ai\vosk\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;..\..\sherpa-onnx\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
-      <AdditionalLibraryDirectories>D:\Code\projects\Arona\arona-ai\vosk\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libvosk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>D:\Code\projects\Arona\arona-ai\vosk\lib;..\..\sherpa-onnx\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libvosk.lib;sherpa-onnx-c-api.lib;onnxruntime.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">

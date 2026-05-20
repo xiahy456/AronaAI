@@ -35,49 +35,63 @@
 #include <TencentSpeechRecognizer.h>
 #include "WebSocketController.h"
 
+class AudioWorker;
+class QThread;
+
 class MainController : public QObject
 {
 	Q_OBJECT
 
 public:
-	MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer, WebSocketController* webSocketController);
+	enum AudioState {
+		Idle,               // No recording or processing
+		WakeWordListening,  // Continuous mode active, waiting for wake word
+		RecordingUtterance, // Recording user speech after wake word detected
+		ProcessingASR,      // Sending audio to ASR, waiting for result
+		WaitingForAI,       // AI response in progress
+		PlayingTTS          // TTS audio playing
+	};
+
+	MainController(MainWidget* mainWidget, TTSManager* ttsManager,
+	               AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer,
+	               WebSocketController* webSocketController,
+	               AudioWorker* audioWorker, QThread* workerThread);
 	~MainController();
 
-	// 执行输出
 	void executeOutput(const QString& text);
-	// 开始录音、识别
 	void startAudioProcessing();
-	// 停止录音、识别
 	void stopAudioProcessing();
 
+	bool enableWakeWord(const QString& modelDir, const QString& keywordsFile);
+	void disableWakeWord();
+	AudioState currentState() const { return m_audioState; }
+
 private slots:
-	// TTS工作完毕
 	void onTTSFinished(const QByteArray& audioData, const QString& mediaType);
-	// 音频输入出错
 	void onAudioError(const QString& error);
-	// 音频识别出错
 	void onRecognizeError(const QString& error);
-	// 处理识别结果
 	void onRecognizeFinished(const QString& text);
-	// WebSocket 相关槽函数
 	void onWebSocketConnected(const QString& sessionId);
 	void onWebSocketChatResponse(const QString& content, bool fromCache, bool contextUsed, double latency);
 	void onWebSocketChatStream(const QString& content, bool done);
 	void onWebSocketError(WebSocketController::ErrorCode code, const QString& message);
 	void onWebSocketStateChanged(WebSocketController::ConnectionState state);
+	void onWakeWordDetected(const QString& keyword);
+	void onWakeWordError(const QString& error);
+	void onUtteranceComplete(const QByteArray& audioData);
 
 private:
-	MainWidget* m_mainWidget;	// 主界面对象引用
-	TTSManager* m_ttsManager;	// 语音合成管理器指针
-	AudioRecorder* m_audioRecorder;	// 音频录制器对象
-	//SpeechRecognizer* m_speechRecognizer;	// 语音识别器对象
-	TencentSpeechRecognizer* m_tencentRecognizer; // 腾讯的语音识别
-	WebSocketController* m_webSocketController;	// 服务端websocket连接
-	TTSManager::TTSRequestParams ttsRequestParams;	// 语音合成请求参数
-	QString m_currentText = "";	// 当前正在处理的文本
-	bool m_waitingForAIResponse = false;	// 是否正在等待AI回复
+	MainWidget* m_mainWidget;
+	TTSManager* m_ttsManager;
+	AudioRecorder* m_audioRecorder;
+	TencentSpeechRecognizer* m_tencentRecognizer;
+	WebSocketController* m_webSocketController;
+	AudioWorker* m_audioWorker;
+	QThread* m_workerThread;
+	TTSManager::TTSRequestParams ttsRequestParams;
+	QString m_currentText = "";
+	bool m_waitingForAIResponse = false;
+	AudioState m_audioState = AudioState::Idle;
 
-	// 处理用户语音输入的文本
 	void processInputText(const QString& text);
-
 };

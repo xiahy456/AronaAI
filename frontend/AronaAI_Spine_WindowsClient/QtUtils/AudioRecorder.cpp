@@ -21,9 +21,6 @@
 
 AudioRecorder::AudioRecorder(QObject* parent)
     : QObject(parent)
-    , m_audioSource(nullptr)
-    , m_audioBuffer(nullptr)
-    , m_isRecording(false)
 {
     // 配置音频格式
     m_format.setSampleRate(16000);      // 采样率 16kHz
@@ -36,10 +33,23 @@ AudioRecorder::AudioRecorder(QObject* parent)
         ERROR_DEBUG_OUTPUT("[Audio Recorder]Default format not supported, trying to use nearest...");
         m_format = inputDevice.preferredFormat();
     }
+
+    // Continuous mode timer — fires every 32ms (512 samples @ 16kHz)
+    m_continuousTimer = new QTimer(this);
+    m_continuousTimer->setTimerType(Qt::PreciseTimer);
+    connect(m_continuousTimer, &QTimer::timeout, this, [this]() {
+        static const int CHUNK_BYTES = AUDIO_CHUNK_SAMPLES * 2;
+        while (m_audioData.size() >= m_chunkOffset + CHUNK_BYTES) {
+            QByteArray chunk = m_audioData.mid(m_chunkOffset, CHUNK_BYTES);
+            m_chunkOffset += CHUNK_BYTES;
+            emit audioChunkReady(chunk);
+        }
+    });
 }
 
 AudioRecorder::~AudioRecorder()
 {
+    stopContinuous();
     stopRecording();
 }
 
@@ -105,4 +115,63 @@ QByteArray AudioRecorder::stopRecording()
 bool AudioRecorder::isRecording() const
 {
     return m_isRecording;
+}
+
+// ========== Continuous mode ==========
+
+bool AudioRecorder::startContinuous()
+{
+    if (m_continuousTimer->isActive()) return false;
+    if (m_isRecording) return false;  // on-demand recording in progress
+
+    m_audioData.clear();
+    m_chunkOffset = 0;
+
+    QAudioDevice inputDevice = QMediaDevices::defaultAudioInput();
+    if (inputDevice.isNull()) {
+        emit errorOccurred("[Audio Recorder]No audio input device for continuous mode");
+        return false;
+    }
+
+    if (m_audioSource) {
+        delete m_audioSource;
+        m_audioSource = nullptr;
+    }
+    m_audioSource = new QAudioSource(inputDevice, m_format, this);
+
+    if (m_audioBuffer) {
+        delete m_audioBuffer;
+        m_audioBuffer = nullptr;
+    }
+    m_audioBuffer = new QBuffer(&m_audioData, this);
+    if (!m_audioBuffer->open(QIODevice::WriteOnly)) {
+        emit errorOccurred("[Audio Recorder]Failed to open buffer for continuous mode");
+        return false;
+    }
+
+    m_audioSource->start(m_audioBuffer);
+    m_continuousTimer->start(32);  // 32ms = 512 samples @ 16kHz
+    FINE_DEBUG_OUTPUT("[Audio Recorder]Continuous listening started");
+    return true;
+}
+
+void AudioRecorder::stopContinuous()
+{
+    if (!m_continuousTimer->isActive()) return;
+
+    m_continuousTimer->stop();
+    if (m_audioSource) {
+        m_audioSource->stop();
+    }
+    if (m_audioBuffer) {
+        m_audioBuffer->close();
+    }
+    m_chunkOffset = 0;
+    m_audioData.clear();
+    FINE_DEBUG_OUTPUT("[Audio Recorder]Continuous listening stopped");
+}
+
+bool AudioRecorder::isContinuousActive() const
+{
+    return m_continuousTimer->isActive();
 }

@@ -26,6 +26,7 @@
 #include "AudioRecorder.h"
 #include "SpeechRecognizer.h"
 #include "ShortCutKey.h"
+#include "AudioWorker.h"
 #include "BlueakaFontLoader.h"
 #include "WebSocketController.h"
 
@@ -107,8 +108,16 @@ int main(int argc, char *argv[])
 	// 创建WebSocket控制器对象
     WebSocketController* webSocketController = new WebSocketController;
 
+    // 创建语音唤醒工作线程和处理器
+    QThread* workerThread = new QThread;
+    AudioWorker* audioWorker = new AudioWorker;
+    audioWorker->moveToThread(workerThread);
+    workerThread->start();
+
     // 创建主控制对象
-	MainController* mainController = new MainController(mainWidget, ttsManager, audioRecorder, tencentSpeechRecognizer, webSocketController);
+	MainController* mainController = new MainController(mainWidget, ttsManager,
+        audioRecorder, tencentSpeechRecognizer, webSocketController,
+        audioWorker, workerThread);
 
 	// 创建快捷键对象
 	ShortCutKey* shortCutKey = new ShortCutKey(mainController);
@@ -118,6 +127,17 @@ int main(int argc, char *argv[])
 
     // 输出信息必要类实例化完毕，准备启动应用程序事件循环
     FINE_DEBUG_OUTPUT("[Qt Operation]Necessary class instantiation complete! Starting application loop...");
+
+    // Auto-start wake word if configured
+    if (GET_BOOL_FROM_JSON(_global_config, "wake_word", "enabled") &&
+        GET_BOOL_FROM_JSON(_global_config, "wake_word", "auto_start")) {
+        QString modelDir = GET_STRING_FROM_JSON(_global_config, "wake_word", "model_dir");
+        QString keywordsFile = GET_STRING_FROM_JSON(_global_config, "wake_word", "keywords_file");
+        if (!modelDir.isEmpty() && !keywordsFile.isEmpty()) {
+            FINE_DEBUG_OUTPUT("[Qt Operation]Auto-starting wake word...");
+            mainController->enableWakeWord(modelDir, keywordsFile);
+        }
+    }
 
     // 界面显示
     mainWidget->show();

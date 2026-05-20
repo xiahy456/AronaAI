@@ -24,13 +24,17 @@
 #include "Defines.h"
 
 #include <QObject>
-#include <QAudioSource> // Qt 6: 使用 QAudioSource
-#include <QMediaDevices> // Qt 6: 用于获取设备信息
+#include <QAudioSource> // Qt 6: 使锟斤拷 QAudioSource
+#include <QMediaDevices> // Qt 6: 锟斤拷锟节伙拷取锟借备锟斤拷息
 #include <QAudioDevice>
 #include <QAudioFormat>
 #include <QBuffer>
 #include <QByteArray>
 #include <QDebug>
+#include <QTimer>
+
+// Number of 16-bit samples per chunk (512 = 32ms @ 16kHz, matches Sherpa-onnx frame)
+#define AUDIO_CHUNK_SAMPLES 512
 
 class AudioRecorder : public QObject
 {
@@ -40,19 +44,30 @@ public:
     explicit AudioRecorder(QObject* parent = nullptr);
     ~AudioRecorder();
 
+    // On-demand recording (existing, unchanged)
     bool startRecording();
     QByteArray stopRecording();
     bool isRecording() const;
 
+    // Continuous streaming for wake-word detection
+    bool startContinuous();
+    void stopContinuous();
+    bool isContinuousActive() const;
+
 signals:
     void errorOccurred(const QString& error);
+    void audioChunkReady(const QByteArray& chunk);  // int16 PCM, AUDIO_CHUNK_SAMPLES frames
 
 private:
-    QAudioSource* m_audioSource;
-    QBuffer* m_audioBuffer;
+    QAudioSource* m_audioSource = nullptr;
+    QBuffer* m_audioBuffer = nullptr;
     QByteArray m_audioData;
     QAudioFormat m_format;
-    bool m_isRecording;
+    bool m_isRecording = false;
+
+    // Continuous mode
+    QTimer* m_continuousTimer = nullptr;
+    qint64 m_chunkOffset = 0;
 };
 
 #endif // AUDIORECORDER_H

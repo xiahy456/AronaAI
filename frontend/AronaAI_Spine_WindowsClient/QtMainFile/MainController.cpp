@@ -18,13 +18,19 @@
 */
 
 #include "MainController.h"
+#include "AudioWorker.h"
 
-MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer, WebSocketController* webSocketController)
+MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager,
+                               AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer,
+                               WebSocketController* webSocketController,
+                               AudioWorker* audioWorker, QThread* workerThread)
     : m_mainWidget(mainWidget)
     , m_ttsManager(ttsManager)
     , m_audioRecorder(audioRecorder)
     , m_tencentRecognizer(speechRecognizer)
     , m_webSocketController(webSocketController)
+    , m_audioWorker(audioWorker)
+    , m_workerThread(workerThread)
 {
     // 进行TTS初始化
     // 构建TTS请求参数
@@ -117,6 +123,18 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
     connect(m_webSocketController, &WebSocketController::connectionStateChanged,
         this, &MainController::onWebSocketStateChanged);
 
+    // Wire wake word worker (AudioWorker lives in m_workerThread)
+    connect(m_audioWorker, &AudioWorker::wakeWordDetected,
+            this, &MainController::onWakeWordDetected, Qt::QueuedConnection);
+    connect(m_audioWorker, &AudioWorker::errorOccurred,
+            this, &MainController::onWakeWordError, Qt::QueuedConnection);
+    connect(m_audioWorker, &AudioWorker::utteranceComplete,
+            this, &MainController::onUtteranceComplete, Qt::QueuedConnection);
+
+    // Wire AudioRecorder continuous chunks to AudioWorker
+    connect(m_audioRecorder, &AudioRecorder::audioChunkReady,
+            m_audioWorker, &AudioWorker::onAudioChunk, Qt::QueuedConnection);
+
     // 开始连接服务端
     m_webSocketController->connectToServer();
     FINE_DEBUG_OUTPUT("[WebSocket] Connecting to: " + GET_STRING_FROM_JSON(_global_config, "aronalm", "websocket_url"));
@@ -144,6 +162,8 @@ void MainController::executeOutput(const QString& text)
 
 void MainController::onTTSFinished(const QByteArray& audioData, const QString& mediaType)
 {
+    AudioState prevState = m_audioState;
+    m_audioState = AudioState::PlayingTTS;
     // 播放音频
     m_ttsManager->playAudio(audioData);
     // 显示文字
@@ -155,10 +175,18 @@ void MainController::onTTSFinished(const QByteArray& audioData, const QString& m
     //m_mainWidget->setAnimation("25", 1, true);   // 表情层
     m_mainWidget->setAnimation("Arona_Work_In_1_CN", 2, true);   // 语言层
     // 在duration之后清除显示的文字，停止动画
-    QTimer::singleShot(duration, this, [this]() {
+    QTimer::singleShot(duration + 500, this, [this, prevState]() {
         m_mainWidget->hideOutputText();
 		m_mainWidget->clearAnimation(1, 0.2f);   // 停止语言层动画
 		m_mainWidget->clearAnimation(2, 0.2f);   // 停止表情层动画
+
+        // Resume continuous listening if we were in wake word mode
+        if (prevState == AudioState::WaitingForAI || prevState == AudioState::WakeWordListening) {
+            m_audioRecorder->startContinuous();
+            m_audioState = AudioState::WakeWordListening;
+        } else {
+            m_audioState = AudioState::Idle;
+        }
         });
 }
 
@@ -205,6 +233,7 @@ void MainController::onRecognizeError(const QString& error)
 void MainController::onRecognizeFinished(const QString& text)
 {
     FINE_DEBUG_OUTPUT("[Audio Input Processing]Recognize finished! Result: " + text);
+    m_audioState = AudioState::WaitingForAI;
     // 处理识别结果
 	processInputText(text);
 }
@@ -368,4 +397,84 @@ void MainController::onWebSocketStateChanged(WebSocketController::ConnectionStat
     if (state == WebSocketController::ConnectionState::Disconnected) {
         m_waitingForAIResponse = false;
     }
+}
+
+// ========== Wake Word Control ==========
+
+bool MainController::enableWakeWord(const QString& modelDir, const QString& keywordsFile)
+{
+    if (!m_audioWorker || !m_workerThread) return false;
+
+    if (!m_audioWorker->initialize(modelDir, keywordsFile)) {
+        return false;
+    }
+
+    // Initialize VAD if configured
+    QString vadModel = GET_STRING_FROM_JSON(_global_config, "wake_word", "vad_model");
+    if (!vadModel.isEmpty()) {
+        float silenceSec = (float)GET_DOUBLE_FROM_JSON(_global_config, "wake_word", "vad_silence_duration_s");
+        if (silenceSec <= 0.0f) silenceSec = 1.5f;
+        m_audioWorker->initializeVad(vadModel, silenceSec);
+    }
+
+    if (!m_audioRecorder->startContinuous()) {
+        FINE_DEBUG_OUTPUT("[MainController] Failed to start continuous audio");
+        return false;
+    }
+
+    m_audioState = AudioState::WakeWordListening;
+    FINE_DEBUG_OUTPUT("[MainController] Wake word listening enabled"
+                      + QString(m_audioWorker->isVadReady() ? " (with VAD)" : " (fixed duration)"));
+    return true;
+}
+
+void MainController::disableWakeWord()
+{
+    m_audioRecorder->stopContinuous();
+    m_audioState = AudioState::Idle;
+    FINE_DEBUG_OUTPUT("[MainController] Wake word listening disabled");
+}
+
+void MainController::onWakeWordDetected(const QString& keyword)
+{
+    if (m_audioState != AudioState::WakeWordListening) return;
+
+    FINE_DEBUG_OUTPUT("[MainController] Wake word detected: " + keyword);
+
+    // Pause continuous listening while we record the utterance
+    m_audioRecorder->stopContinuous();
+
+    // Start on-demand recording for the voice command
+    m_audioState = AudioState::RecordingUtterance;
+    startAudioProcessing();
+
+    // Start VAD-powered utterance endpoint detection
+    if (m_audioWorker->isVadReady()) {
+        m_audioWorker->startRecordingUtterance();
+    } else {
+        // Fallback: fixed 4-second recording (VAD model not available)
+        QTimer::singleShot(4000, this, [this]() {
+            if (m_audioState == AudioState::RecordingUtterance) {
+                stopAudioProcessing();
+            }
+        });
+    }
+}
+
+void MainController::onUtteranceComplete(const QByteArray& audioData)
+{
+    if (m_audioState != AudioState::RecordingUtterance) return;
+
+    FINE_DEBUG_OUTPUT("[MainController] Utterance complete, captured: " +
+                      QString::number(audioData.size()) + " bytes");
+
+    // Stop on-demand recording and send to ASR
+    // Note: the audio data from AudioWorker is the buffered copy;
+    // we still call stopAudioProcessing() to clean up the on-demand recorder
+    stopAudioProcessing();
+}
+
+void MainController::onWakeWordError(const QString& error)
+{
+    FINE_DEBUG_OUTPUT("[MainController] Wake word error: " + error);
 }
