@@ -22,23 +22,23 @@
 SettingsWidget::SettingsWidget(QWidget *parent)
 	: QWidget(parent)
 {
-    // ¼ÓÔØUI½çÃæ
+    // ï¿½ï¿½ï¿½ï¿½UIï¿½ï¿½ï¿½ï¿½
 	ui.setupUi(this);
     
-    // ´°¿ÚÉèÖÃ
-    this->setAttribute(Qt::WA_TranslucentBackground);	// ÉèÖÃ´°¿Ú±³¾°Í¸Ã÷
-    //this->setAttribute(Qt::WA_TransparentForMouseEvents, true); // ÉèÖÃÊó±ê´©Í¸µã»÷
-    this->setWindowFlag(Qt::FramelessWindowHint);	// ÉèÖÃÎÞ±ß¿ò´°¿Ú
-    //this->setWindowFlag(Qt::WindowStaysOnTopHint);	// ÉèÖÃ´°¿ÚÊ¼ÖÕÔÚ¶¥²¿
-    //this->setWindowFlag(Qt::Tool);	// Òþ²ØÓ¦ÓÃ³ÌÐòÍ¼±ê
-    this->setAutoFillBackground(false);   // ½ûÓÃ×Ô¶¯Ìî³ä±³¾°
-    this->setWindowTitle(GET_STRING_FROM_JSON(_global_dict, "application_data", "settings_widget_name"));  // ÉèÖÃ´°¿ÚÃû³Æ
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    this->setAttribute(Qt::WA_TranslucentBackground);	// ï¿½ï¿½ï¿½Ã´ï¿½ï¿½Ú±ï¿½ï¿½ï¿½Í¸ï¿½ï¿½
+    //this->setAttribute(Qt::WA_TransparentForMouseEvents, true); // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ê´©Í¸ï¿½ï¿½ï¿½
+    this->setWindowFlag(Qt::FramelessWindowHint);	// ï¿½ï¿½ï¿½ï¿½ï¿½Þ±ß¿ò´°¿ï¿½
+    //this->setWindowFlag(Qt::WindowStaysOnTopHint);	// ï¿½ï¿½ï¿½Ã´ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½Ú¶ï¿½ï¿½ï¿½
+    //this->setWindowFlag(Qt::Tool);	// ï¿½ï¿½ï¿½ï¿½Ó¦ï¿½Ã³ï¿½ï¿½ï¿½Í¼ï¿½ï¿½
+    this->setAutoFillBackground(false);   // ï¿½ï¿½ï¿½ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½ä±³ï¿½ï¿½
+    this->setWindowTitle(GET_STRING_FROM_JSON(_global_dict, "application_data", "settings_widget_name"));  // ï¿½ï¿½ï¿½Ã´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
-    // ÉèÖÃ´°¿Ú´óÐ¡
+    // ï¿½ï¿½ï¿½Ã´ï¿½ï¿½Ú´ï¿½Ð¡
     this->resize(1080 * WIDGET_ZOOM, 410 * WIDGET_ZOOM);
 
-    // ¿Ø¼þÉèÖÃ
-    // ½çÃæÇÐ»»°´Å¥
+    // ï¿½Ø¼ï¿½ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ï¿½Ð»ï¿½ï¿½ï¿½Å¥
     WIDGET_SWITCH_SETTING(ui.basicSettingsButton, 0);
     WIDGET_SWITCH_SETTING(ui.aronaLMSettingsButton, 1);
     WIDGET_SWITCH_SETTING(ui.spineSettingsButton, 2);
@@ -52,7 +52,7 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     ui.debugOutputButton->setText(GET_STRING_FROM_JSON(_global_dict, "application_data", "debug_output_button_name"));
     ui.aboutDeveloperButton->setText(GET_STRING_FROM_JSON(_global_dict, "application_data", "about_developer_button_name"));
 
-    // ÉÏ·½À¸
+    // ï¿½Ï·ï¿½ï¿½ï¿½
     ui.topInformationWidget->move(130 * WIDGET_ZOOM, 0 * WIDGET_ZOOM);
     ui.topInformationWidget->resize(940 * WIDGET_ZOOM, 25 * WIDGET_ZOOM);
     ui.topInformationWidget->setStyleSheet(
@@ -84,7 +84,7 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     ui.widgetNameLabel->setText(GET_STRING_FROM_JSON(_global_dict, "application_data", "settings_widget_name"));
     ui.widgetNameLabel->setStyleSheet("color: rgb(44, 69, 99); ");
 
-    // Ö÷½çÃæ±³¾°
+    // ï¿½ï¿½ï¿½ï¿½ï¿½æ±³ï¿½ï¿½
     ui.mainBGWidget->move(80 * WIDGET_ZOOM, 20 * WIDGET_ZOOM);
     ui.mainBGWidget->setFixedSize(990 * WIDGET_ZOOM, 380 * WIDGET_ZOOM);
     ui.mainBGWidget->setFillBackground(true);
@@ -93,26 +93,26 @@ SettingsWidget::SettingsWidget(QWidget *parent)
 	ui.mainBGShadowWidget->move(80 * WIDGET_ZOOM, 400 * WIDGET_ZOOM);
 	ui.mainBGShadowWidget->resize(772 * WIDGET_ZOOM, 3 * WIDGET_ZOOM);
 
-    // stackedWidget¿Ø¼þ
+    // stackedWidgetï¿½Ø¼ï¿½
 	ui.stackedWidget->move(80 * WIDGET_ZOOM, 20 * WIDGET_ZOOM);
 	ui.stackedWidget->resize(990 * WIDGET_ZOOM, 380 * WIDGET_ZOOM);
     ui.stackedWidget->setCurrentIndex(0);
 
-    // »ù´¡ÉèÖÃ¿Ø¼þ
-    // Ö¡ÂÊ
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã¿Ø¼ï¿½
+    // Ö¡ï¿½ï¿½
     WIDGET_CHILD_SETTING_LABEL(ui.basicSettings_frameRateLabel, "frame_rate", 0);
     WIDGET_CHILD_SETTING_INPUT_NUMBER(ui.basicSettings_frameRateLineEdit, "settings", "frame_rate", 0);
 
-    // ½çÃæËõ·Å
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     WIDGET_CHILD_SETTING_LABEL(ui.basicSettings_widgetZoomLabel, "widget_zoom", 1);
     WIDGET_CHILD_SETTING_INPUT_NUMBER(ui.basicSettings_widgetZoomLabelLineEdit, "settings", "zoom", 1);
 
-    // ÓïÒô¿ì½Ý¼ü
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý¼ï¿½
     WIDGET_CHILD_SETTING_LABEL(ui.basicSettings_shortCutLabel, "voiceInput_shortCut", 2);
     WIDGET_CHILD_SETTING_INPUT_STRING(ui.basicSettings_shortCutLineEdit, "short_cut_key", "switch_audio_input", 2);
 
-	// °¢ÂÞÄÈAIÄ£Ê½
-    ui.basicSettings_aronaAIModeWidget->move(STEP_POSITION_POINT(230, 20, 40, 3));  // °¢ÂÞÄÈAIÉèÖÃ¿Ø¼þ»ù×¼Î»ÖÃ
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½AIÄ£Ê½
+    ui.basicSettings_aronaAIModeWidget->move(STEP_POSITION_POINT(230, 20, 40, 3));  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½AIï¿½ï¿½ï¿½Ã¿Ø¼ï¿½ï¿½ï¿½×¼Î»ï¿½ï¿½
 	ui.basicSettings_aronaAIModeWidget->resize(400 * WIDGET_ZOOM, 120 * WIDGET_ZOOM);
     ui.basicSettings_aronaAIModeWidget->setStyleSheet("color: rgb(44, 69, 99);");
 
@@ -162,21 +162,21 @@ SettingsWidget::SettingsWidget(QWidget *parent)
         break;
     };
 
-	// AronaLMÉèÖÃ¿Ø¼þ
+	// AronaLMï¿½ï¿½ï¿½Ã¿Ø¼ï¿½
 
-	// SpineÉèÖÃ¿Ø¼þ
+	// Spineï¿½ï¿½ï¿½Ã¿Ø¼ï¿½
 
-	// GPT-SOVITSÉèÖÃ¿Ø¼þ
+	// GPT-SOVITSï¿½ï¿½ï¿½Ã¿Ø¼ï¿½
 
-	// µ÷ÊÔÊä³ö¿Ø¼þ
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø¼ï¿½
     ui.debugOutput_outputTextBrowser->setFont(BlueakaFontLoader::instance()->createFont(9 * WIDGET_ZOOM));
 
-	// ¹ØÓÚ¿ª·¢Õß¿Ø¼þ
-    // ¿ª·¢Õß
+	// ï¿½ï¿½ï¿½Ú¿ï¿½ï¿½ï¿½ï¿½ß¿Ø¼ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     WIDGET_CHILD_SETTING_LABEL(ui.aboutDeveloper_developerLable, "developer", 0);
     ui.aboutDeveloper_developerLable->move(STEP_POSITION_POINT(230, 58, 100, 0));
     
-    // Ô­×÷
+    // Ô­ï¿½ï¿½
     WIDGET_CHILD_SETTING_LABEL(ui.aboutDeveloper_originLable, "origin", 1);
     ui.aboutDeveloper_originLable->move(STEP_POSITION_POINT(230, 58, 100, 1));
 
@@ -189,18 +189,64 @@ SettingsWidget::SettingsWidget(QWidget *parent)
         "}"
     );
 
-    // Á¬½ÓÐÅºÅÓë²Û
+    // â”€â”€â”€ å”¤é†’è¯è®¾ç½® â”€â”€â”€
+    // Step 4: å¯ç”¨å¼€å…³ (Y=260)
+    {
+        int step = 4;
+        int gapX = 370;
+
+        QLabel* wakeWordLabel = new QLabel(ui.basicSettingsWidget);
+        wakeWordLabel->move(STEP_POSITION_POINT(230, 20, 40, step));
+        wakeWordLabel->resize(140 * WIDGET_ZOOM, 24 * WIDGET_ZOOM);
+        wakeWordLabel->setFont(BlueakaFontLoader::instance()->createFont(11 * WIDGET_ZOOM));
+        wakeWordLabel->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "wake_word_enable"));
+        wakeWordLabel->setStyleSheet("color: rgb(44, 69, 99);");
+
+        ParallelogramButton* wakeWordToggle = new ParallelogramButton(ui.basicSettingsWidget);
+        wakeWordToggle->move(gapX * WIDGET_ZOOM, (20 + 40 * step) * WIDGET_ZOOM);
+        wakeWordToggle->setFixedSize(80 * WIDGET_ZOOM, 24 * WIDGET_ZOOM);
+        wakeWordToggle->setFont(BlueakaFontLoader::instance()->createFont(11 * WIDGET_ZOOM));
+        wakeWordToggle->setBorderWidth(2);
+        wakeWordToggle->setStyleSheet("color: rgb(44, 69, 99);");
+
+        bool we = GET_BOOL_FROM_JSON(_global_config, "wake_word", "enabled");
+        wakeWordToggle->setText(we ? "ON" : "OFF");
+        wakeWordToggle->setProperty("wwOn", we);
+
+        connect(wakeWordToggle, &QPushButton::clicked, [wakeWordToggle]() {
+            bool cur = wakeWordToggle->property("wwOn").toBool();
+            bool next = !cur;
+            wakeWordToggle->setProperty("wwOn", next);
+            wakeWordToggle->setText(next ? "ON" : "OFF");
+            if (!SET_BOOL_TO_JSON(_global_config, "wake_word", "enabled", next))
+                qWarning() << ERROR_PR << "[Setting Widget]Set wake word enabled failed!";
+        });
+
+        // Step 5: çŠ¶æ€æ ‡ç­¾ (Y=300)
+        QLabel* wakeWordStatusLabel = new QLabel(ui.basicSettingsWidget);
+        wakeWordStatusLabel->move(STEP_POSITION_POINT(230, 20, 40, 5));
+        wakeWordStatusLabel->resize(240 * WIDGET_ZOOM, 24 * WIDGET_ZOOM);
+        wakeWordStatusLabel->setFont(BlueakaFontLoader::instance()->createFont(11 * WIDGET_ZOOM));
+        wakeWordStatusLabel->setText(QString("%1%2").arg(
+            GET_STRING_FROM_JSON(_global_dict, "settings", "wake_word_status"),
+            we ? GET_STRING_FROM_JSON(_global_dict, "settings", "wake_word_status_ready")
+               : GET_STRING_FROM_JSON(_global_dict, "settings", "wake_word_status_disabled")));
+        wakeWordStatusLabel->setStyleSheet("color: rgb(44, 69, 99);");
+    }
+    // â”€â”€â”€ å”¤é†’è¯è®¾ç½®ç»“æŸ â”€â”€â”€
+
+    // è¿žæŽ¥ä¿¡å·ä¸Žæ§½
     connect(ui.closeButton, &QPushButton::clicked, this, &SettingsWidget::onCloseButtonClicked);    // CloseButton
-	connect(ui.basicSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onBasicSettingsButtonClicked);    // »ù´¡ÉèÖÃ°´Å¥
-	connect(ui.aronaLMSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onAronaLMSettingsButtonClicked);    // AronaLMÉèÖÃ°´Å¥
-	connect(ui.spineSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onSpineSettingsButtonClicked);    // SpineÉèÖÃ°´Å¥
-	connect(ui.gptSOVITSSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onGptSOVITSSettingsButtonClicked);    // GPT-SOVITSÉèÖÃ°´Å¥
-	connect(ui.debugOutputButton, &QPushButton::clicked, this, &SettingsWidget::onDebugOutputButtonClicked);    // µ÷ÊÔÊä³ö°´Å¥
-	connect(ui.aboutDeveloperButton, &QPushButton::clicked, this, &SettingsWidget::onAboutDeveloperButtonClicked);    // ¹ØÓÚ¿ª·¢Õß°´Å¥
-	connect(ui.basicSettings_aronaAIModeSwitchButton, &QPushButton::clicked, this, &SettingsWidget::onAronaAIModeSwitchButtonClicked);    // AronaAIÄ£Ê½ÇÐ»»°´Å¥
-    connect(DebugManager::instance(), &DebugManager::debugMessageReceived, this, &SettingsWidget::receiveDebugMessage); // ½ÓÊÕµ÷ÊÔÊä³ö
+	connect(ui.basicSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onBasicSettingsButtonClicked);    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã°ï¿½Å¥
+	connect(ui.aronaLMSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onAronaLMSettingsButtonClicked);    // AronaLMï¿½ï¿½ï¿½Ã°ï¿½Å¥
+	connect(ui.spineSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onSpineSettingsButtonClicked);    // Spineï¿½ï¿½ï¿½Ã°ï¿½Å¥
+	connect(ui.gptSOVITSSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onGptSOVITSSettingsButtonClicked);    // GPT-SOVITSï¿½ï¿½ï¿½Ã°ï¿½Å¥
+	connect(ui.debugOutputButton, &QPushButton::clicked, this, &SettingsWidget::onDebugOutputButtonClicked);    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å¥
+	connect(ui.aboutDeveloperButton, &QPushButton::clicked, this, &SettingsWidget::onAboutDeveloperButtonClicked);    // ï¿½ï¿½ï¿½Ú¿ï¿½ï¿½ï¿½ï¿½ß°ï¿½Å¥
+	connect(ui.basicSettings_aronaAIModeSwitchButton, &QPushButton::clicked, this, &SettingsWidget::onAronaAIModeSwitchButtonClicked);    // AronaAIÄ£Ê½ï¿½Ð»ï¿½ï¿½ï¿½Å¥
+    connect(DebugManager::instance(), &DebugManager::debugMessageReceived, this, &SettingsWidget::receiveDebugMessage); // ï¿½ï¿½ï¿½Õµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     
-    // ÖØ·Å»º´æµÄÏûÏ¢
+    // ï¿½Ø·Å»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢
     DebugManager::instance()->flushPendingMessages();
 
 }
@@ -212,14 +258,14 @@ SettingsWidget::~SettingsWidget()
 
 void SettingsWidget::closeEvent(QCloseEvent * event)
 {
-    // ºöÂÔ¹Ø±ÕÊÂ¼þ£¬¸ÄÎªÒþ²Ø´°¿Ú
+    // ï¿½ï¿½ï¿½Ô¹Ø±ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½Ø´ï¿½ï¿½ï¿½
     event->ignore();
     this->hide();
 }
 
 void SettingsWidget::mousePressEvent(QMouseEvent* event)
 {
-    // ¼ì²éÊÇ·ñµã»÷ÔÚ¿ÉÍÏ¶¯µÄ¿Ø¼þÉÏ
+    // ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½Ú¿ï¿½ï¿½Ï¶ï¿½ï¿½Ä¿Ø¼ï¿½ï¿½ï¿½
     if (ui.topInformationWidget && ui.topInformationWidget->geometry().contains(event->pos()))
     {
         m_isDragging = true;
@@ -260,54 +306,54 @@ void SettingsWidget::mouseReleaseEvent(QMouseEvent* event)
 
 void SettingsWidget::onBasicSettingsButtonClicked()
 {
-    // ÇÐ»»Ò³Ãæ
+    // ï¿½Ð»ï¿½Ò³ï¿½ï¿½
     ui.stackedWidget->setCurrentIndex(0);
 }
 
 void SettingsWidget::onAronaLMSettingsButtonClicked()
 {
-    // ÇÐ»»Ò³Ãæ
+    // ï¿½Ð»ï¿½Ò³ï¿½ï¿½
     ui.stackedWidget->setCurrentIndex(1);
 }
 
 void SettingsWidget::onSpineSettingsButtonClicked()
-{    // ÇÐ»»Ò³Ãæ
+{    // ï¿½Ð»ï¿½Ò³ï¿½ï¿½
     ui.stackedWidget->setCurrentIndex(2);
 }
 
 void SettingsWidget::onGptSOVITSSettingsButtonClicked()
-{    // ÇÐ»»Ò³Ãæ
+{    // ï¿½Ð»ï¿½Ò³ï¿½ï¿½
     ui.stackedWidget->setCurrentIndex(3);
 }
 
 void SettingsWidget::onDebugOutputButtonClicked()
-{    // ÇÐ»»Ò³Ãæ
+{    // ï¿½Ð»ï¿½Ò³ï¿½ï¿½
     ui.stackedWidget->setCurrentIndex(4);
 }
 
 void SettingsWidget::onAboutDeveloperButtonClicked()
-{    // ÇÐ»»Ò³Ãæ
+{    // ï¿½Ð»ï¿½Ò³ï¿½ï¿½
     ui.stackedWidget->setCurrentIndex(5);
 }
 
 void SettingsWidget::onAronaAIModeSwitchButtonClicked()
 {
-    // »ñÈ¡µ±Ç°×´Ì¬
+    // ï¿½ï¿½È¡ï¿½ï¿½Ç°×´Ì¬
 	int currentModeIdx = GET_INT_FROM_JSON(_global_config, "settings", "arona_ai_mode");
-    int timeLast = 500; // Î»ÒÆ¶¯»­³ÖÐøÊ±¼ä
-    // ²¥·Å°´¼ü¶¯»­
+    int timeLast = 500; // Î»ï¿½Æ¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½
+    // ï¿½ï¿½ï¿½Å°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     if (!currentModeIdx) {
-		// ÖúÊÖÄ£Ê½->µµ°¸Ä£Ê½
-        // Ç°ÖÃ×´Ì¬±£Ö¤
+		// ï¿½ï¿½ï¿½ï¿½Ä£Ê½->ï¿½ï¿½ï¿½ï¿½Ä£Ê½
+        // Ç°ï¿½ï¿½×´Ì¬ï¿½ï¿½Ö¤
         ui.basicSettings_aronaAIModeSwitchButton->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "arona_ai_mode_0"));
-        // Î»ÒÆ¶¯»­
+        // Î»ï¿½Æ¶ï¿½ï¿½ï¿½
         QPropertyAnimation* animation_aronaAIModeSwitchButton_0_1 = new QPropertyAnimation(ui.basicSettings_aronaAIModeSwitchButton, "pos");
         animation_aronaAIModeSwitchButton_0_1->setDuration(timeLast);
         animation_aronaAIModeSwitchButton_0_1->setStartValue(QPoint(2 * WIDGET_ZOOM, 1 * WIDGET_ZOOM));
         animation_aronaAIModeSwitchButton_0_1->setEndValue(QPoint(60 * WIDGET_ZOOM, 1 * WIDGET_ZOOM));
         animation_aronaAIModeSwitchButton_0_1->setEasingCurve(QEasingCurve::InOutQuint);
         animation_aronaAIModeSwitchButton_0_1->start();
-        // Ë²Ê±¸ü¸Ä
+        // Ë²Ê±ï¿½ï¿½ï¿½ï¿½
         QTimer::singleShot(timeLast/2, [this]() {
             ui.basicSettings_aronaAIModeSwitchButton->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "arona_ai_mode_1"));
             ui.basicSettings_aronaAIModeSwitchButton->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "arona_ai_mode_switch_button_1"));
@@ -315,21 +361,21 @@ void SettingsWidget::onAronaAIModeSwitchButtonClicked()
             ui.basicSettings_aronaAIModePSLabel_1->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_1_text_1"));
             ui.basicSettings_aronaAIModePSLabel_2->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_1_text_2"));
             });
-        // ÉèÖÃ_global_config
+        // ï¿½ï¿½ï¿½ï¿½_global_config
         if (!SET_INT_TO_JSON(_global_config, "settings", "arona_ai_mode", 1)) qWarning() << ERROR_PR << "[Setting Widget]Set arona AI mode to 1 failed!";
     }
     else {
-        // ÖúÊÖÄ£Ê½<-µµ°¸Ä£Ê½
-        // Ç°ÖÃ×´Ì¬±£Ö¤
+        // ï¿½ï¿½ï¿½ï¿½Ä£Ê½<-ï¿½ï¿½ï¿½ï¿½Ä£Ê½
+        // Ç°ï¿½ï¿½×´Ì¬ï¿½ï¿½Ö¤
         ui.basicSettings_aronaAIModeSwitchButton->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "arona_ai_mode_1"));
-        // Î»ÒÆ¶¯»­
+        // Î»ï¿½Æ¶ï¿½ï¿½ï¿½
         QPropertyAnimation* animation_aronaAIModeSwitchButton_1_0 = new QPropertyAnimation(ui.basicSettings_aronaAIModeSwitchButton, "pos");
         animation_aronaAIModeSwitchButton_1_0->setDuration(timeLast);
         animation_aronaAIModeSwitchButton_1_0->setStartValue(QPoint(60 * WIDGET_ZOOM, 1 * WIDGET_ZOOM));
         animation_aronaAIModeSwitchButton_1_0->setEndValue(QPoint(2 * WIDGET_ZOOM, 1 * WIDGET_ZOOM));
         animation_aronaAIModeSwitchButton_1_0->setEasingCurve(QEasingCurve::InOutQuint);
         animation_aronaAIModeSwitchButton_1_0->start();
-        // Ë²Ê±¸ü¸Ä
+        // Ë²Ê±ï¿½ï¿½ï¿½ï¿½
         QTimer::singleShot(timeLast / 2, [this]() {
             ui.basicSettings_aronaAIModeSwitchButton->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "arona_ai_mode_0"));
             ui.basicSettings_aronaAIModeSwitchButton->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "arona_ai_mode_switch_button_0"));
@@ -337,14 +383,14 @@ void SettingsWidget::onAronaAIModeSwitchButtonClicked()
             ui.basicSettings_aronaAIModePSLabel_1->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_0_text_1"));
             ui.basicSettings_aronaAIModePSLabel_2->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_0_text_2"));
             });
-        // ÉèÖÃ_global_config
+        // ï¿½ï¿½ï¿½ï¿½_global_config
         if (!SET_INT_TO_JSON(_global_config, "settings", "arona_ai_mode", 0)) qWarning() << ERROR_PR << "[Setting Widget]Set arona AI mode to 0 failed!";
     }
 }
 
 void SettingsWidget::receiveDebugMessage(const QString& message)
 {
-    // ×·¼ÓÎÄ×Ö
+    // ×·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     ui.debugOutput_outputTextBrowser->append(message);
 }
 

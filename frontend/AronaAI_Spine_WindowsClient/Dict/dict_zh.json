@@ -45,6 +45,13 @@
     "arona_ai_mode_0": "日程模式",
     "arona_ai_mode_1": "档案模式",
     "origin": "原作",
-    "developer": "开发者"
+    "developer": "开发者",
+    "wake_word": "唤醒词",
+    "wake_word_enable": "启用唤醒词",
+    "wake_word_status": "状态",
+    "wake_word_status_ready": "就绪",
+    "wake_word_status_listening": "监听中",
+    "wake_word_status_disabled": "已禁用",
+    "wake_word_status_error": "错误"
   }
 }
