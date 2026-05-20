@@ -61,15 +61,25 @@ bin/
 *.dylib
 *.dll
 
-# Fortran module files
-*.mod
-*.smod
+# sherpa-onnx runtime DLLs (tracked via Git LFS)
+!sherpa-onnx/lib/sherpa-onnx-c-api.dll
+!sherpa-onnx/lib/onnxruntime.dll
+!sherpa-onnx/lib/onnxruntime_providers_shared.dll
 
 # Compiled Static libraries
 *.lai
 *.la
 *.a
 #*.lib
+
+# sherpa-onnx import libs (small, track normally)
+!sherpa-onnx/lib/sherpa-onnx-c-api.lib
+!sherpa-onnx/lib/onnxruntime.lib
+
+# sherpa-onnx models (tracked via Git LFS)
+!sherpa-onnx/models/
+!sherpa-onnx/include/
+!sherpa-onnx/lib/*.lib
 
 # Executables
 *.exe

@@ -1,0 +1,10 @@
+# Sherpa-onnx runtime DLLs (large binaries, track via Git LFS)
+sherpa-onnx/lib/sherpa-onnx-c-api.dll filter=lfs diff=lfs merge=lfs -text
+sherpa-onnx/lib/onnxruntime.dll filter=lfs diff=lfs merge=lfs -text
+sherpa-onnx/lib/onnxruntime_providers_shared.dll filter=lfs diff=lfs merge=lfs -text
+
+# Sherpa-onnx KWS model files (ONNX, track via Git LFS)
+sherpa-onnx/models/**/*.onnx filter=lfs diff=lfs merge=lfs -text
+
+# VAD model
+sherpa-onnx/models/silero_vad.onnx filter=lfs diff=lfs merge=lfs -text
