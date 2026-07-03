@@ -708,5 +708,8 @@
     <None Include="Dict\dict_zh.json">
       <Filter>Dict</Filter>
     </None>
+    <None Include="Config\config.example.json">
+      <Filter>Config</Filter>
+    </None>
   </ItemGroup>
 </Project>

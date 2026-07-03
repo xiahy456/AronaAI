@@ -236,6 +236,7 @@
     <ClInclude Include="spine-cpp\include\spine\Vertices.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Config\config.example.json" />
     <None Include="Config\config.json" />
     <None Include="Dict\dict_zh.json" />
   </ItemGroup>
