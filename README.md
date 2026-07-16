@@ -277,7 +277,7 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
 ```bash
 # 启动 GPT-SoVITS API 服务
 cd gpt-sovits
-python api_v2.py # 或直接使用./api_v2.bat
+python api_v2.py
 ```
 
 ---
@@ -392,6 +392,11 @@ limitations under the License.
 - **阿罗娜AI开发者**: xia_hy456
 - **开发者个人博客**: https://xia-hy456.top/
 - **反馈问题**: 2066961858@qq.com
+
+<p align="center">
+  <sub>**感谢所有协助开发的贡献者们**</sub>
+</p>
+
 
 ---
 

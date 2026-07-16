@@ -85,3 +85,6 @@ backend/data/
 
 # photoshop files
 *.psd
+
+# unused files
+docs/unused/
