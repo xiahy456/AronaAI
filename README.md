@@ -24,7 +24,7 @@
 
 本项目集成了Arona语言模型（AronaLM）、语音合成（TTS）、语音识别（ASR）、Spine 2D 角色动画等技术，旨在提供一个可爱、有趣且功能完整的桌面交互体验。
 
-**AronaAI** is a desktop AI assistant project based on the character "Arona" from the mobile game "Blue Archive". She serves as the operating system administrator of the Shittim Chest, and has a cheerful, warm personality who loves helping Sensei (user) solve problems.
+**AronaAI** is a desktop AI assistant project based on the character "Arona" from the game "Blue Archive". She serves as the operating system administrator of the Shittim Chest, and has a cheerful, warm personality who loves helping Sensei (user) solve problems.
 
 This project integrates Arona Language Models (AronaLM), Text-to-Speech (TTS), Automatic Speech Recognition (ASR), Spine 2D character animation, and other technologies to provide a cute, lively, and fully-featured desktop interaction experience.
 
@@ -59,7 +59,7 @@ arona-ai/
 │       ├── Config/             # 配置文件
 │       └── Dict/               # 词典文件
 │
-├── llm/                        # 大语言模型训练
+├── llm/                        # 语言模型训练
 │   └── aronaLM/                # Arona 专属语言模型
 │       ├── model/              # 模型定义（Transformer 架构）
 │       ├── training/           # 训练脚本（预训练 + LoRA 微调）
@@ -162,7 +162,7 @@ cp backend/config.example.yaml backend/config.yaml
 
 ```yaml
 model:
-  base_model_name: "你的/基础/模型/路径"  # 很抱歉，虽然key中写的是name，但是value确实需要一个路径，我之后会改进的
+  base_model_name: "你的/基础/模型/路径"  # 很抱歉，虽然key中写的是name，但是它需要的value是一个路径，我之后会改进的
   lora_path: "你的/LoRA/模型/路径"  # LoRA 模型路径
 
 embedding:
@@ -334,24 +334,6 @@ python api_v2.py
 
 ---
 
-## 🗺️ 开发路线图 / Roadmap
-
-- [x] 基础对话引擎
-- [x] RAG 知识检索
-- [x] 长期记忆系统
-- [x] 语义缓存优化
-- [x] Windows 桌面客户端
-- [x] Spine 2D 角色动画
-- [x] GPT-SoVITS 语音合成
-- [ ] 知识库可视化编辑
-- [ ] 模型优化
-- [ ] 语音唤醒功能完善
-- [ ] macOS/Linux 客户端支持
-- [ ] 多语言支持
-- [ ] 插件系统
-
----
-
 ## 📄 许可证 / License
 
 本项目基于 Apache License 2.0 开源协议。
@@ -384,19 +366,15 @@ limitations under the License.
 - **Vosk** - 离线语音识别
 - **腾讯云语音识别** - 在线语音识别
 - **Sentence-Transformers** - 文本嵌入模型
+- **感谢所有协助开发的贡献者们**
 
 ---
 
 ## ⭐ 关于开发者 / About Developer
 
-- **阿罗娜AI开发者**: xia_hy456
-- **开发者个人博客**: https://xia-hy456.top/
+- **项目发起者**: xia_hy456
+- **发起者个人博客**: https://xia-hy456.top/
 - **反馈问题**: 2066961858@qq.com
-
-<p align="center">
-  <sub>**感谢所有协助开发的贡献者们**</sub>
-</p>
-
 
 ---
 

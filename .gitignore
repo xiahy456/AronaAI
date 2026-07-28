@@ -19,6 +19,7 @@
 
 # aronaLM training data
 /llm/aronaLM/data/
+/llm/aronaLM/finetune/data/
 
 # aronaLM checkpoints
 /llm/aronaLM/checkpoints/
