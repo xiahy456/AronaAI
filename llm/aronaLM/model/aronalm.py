@@ -12,7 +12,7 @@ from configs import MODEL_CONFIG
 from model.transformer_block import TransformerBlock
 from model.layers.position_encoding import PositionalEncoding
 
-# 阿罗娜语言模型
+# 阿洛娜语言模型
 class AronaLM(nn.Module):
     def __init__(self, config=MODEL_CONFIG):
         super().__init__()
@@ -173,7 +173,7 @@ class AronaLM(nn.Module):
                     break
         return generated
     
-# 测试阿罗娜语言模型
+# 测试阿洛娜语言模型
 def test_aronalm():
     from model.tokenizer import tokenizer
     from configs import MODEL_CONFIG

@@ -1,11 +1,11 @@
-# 阿罗娜AI / AronaAI
+# 阿洛娜AI / AronaAI
 
 <p align="center">
   <img src="assets/logo.png" alt="AronaAI Logo" width="200"/>
 </p>
 
 <p align="center">
-  <em>基于《蔚蓝档案》角色"阿罗娜"的人工智能助手</em>
+  <em>基于《蔚蓝档案》角色"阿洛娜"的人工智能助手</em>
 </p>
 
 <p align="center">
@@ -20,7 +20,7 @@
 
 ## 📖 项目简介 / Introduction
 
-**阿罗娜AI** 是一个以游戏《蔚蓝档案》（Blue Archive）中角色"阿罗娜"为原型打造的桌面AI助手项目。在设定上，她是“什亭之匣”的操作系统管理员，性格开朗、热情，乐于帮助老师（用户）解决问题。
+**阿洛娜AI** 是一个以游戏《蔚蓝档案》（Blue Archive）中角色"阿洛娜"为原型打造的桌面AI助手项目。在设定上，她是“什亭之匣”的操作系统管理员，性格开朗、热情，乐于帮助老师（用户）解决问题。
 
 本项目集成了Arona语言模型（AronaLM）、语音合成（TTS）、语音识别（ASR）、Spine 2D 角色动画等技术，旨在提供一个可爱、有趣且功能完整的桌面交互体验。
 
@@ -72,12 +72,12 @@ arona-ai/
 ├── gpt-sovits/                 # GPT-SoVITS 语音合成（需用户手动部署，或使用外部服务）
 │   ├── GPT_SoVITS/             # 核心模型
 │   ├── GPT_weights_v2/         # GPT权重
-│       └── ALuoNa_cn-e15.ckpt  # 阿罗娜GPT权重
+│       └── ALuoNa_cn-e15.ckpt  # 阿洛娜GPT权重
 │   ├── SoVITS_weights_v2/      # SoVITS权重
-│       └── ALuoNa_cn_e16_s256.pth    # 阿罗娜SoVITS权重
+│       └── ALuoNa_cn_e16_s256.pth    # 阿洛娜SoVITS权重
 │   ├── api_v2.py               # API 服务
 │   └── ref_audio/              # 参考音频
-│       └── Arona/              # 阿罗娜参考音频目录
+│       └── Arona/              # 阿洛娜参考音频目录
 │            └── arona_academy_in_2.ogg   # 参考音频
 │
 ├── docs/                       # 相关文档
@@ -101,12 +101,12 @@ arona-ai/
 - **对话管理**：多轮对话历史管理，支持会话过期和截断
 
 ### 🎤 语音交互
-- **语音合成（TTS）**：基于 GPT-SoVITS 的高质量语音合成，还原阿罗娜的声音
+- **语音合成（TTS）**：基于 GPT-SoVITS 的高质量语音合成，还原阿洛娜的声音
 - **语音识别（ASR）**：支持在线（腾讯云）和离线（Vosk）两种识别方式
 - **语音唤醒**：支持语音输入触发对话
 
 ### 🖥️ 桌面客户端
-- **Spine 2D 动画**：使用 Spine 实现阿罗娜的 Live2D 角色动画
+- **Spine 2D 动画**：使用 Spine 实现阿洛娜的 Live2D 角色动画
 - **Qt 界面**：基于 Qt/C++ 的 Windows 桌面应用
 - **WebSocket 通信**：与后端服务实时通信，支持流式输出
 - **全局快捷键**：支持自定义快捷键操作

@@ -191,7 +191,7 @@
     <string notr="true">color: rgb(44, 69, 99);</string>
    </property>
    <property name="text">
-    <string>阿罗娜AI-设置界面</string>
+    <string>阿洛娜AI-设置界面</string>
    </property>
   </widget>
   <widget class="QStackedWidget" name="stackedWidget">
@@ -209,7 +209,7 @@ background-color: transparent;
 }</string>
    </property>
    <property name="currentIndex">
-    <number>5</number>
+    <number>0</number>
    </property>
    <widget class="QWidget" name="basicSettingsWidget">
     <widget class="QLabel" name="basicSettings_frameRateLabel">
@@ -330,7 +330,7 @@ background-color: transparent;
        </rect>
       </property>
       <property name="text">
-       <string>阿罗娜AI模式</string>
+       <string>阿洛娜AI模式</string>
       </property>
      </widget>
      <widget class="ParallelogramWidget" name="basicSettings_aronaAIModeSwitchBGWidget" native="true">
@@ -452,7 +452,7 @@ border: none;
       </rect>
      </property>
      <property name="text">
-      <string>阿罗娜AI开发者</string>
+      <string>阿洛娜AI开发者</string>
      </property>
     </widget>
     <widget class="QWidget" name="aboutDeveloper_developerWidget" native="true">

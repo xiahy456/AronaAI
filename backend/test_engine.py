@@ -44,12 +44,12 @@ def test_vector_store():
     print(f"  知识库集合: {kv.collection_name}")
 
     # 添加测试数据
-    test_text = "阿罗娜是什亭之匣的管理员，来自基沃托斯。"
+    test_text = "阿洛娜是什亭之匣的管理员，来自基沃托斯。"
     ids = kv.add_knowledge(test_text, source="test")
     print(f"  添加知识文档: {ids}")
 
     # 搜索测试
-    results = kv.search_knowledge("阿罗娜是谁", k=2)
+    results = kv.search_knowledge("阿洛娜是谁", k=2)
     print(f"  搜索结果数: {len(results)}")
     if results:
         print(f"  搜索结果: {results[0]['document'][:50]}...")
@@ -75,7 +75,7 @@ def test_semantic_cache():
 
     class FakeEmbedding:
         def encode_single(self, text: str, normalize: bool = True):
-            if "你好" in text and "阿罗娜" in text:
+            if "你好" in text and "阿洛娜" in text:
                 return [1.0, 0.0, 0.0]
             if "天气" in text:
                 return [0.0, 1.0, 0.0]
@@ -97,13 +97,13 @@ def test_semantic_cache():
             print(f"  短文本阈值: {short_threshold:.2f}")
 
             # 测试设置和获取
-            cache.set("你好，阿罗娜", "你好呀！老师！", context="")
-            result = cache.get("你好，阿罗娜")
+            cache.set("你好，阿洛娜", "你好呀！老师！", context="")
+            result = cache.get("你好，阿洛娜")
             assert result is not None, "缓存命中失败"
             print(f"  精确匹配: {result['response']}")
 
             # 测试短文本语义相似匹配
-            result2 = cache.get("你好阿罗娜")
+            result2 = cache.get("你好阿洛娜")
             assert result2 is not None, "短文本相似查询应命中缓存"
             print(f"  语义匹配: {result2['response']} (相似度: {result2.get('similarity', 0):.3f})")
 
@@ -156,30 +156,30 @@ def test_chain_compressor():
 
     # 测试文档压缩
     documents = [
-        {"document": "阿罗娜是什亭之匣的管理员，她来自基沃托斯。她非常可爱，喜欢帮助老师。", "distance": 0.1},
+        {"document": "阿洛娜是什亭之匣的管理员，她来自基沃托斯。她非常可爱，喜欢帮助老师。", "distance": 0.1},
         {"document": "基沃托斯是一个充满希望的地方，这里有各种各样的学生和社团。", "distance": 0.3},
-        {"document": "什亭之匣是一个神秘的道具，里面住着阿罗娜。", "distance": 0.2},
+        {"document": "什亭之匣是一个神秘的道具，里面住着阿洛娜。", "distance": 0.2},
     ]
 
-    compressed = compressor.compress(documents, "阿罗娜是谁")
+    compressed = compressor.compress(documents, "阿洛娜是谁")
     print(f"  压缩后长度: {len(compressed)} 字符")
     print(f"  压缩内容: {compressed[:100]}...")
-    assert "阿罗娜" in compressed, "压缩结果应保留查询相关内容"
+    assert "阿洛娜" in compressed, "压缩结果应保留查询相关内容"
 
     # 简单问题压缩更强，复杂问题保留更多上下文
-    simple_limit = compressor._get_adaptive_max_length("阿罗娜是谁", 100)
+    simple_limit = compressor._get_adaptive_max_length("阿洛娜是谁", 100)
     complex_limit = compressor._get_adaptive_max_length(
-        "请详细分析阿罗娜的职责、性格以及她和老师之间的关系？", 100
+        "请详细分析阿洛娜的职责、性格以及她和老师之间的关系？", 100
     )
     assert simple_limit < complex_limit, "复杂问题应保留更多上下文"
 
     # TF-IDF辅助句子相关性排序
     candidate_sentences = [
         "食堂今天提供咖喱饭和味噌汤。",
-        "阿罗娜负责管理什亭之匣并协助老师处理事务。",
+        "阿洛娜负责管理什亭之匣并协助老师处理事务。",
         "操场上有很多学生正在训练。",
     ]
-    tfidf_scores = compressor._tfidf_scores("阿罗娜什亭之匣管理职责", candidate_sentences)
+    tfidf_scores = compressor._tfidf_scores("阿洛娜什亭之匣管理职责", candidate_sentences)
     assert tfidf_scores[1] == max(tfidf_scores), "TF-IDF应提高相关句子的分数"
 
     # 截断优先保留完整句子
@@ -190,8 +190,8 @@ def test_chain_compressor():
 
     # 规范化去重应忽略空白和标点差异
     duplicate_docs = [
-        {"document": "阿罗娜是管理员。", "distance": 0.1},
-        {"document": "阿罗娜 是 管理员!", "distance": 0.2},
+        {"document": "阿洛娜是管理员。", "distance": 0.1},
+        {"document": "阿洛娜 是 管理员!", "distance": 0.2},
     ]
     assert len(compressor._deduplicate(duplicate_docs)) == 1, "去重应忽略空白和标点差异"
 
@@ -204,16 +204,16 @@ def test_chain_compressor():
 
     # BGE嵌入模型默认关闭，_get_sentence_scores 应走 TF-IDF
     scores = compressor._get_sentence_scores(
-        "阿罗娜职责",
-        ["食堂今天提供咖喱饭。", "阿罗娜负责管理什亭之匣并协助老师。", "操场上有学生训练。"]
+        "阿洛娜职责",
+        ["食堂今天提供咖喱饭。", "阿洛娜负责管理什亭之匣并协助老师。", "操场上有学生训练。"]
     )
     assert scores[1] == max(scores), "默认应使用TF-IDF且提高相关句子分数"
 
     # BGE模型不可用时，开启开关仍应自动回退TF-IDF
     compressor.use_bge_embedding = True
     fallback_scores = compressor._get_sentence_scores(
-        "阿罗娜职责",
-        ["食堂今天提供咖喱饭。", "阿罗娜负责管理什亭之匣并协助老师。", "操场上有学生训练。"]
+        "阿洛娜职责",
+        ["食堂今天提供咖喱饭。", "阿洛娜负责管理什亭之匣并协助老师。", "操场上有学生训练。"]
     )
     assert fallback_scores[1] == max(fallback_scores), "BGE不可用时回退TF-IDF应生效"
     compressor.use_bge_embedding = False
@@ -262,18 +262,18 @@ def test_knowledge_base():
 
     # 添加文档
     ids = kb.add_document(
-        "阿罗娜是基沃托斯什亭之匣的管理员，她是一个可爱的人工智能助手。"
+        "阿洛娜是基沃托斯什亭之匣的管理员，她是一个可爱的人工智能助手。"
         "她喜欢帮助老师解决问题，性格活泼开朗。",
         source="arona_intro"
     )
     print(f"  添加文档分块数: {len(ids)}")
 
     # 检索
-    results = kb.retrieve("阿罗娜是谁", k=2)
+    results = kb.retrieve("阿洛娜是谁", k=2)
     print(f"  检索结果数: {len(results)}")
 
     # 检索并压缩
-    compressed = kb.retrieve_and_compress("阿罗娜的性格")
+    compressed = kb.retrieve_and_compress("阿洛娜的性格")
     print(f"  压缩后上下文: {compressed[:100]}...")
 
     print("  ✓ 知识库测试通过")
@@ -290,7 +290,7 @@ def test_knowledge_management_api():
             self.items = [
                 {
                     "id": "doc1",
-                    "document": "阿罗娜是什亭之匣的管理员。",
+                    "document": "阿洛娜是什亭之匣的管理员。",
                     "metadata": {"source": "test", "chunk_index": 0, "total_chunks": 1}
                 }
             ]
@@ -364,7 +364,7 @@ def test_knowledge_management_api():
             assert websocket.messages[-1]["type"] == "knowledge_list"
             assert websocket.messages[-1]["data"]["total"] == 1
 
-            await ai_service.route_message(websocket, {"type": "search_knowledge", "query": "阿罗娜", "k": 2})
+            await ai_service.route_message(websocket, {"type": "search_knowledge", "query": "阿洛娜", "k": 2})
             assert websocket.messages[-1]["type"] == "knowledge_search"
             assert websocket.messages[-1]["data"]["total"] == 1
 
@@ -412,7 +412,7 @@ def test_arona_engine():
     print(f"  创建会话: {session_id}")
 
     # 测试知识库管理
-    engine.add_knowledge("阿罗娜是基沃托斯什亭之匣的管理员。", source="test")
+    engine.add_knowledge("阿洛娜是基沃托斯什亭之匣的管理员。", source="test")
     count = engine.get_knowledge_count()
     print(f"  知识库文档数: {count}")
 
