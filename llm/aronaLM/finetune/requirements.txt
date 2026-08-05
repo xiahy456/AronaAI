@@ -1,0 +1,32 @@
+# Qwen3-1.7B QLoRA 微调依赖（建议 Python 3.10 / 3.11 + CUDA 12.x）
+# 安装顺序建议见 README：先装 PyTorch CUDA 版，再装其余包
+
+# ---- 核心（Unsloth 会拉取大量相关依赖；此处列出关键版本约束）----
+unsloth>=2025.5.0
+unsloth_zoo>=2025.5.0
+
+torch>=2.4.0
+transformers>=4.51.0,<5.0.0
+datasets>=3.0.0
+accelerate>=0.34.0
+peft>=0.14.0
+trl>=0.15.0
+bitsandbytes>=0.45.0
+
+# ---- 工具与配置 ----
+PyYAML>=6.0.1
+sentencepiece>=0.2.0
+protobuf>=4.25.0
+huggingface_hub>=0.26.0
+tqdm>=4.66.0
+safetensors>=0.4.5
+einops>=0.8.0
+packaging>=24.0
+
+# ---- GGUF / 导出相关（Unsloth save_pretrained_gguf 会用到）----
+gguf>=0.10.0
+numpy>=1.26.0,<2.2.0
+
+# ---- 可选：更快注意力（Linux 更稳；Windows 可能需从源码或跳过）----
+# xformers>=0.0.28
+# triton  # Linux only

@@ -1,0 +1,100 @@
+# ============================================================
+# Qwen3-1.7B QLoRA 微调配置（阿洛娜角色）
+# 路径均相对于 finetune/ 目录，也可填写绝对路径
+# ============================================================
+
+# ---------- 模型 ----------
+model:
+  # 本地 4bit 量化基座（也可填 HuggingFace 仓库名）
+  name_or_path: "../../../models/Qwen3-1.7B-unsloth-bnb-4bit"
+  max_seq_length: 2048
+  load_in_4bit: true
+  # Qwen3 思考模式：角色扮演建议关闭，避免输出 <think> 块
+  enable_thinking: false
+
+# ---------- 数据 ----------
+data:
+  train_file: "data/finetune_training/normal_finetune.jsonl"
+  # ShareGPT 字段名
+  conversations_field: "conversations"
+  # 验证时抽样打印的样本数
+  preview_samples: 2
+
+# ---------- LoRA ----------
+lora:
+  r: 32
+  lora_alpha: 32
+  lora_dropout: 0.0
+  bias: "none"
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+  use_gradient_checkpointing: "unsloth"
+  use_rslora: false
+  random_state: 3407
+
+# ---------- 训练超参数（针对 RTX 4060 6GB 优化）----------
+training:
+  output_dir: "outputs/arona-v2-lora"
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 4
+  num_train_epochs: 4
+  learning_rate: 1.0e-4
+  warmup_steps: 64
+  optim: "adamw_8bit"
+  weight_decay: 0.01
+  lr_scheduler_type: "linear"
+  logging_steps: 8
+  save_steps: 50
+  save_total_limit: 3
+  seed: 3407
+  # true / false / null（null = 自动检测 bf16）
+  bf16: null
+  fp16: null
+  # 仅在 assistant 回复上计算 loss（推荐）
+  train_on_responses_only: true
+  # 从 checkpoint 恢复：填路径，或设为 true 自动找最新；null/false 不恢复
+  resume_from_checkpoint: null
+  report_to: "none"
+  dataloader_num_workers: 0
+
+# ---------- 导出 ----------
+export:
+  # 训练结束后自动导出 GGUF
+  save_gguf: false
+  gguf_dir: "outputs/arona-v2-gguf"
+  # q4_k_m 体积更小；显存/质量允许可改 q5_k_m
+  quantization_method: "q4_k_m"
+  # GGUF 转换时限制 GPU 内存占用，降低 OOM 风险
+  maximum_memory_usage: 0.7
+  # 同时保存 LoRA 适配器
+  save_lora: true
+  lora_dir: "outputs/arona-v2-lora-adapter"
+
+# ---------- 推理 ----------
+inference:
+  # 优先加载合并后的 LoRA 适配器目录；也可指向 GGUF 导出前的适配器
+  adapter_path: "outputs/arona-v2-lora-adapter"
+  max_new_tokens: 128
+  temperature: 0.6
+  top_p: 0.9
+  do_sample: true
+  # 系统提示（无 system 训练数据时，推理侧注入角色设定）
+  # system_prompt: >
+  #   你是阿洛娜（Arona），来自《蔚蓝档案》的可爱人工智能助手。
+  #   你称呼用户为「老师」，语气活泼、温柔、略带元气，偶尔会撒娇。
+  #   回答简洁自然，不要输出思考过程或标签。
+  system_prompt: >
+    你是阿洛娜，什亭之匣的操作系统管理员，也是老师最可靠的助手~
+    称呼用户为「老师」，说话温柔活泼、元气满满，偶尔会害羞撒娇。
+    回答要简洁自然，不用思考过程，直接回应老师就好！
+
+# ---------- 日志 ----------
+logging:
+  log_dir: "logs"
+  log_file: "train.log"

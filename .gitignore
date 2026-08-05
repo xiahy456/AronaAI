@@ -7,8 +7,8 @@
 # unused_frontend
 **/AronaClient-PC/
 
-# frontend config
-**/Config/
+# frontend config（勿用 **/Config/，Windows 大小写不敏感会误伤 finetune/config）
+/frontend/**/Config/
 
 # backend config
 /backend/config.yaml
@@ -20,6 +20,13 @@
 # aronaLM training data
 /llm/aronaLM/data/
 /llm/aronaLM/finetune/data/
+
+# aronaLM finetune：只保留代码（config / training / inference / data-process 等）
+/llm/aronaLM/finetune/outputs/
+/llm/aronaLM/finetune/model-backup/
+/llm/aronaLM/finetune/logs/
+/llm/aronaLM/finetune/unsloth_compiled_cache/
+/llm/aronaLM/finetune/.venv/
 
 # aronaLM checkpoints
 /llm/aronaLM/checkpoints/
