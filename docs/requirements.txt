@@ -98,3 +98,10 @@ watchfiles==1.1.1
 websocket-client==1.9.0
 websockets==16.0
 zipp==3.23.1
+
+# GGUF 推理（backend model.backend=gguf 时需要）
+# CPU: pip install llama-cpp-python
+# CUDA（推荐，Windows 可先试预编译轮子）:
+#   set CMAKE_ARGS=-DGGML_CUDA=on
+#   pip install llama-cpp-python --force-reinstall --no-cache-dir
+llama-cpp-python>=0.3.0

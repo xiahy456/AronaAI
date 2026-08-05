@@ -41,13 +41,23 @@ PROJECT_ROOT = Path(__file__).parent.parent
 
 # ========== 模型配置 ==========
 MODEL_CONFIG = {
+    # "gguf" = llama-cpp-python 加载 GGUF；"hf" = Transformers + PEFT LoRA
+    "backend": "gguf",
+    "gguf_path": str(
+        PROJECT_ROOT
+        / "models"
+        / "aronalm-v2.0-normal-gguf"
+        / "Qwen3-1.7B.Q4_K_M.gguf"
+    ),
+    "n_ctx": 2048,
+    "n_gpu_layers": -1,  # -1 = 尽量全部上 GPU；OOM 时改为较小正整数
     "base_model_name": "D:/Code/projects/Arona/arona-ai/models/hunyuan",
     "lora_path": "D:/Code/projects/Arona/arona-ai/models/aronalm/normal",
     "torch_dtype": "float16",
     "device_map": "auto",
     "max_new_tokens": 128,
-    "temperature": 0.7,
-    "top_p": 0.9,
+    "temperature": 0.6,
+    "top_p": 0.85,
     "top_k": 50,
     "repetition_penalty": 1.1,
     "max_length": 512,
@@ -56,6 +66,11 @@ MODEL_CONFIG = {
 # 从 YAML 覆盖（如果存在）
 if "model" in _YAML_CONFIG:
     MODEL_CONFIG.update(_YAML_CONFIG["model"])
+
+# 相对 gguf_path 基于项目根目录解析
+_gguf = MODEL_CONFIG.get("gguf_path")
+if _gguf and not os.path.isabs(_gguf):
+    MODEL_CONFIG["gguf_path"] = str((PROJECT_ROOT / _gguf).resolve())
 
 # ========== 嵌入模型配置 ==========
 EMBEDDING_CONFIG = {

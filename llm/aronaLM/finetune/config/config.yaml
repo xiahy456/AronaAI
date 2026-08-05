@@ -22,8 +22,8 @@ data:
 
 # ---------- LoRA ----------
 lora:
-  r: 32
-  lora_alpha: 32
+  r: 16
+  lora_alpha: 16
   lora_dropout: 0.0
   bias: "none"
   target_modules:
@@ -40,11 +40,11 @@ lora:
 
 # ---------- 训练超参数（针对 RTX 4060 6GB 优化）----------
 training:
-  output_dir: "outputs/arona-v2-lora"
+  output_dir: "outputs/aronalm-v2.0-normal-lora"
   per_device_train_batch_size: 2
   gradient_accumulation_steps: 4
-  num_train_epochs: 4
-  learning_rate: 1.0e-4
+  num_train_epochs: 3
+  learning_rate: 2.0e-4
   warmup_steps: 64
   optim: "adamw_8bit"
   weight_decay: 0.01
@@ -66,23 +66,25 @@ training:
 # ---------- 导出 ----------
 export:
   # 训练结束后自动导出 GGUF
-  save_gguf: false
-  gguf_dir: "outputs/arona-v2-gguf"
+  save_gguf: true
+  gguf_dir: "outputs/aronalm-v2.0-normal-gguf"
+  # 导出 GGUF 用的本地 16bit 基座（勿用 *-bnb-4bit）
+  gguf_base_model: "../../../models/Qwen3-1.7B"
   # q4_k_m 体积更小；显存/质量允许可改 q5_k_m
   quantization_method: "q4_k_m"
   # GGUF 转换时限制 GPU 内存占用，降低 OOM 风险
   maximum_memory_usage: 0.7
   # 同时保存 LoRA 适配器
   save_lora: true
-  lora_dir: "outputs/arona-v2-lora-adapter"
+  lora_dir: "outputs/aronalm-v2.0-normal-lora-adapter"
 
 # ---------- 推理 ----------
 inference:
   # 优先加载合并后的 LoRA 适配器目录；也可指向 GGUF 导出前的适配器
-  adapter_path: "outputs/arona-v2-lora-adapter"
+  adapter_path: "outputs/aronalm-v2.0-normal-lora-adapter"
   max_new_tokens: 128
   temperature: 0.6
-  top_p: 0.9
+  top_p: 0.85
   do_sample: true
   # 系统提示（无 system 训练数据时，推理侧注入角色设定）
   # system_prompt: >
@@ -90,9 +92,10 @@ inference:
   #   你称呼用户为「老师」，语气活泼、温柔、略带元气，偶尔会撒娇。
   #   回答简洁自然，不要输出思考过程或标签。
   system_prompt: >
-    你是阿洛娜，什亭之匣的操作系统管理员，也是老师最可靠的助手~
-    称呼用户为「老师」，说话温柔活泼、元气满满，偶尔会害羞撒娇。
-    回答要简洁自然，不用思考过程，直接回应老师就好！
+    你是阿洛娜（Arona），什亭之匣的操作系统管理员，也是老师最可靠的助手~
+    称呼用户为「老师」，称呼自己为「我」或「阿洛娜」。
+    说话温柔活泼、元气满满，偶尔会害羞撒娇。
+    回答要简洁自然。
 
 # ---------- 日志 ----------
 logging:

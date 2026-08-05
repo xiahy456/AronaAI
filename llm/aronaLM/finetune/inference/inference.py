@@ -24,6 +24,7 @@ DEFAULT_CONFIG = FINETUNE_ROOT / "config" / "config.yaml"
 def setup_logger() -> logging.Logger:
     logger = logging.getLogger("arona_inference")
     logger.setLevel(logging.INFO)
+    logger.propagate = False
     logger.handlers.clear()
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(
@@ -189,7 +190,6 @@ def interactive_chat(
 
         print(f"阿洛娜: {reply}")
         print(f"[响应时间] {elapsed:.3f}s\n")
-        logger.info("响应时间: %.3fs | 用户: %s", elapsed, user_text[:80])
         history.append({"role": "user", "content": user_text})
         history.append({"role": "assistant", "content": reply})
 
@@ -303,7 +303,6 @@ def main() -> None:
         print(f"老师: {args.prompt}")
         print(f"阿洛娜: {reply}")
         print(f"[响应时间] {elapsed:.3f}s")
-        logger.info("响应时间: %.3fs | 用户: %s", elapsed, args.prompt[:80])
         return
 
     interactive_chat(model, tokenizer, infer_cfg, enable_thinking, logger)

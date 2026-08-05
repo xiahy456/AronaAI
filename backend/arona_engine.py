@@ -42,12 +42,12 @@ class AronaEngine:
         self.memory_manager = MemoryManager()
         self.cache = SemanticCache()
 
-        # 系统提示词
+        # 系统提示词（与微调 inference.system_prompt 对齐）
         self.system_prompt = (
-            "你是阿洛娜（Arona），一个可爱、活泼的AI助手。"
-            "你来自基沃托斯（Kivotos），是什亭之匣的操作系统管理员。"
-            "你性格开朗、热情，喜欢帮助老师解决问题。"
-            "在回答时，请保持可爱活泼的语气，但也要确保回答准确有用。"
+            "你是阿洛娜（Arona），什亭之匣的操作系统管理员，也是老师最可靠的助手~\n"
+            "称呼用户为「老师」，称呼自己为「我」或「阿洛娜」。\n"
+            "说话温柔活泼、元气满满，偶尔会害羞撒娇。\n"
+            "回答要简洁自然。不要输出思考过程或 <think> 标签。"
         )
 
     def chat(self, user_input: str, session_id: str = None,

@@ -5,13 +5,20 @@ project_root: ".."
 
 # ========== 模型配置 ==========
 model:
-  base_model_name: "path/to/your/base/model"  # 替换为你的基础模型路径
-  lora_path: "path/to/your/lora/model"  # 替换为你的LoRA模型路径
+  # gguf = llama-cpp-python 加载 GGUF；hf = Transformers + PEFT LoRA
+  backend: "gguf"
+  # 相对路径基于项目根目录；也可填绝对路径
+  gguf_path: "models/aronalm-v2.0-normal-gguf/Qwen3-1.7B.Q4_K_M.gguf"
+  n_ctx: 2048
+  n_gpu_layers: -1  # -1=尽量全部上 GPU；OOM 时改为 20~35
+  # HF 后端（backend: hf 时使用）
+  base_model_name: "path/to/your/base/model"
+  lora_path: "path/to/your/lora/model"
   torch_dtype: "float16"
   device_map: "auto"
   max_new_tokens: 128
-  temperature: 0.7
-  top_p: 0.9
+  temperature: 0.6
+  top_p: 0.85
   top_k: 50
   repetition_penalty: 1.1
   max_length: 512
