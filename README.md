@@ -158,38 +158,6 @@ models/
 cp backend/config.example.yaml backend/config.yaml
 ```
 
-编辑 `backend/config.yaml`，按后端类型配置模型：
-
-**GGUF（推荐，微调导出产物）：**
-
-```yaml
-model:
-  backend: "gguf"
-  gguf_path: "llm/aronaLM/finetune/outputs/aronalm-v2.0-normal-gguf/Qwen3-1.7B.Q4_K_M.gguf"  # 相对项目根或绝对路径
-  n_ctx: 2048
-  n_gpu_layers: -1  # OOM 时改为 20~35
-  max_new_tokens: 128
-  temperature: 0.6
-  top_p: 0.85
-```
-
-需安装：`pip install llama-cpp-python`（GPU 版见 `docs/requirements.txt` 注释）。
-
-**HF + LoRA（旧路径）：**
-
-```yaml
-model:
-  backend: "hf"
-  base_model_name: "你的/基础/模型/路径"  # value 为路径
-  lora_path: "你的/LoRA/模型/路径"
-
-embedding:
-  model_path: "你的/嵌入/模型/路径"  # 嵌入模型路径
-
-compressor:
-  bge_model_path: "你的/BGE/模型/路径"     # BGE 模型路径
-```
-
 > **注意**：`config.yaml` 已在 `.gitignore` 中，不会被提交到版本控制，请放心修改。
 
 **3. 启动服务**
