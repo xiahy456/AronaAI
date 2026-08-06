@@ -94,8 +94,10 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
     connect(m_audioRecorder, &AudioRecorder::errorOccurred,
         this, &MainController::onAudioError);
 
-    // 连接语音识别对象信号
-    m_tencentRecognizer = new TencentSpeechRecognizer(this);
+    // 连接腾讯云语音识别信号（对象由 main 传入）
+    if (m_tencentRecognizer) {
+        m_tencentRecognizer->setParent(this);
+    }
     connect(m_tencentRecognizer, &TencentSpeechRecognizer::errorOccurred,
         this, &MainController::onRecognizeError);
     connect(m_tencentRecognizer, &TencentSpeechRecognizer::recognizeFinished,

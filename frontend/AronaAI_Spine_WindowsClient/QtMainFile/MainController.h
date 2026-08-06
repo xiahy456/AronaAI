@@ -31,7 +31,6 @@
 #include <MainWidget.h>
 #include <TTSManager.h>
 #include <AudioRecorder.h>
-#include <SpeechRecognizer.h>
 #include <TencentSpeechRecognizer.h>
 #include "WebSocketController.h"
 
@@ -70,7 +69,6 @@ private:
 	MainWidget* m_mainWidget;	// 主界面对象引用
 	TTSManager* m_ttsManager;	// 语音合成管理器指针
 	AudioRecorder* m_audioRecorder;	// 音频录制器对象
-	//SpeechRecognizer* m_speechRecognizer;	// 语音识别器对象
 	TencentSpeechRecognizer* m_tencentRecognizer; // 腾讯的语音识别
 	WebSocketController* m_webSocketController;	// 服务端websocket连接
 	TTSManager::TTSRequestParams ttsRequestParams;	// 语音合成请求参数

@@ -36,6 +36,10 @@ This project integrates Arona Language Models (AronaLM), Text-to-Speech (TTS), A
   <em>前端运行时截图</em>
 </p>
 
+<p align="center">
+  <em>Frontend running screenshot</em>
+</p>
+
 ---
 
 ## 🏗️ 项目架构 / Project Architecture
@@ -96,7 +100,6 @@ arona-ai/
 │   ├── aronalm-v2.0-normal/    # AronaLM GGUF 语言模型
 │   ├── bge-small-zh-v1.5/      # 知识 RAG 嵌入模型
 │   └── Qwen3-1.7B-unsloth-bnb-4bit/  # 微调基座（仅训练时需要）
-├── vosk/                       # Vosk 离线语音识别（可选，推荐直接使用腾讯云语音识别服务）
 └── assets/                     # 项目资源
 ```
 
@@ -113,7 +116,7 @@ arona-ai/
 
 ### 🎤 语音交互
 - **语音合成（TTS）**：基于 GPT-SoVITS 的高质量语音合成，还原阿洛娜的声音
-- **语音识别（ASR）**：支持在线（腾讯云）和离线（Vosk）两种识别方式
+- **语音识别（ASR）**：基于腾讯云语音识别（SentenceRecognition）提供在线 ASR
 - **语音唤醒**：支持语音输入触发对话
 
 ### 🖥️ 桌面客户端
@@ -163,7 +166,7 @@ models/
 ```bash
 # 在 backend/ 目录下
 copy config.example.yaml config.yaml   # Windows
-# cp config.example.yaml config.yaml   # Linux / macOS
+cp config.example.yaml config.yaml   # Linux / macOS
 ```
 
 按需填写：
@@ -267,9 +270,6 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
     "prompt_text": "这里为您准备了各种课程和活动，请按您喜欢的方式安排日程吧！",
     ...
   },
-  "vosk": {
-    "model_path": "path/to/vosk-model-small-cn-0.22"
-  },
   ...
 }
 ```
@@ -278,9 +278,9 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
  - 请将上述路径中的 `D:/arona-ai` 替换为你本地的项目实际**绝对路径**。
  - 请将AronaLM后端服务、GPT-SoVITS服务地址的地址、端口按照你的实际情况进行填写。
 
-**2. 配置腾讯云语音识别（可选）**
+**2. 配置腾讯云语音识别（必需）**
 
-如果使用腾讯云语音识别服务，需要在 `tencent_speech_recognizer` 中填写自己的 `secret_id` 和 `secret_key`，或者通过环境变量配置：
+桌面客户端语音输入依赖腾讯云 ASR，请在 `tencent_speech_recognizer` 中填写自己的 `secret_id` 和 `secret_key`，或者通过环境变量配置：
 
 - **方式一（推荐）**：设置环境变量 `TENCENT_SECRET_ID` 和 `TENCENT_SECRET_KEY`，配置文件中的 `${TENCENT_SECRET_ID}` 和 `${TENCENT_SECRET_KEY}` 会自动读取环境变量。
 - **方式二**：直接在配置文件中填写你的腾讯云 API 密钥：
@@ -423,7 +423,6 @@ limitations under the License.
 - **ChromaDB** - 向量数据库
 - **DeepSeek** - 记忆抽取 API
 - **GPT-SoVITS** - 语音合成模型
-- **Vosk** - 离线语音识别
 - **腾讯云语音识别** - 在线语音识别
 - **Sentence-Transformers** - 文本嵌入模型
 - **感谢所有协助开发的贡献者们**

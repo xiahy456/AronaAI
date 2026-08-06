@@ -62,9 +62,6 @@
   "audio_input": {
     "device": ""
   },
-  "vosk": {
-    "model_path": "path/to/vosk-model-small-cn-0.22"
-  },
   "short_cut_key": {
     "switch_audio_input": "Ctrl+Alt+V"
   },

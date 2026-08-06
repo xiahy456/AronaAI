@@ -40,7 +40,6 @@
     <ClCompile Include="QtUtils\ParallelogramButton.cpp" />
     <ClCompile Include="QtUtils\ParallelogramWidget.cpp" />
     <ClCompile Include="QtUtils\ShortCutKey.cpp" />
-    <ClCompile Include="QtUtils\SpeechRecognizer.cpp" />
     <ClCompile Include="QtUtils\SpineMouseController.cpp" />
     <ClCompile Include="QtUtils\TencentSpeechRecognizer.cpp" />
     <ClCompile Include="spine-cpp\src\spine\Animation.cpp" />
@@ -116,7 +115,6 @@
     <ClCompile Include="spine-cpp\src\spine\VertexAttachment.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\vosk\include\vosk_api.h" />
     <QtMoc Include="QHotkey\qhotkey.h" />
     <QtMoc Include="QHotkey\qhotkey_p.h" />
     <ClInclude Include="QtMainFile\GlobalVariables.h" />
@@ -134,7 +132,6 @@
     <ClInclude Include="QtUtils\JsonOperation.h" />
     <ClInclude Include="QtUtils\OpacityAnimation.h" />
     <QtMoc Include="QtUtils\ShortCutKey.h" />
-    <QtMoc Include="QtUtils\SpeechRecognizer.h" />
     <QtMoc Include="QtUtils\TencentSpeechRecognizer.h" />
     <QtMoc Include="QtUtils\SpineMouseController.h" />
     <QtMoc Include="QtUtils\ParallelogramButton.h" />
@@ -297,24 +294,20 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QHotkey;D:\Code\projects\Arona\arona-ai\vosk\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QHotkey;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
-      <AdditionalLibraryDirectories>D:\Code\projects\Arona\arona-ai\vosk\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libvosk.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QHotkey;D:\Code\projects\Arona\arona-ai\vosk\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QHotkey;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtMainFile;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\spine-cpp\include;D:\Code\projects\Arona\arona-ai\frontend\AronaAI_Spine_WindowsClient\QtUtils;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
-      <AdditionalLibraryDirectories>D:\Code\projects\Arona\arona-ai\vosk\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libvosk.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">

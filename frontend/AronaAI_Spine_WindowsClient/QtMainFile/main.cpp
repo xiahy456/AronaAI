@@ -24,7 +24,7 @@
 #include "MainController.h"
 #include "TTSManager.h"
 #include "AudioRecorder.h"
-#include "SpeechRecognizer.h"
+#include "TencentSpeechRecognizer.h"
 #include "ShortCutKey.h"
 #include "BlueakaFontLoader.h"
 #include "WebSocketController.h"

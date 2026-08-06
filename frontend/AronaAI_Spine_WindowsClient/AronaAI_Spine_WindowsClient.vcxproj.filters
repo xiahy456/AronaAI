@@ -39,9 +39,6 @@
     <Filter Include="Dict">
       <UniqueIdentifier>{351be407-b2c2-464a-af96-967f92e6631a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="vosk">
-      <UniqueIdentifier>{09edced3-6ab2-49bc-8460-2a8048f17d8c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="QHotkey">
       <UniqueIdentifier>{b251d4a9-1cc9-40d4-af3f-b83e7eaebce4}</UniqueIdentifier>
     </Filter>
@@ -78,9 +75,6 @@
     </QtMoc>
     <QtMoc Include="QtMainFile\MainController.h">
       <Filter>Header Files</Filter>
-    </QtMoc>
-    <QtMoc Include="QtUtils\SpeechRecognizer.h">
-      <Filter>QtUtils</Filter>
     </QtMoc>
     <QtMoc Include="QHotkey\qhotkey.h">
       <Filter>QHotkey</Filter>
@@ -364,9 +358,6 @@
     </ClCompile>
     <ClCompile Include="QtMainFile\MainController.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="QtUtils\SpeechRecognizer.cpp">
-      <Filter>QtUtils</Filter>
     </ClCompile>
     <ClCompile Include="QHotkey\qhotkey.cpp">
       <Filter>QHotkey</Filter>
@@ -696,9 +687,6 @@
     </ClInclude>
     <ClInclude Include="QtUtils\GlobalInclude.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\vosk\include\vosk_api.h">
-      <Filter>vosk</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
