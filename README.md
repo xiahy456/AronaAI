@@ -72,19 +72,20 @@ arona-ai/
 ├── gpt-sovits/                 # GPT-SoVITS 语音合成（需用户手动部署，或使用外部服务）
 │   ├── GPT_SoVITS/             # 核心模型
 │   ├── GPT_weights_v2/         # GPT权重
-│       └── ALuoNa_cn-e15.ckpt  # 阿洛娜GPT权重
+│   │   └── ALuoNa_cn-e15.ckpt  # 阿洛娜GPT权重
 │   ├── SoVITS_weights_v2/      # SoVITS权重
-│       └── ALuoNa_cn_e16_s256.pth    # 阿洛娜SoVITS权重
+│   │   └── ALuoNa_cn_e16_s256.pth    # 阿洛娜SoVITS权重
 │   ├── api_v2.py               # API 服务
 │   └── ref_audio/              # 参考音频
 │       └── Arona/              # 阿洛娜参考音频目录
 │            └── arona_academy_in_2.ogg   # 参考音频
 │
 ├── docs/                       # 相关文档
-│   └── requirements.txt        # 依赖项文件
+│   ├── requirements.txt        # 依赖项文件
 ├── models/                     # 相关模型存放目录
+│   ├── aronalm-v2.0-normal/  # AronaLM语言模型
+│   ├── paraphrase-multilingual-MiniLM-L12-v2/  # 向量嵌入模型
 │   └── bge-small-zh-v1.5/      # BGE模型
-│   └── paraphrase-multilingual-MiniLM-L12-v2/  # 向量嵌入模型
 ├── vosk/                       # Vosk 离线语音识别（（可选）需用户手动部署，推荐直接使用腾讯云语音识别服务）
 └── assets/                     # 项目资源
 ```
@@ -143,10 +144,12 @@ arona-ai/
 
 ```
 models/
-├── bge-small-zh-v1.5/                # BGE 中文嵌入模型（用于链路压缩句子打分）
+├── aronalm-v2.0-normal/  # AronaLM语言模型
 ├── paraphrase-multilingual-MiniLM-L12-v2/  # 多语言嵌入模型（用于向量检索）
-└── aronalm-v2.0-normal-gguf/  # AronaLM语言模型
+└── bge-small-zh-v1.5/                # BGE 中文嵌入模型（用于链路压缩句子打分）
 ```
+
+> **AronaLM语言模型**：请使用模型[xiahy456/aronalm-v2.0-normal](https://www.modelscope.cn/models/xiahy456/aronalm-v2.0-normal)
 
 > **提示**：如果使用本地 TF-IDF 嵌入模式（`embedding.use_external: false`），则无需放置 `paraphrase-multilingual-MiniLM-L12-v2` 模型。
 
