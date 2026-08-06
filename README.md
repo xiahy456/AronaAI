@@ -28,6 +28,14 @@
 
 This project integrates Arona Language Models (AronaLM), Text-to-Speech (TTS), Automatic Speech Recognition (ASR), Spine 2D character animation, and other technologies to provide a cute, lively, and fully-featured desktop interaction experience.
 
+<p align="center">
+  <img src="assets/running_example.png" alt="Running Example" width="600"/>
+</p>
+
+<p align="center">
+  <em>前端运行时截图</em>
+</p>
+
 ---
 
 ## 🏗️ 项目架构 / Project Architecture
