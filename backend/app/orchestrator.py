@@ -106,7 +106,11 @@ class Orchestrator:
 
         knowledge_chunks: list[str] = []
         if use_rag:
-            knowledge_chunks = self.knowledge.retrieve(user_text, top_k=3)
+            knowledge_chunks = await asyncio.to_thread(
+                self.knowledge.retrieve,
+                user_text,
+                self.config.knowledge.retrieve_top_k,
+            )
             if knowledge_chunks:
                 context_parts.append("rag")
 

@@ -35,7 +35,18 @@ def build_messages(
             system_parts.append("【长期记忆】\n" + "\n".join(lines))
 
     if knowledge:
-        system_parts.append("【相关知识】\n" + "\n".join(f"- {k}" for k in knowledge))
+        budget = _approx_chars_for_tokens(config.token_budget.knowledge)
+        budget = min(budget, config.knowledge.max_inject_chars)
+        lines: list[str] = []
+        used = 0
+        for chunk in knowledge:
+            line = f"- {chunk.strip()}"
+            if used + len(line) + 1 > budget:
+                break
+            lines.append(line)
+            used += len(line) + 1
+        if lines:
+            system_parts.append("【相关知识】\n" + "\n".join(lines))
 
     messages: list[dict[str, str]] = [
         {"role": "system", "content": "\n\n".join(system_parts)},

@@ -23,6 +23,13 @@ conversation:
 
 knowledge:
   enabled: false
+  corpus_dir: "data/knowledge/corpus"
+  chroma_path: "data/knowledge/chroma"
+  collection: "arona_lore"
+  embedding_model_path: "../models/bge-small-zh-v1.5"
+  retrieve_top_k: 3
+  max_inject_chars: 400
+  min_score: 0.3
 
 memory:
   db_path: "data/memory.db"
@@ -44,4 +51,5 @@ cache:
 
 token_budget:
   memory: 250
+  knowledge: 250
   history: 700

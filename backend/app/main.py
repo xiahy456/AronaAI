@@ -32,7 +32,7 @@ def create_app() -> FastAPI:
     )
     memory_store = MemoryStore(config.memory_db_abs_path)
     extractor = MemoryExtractor(memory_store, config.memory.extractor)
-    knowledge = KnowledgeRetriever(config.knowledge)
+    knowledge = KnowledgeRetriever(config)
     cache = ResponseCache(max_size=config.cache.max_size)
     orchestrator = Orchestrator(
         config,

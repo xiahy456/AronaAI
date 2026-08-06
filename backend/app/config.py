@@ -37,6 +37,13 @@ class ConversationConfig(BaseModel):
 
 class KnowledgeConfig(BaseModel):
     enabled: bool = False
+    corpus_dir: str = "data/knowledge/corpus"
+    chroma_path: str = "data/knowledge/chroma"
+    collection: str = "arona_lore"
+    embedding_model_path: str = "../models/bge-small-zh-v1.5"
+    retrieve_top_k: int = 3
+    max_inject_chars: int = 400
+    min_score: float = 0.3
 
 
 class ExtractorConfig(BaseModel):
@@ -64,6 +71,7 @@ class CacheConfig(BaseModel):
 
 class TokenBudgetConfig(BaseModel):
     memory: int = 250
+    knowledge: int = 250
     history: int = 700
 
 
@@ -89,6 +97,18 @@ class AppConfig(BaseModel):
     @property
     def memory_db_abs_path(self) -> Path:
         return self.resolve_path(self.memory.db_path)
+
+    @property
+    def knowledge_corpus_abs_path(self) -> Path:
+        return self.resolve_path(self.knowledge.corpus_dir)
+
+    @property
+    def knowledge_chroma_abs_path(self) -> Path:
+        return self.resolve_path(self.knowledge.chroma_path)
+
+    @property
+    def knowledge_embedding_abs_path(self) -> Path:
+        return self.resolve_path(self.knowledge.embedding_model_path)
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

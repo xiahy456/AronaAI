@@ -88,8 +88,11 @@ bin/
 *.app
 /frontend/AronaAI_Spine_WindowsClient/Config/
 
-# db data
-backend/data/
+# backend runtime data; keep knowledge corpus / WRITING.md tracked
+backend/data/**
+!backend/data/knowledge/
+!backend/data/knowledge/**
+backend/data/knowledge/chroma/
 
 # photoshop files
 *.psd
