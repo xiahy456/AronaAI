@@ -144,7 +144,8 @@ arona-ai/
 ```
 models/
 ├── bge-small-zh-v1.5/                # BGE 中文嵌入模型（用于链路压缩句子打分）
-└── paraphrase-multilingual-MiniLM-L12-v2/  # 多语言嵌入模型（用于向量检索）
+├── paraphrase-multilingual-MiniLM-L12-v2/  # 多语言嵌入模型（用于向量检索）
+└── aronalm-v2.0-normal-gguf/  # AronaLM语言模型
 ```
 
 > **提示**：如果使用本地 TF-IDF 嵌入模式（`embedding.use_external: false`），则无需放置 `paraphrase-multilingual-MiniLM-L12-v2` 模型。
@@ -170,7 +171,7 @@ pip install -r docs/requirements.txt
 python -m backend.ai_service.py --host 0.0.0.0 --port 20456
 
 # 3. (可选) 运行测试
-python backend/test_engine.py
+python backend/test_model_backend.py
 ```
 
 ### 客户端构建 / Client Build
