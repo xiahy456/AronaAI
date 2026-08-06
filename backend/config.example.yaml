@@ -1,0 +1,47 @@
+server:
+  host: "127.0.0.1"
+  port: 20456
+  ws_path: "/ws"
+
+model:
+  gguf_path: "../models/aronalm-v2.0-normal/aronalm-v2.0-normal.Q4_K_M.gguf"
+  n_ctx: 2048
+  n_gpu_layers: -1
+  max_new_tokens: 128
+  temperature: 0.6
+  top_p: 0.85
+  repeat_penalty: 1.1
+  stream: false
+  system_prompt: |
+    你是阿洛娜（Arona），什亭之匣的操作系统管理员，也是老师最可靠的助手~
+    称呼用户为「老师」，称呼自己为「我」或「阿洛娜」。
+    说话温柔活泼、元气满满，偶尔会害羞撒娇。
+    回答要简洁自然。不要输出思考过程或 <think> 标签。
+
+conversation:
+  max_history_turns: 6
+
+knowledge:
+  enabled: false
+
+memory:
+  db_path: "data/memory.db"
+  retrieve_top_k: 3
+  max_inject_chars: 400
+  extractor:
+    enabled: true
+    base_url: "https://api.deepseek.com"
+    api_key: "YOUR_DEEPSEEK_API_KEY"
+    model: "deepseek-v4-flash"
+    timeout_sec: 15
+    max_calls_per_day: 200
+    every_n_turns: 8
+    fallback: "regex"
+
+cache:
+  enabled: true
+  max_size: 256
+
+token_budget:
+  memory: 250
+  history: 700
