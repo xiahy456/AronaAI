@@ -1,23 +1,23 @@
 {
   "settings": {
     "frame_rate": 60,
-    "dict_path": "/path/to/dict/words",
-    "icon_path": "/path/to/Icon.png",
+    "dict_path": "Dict/dict_zh.json",
+    "icon_path": "Assets/ProgramAssets/Icon.png",
     "zoom": 1.0,
     "offset_from_screen_bottom": 50,
     "mouse_event_transparent": true,
-    "qhotkey_path": "/path/to/QHotkey",
+    "qhotkey_path": "QHotkey",
     "open_setting_widget": true,
-    "text_box_path": "/path/to/TextBox.png",
-    "push_button_path": "/path/to/PushButton.png",
-    "settings_bg_path": "/path/to/SettingsMainBGWidget.png",
-    "close_button_path": "/path/to/CloseButton.png",
-    "top_information_path": "/path/to/TopInformationWidget.png",
-    "font_path": "/path/to/Blueaka",
+    "text_box_path": "Assets/ProgramAssets/TextBox.png",
+    "push_button_path": "Assets/ProgramAssets/PushButton.png",
+    "settings_bg_path": "Assets/ProgramAssets/SettingsMainBGWidget.png",
+    "close_button_path": "Assets/ProgramAssets/CloseButton.png",
+    "top_information_path": "Assets/ProgramAssets/TopInformationWidget.png",
+    "font_path": "Assets/ProgramAssets/font/Blueaka",
     "arona_ai_mode": 0,
-    "arona_ai_mode_switch_button_0": "/path/to/AronaAIModeSwitchButton_0.png",
-    "arona_ai_mode_switch_button_1": "/path/to/AronaAIModeSwitchButton_1.png",
-    "origin_logo_path": "/path/to/BALogo.png"
+    "arona_ai_mode_switch_button_0": "Assets/ProgramAssets/AronaAIModeSwitchButton_0.png",
+    "arona_ai_mode_switch_button_1": "Assets/ProgramAssets/AronaAIModeSwitchButton_1.png",
+    "origin_logo_path": "Assets/ProgramAssets/BALogo.png"
   },
   "aronalm": {
     "websocket_url": "ws://127.0.0.1:20456/ws",
@@ -30,8 +30,8 @@
     "use_memory": true
   },
   "spine": {
-    "skelOrJson_path": "/path/to/AronaSpineAssets/arona_spr.json",
-    "atlas_path": "/path/to/AronaSpineAssets/Arona01.atlas",
+    "skelOrJson_path": "Assets/AronaSpineAssets/arona_spr.json",
+    "atlas_path": "Assets/AronaSpineAssets/Arona01.atlas",
     "animation_default_mix": 0.2
   },
   "tts": {

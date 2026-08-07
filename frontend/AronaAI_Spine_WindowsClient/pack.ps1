@@ -5,8 +5,10 @@
 
 .DESCRIPTION
   Copies the Release exe, runs windeployqt for Qt runtime DLLs/plugins,
-  copies Assets / Config / Dict / fonts, and rewrites Config/config.json
-  to use paths relative to the package root.
+  and copies Assets / Config / Dict into a portable package folder.
+  Config/config.json is taken from the project (relative paths expected);
+  secrets are sanitized and machine-local program_path is dropped unless
+  -KeepSecrets is set.
 
 .PARAMETER QtBin
   Path to Qt bin directory containing windeployqt.exe.
@@ -73,14 +75,12 @@ Assert-Path $WinDeployQt "windeployqt.exe (pass -QtBin if Qt is elsewhere)"
 $AssetsSrc = Join-Path $Root "Assets"
 $ConfigSrc = Join-Path $Root "Config"
 $DictSrc   = Join-Path $Root "Dict"
-# Root = .../frontend/AronaAI_Spine_WindowsClient → repo root is ../..
-$RepoRoot = (Resolve-Path (Join-Path $Root "..\..")).Path
-$FontSrc  = Join-Path $RepoRoot "assets\font\Blueaka"
+$FontSrc   = Join-Path $Root "Assets\ProgramAssets\font\Blueaka"
 
 Assert-Path $AssetsSrc "Assets"
 Assert-Path $ConfigSrc "Config"
 Assert-Path $DictSrc "Dict"
-Assert-Path $FontSrc "Blueaka font directory"
+Assert-Path $FontSrc "Blueaka font directory (Assets/ProgramAssets/font/Blueaka)"
 
 $SourceConfig = Join-Path $ConfigSrc "config.json"
 if (-not (Test-Path -LiteralPath $SourceConfig)) {
@@ -130,58 +130,33 @@ if ($LASTEXITCODE -ne 0) {
     throw "windeployqt failed with exit code $LASTEXITCODE"
 }
 
-# --- Assets / Dict / fonts ---------------------------------------------------
-Write-Step "Copying Assets, Dict, fonts"
+# --- Assets / Dict -----------------------------------------------------------
+Write-Step "Copying Assets, Dict"
 Copy-Tree $AssetsSrc (Join-Path $DistDir "Assets")
 Copy-Tree $DictSrc   (Join-Path $DistDir "Dict")
-Copy-Tree $FontSrc   (Join-Path $DistDir "fonts\Blueaka")
 
-# --- Config with relative paths ---------------------------------------------
-Write-Step "Writing Config/config.json (relative paths)"
+# --- Config ------------------------------------------------------------------
+Write-Step "Writing Config/config.json"
 $configDir = Join-Path $DistDir "Config"
 New-Item -ItemType Directory -Force -Path $configDir | Out-Null
 
-$config = Get-Content -LiteralPath $SourceConfig -Raw -Encoding UTF8 | ConvertFrom-Json
+# Keep source formatting (2-space indent like config.example.json); avoid ConvertTo-Json.
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+$raw = [System.IO.File]::ReadAllText($SourceConfig, $utf8NoBom)
 
-# Preserve non-path settings from source; overwrite filesystem paths for portable use.
-if (-not $config.settings) { $config | Add-Member -NotePropertyName settings -NotePropertyValue ([pscustomobject]@{}) }
-$config.settings.dict_path = "Dict/dict_zh.json"
-$config.settings.icon_path = "Assets/ProgramAssets/Icon.png"
-$config.settings.qhotkey_path = "QHotkey"
-$config.settings.text_box_path = "Assets/ProgramAssets/TextBox.png"
-$config.settings.push_button_path = "Assets/ProgramAssets/PushButton.png"
-$config.settings.settings_bg_path = "Assets/ProgramAssets/SettingsMainBGWidget.png"
-$config.settings.close_button_path = "Assets/ProgramAssets/CloseButton.png"
-$config.settings.top_information_path = "Assets/ProgramAssets/TopInformationWidget.png"
-$config.settings.font_path = "fonts/Blueaka"
-$config.settings.arona_ai_mode_switch_button_0 = "Assets/ProgramAssets/AronaAIModeSwitchButton_0.png"
-$config.settings.arona_ai_mode_switch_button_1 = "Assets/ProgramAssets/AronaAIModeSwitchButton_1.png"
-$config.settings.origin_logo_path = "Assets/ProgramAssets/BALogo.png"
+# Drop machine-local program shortcuts from the portable package.
+$raw = [regex]::Replace($raw, ',\r?\n  "program_path"\s*:\s*\{[\s\S]*?\r?\n  \}', '')
 
-if (-not $config.spine) { $config | Add-Member -NotePropertyName spine -NotePropertyValue ([pscustomobject]@{}) }
-$config.spine.skelOrJson_path = "Assets/AronaSpineAssets/arona_spr.json"
-$config.spine.atlas_path = "Assets/AronaSpineAssets/Arona01.atlas"
-
-if (-not $config.tencent_speech_recognizer) {
-    $config | Add-Member -NotePropertyName tencent_speech_recognizer -NotePropertyValue ([pscustomobject]@{})
-}
 if (-not $KeepSecrets) {
-    $config.tencent_speech_recognizer.secret_id = '${TENCENT_SECRET_ID}'
-    $config.tencent_speech_recognizer.secret_key = '${TENCENT_SECRET_KEY}'
+    # MatchEvaluator + single-quoted result: keep literal ${TENCENT_...} placeholders.
+    $raw = [regex]::Replace($raw, '"secret_id"\s*:\s*"[^"]*"', { '"secret_id": "${TENCENT_SECRET_ID}"' })
+    $raw = [regex]::Replace($raw, '"secret_key"\s*:\s*"[^"]*"', { '"secret_key": "${TENCENT_SECRET_KEY}"' })
     Write-Host "Sanitized tencent_speech_recognizer secrets (use -KeepSecrets to retain)." -ForegroundColor Yellow
 }
 
-# Drop machine-local program shortcuts from the portable package.
-if ($config.PSObject.Properties.Name -contains "program_path") {
-    $config.PSObject.Properties.Remove("program_path")
-}
-
 $outConfig = Join-Path $configDir "config.json"
-$json = $config | ConvertTo-Json -Depth 20
-# PowerShell ConvertTo-Json escapes non-ASCII; write UTF-8 without BOM for Qt.
-[System.IO.File]::WriteAllText($outConfig, $json, (New-Object System.Text.UTF8Encoding $false))
+[System.IO.File]::WriteAllText($outConfig, $raw.TrimEnd() + "`n", $utf8NoBom)
 
-# Keep example alongside for reference
 $exampleSrc = Join-Path $ConfigSrc "config.example.json"
 if (Test-Path -LiteralPath $exampleSrc) {
     Copy-Item -LiteralPath $exampleSrc -Destination (Join-Path $configDir "config.example.json") -Force

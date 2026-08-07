@@ -70,8 +70,8 @@ arona-ai/
 │       ├── QtUtils/            # 工具类（录音、语音识别、动画等）
 │       ├── QHotkey/            # 全局快捷键支持
 │       ├── spine-cpp/          # Spine 2D 动画运行时
-│       ├── Assets/             # 资源文件（Spine 动画、UI 图片）
-│       ├── Config/             # 配置文件
+│       ├── Assets/             # 资源文件（Spine 动画、UI 图片、字体）
+│       ├── Config/             # 配置文件（资源路径为相对路径）
 │       └── Dict/               # 词典文件
 │
 ├── llm/                        # 语言模型
@@ -228,7 +228,7 @@ Windows 客户端使用 Visual Studio 2022（后改为Visual Studio 2026） 和 
 
 **1. 配置 `config.json`**
 
-找到 `frontend/AronaAI_Spine_WindowsClient/Config/config.example.json`，复制并重命名配置文件，然后根据实际模型路径修改配置：
+找到 `frontend/AronaAI_Spine_WindowsClient/Config/config.example.json`，复制并重命名配置文件，然后按需修改服务地址等配置：
 
 ```bash
 # 复制并重命名配置文件
@@ -238,31 +238,31 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
 ```json
 {
   "settings": {
-    "dict_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Dict/dict_zh.json",
-    "icon_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/Icon.png",
-    "qhotkey_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/QHotkey",
-    "text_box_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/TextBox.png",
-    "push_button_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/PushButton.png",
-    "settings_bg_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/SettingsMainBGWidget.png",
-    "close_button_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/CloseButton.png",
-    "top_information_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/TopInformationWidget.png",
-    "font_path": "D:/arona-ai/assets/font/Blueaka/BlueakaBeta2GBKDemiBold-Regular.ttf",
-    "arona_ai_mode_switch_button_0": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/AronaAIModeSwitchButton_0.png",
-    "arona_ai_mode_switch_button_1": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/AronaAIModeSwitchButton_1.png",
-    "origin_logo_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/ProgramAssets/BALogo.png",
+    "dict_path": "Dict/dict_zh.json", // 词典文件路径
+    "icon_path": "Assets/ProgramAssets/Icon.png",
+    "qhotkey_path": "QHotkey",
+    "text_box_path": "Assets/ProgramAssets/TextBox.png",
+    "push_button_path": "Assets/ProgramAssets/PushButton.png",
+    "settings_bg_path": "Assets/ProgramAssets/SettingsMainBGWidget.png",
+    "close_button_path": "Assets/ProgramAssets/CloseButton.png",
+    "top_information_path": "Assets/ProgramAssets/TopInformationWidget.png",
+    "font_path": "Assets/ProgramAssets/font/Blueaka",
+    "arona_ai_mode_switch_button_0": "Assets/ProgramAssets/AronaAIModeSwitchButton_0.png",
+    "arona_ai_mode_switch_button_1": "Assets/ProgramAssets/AronaAIModeSwitchButton_1.png",
+    "origin_logo_path": "Assets/ProgramAssets/BALogo.png",
     ...
   },
   "aronalm": {
-    "websocket_url": "ws://your.aronalm.ip:20456/ws",
+    "websocket_url": "ws://your.aronalm.ip:20456/ws", // AronaLM 后端服务地址
     ...
   },
   "spine": {
-    "skelOrJson_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/AronaSpineAssets/arona_spr.json",
-    "atlas_path": "D:/arona-ai/frontend/AronaAI_Spine_WindowsClient/Assets/AronaSpineAssets/Arona01.atlas",
+    "skelOrJson_path": "Assets/AronaSpineAssets/arona_spr.json",
+    "atlas_path": "Assets/AronaSpineAssets/Arona01.atlas",
     ...
   },
   "tts": {
-    "host": "your.gpt.sovits.ip",
+    "host": "your.gpt.sovits.ip", // GPT-SoVITS 服务地址
     "port": 9880,
     "gpt_path": "GPT_weights_v2/ALuoNa_cn-e15.ckpt",
     "sovits_path": "SoVITS_weights_v2/ALuoNa_cn_e16_s256.pth",
@@ -275,8 +275,9 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
 ```
 
 > **注意**：
- - 请将上述路径中的 `D:/arona-ai` 替换为你本地的项目实际**绝对路径**。
- - 请将AronaLM后端服务、GPT-SoVITS服务地址的地址、端口按照你的实际情况进行填写。
+ - 资源路径相对**程序工作目录**解析；在 Visual Studio 中调试时默认为项目根目录，请勿直接双击 `x64/Debug` 或 `x64/Release` 下的 exe（工作目录会不对）。
+ - 请将 AronaLM 后端服务、GPT-SoVITS 服务的地址、端口按实际情况填写。
+ - 使用 `pack.ps1` 打包便携版时，脚本会自动写入与包内布局一致的相对路径。
 
 **2. 配置腾讯云语音识别（必需）**
 
@@ -343,6 +344,7 @@ start.bat
 ### 客户端配置
 
 客户端配置文件位于 `frontend/AronaAI_Spine_WindowsClient/Config/`，可配置：
+- 资源文件相对路径（Dict / Assets / 字体等，相对项目工作目录）
 - WebSocket 服务器地址和端口
 - TTS 服务地址
 - 语音识别参数
