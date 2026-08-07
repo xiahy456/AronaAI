@@ -308,7 +308,7 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
  - 使用 `pack_keep_secrects.ps1` 打包便携版时，脚本会自动写入与包内布局一致的相对路径，并保留配置文件中的腾讯云 SecretId 和 SecretKey。
  - 使用`pack_sanitize_secrets.ps1` 打包便携版时，脚本会自动写入与包内布局一致的相对路径，并删除配置文件中的腾讯云 SecretId 和 SecretKey。
 
-**2. 配置腾讯云语音识别（必需）**
+**2. 配置腾讯云语音识别**
 
 桌面客户端语音输入依赖腾讯云 ASR，请在 `tencent_speech_recognizer` 中填写自己的 `secret_id` 和 `secret_key`，或者通过环境变量配置：
 
