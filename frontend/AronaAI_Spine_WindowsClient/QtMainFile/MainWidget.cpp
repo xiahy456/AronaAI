@@ -58,7 +58,8 @@ MainWidget::MainWidget(QWidget *parent)
     QScreen* screen = QApplication::primaryScreen();
     QRect screenRect = screen->availableGeometry();
     // 移动窗口
-    this->move(screenRect.left(), screenRect.bottom() - this->height() + GET_INT_FROM_JSON(_global_config, "settings", "offset_from_screen_bottom"));
+    this->move(screenRect.left() + (GET_INT_FROM_JSON(_global_config, "settings", "offset_from_screen_left") * WIDGET_ZOOM)
+        , screenRect.bottom() - this->height() - GET_INT_FROM_JSON(_global_config, "settings", "offset_from_screen_bottom"));
     // 安装事件过滤器
 	this->installEventFilter(this);
 

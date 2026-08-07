@@ -243,10 +243,10 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
     "frame_rate": 60, // 全局帧率
     "dict_path": "Dict/dict_zh.json", // 词典文件路径
     "zoom": 1.0, // 界面缩放比例
-    "offset_from_screen_bottom": 50, // 主窗口相对屏幕底部的偏移（像素）
+    "offset_from_screen_bottom": -50, // 主窗口相对屏幕底部的向上偏移（像素）
+    "offset_from_screen_left": -20, // 主窗口相对屏幕左侧的向右偏移（像素）
     "mouse_event_transparent": true, // 是否启用鼠标穿透（点击穿透桌宠）
     "open_setting_widget": false, // 启动时是否自动打开设置窗口
-    "text_box_path": "Assets/ProgramAssets/TextBox.png", // 对话框背景图路径
     "arona_ai_mode": 0, // 阿洛娜 AI 模式：0=日程模式，1=档案模式
   },
   "aronalm": {
@@ -267,10 +267,9 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
   "tts": {
     "host": "your.gpt.sovits.ip", // GPT-SoVITS 服务地址
     "port": 9880, // GPT-SoVITS 服务端口
-    "gpt_path": "GPT_weights_v2/ALuoNa_cn-e15.ckpt", // GPT 模型权重路径（服务端侧）
-    "sovits_path": "SoVITS_weights_v2/ALuoNa_cn_e16_s256.pth", // SoVITS 模型权重路径（服务端侧）
-    "text_lang": "zh", // 待合成文本语言
-    "ref_audio_path": "ref_audio/Arona/arona_academy_in_2.ogg", // 推荐的参考音频（服务端侧）
+    "gpt_path": "GPT_weights_v2/ALuoNa_cn-e15.ckpt", // 推荐的 GPT 模型权重路径（服务端侧）
+    "sovits_path": "SoVITS_weights_v2/ALuoNa_cn_e16_s256.pth", // 推荐的 SoVITS 模型权重路径（服务端侧）
+    "ref_audio_path": "ref_audio/Arona/arona_academy_in_2.ogg", // 推荐的参考音频路径（服务端侧）
     "prompt_text": "这里为您准备了各种课程和活动，请按您喜欢的方式安排日程吧！", // 参考音频对应的提示文本
     "prompt_lang": "zh", // 提示文本语言
     "top_k": 15, // Top-K 采样
@@ -293,7 +292,8 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
     "device": "" // 音频输入设备名（空字符串表示使用系统默认设备）
   },
   "short_cut_key": {
-    "switch_audio_input": "Ctrl+Alt+V" // 切换 / 触发语音输入的快捷键
+    "switch_audio_input": "Ctrl+Alt+V", // 切换 / 触发语音输入的快捷键
+    "switch_mouse_transparent": "Ctrl+Alt+C"  // 切换 / 触发鼠标穿透的快捷键
   },
   "tencent_speech_recognizer": {
     "secret_id": "${TENCENT_SECRET_ID}", // 腾讯云 SecretId（可用环境变量占位）
@@ -305,7 +305,8 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
 > **注意**：
  - 资源路径相对**程序工作目录**解析；在 Visual Studio 中调试时默认为项目根目录，请勿直接双击 `x64/Debug` 或 `x64/Release` 下的 exe（工作目录会不对）。
  - 请将 AronaLM 后端服务、GPT-SoVITS 服务的地址、端口按实际情况填写。
- - 使用 `pack.ps1` 打包便携版时，脚本会自动写入与包内布局一致的相对路径。
+ - 使用 `pack_keep_secrects.ps1` 打包便携版时，脚本会自动写入与包内布局一致的相对路径，并保留配置文件中的腾讯云 SecretId 和 SecretKey。
+ - 使用`pack_sanitize_secrets.ps1` 打包便携版时，脚本会自动写入与包内布局一致的相对路径，并删除配置文件中的腾讯云 SecretId 和 SecretKey。
 
 **2. 配置腾讯云语音识别（必需）**
 
