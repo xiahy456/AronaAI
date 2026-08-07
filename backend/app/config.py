@@ -53,7 +53,8 @@ class ExtractorConfig(BaseModel):
     model: str = "deepseek-v4-flash"
     timeout_sec: float = 15
     max_calls_per_day: int = 200
-    every_n_turns: int = 8
+    every_n_turns: int = 6
+    extract_buffer_turns: int = 6
     fallback: str = "regex"
 
 

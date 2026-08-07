@@ -127,10 +127,12 @@ arona-ai/
 - **系统托盘**：最小化到系统托盘运行
 
 ### 🎯 技术亮点
-- **本地推理优先**：桌面端以 GGUF + llama.cpp 为主路径，降低在线 LLM 依赖
-- **记忆与知识分离**：用户隐私进 memory，世界观设定进 knowledge corpus
-- **异步记忆抽取**：对话主路径不阻塞；DeepSeek 失败时自动正则降级
-- **QLoRA 微调链路**：Unsloth 微调 → 导出 GGUF → 后端直接加载
+- **本地推理主路径**：后端以 `llama-cpp-python` 加载 Qwen3-1.7B 微调后的 GGUF（Q4_K_M），支持同步/流式生成，并过滤 `<think>` 推理块
+- **记忆与知识分离**：用户长期事实进 SQLite + FTS5（jieba 检索）；世界观设定进 Markdown 语料 → 本地 BGE + Chroma RAG，互不混写
+- **异步记忆抽取**：对话主路径不阻塞；DeepSeek JSON 抽取（含日配额），失败或无 Key 时自动正则降级
+- **完整微调链路**：Unsloth QLoRA（面向约 6–8GB 显存）→ LoRA 适配器 → 合并导出 GGUF，可直接给后端加载
+- **桌面端完整交互**：Qt/C++ + Spine 桌宠客户端经 WebSocket 对接后端；可接 GPT-SoVITS TTS 与腾讯云 ASR
+- **上下文可控**：多轮历史截断 + memory/knowledge/history token budget + 精确匹配响应缓存，控制延迟与重复推理
 
 ---
 
@@ -213,7 +215,7 @@ python scripts/test_knowledge_rag.py
 
 ### 客户端构建 / Client Build
 
-Windows 客户端使用 Visual Studio 2022（后改为Visual Studio 2026） 和 Qt 构建：
+Windows 客户端使用 Visual Studio 2026 和 Qt 构建：
 
 1. 安装 [Qt 6.x](https://www.qt.io/download)（推荐6.5.3） 和 [Visual Studio 2026](https://visualstudio.microsoft.com/)，并在VS2026中安装`Qt VS Tools`扩展
 2. 确保你拥有v143 (Visual Studio 2022)平台工具集，在该项目中需要使用此平台工具集
@@ -268,7 +270,7 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
     "gpt_path": "GPT_weights_v2/ALuoNa_cn-e15.ckpt", // GPT 模型权重路径（服务端侧）
     "sovits_path": "SoVITS_weights_v2/ALuoNa_cn_e16_s256.pth", // SoVITS 模型权重路径（服务端侧）
     "text_lang": "zh", // 待合成文本语言
-    "ref_audio_path": "ref_audio/Arona/arona_academy_in_2.ogg", // 参考音频路径（服务端侧）
+    "ref_audio_path": "ref_audio/Arona/arona_academy_in_2.ogg", // 推荐的参考音频（服务端侧）
     "prompt_text": "这里为您准备了各种课程和活动，请按您喜欢的方式安排日程吧！", // 参考音频对应的提示文本
     "prompt_lang": "zh", // 提示文本语言
     "top_k": 15, // Top-K 采样
@@ -359,7 +361,7 @@ start.bat
 | `model` | GGUF 路径、上下文长度、采样参数、system prompt |
 | `conversation` | 多轮历史保留轮数 |
 | `knowledge` | 世界观 RAG（语料目录、Chroma、嵌入模型、检索阈值） |
-| `memory` | SQLite 路径、检索条数、DeepSeek 抽取器与正则降级 |
+| `memory` | SQLite 路径、检索条数、DeepSeek 抽取器（`every_n_turns` / `extract_buffer_turns` 缓冲批量）与正则降级 |
 | `cache` | 响应缓存开关与容量 |
 | `token_budget` | memory / knowledge / history 注入预算 |
 

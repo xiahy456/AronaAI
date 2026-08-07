@@ -39,22 +39,24 @@ class MainWidget : public QWidget
     Q_OBJECT
 
 public:
-	// 构造函数
+	// 鏋勯�犲嚱鏁?
     MainWidget(QWidget *parent = nullptr);
-	// 析构函数
+	// 鏋愭瀯鍑芥暟
     ~MainWidget();
-	// 显示输出文本并显示气泡
+	// 鏄剧ず杈撳嚭鏂囨湰骞舵樉绀烘皵娉?
 	void showOutputText(const QString& text);
-    // 隐藏输出文本并隐藏气泡
+    // 闅愯棌杈撳嚭鏂囨湰骞堕殣钘忔皵娉?
 	void hideOutputText();
-    // 设置动画
+    // 璁剧疆鍔ㄧ敾
 	void setAnimation(const QString& name, int track_idx, bool loop);
-    // 清除动画
+    // 娓呴櫎鍔ㄧ敾
 	void clearAnimation(int track_idx, float mix_duration);
     // 更改鼠标可用性
 	void setMouseTransparent(bool isMouseTransparent);
+	// 获取当前是否鼠标穿透
+	bool isMouseTransparent() const;
 
-    // Debug-显示文本
+    // Debug-鏄剧ず鏂囨湰
 	void debug_showText();
 
 protected:
@@ -66,12 +68,12 @@ protected:
 private:
     Ui::MainWidgetClass ui;
 
-    // 鼠标事件
+    // 榧犳爣浜嬩欢
     bool m_dragging;
     QPoint m_dragPosition;
-	bool m_mouseTransparent;   // 是否鼠标穿透
+	bool m_mouseTransparent;   // 鏄?鍚﹂紶鏍囩┛閫?
 
-    // 不透明度动画属性
-	OpacityAnimation* m_opacityAnimation_aronaOutputTextBox = nullptr;   // 文本框不透明度动画
+    // 涓嶉�忔槑搴﹀姩鐢诲睘鎬?
+	OpacityAnimation* m_opacityAnimation_aronaOutputTextBox = nullptr;   // 鏂囨湰妗嗕笉閫忔槑搴﹀姩鐢?
 
 };

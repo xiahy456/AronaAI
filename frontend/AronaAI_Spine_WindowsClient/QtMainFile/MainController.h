@@ -42,40 +42,42 @@ public:
 	MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer, WebSocketController* webSocketController);
 	~MainController();
 
-	// Ö´ĞĞÊä³ö
+	// æ‰§è¡Œè¾“å‡º
 	void executeOutput(const QString& text);
-	// ¿ªÊ¼Â¼Òô¡¢Ê¶±ğ
+	// å¼€å§‹å½•éŸ³ã€è¯†åˆ«
 	void startAudioProcessing();
-	// Í£Ö¹Â¼Òô¡¢Ê¶±ğ
+	// åœæ­¢å½•éŸ³ã€è¯†åˆ«
 	void stopAudioProcessing();
+	// åˆ‡æ¢ä¸»ç•Œé¢é¼ æ ‡ç©¿é€
+	void toggleMouseTransparent();
 
 private slots:
-	// TTS¹¤×÷Íê±Ï
+	// TTSå·¥ä½œå®Œæ¯•
 	void onTTSFinished(const QByteArray& audioData, const QString& mediaType);
-	// ÒôÆµÊäÈë³ö´í
+	// éŸ³é¢‘è¾“å…¥å‡ºé”™
 	void onAudioError(const QString& error);
-	// ÒôÆµÊ¶±ğ³ö´í
+	// éŸ³é¢‘è¯†åˆ«å‡ºé”™
 	void onRecognizeError(const QString& error);
-	// ´¦ÀíÊ¶±ğ½á¹û
+	// å¤„ç†è¯†åˆ«ç»“æœ
 	void onRecognizeFinished(const QString& text);
-	// WebSocket Ïà¹Ø²Ûº¯Êı
+	// WebSocket ç›¸å…³æ§½å‡½æ•°
 	void onWebSocketConnected(const QString& sessionId);
-	void onWebSocketChatResponse(const QString& content, bool fromCache, bool contextUsed, double latency);
+	void onWebSocketChatResponse(const QString& content, bool fromCache, const QString& contextUsed, double latency);
 	void onWebSocketChatStream(const QString& content, bool done);
 	void onWebSocketError(WebSocketController::ErrorCode code, const QString& message);
 	void onWebSocketStateChanged(WebSocketController::ConnectionState state);
 
 private:
-	MainWidget* m_mainWidget;	// Ö÷½çÃæ¶ÔÏóÒıÓÃ
-	TTSManager* m_ttsManager;	// ÓïÒôºÏ³É¹ÜÀíÆ÷Ö¸Õë
-	AudioRecorder* m_audioRecorder;	// ÒôÆµÂ¼ÖÆÆ÷¶ÔÏó
-	TencentSpeechRecognizer* m_tencentRecognizer; // ÌÚÑ¶µÄÓïÒôÊ¶±ğ
-	WebSocketController* m_webSocketController;	// ·şÎñ¶ËwebsocketÁ¬½Ó
-	TTSManager::TTSRequestParams ttsRequestParams;	// ÓïÒôºÏ³ÉÇëÇó²ÎÊı
-	QString m_currentText = "";	// µ±Ç°ÕıÔÚ´¦ÀíµÄÎÄ±¾
-	bool m_waitingForAIResponse = false;	// ÊÇ·ñÕıÔÚµÈ´ıAI»Ø¸´
+	MainWidget* m_mainWidget;	// ä¸»ç•Œé¢å¯¹è±¡å¼•ç”¨
+	TTSManager* m_ttsManager;	// è¯­éŸ³åˆæˆç®¡ç†å™¨æŒ‡é’ˆ
+	AudioRecorder* m_audioRecorder;	// éŸ³é¢‘å½•åˆ¶å™¨å¯¹è±¡
+	TencentSpeechRecognizer* m_tencentRecognizer; // è…¾è®¯çš„è¯­éŸ³è¯†åˆ«
+	WebSocketController* m_webSocketController;	// æœåŠ¡ç«¯websocketè¿æ¥
+	TTSManager::TTSRequestParams ttsRequestParams;	// è¯­éŸ³åˆæˆè¯·æ±‚å‚æ•°
+	QString m_currentText = "";	// å½“å‰æ­£åœ¨å¤„ç†çš„æ–‡æœ¬
+	bool m_waitingForAIResponse = false;	// æ˜¯å¦æ­£åœ¨ç­‰å¾…AIå›å¤
 
-	// ´¦ÀíÓÃ»§ÓïÒôÊäÈëµÄÎÄ±¾
+	// å¤„ç†ç”¨æˆ·è¯­éŸ³è¾“å…¥çš„æ–‡æœ¬
 	void processInputText(const QString& text);
 
 };

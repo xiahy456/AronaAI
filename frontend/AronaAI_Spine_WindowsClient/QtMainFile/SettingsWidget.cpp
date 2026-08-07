@@ -22,23 +22,23 @@
 SettingsWidget::SettingsWidget(QWidget *parent)
 	: QWidget(parent)
 {
-    // ¼ÓÔØUI½çÃæ
+    // åŠ è½½UIç•Œé¢
 	ui.setupUi(this);
     
-    // ´°¿ÚÉèÖÃ
-    this->setAttribute(Qt::WA_TranslucentBackground);	// ÉèÖÃ´°¿Ú±³¾°Í¸Ã÷
-    //this->setAttribute(Qt::WA_TransparentForMouseEvents, true); // ÉèÖÃÊó±ê´©Í¸µã»÷
-    this->setWindowFlag(Qt::FramelessWindowHint);	// ÉèÖÃÎÞ±ß¿ò´°¿Ú
-    //this->setWindowFlag(Qt::WindowStaysOnTopHint);	// ÉèÖÃ´°¿ÚÊ¼ÖÕÔÚ¶¥²¿
-    //this->setWindowFlag(Qt::Tool);	// Òþ²ØÓ¦ÓÃ³ÌÐòÍ¼±ê
-    this->setAutoFillBackground(false);   // ½ûÓÃ×Ô¶¯Ìî³ä±³¾°
-    this->setWindowTitle(GET_STRING_FROM_JSON(_global_dict, "application_data", "settings_widget_name"));  // ÉèÖÃ´°¿ÚÃû³Æ
+    // çª—å£è®¾ç½®
+    this->setAttribute(Qt::WA_TranslucentBackground);	// è®¾ç½®çª—å£èƒŒæ™¯é€æ˜Ž
+    //this->setAttribute(Qt::WA_TransparentForMouseEvents, true); // è®¾ç½®é¼ æ ‡ç©¿é€ç‚¹å‡»
+    this->setWindowFlag(Qt::FramelessWindowHint);	// è®¾ç½®æ— è¾¹æ¡†çª—å£
+    //this->setWindowFlag(Qt::WindowStaysOnTopHint);	// è®¾ç½®çª—å£å§‹ç»ˆåœ¨é¡¶éƒ¨
+    //this->setWindowFlag(Qt::Tool);	// éšè—åº”ç”¨ç¨‹åºå›¾æ ‡
+    this->setAutoFillBackground(false);   // ç¦ç”¨è‡ªåŠ¨å¡«å……èƒŒæ™¯
+    this->setWindowTitle(GET_STRING_FROM_JSON(_global_dict, "application_data", "settings_widget_name"));  // è®¾ç½®çª—å£åç§°
 
-    // ÉèÖÃ´°¿Ú´óÐ¡
+    // è®¾ç½®çª—å£å¤§å°
     this->resize(1080 * WIDGET_ZOOM, 410 * WIDGET_ZOOM);
 
-    // ¿Ø¼þÉèÖÃ
-    // ½çÃæÇÐ»»°´Å¥
+    // æŽ§ä»¶è®¾ç½®
+    // ç•Œé¢åˆ‡æ¢æŒ‰é’®
     WIDGET_SWITCH_SETTING(ui.basicSettingsButton, 0);
     WIDGET_SWITCH_SETTING(ui.aronaLMSettingsButton, 1);
     WIDGET_SWITCH_SETTING(ui.spineSettingsButton, 2);
@@ -52,7 +52,7 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     ui.debugOutputButton->setText(GET_STRING_FROM_JSON(_global_dict, "application_data", "debug_output_button_name"));
     ui.aboutDeveloperButton->setText(GET_STRING_FROM_JSON(_global_dict, "application_data", "about_developer_button_name"));
 
-    // ÉÏ·½À¸
+    // ä¸Šæ–¹æ 
     ui.topInformationWidget->move(130 * WIDGET_ZOOM, 0 * WIDGET_ZOOM);
     ui.topInformationWidget->resize(940 * WIDGET_ZOOM, 25 * WIDGET_ZOOM);
     ui.topInformationWidget->setStyleSheet(
@@ -84,7 +84,7 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     ui.widgetNameLabel->setText(GET_STRING_FROM_JSON(_global_dict, "application_data", "settings_widget_name"));
     ui.widgetNameLabel->setStyleSheet("color: rgb(44, 69, 99); ");
 
-    // Ö÷½çÃæ±³¾°
+    // ä¸»ç•Œé¢èƒŒæ™¯
     ui.mainBGWidget->move(80 * WIDGET_ZOOM, 20 * WIDGET_ZOOM);
     ui.mainBGWidget->setFixedSize(990 * WIDGET_ZOOM, 380 * WIDGET_ZOOM);
     ui.mainBGWidget->setFillBackground(true);
@@ -93,26 +93,26 @@ SettingsWidget::SettingsWidget(QWidget *parent)
 	ui.mainBGShadowWidget->move(80 * WIDGET_ZOOM, 400 * WIDGET_ZOOM);
 	ui.mainBGShadowWidget->resize(772 * WIDGET_ZOOM, 3 * WIDGET_ZOOM);
 
-    // stackedWidget¿Ø¼þ
+    // stackedWidgetæŽ§ä»¶
 	ui.stackedWidget->move(80 * WIDGET_ZOOM, 20 * WIDGET_ZOOM);
 	ui.stackedWidget->resize(990 * WIDGET_ZOOM, 380 * WIDGET_ZOOM);
     ui.stackedWidget->setCurrentIndex(0);
 
-    // »ù´¡ÉèÖÃ¿Ø¼þ
-    // Ö¡ÂÊ
+    // åŸºç¡€è®¾ç½®æŽ§ä»¶
+    // å¸§çŽ‡
     WIDGET_CHILD_SETTING_LABEL(ui.basicSettings_frameRateLabel, "frame_rate", 0);
     WIDGET_CHILD_SETTING_INPUT_NUMBER(ui.basicSettings_frameRateLineEdit, "settings", "frame_rate", 0);
 
-    // ½çÃæËõ·Å
+    // ç•Œé¢ç¼©æ”¾
     WIDGET_CHILD_SETTING_LABEL(ui.basicSettings_widgetZoomLabel, "widget_zoom", 1);
     WIDGET_CHILD_SETTING_INPUT_NUMBER(ui.basicSettings_widgetZoomLabelLineEdit, "settings", "zoom", 1);
 
-    // ÓïÒô¿ì½Ý¼ü
+    // è¯­éŸ³å¿«æ·é”®
     WIDGET_CHILD_SETTING_LABEL(ui.basicSettings_shortCutLabel, "voiceInput_shortCut", 2);
     WIDGET_CHILD_SETTING_INPUT_STRING(ui.basicSettings_shortCutLineEdit, "short_cut_key", "switch_audio_input", 2);
 
-	// °¢ÂÞÄÈAIÄ£Ê½
-    ui.basicSettings_aronaAIModeWidget->move(STEP_POSITION_POINT(230, 20, 40, 3));  // °¢ÂÞÄÈAIÉèÖÃ¿Ø¼þ»ù×¼Î»ÖÃ
+	// é˜¿ç½—å¨œAIæ¨¡å¼
+    ui.basicSettings_aronaAIModeWidget->move(STEP_POSITION_POINT(230, 20, 40, 3));  // é˜¿ç½—å¨œAIè®¾ç½®æŽ§ä»¶åŸºå‡†ä½ç½®
 	ui.basicSettings_aronaAIModeWidget->resize(400 * WIDGET_ZOOM, 120 * WIDGET_ZOOM);
     ui.basicSettings_aronaAIModeWidget->setStyleSheet("color: rgb(44, 69, 99);");
 
@@ -162,21 +162,21 @@ SettingsWidget::SettingsWidget(QWidget *parent)
         break;
     };
 
-	// AronaLMÉèÖÃ¿Ø¼þ
+	// AronaLMè®¾ç½®æŽ§ä»¶
 
-	// SpineÉèÖÃ¿Ø¼þ
+	// Spineè®¾ç½®æŽ§ä»¶
 
-	// GPT-SOVITSÉèÖÃ¿Ø¼þ
+	// GPT-SOVITSè®¾ç½®æŽ§ä»¶
 
-	// µ÷ÊÔÊä³ö¿Ø¼þ
+	// è°ƒè¯•è¾“å‡ºæŽ§ä»¶
     ui.debugOutput_outputTextBrowser->setFont(BlueakaFontLoader::instance()->createFont(9 * WIDGET_ZOOM));
 
-	// ¹ØÓÚ¿ª·¢Õß¿Ø¼þ
-    // ¿ª·¢Õß
+	// å…³äºŽå¼€å‘è€…æŽ§ä»¶
+    // å¼€å‘è€…
     WIDGET_CHILD_SETTING_LABEL(ui.aboutDeveloper_developerLable, "developer", 0);
     ui.aboutDeveloper_developerLable->move(STEP_POSITION_POINT(230, 58, 100, 0));
     
-    // Ô­×÷
+    // åŽŸä½œ
     WIDGET_CHILD_SETTING_LABEL(ui.aboutDeveloper_originLable, "origin", 1);
     ui.aboutDeveloper_originLable->move(STEP_POSITION_POINT(230, 58, 100, 1));
 
@@ -189,18 +189,18 @@ SettingsWidget::SettingsWidget(QWidget *parent)
         "}"
     );
 
-    // Á¬½ÓÐÅºÅÓë²Û
+    // è¿žæŽ¥ä¿¡å·ä¸Žæ§½
     connect(ui.closeButton, &QPushButton::clicked, this, &SettingsWidget::onCloseButtonClicked);    // CloseButton
-	connect(ui.basicSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onBasicSettingsButtonClicked);    // »ù´¡ÉèÖÃ°´Å¥
-	connect(ui.aronaLMSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onAronaLMSettingsButtonClicked);    // AronaLMÉèÖÃ°´Å¥
-	connect(ui.spineSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onSpineSettingsButtonClicked);    // SpineÉèÖÃ°´Å¥
-	connect(ui.gptSOVITSSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onGptSOVITSSettingsButtonClicked);    // GPT-SOVITSÉèÖÃ°´Å¥
-	connect(ui.debugOutputButton, &QPushButton::clicked, this, &SettingsWidget::onDebugOutputButtonClicked);    // µ÷ÊÔÊä³ö°´Å¥
-	connect(ui.aboutDeveloperButton, &QPushButton::clicked, this, &SettingsWidget::onAboutDeveloperButtonClicked);    // ¹ØÓÚ¿ª·¢Õß°´Å¥
-	connect(ui.basicSettings_aronaAIModeSwitchButton, &QPushButton::clicked, this, &SettingsWidget::onAronaAIModeSwitchButtonClicked);    // AronaAIÄ£Ê½ÇÐ»»°´Å¥
-    connect(DebugManager::instance(), &DebugManager::debugMessageReceived, this, &SettingsWidget::receiveDebugMessage); // ½ÓÊÕµ÷ÊÔÊä³ö
+	connect(ui.basicSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onBasicSettingsButtonClicked);    // åŸºç¡€è®¾ç½®æŒ‰é’®
+	connect(ui.aronaLMSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onAronaLMSettingsButtonClicked);    // AronaLMè®¾ç½®æŒ‰é’®
+	connect(ui.spineSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onSpineSettingsButtonClicked);    // Spineè®¾ç½®æŒ‰é’®
+	connect(ui.gptSOVITSSettingsButton, &QPushButton::clicked, this, &SettingsWidget::onGptSOVITSSettingsButtonClicked);    // GPT-SOVITSè®¾ç½®æŒ‰é’®
+	connect(ui.debugOutputButton, &QPushButton::clicked, this, &SettingsWidget::onDebugOutputButtonClicked);    // è°ƒè¯•è¾“å‡ºæŒ‰é’®
+	connect(ui.aboutDeveloperButton, &QPushButton::clicked, this, &SettingsWidget::onAboutDeveloperButtonClicked);    // å…³äºŽå¼€å‘è€…æŒ‰é’®
+	connect(ui.basicSettings_aronaAIModeSwitchButton, &QPushButton::clicked, this, &SettingsWidget::onAronaAIModeSwitchButtonClicked);    // AronaAIæ¨¡å¼åˆ‡æ¢æŒ‰é’®
+    connect(DebugManager::instance(), &DebugManager::debugMessageReceived, this, &SettingsWidget::receiveDebugMessage); // æŽ¥æ”¶è°ƒè¯•è¾“å‡º
     
-    // ÖØ·Å»º´æµÄÏûÏ¢
+    // é‡æ”¾ç¼“å­˜çš„æ¶ˆæ¯
     DebugManager::instance()->flushPendingMessages();
 
 }
@@ -212,14 +212,14 @@ SettingsWidget::~SettingsWidget()
 
 void SettingsWidget::closeEvent(QCloseEvent * event)
 {
-    // ºöÂÔ¹Ø±ÕÊÂ¼þ£¬¸ÄÎªÒþ²Ø´°¿Ú
+    // å¿½ç•¥å…³é—­äº‹ä»¶ï¼Œæ”¹ä¸ºéšè—çª—å£
     event->ignore();
     this->hide();
 }
 
 void SettingsWidget::mousePressEvent(QMouseEvent* event)
 {
-    // ¼ì²éÊÇ·ñµã»÷ÔÚ¿ÉÍÏ¶¯µÄ¿Ø¼þÉÏ
+    // æ£€æŸ¥æ˜¯å¦ç‚¹å‡»åœ¨å¯æ‹–åŠ¨çš„æŽ§ä»¶ä¸Š
     if (ui.topInformationWidget && ui.topInformationWidget->geometry().contains(event->pos()))
     {
         m_isDragging = true;
@@ -260,54 +260,54 @@ void SettingsWidget::mouseReleaseEvent(QMouseEvent* event)
 
 void SettingsWidget::onBasicSettingsButtonClicked()
 {
-    // ÇÐ»»Ò³Ãæ
+    // åˆ‡æ¢é¡µé¢
     ui.stackedWidget->setCurrentIndex(0);
 }
 
 void SettingsWidget::onAronaLMSettingsButtonClicked()
 {
-    // ÇÐ»»Ò³Ãæ
+    // åˆ‡æ¢é¡µé¢
     ui.stackedWidget->setCurrentIndex(1);
 }
 
 void SettingsWidget::onSpineSettingsButtonClicked()
-{    // ÇÐ»»Ò³Ãæ
+{    // åˆ‡æ¢é¡µé¢
     ui.stackedWidget->setCurrentIndex(2);
 }
 
 void SettingsWidget::onGptSOVITSSettingsButtonClicked()
-{    // ÇÐ»»Ò³Ãæ
+{    // åˆ‡æ¢é¡µé¢
     ui.stackedWidget->setCurrentIndex(3);
 }
 
 void SettingsWidget::onDebugOutputButtonClicked()
-{    // ÇÐ»»Ò³Ãæ
+{    // åˆ‡æ¢é¡µé¢
     ui.stackedWidget->setCurrentIndex(4);
 }
 
 void SettingsWidget::onAboutDeveloperButtonClicked()
-{    // ÇÐ»»Ò³Ãæ
+{    // åˆ‡æ¢é¡µé¢
     ui.stackedWidget->setCurrentIndex(5);
 }
 
 void SettingsWidget::onAronaAIModeSwitchButtonClicked()
 {
-    // »ñÈ¡µ±Ç°×´Ì¬
+    // èŽ·å–å½“å‰çŠ¶æ€
 	int currentModeIdx = GET_INT_FROM_JSON(_global_config, "settings", "arona_ai_mode");
-    int timeLast = 500; // Î»ÒÆ¶¯»­³ÖÐøÊ±¼ä
-    // ²¥·Å°´¼ü¶¯»­
+    int timeLast = 500; // ä½ç§»åŠ¨ç”»æŒç»­æ—¶é—´
+    // æ’­æ”¾æŒ‰é”®åŠ¨ç”»
     if (!currentModeIdx) {
-		// ÖúÊÖÄ£Ê½->µµ°¸Ä£Ê½
-        // Ç°ÖÃ×´Ì¬±£Ö¤
+		// åŠ©æ‰‹æ¨¡å¼->æ¡£æ¡ˆæ¨¡å¼
+        // å‰ç½®çŠ¶æ€ä¿è¯
         ui.basicSettings_aronaAIModeSwitchButton->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "arona_ai_mode_0"));
-        // Î»ÒÆ¶¯»­
+        // ä½ç§»åŠ¨ç”»
         QPropertyAnimation* animation_aronaAIModeSwitchButton_0_1 = new QPropertyAnimation(ui.basicSettings_aronaAIModeSwitchButton, "pos");
         animation_aronaAIModeSwitchButton_0_1->setDuration(timeLast);
         animation_aronaAIModeSwitchButton_0_1->setStartValue(QPoint(2 * WIDGET_ZOOM, 1 * WIDGET_ZOOM));
         animation_aronaAIModeSwitchButton_0_1->setEndValue(QPoint(60 * WIDGET_ZOOM, 1 * WIDGET_ZOOM));
         animation_aronaAIModeSwitchButton_0_1->setEasingCurve(QEasingCurve::InOutQuint);
         animation_aronaAIModeSwitchButton_0_1->start();
-        // Ë²Ê±¸ü¸Ä
+        // çž¬æ—¶æ›´æ”¹
         QTimer::singleShot(timeLast/2, [this]() {
             ui.basicSettings_aronaAIModeSwitchButton->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "arona_ai_mode_1"));
             ui.basicSettings_aronaAIModeSwitchButton->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "arona_ai_mode_switch_button_1"));
@@ -315,21 +315,21 @@ void SettingsWidget::onAronaAIModeSwitchButtonClicked()
             ui.basicSettings_aronaAIModePSLabel_1->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_1_text_1"));
             ui.basicSettings_aronaAIModePSLabel_2->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_1_text_2"));
             });
-        // ÉèÖÃ_global_config
+        // è®¾ç½®_global_config
         if (!SET_INT_TO_JSON(_global_config, "settings", "arona_ai_mode", 1)) qWarning() << ERROR_PR << "[Setting Widget]Set arona AI mode to 1 failed!";
     }
     else {
-        // ÖúÊÖÄ£Ê½<-µµ°¸Ä£Ê½
-        // Ç°ÖÃ×´Ì¬±£Ö¤
+        // åŠ©æ‰‹æ¨¡å¼<-æ¡£æ¡ˆæ¨¡å¼
+        // å‰ç½®çŠ¶æ€ä¿è¯
         ui.basicSettings_aronaAIModeSwitchButton->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "arona_ai_mode_1"));
-        // Î»ÒÆ¶¯»­
+        // ä½ç§»åŠ¨ç”»
         QPropertyAnimation* animation_aronaAIModeSwitchButton_1_0 = new QPropertyAnimation(ui.basicSettings_aronaAIModeSwitchButton, "pos");
         animation_aronaAIModeSwitchButton_1_0->setDuration(timeLast);
         animation_aronaAIModeSwitchButton_1_0->setStartValue(QPoint(60 * WIDGET_ZOOM, 1 * WIDGET_ZOOM));
         animation_aronaAIModeSwitchButton_1_0->setEndValue(QPoint(2 * WIDGET_ZOOM, 1 * WIDGET_ZOOM));
         animation_aronaAIModeSwitchButton_1_0->setEasingCurve(QEasingCurve::InOutQuint);
         animation_aronaAIModeSwitchButton_1_0->start();
-        // Ë²Ê±¸ü¸Ä
+        // çž¬æ—¶æ›´æ”¹
         QTimer::singleShot(timeLast / 2, [this]() {
             ui.basicSettings_aronaAIModeSwitchButton->setText(GET_STRING_FROM_JSON(_global_dict, "settings", "arona_ai_mode_0"));
             ui.basicSettings_aronaAIModeSwitchButton->setBackgroundImage(GET_STRING_FROM_JSON(_global_config, "settings", "arona_ai_mode_switch_button_0"));
@@ -337,14 +337,14 @@ void SettingsWidget::onAronaAIModeSwitchButtonClicked()
             ui.basicSettings_aronaAIModePSLabel_1->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_0_text_1"));
             ui.basicSettings_aronaAIModePSLabel_2->setText(GET_STRING_FROM_JSON(_global_dict, "formed_text", "arona_ai_mode_0_text_2"));
             });
-        // ÉèÖÃ_global_config
+        // è®¾ç½®_global_config
         if (!SET_INT_TO_JSON(_global_config, "settings", "arona_ai_mode", 0)) qWarning() << ERROR_PR << "[Setting Widget]Set arona AI mode to 0 failed!";
     }
 }
 
 void SettingsWidget::receiveDebugMessage(const QString& message)
 {
-    // ×·¼ÓÎÄ×Ö
+    // è¿½åŠ æ–‡å­—
     ui.debugOutput_outputTextBrowser->append(message);
 }
 

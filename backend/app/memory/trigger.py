@@ -17,7 +17,14 @@ _FACTISH = re.compile(
 )
 
 
-def should_extract(user_text: str, *, turn_count: int, every_n_turns: int) -> bool:
+def should_extract(
+    user_text: str,
+    *,
+    turn_count: int,
+    every_n_turns: int,
+    buffer_turns: int = 0,
+    extract_buffer_turns: int = 0,
+) -> bool:
     text = (user_text or "").strip()
     if not text:
         return False
@@ -26,5 +33,7 @@ def should_extract(user_text: str, *, turn_count: int, every_n_turns: int) -> bo
     if _FACTISH.search(text):
         return True
     if every_n_turns > 0 and turn_count > 0 and turn_count % every_n_turns == 0:
+        return True
+    if extract_buffer_turns > 0 and buffer_turns >= extract_buffer_turns:
         return True
     return False

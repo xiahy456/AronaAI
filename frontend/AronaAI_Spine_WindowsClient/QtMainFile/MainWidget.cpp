@@ -133,6 +133,11 @@ void MainWidget::setMouseTransparent(bool isMouseTransparent)
     }
 }
 
+bool MainWidget::isMouseTransparent() const
+{
+	return m_mouseTransparent;
+}
+
 void MainWidget::debug_showText()
 {
     QTimer::singleShot(1000, [this]() { showOutputText(GET_STRING_FROM_JSON(_global_dict, "debug", "initializing")); });

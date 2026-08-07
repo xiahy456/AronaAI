@@ -41,8 +41,9 @@ memory:
     api_key: "YOUR_DEEPSEEK_API_KEY"
     model: "deepseek-v4-flash"
     timeout_sec: 15
-    max_calls_per_day: 200
-    every_n_turns: 8
+    max_calls_per_day: 512
+    every_n_turns: 6
+    extract_buffer_turns: 6
     fallback: "regex"
 
 cache:

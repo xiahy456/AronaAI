@@ -194,6 +194,14 @@ void MainController::stopAudioProcessing()
     FINE_DEBUG_OUTPUT("[Audio Input Processing]Audio processing program is ready!");
 }
 
+void MainController::toggleMouseTransparent()
+{
+    bool nextState = !m_mainWidget->isMouseTransparent();
+    m_mainWidget->setMouseTransparent(nextState);
+    FINE_DEBUG_OUTPUT(QString("[Main Controller] Mouse transparent toggled to: %1")
+        .arg(nextState ? "true" : "false"));
+}
+
 void MainController::onAudioError(const QString& error)
 {
     ERROR_DEBUG_OUTPUT("[Audio Input Processing]Audio error!");
@@ -281,12 +289,12 @@ void MainController::onWebSocketConnected(const QString& sessionId)
     // 连接成功后可以发送欢迎消息或其他初始化操作
 }
 
-void MainController::onWebSocketChatResponse(const QString& content, bool fromCache, bool contextUsed, double latency)
+void MainController::onWebSocketChatResponse(const QString& content, bool fromCache, const QString& contextUsed, double latency)
 {
     FINE_DEBUG_OUTPUT("[WebSocket] Received AI response: " + content.left(50) + "...");
     FINE_DEBUG_OUTPUT(QString("[WebSocket] Cache: %1, Context: %2, Latency: %3s")
         .arg(fromCache ? "yes" : "no")
-        .arg(contextUsed ? "yes" : "no")
+        .arg(contextUsed)
         .arg(latency));
 
     // 重置等待状态

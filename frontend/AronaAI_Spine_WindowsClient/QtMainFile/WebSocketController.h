@@ -133,9 +133,9 @@ signals:
     // 收到消息信号
     void messageReceived(const QJsonObject& message);
 
-    // 收到聊天响应信号
+    // 收到聊天响应信号（contextUsed 为后端经过的模块标识，如 "none"/"cache"/"memory+rag"）
     void chatResponseReceived(const QString& content, bool fromCache,
-        bool contextUsed, double latency);
+        const QString& contextUsed, double latency);
 
     // 收到流式聊天片段信号
     void chatStreamReceived(const QString& content, bool done);

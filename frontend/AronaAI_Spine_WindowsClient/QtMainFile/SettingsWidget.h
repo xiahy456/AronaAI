@@ -29,19 +29,19 @@
 
 #include "ui_SettingsWidget.h"
 
-// »ñÈ¡Æ½ĞĞËÄ±ßĞÎµÄwidth
+// è·å–å¹³è¡Œå››è¾¹å½¢çš„width
 #define WIDTH_X(_width, _height) (_width + _height*0.5773) * WIDGET_ZOOM
 
-// °´ÕÕtan60¶È»ñÈ¡x×ø±ê
+// æŒ‰ç…§tan60åº¦è·å–xåæ ‡
 #define POSITION_X(_start_x, _gap, _step) (_start_x - _gap*_step*0.5773) * WIDGET_ZOOM
 
-// »ñÈ¡y×ø±ê
+// è·å–yåæ ‡
 #define POSITION_Y(_start_y, _gap, _step) (_start_y + _gap*_step) * WIDGET_ZOOM
 
-// °´¼üÅÅ²¼Î»ÒÆ
+// æŒ‰é”®æ’å¸ƒä½ç§»
 #define STEP_POSITION_POINT(_start_x, _start_y, _gap, _step) POSITION_X(_start_x, _gap, _step), POSITION_Y(_start_y, _gap, _step)
 
-// ½çÃæÇĞ»»°´Å¥ÉèÖÃ
+// ç•Œé¢åˆ‡æ¢æŒ‰é’®è®¾ç½®
 #define WIDGET_SWITCH_SETTING(_button, _cur_step) do { \
 	_button->move(STEP_POSITION_POINT(widgetSwitchButton_start_x, widgetSwitchButton_start_y, widgetSwitchButton_gap, _cur_step)); \
 	_button->setFixedSize(widgetSwitchButton_size_x * WIDGET_ZOOM, widgetSwitchButton_size_y * WIDGET_ZOOM); \
@@ -52,7 +52,7 @@
 	_button->setStyleSheet("color: rgb(44, 69, 99);"); \
 } while (0)
 
-// ½çÃæÄÚÉèÖÃ¿Ø¼şÉèÖÃ-ÃèÊöÎÄ±¾
+// ç•Œé¢å†…è®¾ç½®æ§ä»¶è®¾ç½®-æè¿°æ–‡æœ¬
 #define WIDGET_CHILD_SETTING_LABEL(_label, _text, _cur_step) do { \
 	_label->move(STEP_POSITION_POINT(230, 20, 40, _cur_step)); \
 	_label->resize(140 * WIDGET_ZOOM, 24 * WIDGET_ZOOM); \
@@ -61,7 +61,7 @@
 	_label->setStyleSheet("color: rgb(44, 69, 99);"); \
 } while (0)
 
-// ½çÃæÄÚÉèÖÃ¿Ø¼şÉèÖÃ-ÊäÈë¿ò
+// ç•Œé¢å†…è®¾ç½®æ§ä»¶è®¾ç½®-è¾“å…¥æ¡†
 #define WIDGET_CHILD_SETTING_INPUT(_lineEdit, _cur_step) do { \
 	_lineEdit->move(STEP_POSITION_POINT(370, 20, 40, _cur_step)); \
 	_lineEdit->resize(140 * WIDGET_ZOOM, 24 * WIDGET_ZOOM); \
@@ -83,13 +83,13 @@
 	); \
 } while (0)
 
-// ½çÃæÄÚÉèÖÃ¿Ø¼şÉèÖÃ-ÊäÈë¿ò-Êı×ÖÊäÈë
+// ç•Œé¢å†…è®¾ç½®æ§ä»¶è®¾ç½®-è¾“å…¥æ¡†-æ•°å­—è¾“å…¥
 #define WIDGET_CHILD_SETTING_INPUT_NUMBER(_lineEdit, _config_sort, _cur_data, _cur_step) do { \
 	WIDGET_CHILD_SETTING_INPUT(_lineEdit, _cur_step); \
 	_lineEdit->setText(QString::number(GET_INT_FROM_JSON(_global_config, _config_sort, _cur_data))); \
 } while (0)
 
-// ½çÃæÄÚÉèÖÃ¿Ø¼şÉèÖÃ-ÊäÈë¿ò-×Ö·û´®ÊäÈë
+// ç•Œé¢å†…è®¾ç½®æ§ä»¶è®¾ç½®-è¾“å…¥æ¡†-å­—ç¬¦ä¸²è¾“å…¥
 #define WIDGET_CHILD_SETTING_INPUT_STRING(_lineEdit, _config_sort, _cur_data, _cur_step) do { \
 	WIDGET_CHILD_SETTING_INPUT(_lineEdit, _cur_step); \
 	_lineEdit->setText(GET_STRING_FROM_JSON(_global_config, _config_sort, _cur_data)); \
@@ -110,30 +110,30 @@ protected:
 	void mouseReleaseEvent(QMouseEvent* event) override;
 	
 private slots:
-	void onCloseButtonClicked();           // CloseButton±»°´ÁË
-	void onBasicSettingsButtonClicked();     // »ù´¡ÉèÖÃ°´Å¥±»°´ÁË
-	void onAronaLMSettingsButtonClicked();     // AronaLMÉèÖÃ°´Å¥±»°´ÁË
-	void onSpineSettingsButtonClicked();     // SpineÉèÖÃ°´Å¥±»°´ÁË
-	void onGptSOVITSSettingsButtonClicked();     // GPT-SOVITSÉèÖÃ°´Å¥±»°´ÁË
-	void onDebugOutputButtonClicked();     // µ÷ÊÔÊä³ö°´Å¥±»°´ÁË
-	void onAboutDeveloperButtonClicked();     // ¹ØÓÚ¿ª·¢Õß°´Å¥±»°´ÁË
-	void onAronaAIModeSwitchButtonClicked();	// AronaAIÄ£Ê½ÇĞ»»°´Å¥±»°´ÁË
-	void receiveDebugMessage(const QString& message);	// ½ÓÊÕµ½µ÷ÊÔĞÅÏ¢
+	void onCloseButtonClicked();           // CloseButtonè¢«æŒ‰äº†
+	void onBasicSettingsButtonClicked();     // åŸºç¡€è®¾ç½®æŒ‰é’®è¢«æŒ‰äº†
+	void onAronaLMSettingsButtonClicked();     // AronaLMè®¾ç½®æŒ‰é’®è¢«æŒ‰äº†
+	void onSpineSettingsButtonClicked();     // Spineè®¾ç½®æŒ‰é’®è¢«æŒ‰äº†
+	void onGptSOVITSSettingsButtonClicked();     // GPT-SOVITSè®¾ç½®æŒ‰é’®è¢«æŒ‰äº†
+	void onDebugOutputButtonClicked();     // è°ƒè¯•è¾“å‡ºæŒ‰é’®è¢«æŒ‰äº†
+	void onAboutDeveloperButtonClicked();     // å…³äºå¼€å‘è€…æŒ‰é’®è¢«æŒ‰äº†
+	void onAronaAIModeSwitchButtonClicked();	// AronaAIæ¨¡å¼åˆ‡æ¢æŒ‰é’®è¢«æŒ‰äº†
+	void receiveDebugMessage(const QString& message);	// æ¥æ”¶åˆ°è°ƒè¯•ä¿¡æ¯
 
 private:
-	// ½çÃæÇĞ»»°´Å¥ÊµÏÖº¯Êı
+	// ç•Œé¢åˆ‡æ¢æŒ‰é’®å®ç°å‡½æ•°
 
 	Ui::SettingsWidgetClass ui;
 
-	// ½çÃæÇĞ»»°´Å¥
-	int widgetSwitchButton_start_x = 115;	// ×îÉÏ·½µÄ¿Ø¼şx×ø±ê
-	int widgetSwitchButton_start_y = 40;	// ×îÉÏ·½µÄ¿Ø¼şy×ø±ê
-	int widgetSwitchButton_gap = 40;	// y×ø±ê¸ß¶È²î
-	int widgetSwitchButton_size_x = 160;	// °´Å¥x³ß´ç
-	int widgetSwitchButton_size_y = 30;	// °´Å¥y³ß´ç
+	// ç•Œé¢åˆ‡æ¢æŒ‰é’®
+	int widgetSwitchButton_start_x = 115;	// æœ€ä¸Šæ–¹çš„æ§ä»¶xåæ ‡
+	int widgetSwitchButton_start_y = 40;	// æœ€ä¸Šæ–¹çš„æ§ä»¶yåæ ‡
+	int widgetSwitchButton_gap = 40;	// yåæ ‡é«˜åº¦å·®
+	int widgetSwitchButton_size_x = 160;	// æŒ‰é’®xå°ºå¯¸
+	int widgetSwitchButton_size_y = 30;	// æŒ‰é’®yå°ºå¯¸
 
-	// Êó±êÍÏ¶¯
-	QPointF m_dragPosition;  // ¼ÇÂ¼ÍÏ¶¯ÆğÊ¼Î»ÖÃ
-	bool m_isDragging;       // ÊÇ·ñÕıÔÚÍÏ¶¯
+	// é¼ æ ‡æ‹–åŠ¨
+	QPointF m_dragPosition;  // è®°å½•æ‹–åŠ¨èµ·å§‹ä½ç½®
+	bool m_isDragging;       // æ˜¯å¦æ­£åœ¨æ‹–åŠ¨
 };
 

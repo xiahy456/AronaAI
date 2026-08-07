@@ -5,11 +5,20 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 
+def _format_transcript(messages: list[dict[str, str]]) -> str:
+    lines: list[str] = []
+    for msg in messages:
+        role = "老师" if msg["role"] == "user" else "阿洛娜"
+        lines.append(f"{role}: {msg['content']}")
+    return "\n".join(lines)
+
+
 @dataclass
 class ConversationManager:
     max_history_turns: int = 6
     _sessions: dict[str, list[dict[str, str]]] = field(default_factory=dict)
     _turn_counts: dict[str, int] = field(default_factory=dict)
+    _extract_buffers: dict[str, list[dict[str, str]]] = field(default_factory=dict)
 
     def get_history(self, session_id: str) -> list[dict[str, str]]:
         return list(self._sessions.get(session_id, []))
@@ -27,9 +36,26 @@ class ConversationManager:
     def turn_count(self, session_id: str) -> int:
         return self._turn_counts.get(session_id, 0)
 
+    def append_extract_buffer(self, session_id: str, role: str, content: str) -> None:
+        buffer = self._extract_buffers.setdefault(session_id, [])
+        buffer.append({"role": role, "content": content})
+
+    def extract_buffer_turn_count(self, session_id: str) -> int:
+        buffer = self._extract_buffers.get(session_id) or []
+        # Count complete user turns present in the buffer
+        return sum(1 for msg in buffer if msg.get("role") == "user")
+
+    def extract_buffer_transcript(self, session_id: str) -> str:
+        buffer = self._extract_buffers.get(session_id) or []
+        return _format_transcript(buffer)
+
+    def clear_extract_buffer(self, session_id: str) -> None:
+        self._extract_buffers.pop(session_id, None)
+
     def clear(self, session_id: str) -> None:
         self._sessions.pop(session_id, None)
         self._turn_counts.pop(session_id, None)
+        self._extract_buffers.pop(session_id, None)
 
     def drop(self, session_id: str) -> None:
         self.clear(session_id)
@@ -38,8 +64,4 @@ class ConversationManager:
         history = self.get_history(session_id)
         # last `turns` user+assistant pairs
         slice_msgs = history[-(turns * 2) :]
-        lines: list[str] = []
-        for msg in slice_msgs:
-            role = "老师" if msg["role"] == "user" else "阿洛娜"
-            lines.append(f"{role}: {msg['content']}")
-        return "\n".join(lines)
+        return _format_transcript(slice_msgs)

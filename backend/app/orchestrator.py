@@ -188,12 +188,30 @@ class Orchestrator:
         return full
 
     async def _maybe_extract(self, session_id: str, user_text: str) -> None:
+        # Buffer this completed turn (history was already appended by caller).
+        history = self.conversations.get_history(session_id)
+        if len(history) >= 2:
+            self.conversations.append_extract_buffer(
+                session_id, history[-2]["role"], history[-2]["content"]
+            )
+            self.conversations.append_extract_buffer(
+                session_id, history[-1]["role"], history[-1]["content"]
+            )
+
+        ext = self.config.memory.extractor
         turn_count = self.conversations.turn_count(session_id)
+        buffer_turns = self.conversations.extract_buffer_turn_count(session_id)
         if not should_extract(
             user_text,
             turn_count=turn_count,
-            every_n_turns=self.config.memory.extractor.every_n_turns,
+            every_n_turns=ext.every_n_turns,
+            buffer_turns=buffer_turns,
+            extract_buffer_turns=ext.extract_buffer_turns,
         ):
             return
-        transcript = self.conversations.recent_transcript(session_id, turns=3)
+
+        transcript = self.conversations.extract_buffer_transcript(session_id)
+        if not transcript:
+            return
         await self.extractor.enqueue(transcript=transcript, user_text=user_text)
+        self.conversations.clear_extract_buffer(session_id)
