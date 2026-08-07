@@ -19,7 +19,7 @@ model:
     回答要简洁自然。不要输出思考过程或 <think> 标签。
 
 conversation:
-  max_history_turns: 6
+  max_history_turns: 12
 
 knowledge:
   enabled: false
