@@ -6,12 +6,12 @@
 SpineMouseController::SpineMouseController(QObject* parent)
     : QObject(parent)
 {
-    // ³õÊ¼»¯¸üĞÂ¶¨Ê±Æ÷£¨50fps£©
+    // åˆå§‹åŒ–æ›´æ–°å®šæ—¶å™¨ï¼ˆ50fpsï¼‰
     m_updateTimer.setInterval(20);
     connect(&m_updateTimer, &QTimer::timeout, this, &SpineMouseController::onUpdateEyes);
     m_updateTimer.start();
 
-    // Á¬½Ó³¤°´¶¨Ê±Æ÷
+    // è¿æ¥é•¿æŒ‰å®šæ—¶å™¨
     connect(&m_longTouchTimer, &QTimer::timeout, this, &SpineMouseController::onLongTouchTimeout);
     m_longTouchTimer.setSingleShot(true);
     m_longTouchTimer.setInterval(100);
@@ -39,7 +39,7 @@ void SpineMouseController::initialize(spine::Skeleton* skeleton, spine::Animatio
         }
     }
 
-    // ÉèÖÃÄ¬ÈÏÍ·²¿¶¯»­Ãû³Æ
+    // è®¾ç½®é»˜è®¤å¤´éƒ¨åŠ¨ç”»åç§°
     m_headAnimation = headAnimationPrefix;
     m_headAnimationEnd = headAnimationPrefix;
 }
@@ -54,10 +54,10 @@ void SpineMouseController::handleMousePress(const QPointF& globalPos, const QPoi
 
     m_state.mouseDown = true;
 
-    // ¼ÆËãÊó±êÔÚSpineÊÀ½çÖĞµÄ×ø±ê
+    // è®¡ç®—é¼ æ ‡åœ¨Spineä¸–ç•Œä¸­çš„åæ ‡
     QPointF spineWorldPoint = screenToSpineWorld(globalPos, spineX, spineY, scale);
 
-    // »ñÈ¡¹Ç÷ÀµÄÊÀ½çÎ»ÖÃ
+    // è·å–éª¨éª¼çš„ä¸–ç•Œä½ç½®
     float boneX = m_touchBone->getWorldX();
     float boneY = m_touchBone->getWorldY();
 
@@ -65,7 +65,7 @@ void SpineMouseController::handleMousePress(const QPointF& globalPos, const QPoi
     qDebug() << "Bone world position:" << boneX << "," << boneY;
     qDebug() << "Mouse world point:" << spineWorldPoint.x() << "," << spineWorldPoint.y();
 
-    // ¼ÆËãÏà¶ÔÓÚ¹Ç÷ÀµÄÆ«ÒÆ£¨ÓÃÓÚÅĞ¶Ï´¥Ãş£©
+    // è®¡ç®—ç›¸å¯¹äºéª¨éª¼çš„åç§»ï¼ˆç”¨äºåˆ¤æ–­è§¦æ‘¸ï¼‰
     float dx = spineWorldPoint.x() - boneX;
     float dy = spineWorldPoint.y() - boneY;
     float distance = std::sqrt(dx * dx + dy * dy);
@@ -73,11 +73,11 @@ void SpineMouseController::handleMousePress(const QPointF& globalPos, const QPoi
     qDebug() << "Offset from bone:" << dx << "," << dy;
     qDebug() << "Distance to bone:" << distance;
 
-    // ÅĞ¶ÏÊÇ·ñ´¥Ãşµ½Í·²¿
+    // åˆ¤æ–­æ˜¯å¦è§¦æ‘¸åˆ°å¤´éƒ¨
     m_state.patHead = distance <= (400.0f * scale);
     emit headTouched(m_state.patHead);
 
-    // ÉèÖÃÊó±êÎ»ÖÃ£¨Ê¹ÓÃÏà¶ÔÓÚ¹Ç÷ÀµÄÆ«ÒÆ£¬¶ø²»ÊÇ¾ø¶ÔÊÀ½ç×ø±ê£©
+    // è®¾ç½®é¼ æ ‡ä½ç½®ï¼ˆä½¿ç”¨ç›¸å¯¹äºéª¨éª¼çš„åç§»ï¼Œè€Œä¸æ˜¯ç»å¯¹ä¸–ç•Œåæ ‡ï¼‰
     m_state.mouseLocalPoint = QPointF(dx, dy);
 
     qDebug() << "Mouse local offset:" << dx << "," << dy;
@@ -86,21 +86,21 @@ void SpineMouseController::handleMousePress(const QPointF& globalPos, const QPoi
 
 void SpineMouseController::handleMouseRelease(const QPointF& globalPos)
 {
-    // Í£Ö¹³¤°´¶¨Ê±Æ÷
+    // åœæ­¢é•¿æŒ‰å®šæ—¶å™¨
     m_longTouchTimer.stop();
 
-    // Èç¹û²»ÊÇ³¤°´ÇÒÆôÓÃÁË´©Í¸£¬´¥·¢¶Ô»°
+    // å¦‚æœä¸æ˜¯é•¿æŒ‰ä¸”å¯ç”¨äº†ç©¿é€ï¼Œè§¦å‘å¯¹è¯
     if (!m_state.longTouch && m_penetration) {
         emit talkTriggered(m_state.talkIndex);
         m_state.talkCount++;
     }
 
-    // Èç¹û´¥Ãşµ½Í·²¿ÇÒÊÇ³¤°´ÇÒÃ»ÓĞÕıÔÚ²¥·Å¶¯»­£¬²¥·ÅÍ·²¿¶¯»­½áÊø
+    // å¦‚æœè§¦æ‘¸åˆ°å¤´éƒ¨ä¸”æ˜¯é•¿æŒ‰ä¸”æ²¡æœ‰æ­£åœ¨æ’­æ”¾åŠ¨ç”»ï¼Œæ’­æ”¾å¤´éƒ¨åŠ¨ç”»ç»“æŸ
     if (m_state.patHead && m_state.longTouch && !m_state.isAnimation) {
         playHeadAnimationEnd();
     }
 
-    // ÖØÖÃ×´Ì¬
+    // é‡ç½®çŠ¶æ€
     m_state.mouseLocalPoint = QPointF(0, 0);
     m_state.mouseDown = false;
     m_state.longTouch = false;
@@ -114,9 +114,9 @@ void SpineMouseController::handleMouseMove(const QPointF& globalPos, const QPoin
 {
     if (!m_touchBone) return;
 
-    // Êó±ê×·×Ù»ò³¤°´Ê±¸üĞÂÑÛ¾¦×¢ÊÓµã
+    // é¼ æ ‡è¿½è¸ªæˆ–é•¿æŒ‰æ—¶æ›´æ–°çœ¼ç›æ³¨è§†ç‚¹
     if (m_mouseTracking || m_state.longTouch) {
-        // ¼ÆËãÊó±êÔÚSpineÊÀ½çÖĞµÄ×ø±ê
+        // è®¡ç®—é¼ æ ‡åœ¨Spineä¸–ç•Œä¸­çš„åæ ‡
         QPointF spineWorldPoint = screenToSpineWorld(globalPos, spineX, spineY, scale);
         m_state.mouseLocalPoint = spineWorldPoint;
     }
@@ -129,7 +129,7 @@ void SpineMouseController::onLongTouchTimeout()
     m_state.longTouch = true;
     emit longTouchTriggered(true);
 
-    // Èç¹û´¥Ãşµ½Í·²¿ÇÒÃ»ÓĞÕıÔÚ²¥·Å¶¯»­£¬²¥·ÅÍ·²¿¶¯»­
+    // å¦‚æœè§¦æ‘¸åˆ°å¤´éƒ¨ä¸”æ²¡æœ‰æ­£åœ¨æ’­æ”¾åŠ¨ç”»ï¼Œæ’­æ”¾å¤´éƒ¨åŠ¨ç”»
     if (m_state.patHead && !m_state.isAnimation) {
         playHeadAnimation(true);
     }
@@ -139,26 +139,26 @@ void SpineMouseController::onUpdateEyes()
 {
     if (!m_touchBone || !m_skeleton) return;
 
-    // »ñÈ¡¹Ç÷Àµ±Ç°Î»ÖÃ£¨¾Ö²¿×ø±ê£©
+    // è·å–éª¨éª¼å½“å‰ä½ç½®ï¼ˆå±€éƒ¨åæ ‡ï¼‰
     float boneX = m_touchBone->getX();
     float boneY = m_touchBone->getY();
 
-    // Ä¿±êÎ»ÖÃÊÇÏà¶ÔÓÚ¹Ç÷ÀµÄÆ«ÒÆ
+    // ç›®æ ‡ä½ç½®æ˜¯ç›¸å¯¹äºéª¨éª¼çš„åç§»
     QPointF targetOffset = m_state.mouseLocalPoint;
 
-    // ÏŞÖÆÒÆ¶¯·¶Î§
+    // é™åˆ¶ç§»åŠ¨èŒƒå›´
     targetOffset = clampVectorLength(targetOffset, m_eyeRadius);
 
-    // Æ½»¬ÒÆ¶¯ - Ö±½ÓÉèÖÃÆ«ÒÆ
+    // å¹³æ»‘ç§»åŠ¨ - ç›´æ¥è®¾ç½®åç§»
     float newX = targetOffset.x();
     float newY = targetOffset.y();
 
-    // Ö»ÓĞµ±±ä»¯×ã¹»´óÊ±²Å¸üĞÂ
+    // åªæœ‰å½“å˜åŒ–è¶³å¤Ÿå¤§æ—¶æ‰æ›´æ–°
     if (std::abs(boneX - newX) > 0.1f || std::abs(boneY - newY) > 0.1f) {
         m_touchBone->setX(newX);
         m_touchBone->setY(newY);
 
-        // ¸üĞÂ¹Ç÷ÀÊÀ½ç±ä»»
+        // æ›´æ–°éª¨éª¼ä¸–ç•Œå˜æ¢
         m_skeleton->updateWorldTransform(spine::Physics_Update);
 
         qDebug() << "Updating bone - Old:" << boneX << "," << boneY
@@ -169,14 +169,14 @@ void SpineMouseController::onUpdateEyes()
 QPointF SpineMouseController::screenToSpineWorld(const QPointF& screenPoint,
     float spineX, float spineY, float scale)
 {
-    // ¼ÆËãÏà¶ÔÓÚSpineÔ­µãµÄÆ«ÒÆ
+    // è®¡ç®—ç›¸å¯¹äºSpineåŸç‚¹çš„åç§»
     float dx = screenPoint.x() - spineX;
     float dy = screenPoint.y() - spineY;
 
-    // Ó¦ÓÃËõ·Å²¢·­×ªYÖá
+    // åº”ç”¨ç¼©æ”¾å¹¶ç¿»è½¬Yè½´
     QPointF result;
     result.setX(dx / scale);
-    result.setY(-dy / scale);  // ¸ººÅÒòÎªÆÁÄ»YÏòÏÂ£¬Spine YÏòÉÏ
+    result.setY(-dy / scale);  // è´Ÿå·å› ä¸ºå±å¹•Yå‘ä¸‹ï¼ŒSpine Yå‘ä¸Š
 
     qDebug() << "ScreenToSpineWorld -"
         << "Screen:" << screenPoint.x() << "," << screenPoint.y()
@@ -207,11 +207,11 @@ bool SpineMouseController::isPointNearHead(const QPointF& point, float scale) co
 {
     if (!m_touchBone) return false;
 
-    // »ñÈ¡¹Ç÷ÀµÄÊÀ½çÎ»ÖÃ
+    // è·å–éª¨éª¼çš„ä¸–ç•Œä½ç½®
     float boneX = m_touchBone->getWorldX();
     float boneY = m_touchBone->getWorldY();
 
-    // ¼ÆËãµãµ½¹Ç÷ÀµÄ¾àÀë
+    // è®¡ç®—ç‚¹åˆ°éª¨éª¼çš„è·ç¦»
     float dx = point.x() - boneX;
     float dy = point.y() - boneY;
     float distance = std::sqrt(dx * dx + dy * dy);

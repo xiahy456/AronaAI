@@ -56,25 +56,25 @@ private:
 	spine::AnimationStateData* m_animationStateData;
 	spine::AnimationState* m_animationState;
 
-    // OpenGLÏà¹Ø
+    // OpenGLç›¸å…³
     QOpenGLShaderProgram* shaderProgram = nullptr;
     QOpenGLVertexArrayObject vao;
     QOpenGLBuffer vbo{ QOpenGLBuffer::VertexBuffer };
     QOpenGLBuffer ibo{ QOpenGLBuffer::IndexBuffer };
 
-    // ÁÙÊ±»º³åÇø£¨ÓÃÓÚÃ¿Ö¡ÉÏ´«¶¥µãÊı¾İ£©
+    // ä¸´æ—¶ç¼“å†²åŒºï¼ˆç”¨äºæ¯å¸§ä¸Šä¼ é¡¶ç‚¹æ•°æ®ï¼‰
     QVector<float> vertexBuffer;
     QVector<GLushort> indexBuffer;
 
-    // äÖÈ¾×´Ì¬
+    // æ¸²æŸ“çŠ¶æ€
     GLuint currentTexture = 0;
     spine::BlendMode currentBlendMode = spine::BlendMode_Normal;
 
-    // äÖÈ¾º¯Êı
+    // æ¸²æŸ“å‡½æ•°
     void renderSkeleton(spine::Skeleton* skeleton);
     void renderRegionAttachment(spine::Slot* slot, spine::RegionAttachment* attachment);
     void renderMeshAttachment(spine::Slot* slot, spine::MeshAttachment* attachment);
-    void flush(); // Ë¢ĞÂäÖÈ¾Åú´Î
+    void flush(); // åˆ·æ–°æ¸²æŸ“æ‰¹æ¬¡
     void setupBlendMode(spine::BlendMode blendMode);
 };
 

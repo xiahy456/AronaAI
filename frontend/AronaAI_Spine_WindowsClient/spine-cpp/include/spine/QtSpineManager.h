@@ -62,9 +62,9 @@ class QtSpineManager : public QOpenGLWidget, protected QOpenGLFunctions
 
 public:
     struct SpineVertex {
-        float x, y;        // Î»ÖÃ
-        float u, v;        // ÎÆÀí×ø±ê
-        float r, g, b, a;  // ÑÕÉ«
+        float x, y;        // ä½ç½®
+        float u, v;        // çº¹ç†åæ ‡
+        float r, g, b, a;  // é¢œè‰²
     };
 
     struct TextureBatch {
@@ -79,38 +79,38 @@ public:
     void setAnimation(const QString& name, int track_idx, bool loop = true);
 	void clearAnimation(int track_idx, float mix_duration);
 
-    // ÃşÍ·Ïà¹Øº¯Êı
+    // æ‘¸å¤´ç›¸å…³å‡½æ•°
 
 protected:
-    // ÖØĞ´OpenGLÏà¹Øº¯Êı
+    // é‡å†™OpenGLç›¸å…³å‡½æ•°
     void initializeGL() override;
     void paintGL() override;
     void resizeGL(int w, int h) override;
 
-    // ÖØĞ´Êó±êÊÂ¼ş
+    // é‡å†™é¼ æ ‡äº‹ä»¶
     void mousePressEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
 
 private slots:
-    // ¸üĞÂ¶¯»­
+    // æ›´æ–°åŠ¨ç”»
     void updateAnimation();
-	// ³¤°´ÊÂ¼ş´¦Àíº¯Êı
+	// é•¿æŒ‰äº‹ä»¶å¤„ç†å‡½æ•°
     void onLongTouchTimeout();
 
 private:
-    // ¸¨Öúº¯Êı
+    // è¾…åŠ©å‡½æ•°
     GLuint getTextureId(spine::RegionAttachment* attachment);
     GLuint getTextureId(spine::MeshAttachment* attachment);
     void collectRegionAttachmentVertices(spine::RegionAttachment* attachment, spine::Slot* slot, const spine::Color& slotColor);
     void collectMeshAttachmentVertices(spine::MeshAttachment* attachment, spine::Slot* slot, const spine::Color& slotColor);
     void flushBatches();
     void setAttachmentRelativeTransform(const QString& slotName, float offsetX, float offsetY, float rotation = 0.0f, float scaleX = 1.0f, float scaleY = 1.0f);
-    // ÃşÍ·º¯Êı
+    // æ‘¸å¤´å‡½æ•°
     void handlePat();
     void handlePatEnd();
 
-    // Spine ¶ÔÏó
+    // Spine å¯¹è±¡
     spine::Atlas* m_atlas = nullptr;
     QtTextureLoader* m_textureLoader = nullptr;
     spine::SkeletonData* m_skeletonData = nullptr;
@@ -118,30 +118,30 @@ private:
     spine::AnimationStateData* m_animationStateData = nullptr;
     spine::AnimationState* m_animationState = nullptr;
 
-    // ¹Ç÷ÀÏÔÊ¾Î»ÖÃ£¨ÓÃÓÚ×ø±ê×ª»»£©
+    // éª¨éª¼æ˜¾ç¤ºä½ç½®ï¼ˆç”¨äºåæ ‡è½¬æ¢ï¼‰
     float m_spineX = 0.0f;
     float m_spineY = 0.0f;
     float m_scale = 1.0f;
 
-    // ¶¨Ê±Æ÷
+    // å®šæ—¶å™¨
     QTimer m_timer;
     QElapsedTimer m_elapsedTimer;
     float m_lastTime = 0.0f;
 
-    // ÃşÃşÍ·
-    QTimer m_longTouchTimer;    // ³¤°´¼ÆÊ±Æ÷
-	bool m_isLongTouch = false; // ÊÇ·ñ´¦ÓÚ³¤°´×´Ì¬
+    // æ‘¸æ‘¸å¤´
+    QTimer m_longTouchTimer;    // é•¿æŒ‰è®¡æ—¶å™¨
+	bool m_isLongTouch = false; // æ˜¯å¦å¤„äºé•¿æŒ‰çŠ¶æ€
 
-    // OpenGL ×ÊÔ´
+    // OpenGL èµ„æº
     QOpenGLShaderProgram* m_program = nullptr;
     QOpenGLBuffer* m_vbo = nullptr;
     QOpenGLVertexArrayObject* m_vao = nullptr;
 
-    // Í³Ò»±äÁ¿Î»ÖÃ
+    // ç»Ÿä¸€å˜é‡ä½ç½®
     GLint m_u_matrixLoc;
     GLint m_u_textureLoc;
 
-    // Åú´ÎÊı¾İ
+    // æ‰¹æ¬¡æ•°æ®
     QVector<TextureBatch> m_batches;
 };
 

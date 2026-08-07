@@ -24,10 +24,10 @@
 
 #include "JsonOperation.h"
 
-// 全局变量声明
+// 鍏ㄥ眬鍙橀噺澹版槑
 
-extern JsonOperation* _global_config;	// config对象
+extern JsonOperation* _global_config;	// config瀵硅薄
 
-extern JsonOperation* _global_dict;	// dict对象
+extern JsonOperation* _global_dict;	// dict瀵硅薄
 
 #endif // !GLOBALVARIABLES_H

@@ -33,13 +33,14 @@
 #include <AudioRecorder.h>
 #include <TencentSpeechRecognizer.h>
 #include "WebSocketController.h"
+#include "UserInputWidget.h"
 
 class MainController : public QObject
 {
 	Q_OBJECT
 
 public:
-	MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer, WebSocketController* webSocketController);
+	MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer, WebSocketController* webSocketController, UserInputWidget* userInputWidget);
 	~MainController();
 
 	// 执行输出
@@ -50,6 +51,8 @@ public:
 	void stopAudioProcessing();
 	// 切换主界面鼠标穿透
 	void toggleMouseTransparent();
+	// 呼出用户文本输入界面
+	void showUserInput();
 
 private slots:
 	// TTS工作完毕
@@ -73,11 +76,12 @@ private:
 	AudioRecorder* m_audioRecorder;	// 音频录制器对象
 	TencentSpeechRecognizer* m_tencentRecognizer; // 腾讯的语音识别
 	WebSocketController* m_webSocketController;	// 服务端websocket连接
+	UserInputWidget* m_userInputWidget;	// 用户文本输入界面
 	TTSManager::TTSRequestParams ttsRequestParams;	// 语音合成请求参数
 	QString m_currentText = "";	// 当前正在处理的文本
 	bool m_waitingForAIResponse = false;	// 是否正在等待AI回复
 
-	// 处理用户语音输入的文本
+	// 处理用户输入的文本（语音识别或文本输入）
 	void processInputText(const QString& text);
 
 };

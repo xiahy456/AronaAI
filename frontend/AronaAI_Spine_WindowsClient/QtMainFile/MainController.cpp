@@ -19,12 +19,13 @@
 
 #include "MainController.h"
 
-MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer, WebSocketController* webSocketController)
+MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer, WebSocketController* webSocketController, UserInputWidget* userInputWidget)
     : m_mainWidget(mainWidget)
     , m_ttsManager(ttsManager)
     , m_audioRecorder(audioRecorder)
     , m_tencentRecognizer(speechRecognizer)
     , m_webSocketController(webSocketController)
+    , m_userInputWidget(userInputWidget)
 {
     // 进行TTS初始化
     // 构建TTS请求参数
@@ -123,6 +124,12 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
     m_webSocketController->connectToServer();
     FINE_DEBUG_OUTPUT("[WebSocket] Connecting to: " + GET_STRING_FROM_JSON(_global_config, "aronalm", "websocket_url"));
 
+    // 连接用户文本输入提交信号
+    if (m_userInputWidget) {
+        connect(m_userInputWidget, &UserInputWidget::textSubmitted,
+            this, &MainController::processInputText);
+    }
+
     // 输出一段文本，验证TTS功能是否正常
     executeOutput(GET_STRING_FROM_JSON(_global_dict, "formed_text", "connected_to_os_operator"));
 
@@ -200,6 +207,16 @@ void MainController::toggleMouseTransparent()
     m_mainWidget->setMouseTransparent(nextState);
     FINE_DEBUG_OUTPUT(QString("[Main Controller] Mouse transparent toggled to: %1")
         .arg(nextState ? "true" : "false"));
+}
+
+void MainController::showUserInput()
+{
+    if (!m_userInputWidget) {
+        ERROR_DEBUG_OUTPUT("[Main Controller] UserInputWidget is null");
+        return;
+    }
+    m_userInputWidget->showForInput();
+    FINE_DEBUG_OUTPUT("[Main Controller] User input widget shown");
 }
 
 void MainController::onAudioError(const QString& error)

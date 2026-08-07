@@ -22,72 +22,72 @@
 
 #include <Defines.h>
 
-#include <QFile>          // ÎÄ¼ş²Ù×÷
-#include <QJsonDocument>  // JSONÎÄµµ
-#include <QJsonObject>    // JSON¶ÔÏó
-#include <QJsonParseError> // ´íÎó´¦Àí
+#include <QFile>          // æ–‡ä»¶æ“ä½œ
+#include <QJsonDocument>  // JSONæ–‡æ¡£
+#include <QJsonObject>    // JSONå¯¹è±¡
+#include <QJsonParseError> // é”™è¯¯å¤„ç†
 #include <QJsonValue>
-#include <QDebug>         // µ÷ÊÔÊä³ö
+#include <QDebug>         // è°ƒè¯•è¾“å‡º
 
 class JsonOperation {
 public:
-	// ¹¹Ôìº¯Êı
-	// ÎŞ²ÎÊı¹¹Ôì
+	// æ„é€ å‡½æ•°
+	// æ— å‚æ•°æ„é€ 
 	JsonOperation();
-	// ´«ÈëÎÄ¼şÂ·¾¶
+	// ä¼ å…¥æ–‡ä»¶è·¯å¾„
 	JsonOperation(QString file_path);
-	// Ö±½Ó´«ÈëJson¶ÔÏó
+	// ç›´æ¥ä¼ å…¥Jsonå¯¹è±¡
 	JsonOperation(const QJsonObject& jsonObj);
 	
-	// Îö¹¹º¯Êı
+	// ææ„å‡½æ•°
 	~JsonOperation();
 
-	// Í¨¹ıkey£¬»ñÈ¡¸ÃJsonÎÄ¼şÖĞ¶ÔÓ¦µÄvalueÖµ
+	// é€šè¿‡keyï¼Œè·å–è¯¥Jsonæ–‡ä»¶ä¸­å¯¹åº”çš„valueå€¼
 	QVariant getValue(QString key);
 
-	// Ö±½Ó»ñÈ¡QStringÀàĞÍÊı¾İ
+	// ç›´æ¥è·å–QStringç±»å‹æ•°æ®
 	QString getString(QString key);
 
-	// Ö±½Ó»ñÈ¡intÀàĞÍÊı¾İ
+	// ç›´æ¥è·å–intç±»å‹æ•°æ®
 	int getInt(QString key);
 
-	// Ö±½Ó»ñÈ¡doubleÀàĞÍÊı¾İ
+	// ç›´æ¥è·å–doubleç±»å‹æ•°æ®
 	double getDouble(QString key);
 
-	// Ö±½Ó»ñÈ¡boolÀàĞÍÊı¾İ
+	// ç›´æ¥è·å–boolç±»å‹æ•°æ®
 	bool getBool(QString key);
 
-	// Ö±½Ó»ñÈ¡JsonÀàĞÍÊı¾İ
+	// ç›´æ¥è·å–Jsonç±»å‹æ•°æ®
 	JsonOperation getJson(QString key);
 
 	QVariant static analysisJson(QString json, QString key);
 
-	// ÉèÖÃ/ĞŞ¸ÄÖµ£¨Í¨ÓÃ·½·¨£©
+	// è®¾ç½®/ä¿®æ”¹å€¼ï¼ˆé€šç”¨æ–¹æ³•ï¼‰
 	void setValue(QString key, const QVariant& value);
 
-	// ÉèÖÃ×Ö·û´®Öµ
+	// è®¾ç½®å­—ç¬¦ä¸²å€¼
 	void setString(QString key, const QString& value);
 
-	// ÉèÖÃÕûÊıÖµ
+	// è®¾ç½®æ•´æ•°å€¼
 	void setInt(QString key, int value);
 
-	// ÉèÖÃË«¾«¶È¸¡µãÊıÖµ
+	// è®¾ç½®åŒç²¾åº¦æµ®ç‚¹æ•°å€¼
 	void setDouble(QString key, double value);
 
-	// ÉèÖÃ²¼¶ûÖµ
+	// è®¾ç½®å¸ƒå°”å€¼
 	void setBool(QString key, bool value);
 
-	// ÉèÖÃJSON¶ÔÏóÖµ
+	// è®¾ç½®JSONå¯¹è±¡å€¼
 	void setJson(QString key, const JsonOperation& jsonObj);
 	void setJsonObject(QString key, const QJsonObject& jsonObj);
 
-	// Á´Ê½ĞŞ¸ÄJson->Json->Öµ
+	// é“¾å¼ä¿®æ”¹Json->Json->å€¼
 	bool setIntInJson(QString jsonKey, QString valueKey, int value);
 	bool setDoubleInJson(QString jsonKey, QString valueKey, double value);
 	bool setStringInJson(QString jsonKey, QString valueKey, QString value);
 	bool setBoolInJson(QString jsonKey, QString valueKey, bool value);
 
-	// JSON¶ÔÏóÒıÓÃ
+	// JSONå¯¹è±¡å¼•ç”¨
 	QJsonObject m_jsonObj;
 
 };

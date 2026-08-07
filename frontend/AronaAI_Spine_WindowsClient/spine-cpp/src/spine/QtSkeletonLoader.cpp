@@ -5,11 +5,11 @@ QtSkeletonLoader::QtSkeletonLoader(const std::string& atlasPath, const std::stri
     , m_skeletonJsonPath(spine::String(skeletonJsonPath.c_str()))
 {
     QSurfaceFormat format;
-    format.setVersion(3, 3);  // Ê¹ÓÃOpenGL 3.3 Core Profile
+    format.setVersion(3, 3);  // ä½¿ç”¨OpenGL 3.3 Core Profile
     format.setProfile(QSurfaceFormat::CoreProfile);
     format.setDepthBufferSize(24);
     format.setStencilBufferSize(8);
-    format.setSamples(4);  // ¿ªÆô¿¹¾â³İ
+    format.setSamples(4);  // å¼€å¯æŠ—é”¯é½¿
     setFormat(format);
     if (!Load())
     {
@@ -25,29 +25,29 @@ bool QtSkeletonLoader::Load()
     qDebug() << "[Spine Operation] Skeleton Json Path: " << m_skeletonJsonPath.buffer();
 
     if (m_atlas == nullptr) {
-        qDebug() << "[Atlas] Pointer is null£¬atlasPath went wrong!";
+        qDebug() << "[Atlas] Pointer is nullï¼ŒatlasPath went wrong!";
         return false;
     }
-    // Ç¿ÖÆ´¥·¢AtlasÊµ¼Ê¼ÓÔØ£¨½â¾öÀÁ¼ÓÔØÎÊÌâ£©
-    // ·ÃÎÊgetPages()»áÈÃSpine½âÎöatlasÎÄ¼ş¡¢µ÷ÓÃQtTextureLoader¼ÓÔØÍ¼Æ¬
+    // å¼ºåˆ¶è§¦å‘Atlaså®é™…åŠ è½½ï¼ˆè§£å†³æ‡’åŠ è½½é—®é¢˜ï¼‰
+    // è®¿é—®getPages()ä¼šè®©Spineè§£æatlasæ–‡ä»¶ã€è°ƒç”¨QtTextureLoaderåŠ è½½å›¾ç‰‡
     size_t pageCount = m_atlas->getPages().size();
     size_t regionCount = m_atlas->getRegions().size();
 
-    // Ğ£ÑéAtlasÊÇ·ñÕæµÄ¼ÓÔØ³É¹¦£¨·Ç¿Õ+ÓĞÒ³Ãæ/ÇøÓò£©
+    // æ ¡éªŒAtlasæ˜¯å¦çœŸçš„åŠ è½½æˆåŠŸï¼ˆéç©º+æœ‰é¡µé¢/åŒºåŸŸï¼‰
     if (pageCount > 0 && regionCount > 0) {
         qDebug() << "[Spine Operation] Texture load succeed!";
         qDebug() << "[Spine Operation] Texture Big-textures amount: " << pageCount << " | Small-texture amount: " << regionCount;
 
-        // 1. ´´½¨AtlasAttachmentLoader ¡ú ºËĞÄÇÅÁº£ºÁ¬½ÓAtlasºÍ¹Ç÷À (¾ÍÊÇÄÃ³ö¹¤¾ß£¬×¼±¸Ê¹ÓÃ)
-        // Ô­Àí£ºSkeletonJson½âÎö¹Ç÷ÀÎÄ¼şÊ±£¬Í¨¹ıËüµ÷ÓÃatlas->findRegion()¸ù¾İÃû³ÆÆ¥ÅäËØ²Ä
+        // 1. åˆ›å»ºAtlasAttachmentLoader â†’ æ ¸å¿ƒæ¡¥æ¢ï¼šè¿æ¥Atlaså’Œéª¨éª¼ (å°±æ˜¯æ‹¿å‡ºå·¥å…·ï¼Œå‡†å¤‡ä½¿ç”¨)
+        // åŸç†ï¼šSkeletonJsonè§£æéª¨éª¼æ–‡ä»¶æ—¶ï¼Œé€šè¿‡å®ƒè°ƒç”¨atlas->findRegion()æ ¹æ®åç§°åŒ¹é…ç´ æ
         spine::AtlasAttachmentLoader attachmentLoader(m_atlas.get());
-        // 2. ´´½¨SkeletonJson½âÎöÆ÷ ¡ú ×¨ÃÅ½âÎöSpineµ¼³öµÄ.json¹Ç÷ÀÅäÖÃÎÄ¼ş
+        // 2. åˆ›å»ºSkeletonJsonè§£æå™¨ â†’ ä¸“é—¨è§£æSpineå¯¼å‡ºçš„.jsonéª¨éª¼é…ç½®æ–‡ä»¶
         spine::SkeletonJson skeletonJson(&attachmentLoader);
-        // 3. ½âÎö.jsonÎÄ¼ş£¬Éú³ÉSkeletonData£¨¹Ç÷ÀºËĞÄÊı¾İ£º°üº¬ËùÓĞ¹Ç÷À/¸½¼ş/²å²Û/Æ¤·ôµÈĞÅÏ¢£©
+        // 3. è§£æ.jsonæ–‡ä»¶ï¼Œç”ŸæˆSkeletonDataï¼ˆéª¨éª¼æ ¸å¿ƒæ•°æ®ï¼šåŒ…å«æ‰€æœ‰éª¨éª¼/é™„ä»¶/æ’æ§½/çš®è‚¤ç­‰ä¿¡æ¯ï¼‰
         spine::SkeletonData* tempData = skeletonJson.readSkeletonDataFile(spine::String(m_skeletonJsonPath.buffer()));
-        // °²È«µÄ»°£¬¾Í½»¸øÖÇÄÜÖ¸Õë¹ÜÀí
+        // å®‰å…¨çš„è¯ï¼Œå°±äº¤ç»™æ™ºèƒ½æŒ‡é’ˆç®¡ç†
         if (tempData) {
-            m_skeletonData.reset(tempData); // ÖÇÄÜÖ¸Õë½Ó¹ÜÄÚ´æ£¬×Ô¶¯Îö¹¹
+            m_skeletonData.reset(tempData); // æ™ºèƒ½æŒ‡é’ˆæ¥ç®¡å†…å­˜ï¼Œè‡ªåŠ¨ææ„
             qDebug() << "Version: " << m_skeletonData->getVersion().buffer();
             qDebug() << "[Spine Operation] Skeleton Load Succeed! [No Animations]";
             qDebug() << "[Spine Operation] Skeleton Amount: " << m_skeletonData->getBones().size();
@@ -55,9 +55,9 @@ bool QtSkeletonLoader::Load()
             qDebug() << "[Spine Operation] Skins Amount: " << m_skeletonData->getSkins().size();
         }
         else {
-            qDebug() << "[Spine Operation] Skeleton Load Failed! Reason£º" << skeletonJson.getError().buffer();
-            m_atlas.reset(); // ËØ²Ä¼ÓÔØ³É¹¦µ«¹Ç÷À½âÎöÊ§°Ü£¬ÊÍ·ÅAtlas±ÜÃâÄÚ´æĞ¹Â©
-            m_skeletonData.reset(); // ¶µµ×ÖÃ¿Õ
+            qDebug() << "[Spine Operation] Skeleton Load Failed! Reasonï¼š" << skeletonJson.getError().buffer();
+            m_atlas.reset(); // ç´ æåŠ è½½æˆåŠŸä½†éª¨éª¼è§£æå¤±è´¥ï¼Œé‡Šæ”¾Atlasé¿å…å†…å­˜æ³„æ¼
+            m_skeletonData.reset(); // å…œåº•ç½®ç©º
         }
     }
     return true;
@@ -66,14 +66,14 @@ bool QtSkeletonLoader::Load()
 
 bool QtSkeletonLoader::ModelCreate(const std::string& atlasPath, const std::string& skeletonJsonPath)
 {
-    // ´´½¨AnimationStateData
+    // åˆ›å»ºAnimationStateData
 	m_animationStateData = new spine::AnimationStateData(m_skeletonData.get());
-    // ÉèÖÃÄ¬ÈÏ¹ı¶É¶¯»­Ê±¼ä
-	m_animationStateData->setDefaultMix(0.2f); // 0.2ÃëµÄÄ¬ÈÏ¹ı¶ÉÊ±¼ä
-	// ´´½¨AnimationState
+    // è®¾ç½®é»˜è®¤è¿‡æ¸¡åŠ¨ç”»æ—¶é—´
+	m_animationStateData->setDefaultMix(0.2f); // 0.2ç§’çš„é»˜è®¤è¿‡æ¸¡æ—¶é—´
+	// åˆ›å»ºAnimationState
     m_animationState = new spine::AnimationState(m_animationStateData);
     qDebug() << "[Spine Operation] Animation Assets Create Succeed!";
-    // ´´½¨¹Ç÷À¶ÔÏó
+    // åˆ›å»ºéª¨éª¼å¯¹è±¡
 	m_skeleton = new spine::Skeleton(m_skeletonData.get());
 	return true;
 }
@@ -82,11 +82,11 @@ bool QtSkeletonLoader::PlayAnimation(const QString& animationName, bool loop)
 {
     if (!m_animationState || !m_skeletonData) return false;
 
-    // »ñÈ¡¶¯»­Ë÷Òı£¨»òÕßÖ±½ÓÓÃÃû×Ö£©
-    int trackIndex = 0;  // Ê¹ÓÃ¹ìµÀ0
+    // è·å–åŠ¨ç”»ç´¢å¼•ï¼ˆæˆ–è€…ç›´æ¥ç”¨åå­—ï¼‰
+    int trackIndex = 0;  // ä½¿ç”¨è½¨é“0
     bool loop_ = loop;
 
-    // ÉèÖÃ¶¯»­ [citation:3]
+    // è®¾ç½®åŠ¨ç”» [citation:3]
     spine::TrackEntry* entry = m_animationState->setAnimation(
         trackIndex,
         animationName.toStdString().c_str(),
@@ -94,17 +94,17 @@ bool QtSkeletonLoader::PlayAnimation(const QString& animationName, bool loop)
     );
 
     if (entry) {
-        // ¿ÉÒÔÉèÖÃ¹ìµÀµÄÌØ¶¨ÊôĞÔ
-        // entry->setMixDuration(0.3f);  // ÉèÖÃ»ìºÏÊ±³¤
-        // entry->setTimeScale(1.0f);     // ÉèÖÃ²¥·ÅËÙ¶È
+        // å¯ä»¥è®¾ç½®è½¨é“çš„ç‰¹å®šå±æ€§
+        // entry->setMixDuration(0.3f);  // è®¾ç½®æ··åˆæ—¶é•¿
+        // entry->setTimeScale(1.0f);     // è®¾ç½®æ’­æ”¾é€Ÿåº¦
     }
-    return entry != nullptr;  // ·µ»ØÊÇ·ñ³É¹¦
+    return entry != nullptr;  // è¿”å›æ˜¯å¦æˆåŠŸ
 }
 
 void QtSkeletonLoader::initializeGL() {
     initializeOpenGLFunctions();
 
-    // ´´½¨¼òµ¥µÄ2D×ÅÉ«Æ÷
+    // åˆ›å»ºç®€å•çš„2Dç€è‰²å™¨
     shaderProgram = new QOpenGLShaderProgram(this);
     shaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex,
         "#version 330 core\n"
@@ -133,7 +133,7 @@ void QtSkeletonLoader::initializeGL() {
 
     shaderProgram->link();
 
-    // ³õÊ¼»¯VAO/VBO
+    // åˆå§‹åŒ–VAO/VBO
     vao.create();
     vao.bind();
 
@@ -145,7 +145,7 @@ void QtSkeletonLoader::initializeGL() {
     ibo.bind();
     ibo.setUsagePattern(QOpenGLBuffer::DynamicDraw);
 
-    // ÉèÖÃ¶¥µãÊôĞÔ
+    // è®¾ç½®é¡¶ç‚¹å±æ€§
     shaderProgram->enableAttributeArray(0); // position
     shaderProgram->setAttributeBuffer(0, GL_FLOAT, 0, 2, 8 * sizeof(float));
 
@@ -157,43 +157,43 @@ void QtSkeletonLoader::initializeGL() {
 
     vao.release();
 
-    // ÆôÓÃ»ìºÏ
+    // å¯ç”¨æ··åˆ
     glEnable(GL_BLEND);
 }
 
 void QtSkeletonLoader::testOpenGLRendering() {
     qDebug() << "=== OpenGL Rendering Test ===";
 
-    // ²âÊÔ1£º¼ì²é×ÅÉ«Æ÷³ÌĞò
+    // æµ‹è¯•1ï¼šæ£€æŸ¥ç€è‰²å™¨ç¨‹åº
     if (!shaderProgram || !shaderProgram->isLinked()) {
         qCritical() << "Shader program not valid";
         return;
     }
 
-    // ²âÊÔ2£º¼ì²éVAO/VBO×´Ì¬
+    // æµ‹è¯•2ï¼šæ£€æŸ¥VAO/VBOçŠ¶æ€
     if (!vao.isCreated() || !vbo.isCreated() || !ibo.isCreated()) {
         qCritical() << "Buffer objects not created";
         return;
     }
 
-    // ²âÊÔ3£º»æÖÆ¶à¸öÑÕÉ«µÄ¾ØĞÎÀ´ÑéÖ¤ÑÕÉ«ºÍÎ»ÖÃ
+    // æµ‹è¯•3ï¼šç»˜åˆ¶å¤šä¸ªé¢œè‰²çš„çŸ©å½¢æ¥éªŒè¯é¢œè‰²å’Œä½ç½®
     struct TestVertex {
-        float x, y;     // Î»ÖÃ
-        float u, v;     // ÎÆÀí×ø±ê
-        float r, g, b, a; // ÑÕÉ«
+        float x, y;     // ä½ç½®
+        float u, v;     // çº¹ç†åæ ‡
+        float r, g, b, a; // é¢œè‰²
     };
 
     QVector<TestVertex> allVertices;
     QVector<GLushort> allIndices;
 
-    // ¾ØĞÎ1£ººìÉ«£¬×óÉÏ½Ç
+    // çŸ©å½¢1ï¼šçº¢è‰²ï¼Œå·¦ä¸Šè§’
     GLushort baseIndex = 0;
     allVertices.append({ 0, 0, 0, 0, 1, 0, 0, 1 });
     allVertices.append({ 100, 0, 0, 0, 1, 0, 0, 1 });
     allVertices.append({ 100, 100, 0, 0, 1, 0, 0, 1 });
     allVertices.append({ 0, 100, 0, 0, 1, 0, 0, 1 });
 
-    // Ê¹ÓÃÏÔÊ½ÀàĞÍ×ª»»
+    // ä½¿ç”¨æ˜¾å¼ç±»å‹è½¬æ¢
     allIndices.append(baseIndex);
     allIndices.append(baseIndex + 1);
     allIndices.append(baseIndex + 2);
@@ -201,7 +201,7 @@ void QtSkeletonLoader::testOpenGLRendering() {
     allIndices.append(baseIndex + 2);
     allIndices.append(baseIndex + 3);
 
-    // ¾ØĞÎ2£ºÂÌÉ«£¬ÖĞĞÄ
+    // çŸ©å½¢2ï¼šç»¿è‰²ï¼Œä¸­å¿ƒ
     baseIndex = static_cast<GLushort>(allVertices.size());  // 4
     int cx = width() / 2 - 50;
     int cy = height() / 2 - 50;
@@ -217,7 +217,7 @@ void QtSkeletonLoader::testOpenGLRendering() {
     allIndices.append(baseIndex + 2);
     allIndices.append(baseIndex + 3);
 
-    // ¾ØĞÎ3£ºÀ¶É«£¬ÓÒÏÂ½Ç
+    // çŸ©å½¢3ï¼šè“è‰²ï¼Œå³ä¸‹è§’
     baseIndex = static_cast<GLushort>(allVertices.size());  // 8
     allVertices.append({ static_cast<float>(width() - 100), static_cast<float>(height() - 100), 0, 0, 0, 0, 1, 1 });
     allVertices.append({ static_cast<float>(width()), static_cast<float>(height() - 100), 0, 0, 0, 0, 1, 1 });
@@ -235,7 +235,7 @@ void QtSkeletonLoader::testOpenGLRendering() {
         << allVertices.size() << "vertices,"
         << allIndices.size() << "indices";
 
-    // ÉÏ´«ËùÓĞÊı¾İ²¢»æÖÆ
+    // ä¸Šä¼ æ‰€æœ‰æ•°æ®å¹¶ç»˜åˆ¶
     shaderProgram->bind();
 
     QMatrix4x4 proj;
@@ -251,7 +251,7 @@ void QtSkeletonLoader::testOpenGLRendering() {
     ibo.bind();
     ibo.allocate(allIndices.constData(), allIndices.size() * sizeof(GLushort));
 
-    // ÉèÖÃÊôĞÔÖ¸Õë
+    // è®¾ç½®å±æ€§æŒ‡é’ˆ
     shaderProgram->enableAttributeArray(0); // position
     shaderProgram->setAttributeBuffer(0, GL_FLOAT, offsetof(TestVertex, x), 2, sizeof(TestVertex));
 
@@ -261,7 +261,7 @@ void QtSkeletonLoader::testOpenGLRendering() {
     shaderProgram->enableAttributeArray(2); // color
     shaderProgram->setAttributeBuffer(2, GL_FLOAT, offsetof(TestVertex, r), 4, sizeof(TestVertex));
 
-    // ÑéÖ¤ÊôĞÔÎ»ÖÃ
+    // éªŒè¯å±æ€§ä½ç½®
     qDebug() << "Attribute locations:"
         << "position:" << shaderProgram->attributeLocation("a_position")
         << "texCoord:" << shaderProgram->attributeLocation("a_texCoord")
@@ -273,7 +273,7 @@ void QtSkeletonLoader::testOpenGLRendering() {
     GLenum err = glGetError();
     if (err == GL_NO_ERROR) {
         qDebug() << "Test rendering successful";
-        qDebug() << "Should see: Red(×óÉÏ), Green(ÖĞĞÄ), Blue(ÓÒÏÂ)";
+        qDebug() << "Should see: Red(å·¦ä¸Š), Green(ä¸­å¿ƒ), Blue(å³ä¸‹)";
     }
     else {
         qCritical() << "Test rendering failed with error:" << err;
@@ -292,13 +292,13 @@ void QtSkeletonLoader::paintGL() {
     glClearColor(0, 0, 1, 1);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // ×î¼òµ¥µÄ²âÊÔ£ºÒ»¸öºìÉ«µÄ¾ØĞÎ
+    // æœ€ç®€å•çš„æµ‹è¯•ï¼šä¸€ä¸ªçº¢è‰²çš„çŸ©å½¢
     struct Vertex {
         float x, y, u, v, r, g, b, a;
     };
 
     Vertex vertices[] = {
-        {100, 100, 0, 0, 1, 0, 0, 1},  // ºìÉ«
+        {100, 100, 0, 0, 1, 0, 0, 1},  // çº¢è‰²
         {300, 100, 0, 0, 1, 0, 0, 1},
         {300, 300, 0, 0, 1, 0, 0, 1},
         {100, 300, 0, 0, 1, 0, 0, 1}
@@ -320,7 +320,7 @@ void QtSkeletonLoader::paintGL() {
     ibo.bind();
     ibo.allocate(indices, sizeof(indices));
 
-    // ÉèÖÃÊôĞÔ
+    // è®¾ç½®å±æ€§
     shaderProgram->enableAttributeArray(0);
     shaderProgram->setAttributeBuffer(0, GL_FLOAT, 0, 2, sizeof(Vertex));
 
@@ -338,49 +338,49 @@ void QtSkeletonLoader::paintGL() {
 
     if (!m_skeleton || !m_animationState) return;
 
-    // ¼ÆËãÊ±¼ä²î
+    // è®¡ç®—æ—¶é—´å·®
     static int lastTime = 0;
     int currentTime = clock();
     float deltaTime = (currentTime - lastTime) / 1000.0f;
     lastTime = currentTime;
 
-    // ¸üĞÂ¶¯»­
+    // æ›´æ–°åŠ¨ç”»
     m_animationState->update(deltaTime);
     m_animationState->apply(*m_skeleton);
     m_skeleton->update(deltaTime);
     m_skeleton->updateWorldTransform(spine::Physics_Update);
 
-    // ÉèÖÃÍ¶Ó°¾ØÕó
+    // è®¾ç½®æŠ•å½±çŸ©é˜µ
     //QMatrix4x4 proj;
-    proj.ortho(0, width(), height(), 0, -1, 1); // ×¢ÒâYÖá·­×ª
+    proj.ortho(0, width(), height(), 0, -1, 1); // æ³¨æ„Yè½´ç¿»è½¬
 
     shaderProgram->bind();
     shaderProgram->setUniformValue("u_proj", proj);
 
-    // äÖÈ¾¹Ç¼Ü
+    // æ¸²æŸ“éª¨æ¶
     renderSkeleton(m_skeleton);
 
     shaderProgram->release();
 }
 
 void QtSkeletonLoader::renderSkeleton(spine::Skeleton* skeleton) {
-    // Çå¿Õ»º³åÇø
+    // æ¸…ç©ºç¼“å†²åŒº
     vertexBuffer.clear();
     indexBuffer.clear();
     currentTexture = 0;
     currentBlendMode = spine::BlendMode_Normal;
 
-    // »ñÈ¡»æÖÆË³Ğò
+    // è·å–ç»˜åˆ¶é¡ºåº
     spine::Vector<spine::Slot*>& drawOrder = skeleton->getDrawOrder();
 
-    // ±éÀúËùÓĞ²å²Û
+    // éå†æ‰€æœ‰æ’æ§½
     for (size_t i = 0; i < drawOrder.size(); ++i) {
         spine::Slot* slot = drawOrder[i];
         spine::Attachment* attachment = slot->getAttachment();
 
         if (!attachment) continue;
 
-        // ¸ù¾İ¸½¼şÀàĞÍäÖÈ¾
+        // æ ¹æ®é™„ä»¶ç±»å‹æ¸²æŸ“
         if (attachment->getRTTI().isExactly(spine::RegionAttachment::rtti)) {
             renderRegionAttachment(slot, static_cast<spine::RegionAttachment*>(attachment));
         }
@@ -389,24 +389,24 @@ void QtSkeletonLoader::renderSkeleton(spine::Skeleton* skeleton) {
         }
     }
 
-    // Ë¢ĞÂ×îºóÒ»Ö¡
+    // åˆ·æ–°æœ€åä¸€å¸§
     flush();
 }
 
 void QtSkeletonLoader::renderRegionAttachment(spine::Slot* slot, spine::RegionAttachment* attachment) {
-    // »ñÈ¡AtlasRegion
+    // è·å–AtlasRegion
     spine::TextureRegion* textureRegion = attachment->getRegion();
     spine::AtlasRegion* region = dynamic_cast<spine::AtlasRegion*>(textureRegion);
     if (!region || !region->page) return;
 
-    // ´ÓAtlasPage»ñÈ¡ÎÒÃÇÖ®Ç°ÉèÖÃµÄÎÆÀí¶ÔÏó
+    // ä»AtlasPageè·å–æˆ‘ä»¬ä¹‹å‰è®¾ç½®çš„çº¹ç†å¯¹è±¡
     auto* texture = static_cast<QOpenGLTexture*>(region->page->texture);
     if (!texture) return;
 
     GLuint textureId = texture->textureId();
     spine::BlendMode blendMode = slot->getData().getBlendMode();
 
-    // Èç¹ûÎÆÀí»ò»ìºÏÄ£Ê½±ä»¯£¬Ë¢ĞÂµ±Ç°Åú´Î
+    // å¦‚æœçº¹ç†æˆ–æ··åˆæ¨¡å¼å˜åŒ–ï¼Œåˆ·æ–°å½“å‰æ‰¹æ¬¡
     if (textureId != currentTexture || blendMode != currentBlendMode) {
         flush();
         currentTexture = textureId;
@@ -414,29 +414,29 @@ void QtSkeletonLoader::renderRegionAttachment(spine::Slot* slot, spine::RegionAt
         setupBlendMode(blendMode);
     }
 
-    // ¼ÆËãÊÀ½ç×ø±ê¶¥µã
+    // è®¡ç®—ä¸–ç•Œåæ ‡é¡¶ç‚¹
     float worldVertices[8];
     attachment->computeWorldVertices(*slot, worldVertices, 0, 8);
 
-    // »ñÈ¡UV×ø±ê - RegionAttachmentÓĞgetUVs()·½·¨
+    // è·å–UVåæ ‡ - RegionAttachmentæœ‰getUVs()æ–¹æ³•
     spine::Vector<float>& uvs = attachment->getUVs();
 
-    // ¼ÆËãÑÕÉ« - ÊÖ¶¯³Ë·¨
+    // è®¡ç®—é¢œè‰² - æ‰‹åŠ¨ä¹˜æ³•
     spine::Color skeletonColor = m_skeleton->getColor();
     spine::Color slotColor = slot->getColor();
     spine::Color attachmentColor = attachment->getColor();
 
-    // ÊÖ¶¯½øĞĞÑÕÉ«³Ë·¨
+    // æ‰‹åŠ¨è¿›è¡Œé¢œè‰²ä¹˜æ³•
     spine::Color finalColor;
     finalColor.r = skeletonColor.r * slotColor.r * attachmentColor.r;
     finalColor.g = skeletonColor.g * slotColor.g * attachmentColor.g;
     finalColor.b = skeletonColor.b * slotColor.b * attachmentColor.b;
     finalColor.a = skeletonColor.a * slotColor.a * attachmentColor.a;
 
-    // RegionAttachmentÊÇ4¸ö¶¥µãµÄËÄ±ßĞÎ
-    int baseVertex = vertexBuffer.size() / 8; // Ã¿¸ö¶¥µã8¸öfloat
+    // RegionAttachmentæ˜¯4ä¸ªé¡¶ç‚¹çš„å››è¾¹å½¢
+    int baseVertex = vertexBuffer.size() / 8; // æ¯ä¸ªé¡¶ç‚¹8ä¸ªfloat
 
-    // Ìí¼Ó4¸ö¶¥µã
+    // æ·»åŠ 4ä¸ªé¡¶ç‚¹
     for (int i = 0; i < 4; ++i) {
         // position (2 floats)
         vertexBuffer.append(worldVertices[i * 2]);
@@ -453,7 +453,7 @@ void QtSkeletonLoader::renderRegionAttachment(spine::Slot* slot, spine::RegionAt
         vertexBuffer.append(finalColor.a);
     }
 
-    // Ìí¼ÓË÷Òı£¨Á½¸öÈı½ÇĞÎ£º0-1-2 ºÍ 0-2-3£©
+    // æ·»åŠ ç´¢å¼•ï¼ˆä¸¤ä¸ªä¸‰è§’å½¢ï¼š0-1-2 å’Œ 0-2-3ï¼‰
     indexBuffer.append(baseVertex);
     indexBuffer.append(baseVertex + 1);
     indexBuffer.append(baseVertex + 2);
@@ -463,7 +463,7 @@ void QtSkeletonLoader::renderRegionAttachment(spine::Slot* slot, spine::RegionAt
 }
 
 void QtSkeletonLoader::renderMeshAttachment(spine::Slot* slot, spine::MeshAttachment* attachment) {
-    // MeshAttachmentÍ¬ÑùÍ¨¹ıgetRendererObject()·µ»ØAtlasRegion
+    // MeshAttachmentåŒæ ·é€šè¿‡getRendererObject()è¿”å›AtlasRegion
     spine::TextureRegion* textureRegion = attachment->getRegion();
     spine::AtlasRegion* region = dynamic_cast<spine::AtlasRegion*>(textureRegion);
     if (!region || !region->page) return;
@@ -474,7 +474,7 @@ void QtSkeletonLoader::renderMeshAttachment(spine::Slot* slot, spine::MeshAttach
     GLuint textureId = texture->textureId();
     spine::BlendMode blendMode = slot->getData().getBlendMode();
 
-    // Èç¹ûÎÆÀí»ò»ìºÏÄ£Ê½±ä»¯£¬Ë¢ĞÂµ±Ç°Åú´Î
+    // å¦‚æœçº¹ç†æˆ–æ··åˆæ¨¡å¼å˜åŒ–ï¼Œåˆ·æ–°å½“å‰æ‰¹æ¬¡
     if (textureId != currentTexture || blendMode != currentBlendMode) {
         flush();
         currentTexture = textureId;
@@ -482,19 +482,19 @@ void QtSkeletonLoader::renderMeshAttachment(spine::Slot* slot, spine::MeshAttach
         setupBlendMode(blendMode);
     }
 
-    // »ñÈ¡ÊÀ½ç×ø±ê - Ê¹ÓÃcomputeWorldVertices¼ÆËã
+    // è·å–ä¸–ç•Œåæ ‡ - ä½¿ç”¨computeWorldVerticesè®¡ç®—
     int numVertices = attachment->getWorldVerticesLength() / 2;
     spine::Vector<float> worldVertices;
     worldVertices.setSize(attachment->getWorldVerticesLength(), 1.0);
     attachment->computeWorldVertices(*slot, 0, 1, worldVertices, 0, attachment->getWorldVerticesLength());
 
-    // »ñÈ¡UVs - MeshAttachmentÓĞgetUVs()·½·¨
+    // è·å–UVs - MeshAttachmentæœ‰getUVs()æ–¹æ³•
     spine::Vector<float>& uvs = attachment->getUVs();
 
-    // »ñÈ¡Èı½ÇĞÎË÷Òı
+    // è·å–ä¸‰è§’å½¢ç´¢å¼•
     spine::Vector<unsigned short>& triangles = attachment->getTriangles();
 
-    // ¼ÆËãÑÕÉ«
+    // è®¡ç®—é¢œè‰²
     spine::Color skeletonColor = m_skeleton->getColor();
     spine::Color slotColor = slot->getColor();
     spine::Color attachmentColor = attachment->getColor();
@@ -507,7 +507,7 @@ void QtSkeletonLoader::renderMeshAttachment(spine::Slot* slot, spine::MeshAttach
 
     int baseVertex = vertexBuffer.size() / 8;
 
-    // Ìí¼ÓËùÓĞ¶¥µã
+    // æ·»åŠ æ‰€æœ‰é¡¶ç‚¹
     for (int i = 0; i < numVertices; ++i) {
         // position (2 floats)
         vertexBuffer.append(worldVertices[i * 2]);
@@ -524,7 +524,7 @@ void QtSkeletonLoader::renderMeshAttachment(spine::Slot* slot, spine::MeshAttach
         vertexBuffer.append(finalColor.a);
     }
 
-    // Ìí¼ÓË÷Òı£¨ĞèÒª¼ÓÉÏbaseVertexÆ«ÒÆ£©
+    // æ·»åŠ ç´¢å¼•ï¼ˆéœ€è¦åŠ ä¸ŠbaseVertexåç§»ï¼‰
     for (int i = 0; i < triangles.size(); ++i) {
         indexBuffer.append(baseVertex + triangles[i]);
     }
@@ -533,27 +533,27 @@ void QtSkeletonLoader::renderMeshAttachment(spine::Slot* slot, spine::MeshAttach
 void QtSkeletonLoader::flush() {
     if (vertexBuffer.isEmpty() || indexBuffer.isEmpty()) return;
 
-    // °ó¶¨VAO
+    // ç»‘å®šVAO
     vao.bind();
 
-    // ÉÏ´«¶¥µãÊı¾İ
+    // ä¸Šä¼ é¡¶ç‚¹æ•°æ®
     vbo.bind();
     vbo.allocate(vertexBuffer.constData(), vertexBuffer.size() * sizeof(float));
 
-    // ÉÏ´«Ë÷ÒıÊı¾İ
+    // ä¸Šä¼ ç´¢å¼•æ•°æ®
     ibo.bind();
     ibo.allocate(indexBuffer.constData(), indexBuffer.size() * sizeof(GLushort));
 
-    // °ó¶¨ÎÆÀí
+    // ç»‘å®šçº¹ç†
     glBindTexture(GL_TEXTURE_2D, currentTexture);
 
-    // »æÖÆ
+    // ç»˜åˆ¶
     glDrawElements(GL_TRIANGLES, indexBuffer.size(), GL_UNSIGNED_SHORT, nullptr);
 
-    // ½â°ó
+    // è§£ç»‘
     vao.release();
 
-    // Çå¿Õ»º³åÇø£¬×¼±¸ÏÂÒ»¸öÅú´Î
+    // æ¸…ç©ºç¼“å†²åŒºï¼Œå‡†å¤‡ä¸‹ä¸€ä¸ªæ‰¹æ¬¡
     vertexBuffer.clear();
     indexBuffer.clear();
 }

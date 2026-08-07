@@ -20,17 +20,17 @@
 #include "opacityanimation.h"
 
 OpacityAnimation::OpacityAnimation(QWidget* widget, double opacity, int duration, QEasingCurve easingCurve) {
-    // ¹¹½¨¶ÔÏó
+    // æž„å»ºå¯¹è±¡
     this->m_opacityEffect = new QGraphicsOpacityEffect;
     this->m_animation_obj = new QPropertyAnimation(m_opacityEffect, "opacity");
     this->m_widget = widget;
-    // °ó¶¨¶ÔÏó
+    // ç»‘å®šå¯¹è±¡
     m_widget->setGraphicsEffect(m_opacityEffect);
-    // ³õÊ¼»¯frame
+    // åˆå§‹åŒ–frame
     setOpacity(opacity);
-    // ³õÊ¼»¯¶¯»­¶ÔÏó
-    m_animation_obj->setDuration(duration);   // ¶¯»­³ÖÐøÊ±¼ä
-    m_animation_obj->setEasingCurve(easingCurve);    // »ºÈë»º³öÐ§¹û
+    // åˆå§‹åŒ–åŠ¨ç”»å¯¹è±¡
+    m_animation_obj->setDuration(duration);   // åŠ¨ç”»æŒç»­æ—¶é—´
+    m_animation_obj->setEasingCurve(easingCurve);    // ç¼“å…¥ç¼“å‡ºæ•ˆæžœ
 }
 
 void OpacityAnimation::startAnimation(double start_opacity, double goal_opacity) {

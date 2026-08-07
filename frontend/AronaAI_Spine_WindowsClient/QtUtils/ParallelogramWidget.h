@@ -17,25 +17,25 @@ class ParallelogramWidget : public QWidget
 public:
     explicit ParallelogramWidget(QWidget* parent = nullptr);
 
-    // ÉèÖÃÇãĞ±ÏµÊı£¨0.0 = ¾ØĞÎ£¬ÕıÖµÏòÓÒÇãĞ±£¬¸ºÖµÏò×óÇãĞ±£©
+    // è®¾ç½®å€¾æ–œç³»æ•°ï¼ˆ0.0 = çŸ©å½¢ï¼Œæ­£å€¼å‘å³å€¾æ–œï¼Œè´Ÿå€¼å‘å·¦å€¾æ–œï¼‰
     void setSkewFactor(double factor);
     double skewFactor() const { return m_skewFactor; }
 
-    // ÉèÖÃÌî³äÑÕÉ«
+    // è®¾ç½®å¡«å……é¢œè‰²
     void setFillColor(const QColor& color);
     QColor fillColor() const { return m_fillColor; }
     void setFillBackground(bool fill);
 
-    // ÉèÖÃ±ß¿òÊôĞÔ
+    // è®¾ç½®è¾¹æ¡†å±æ€§
     void setBorderColor(const QColor& color);
     void setBorderWidth(int width);
     void setBorderPosition(bool top = false, bool bottom = false, bool left = false, bool right = false);
 
-    // ÖØĞ´setFixedSizeÒÔ±£³ÖÕıÈ·»æÖÆ
+    // é‡å†™setFixedSizeä»¥ä¿æŒæ­£ç¡®ç»˜åˆ¶
     void setFixedSize(int w, int h);
     void setFixedSize(const QSize& size);
 
-    // ÉèÖÃ±³¾°Í¼Æ¬
+    // è®¾ç½®èƒŒæ™¯å›¾ç‰‡
     void setBackgroundImage(const QString& imagePath);
     void setBackgroundImage(const QPixmap& pixmap);
 
@@ -46,16 +46,16 @@ protected:
 private:
     QPainterPath createParallelogramPath() const;
 
-    double m_skewFactor;      // ÇãĞ±ÏµÊı
-    QColor m_fillColor;       // Ìî³äÑÕÉ«
-    bool m_fillBackground = false;  // ÊÇ·ñÌî³ä±³¾°
-    QPixmap m_backgroundImage;  // ±³¾°Í¼Æ¬
-    bool m_hasBackgroundImage;  // ÊÇ·ñÓĞ±³¾°Í¼Æ¬
-    Qt::AspectRatioMode m_imageScaleMode;  // Í¼Æ¬Ëõ·ÅÄ£Ê½
+    double m_skewFactor;      // å€¾æ–œç³»æ•°
+    QColor m_fillColor;       // å¡«å……é¢œè‰²
+    bool m_fillBackground = false;  // æ˜¯å¦å¡«å……èƒŒæ™¯
+    QPixmap m_backgroundImage;  // èƒŒæ™¯å›¾ç‰‡
+    bool m_hasBackgroundImage;  // æ˜¯å¦æœ‰èƒŒæ™¯å›¾ç‰‡
+    Qt::AspectRatioMode m_imageScaleMode;  // å›¾ç‰‡ç¼©æ”¾æ¨¡å¼
 
-    // ±ß¿òÊôĞÔ
-    QColor m_borderColor;     // ±ß¿òÑÕÉ«
-    int m_borderWidth;        // ±ß¿ò¿í¶È
+    // è¾¹æ¡†å±æ€§
+    QColor m_borderColor;     // è¾¹æ¡†é¢œè‰²
+    int m_borderWidth;        // è¾¹æ¡†å®½åº¦
     bool is_top_border = false;
     bool is_bottom_border = false;
     bool is_left_border = false;

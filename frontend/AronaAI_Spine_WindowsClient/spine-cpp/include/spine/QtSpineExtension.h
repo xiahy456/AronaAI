@@ -11,14 +11,14 @@
 
 class SP_API QtSpineExtension : public spine::SpineExtension {
 public:
-	// ¹¹Ôìº¯Êı
+	// æ„é€ å‡½æ•°
 	QtSpineExtension();
 
-	// ĞéÎö¹¹º¯Êı
+	// è™šææ„å‡½æ•°
 	virtual ~QtSpineExtension() override;
 
 protected:
-	// ÄÚ´æ¹ÜÀí
+	// å†…å­˜ç®¡ç†
 	virtual void* _alloc(size_t size, const char* file, int line) override;
 
 	virtual void* _calloc(size_t size, const char* file, int line) override;
@@ -27,11 +27,11 @@ protected:
 
 	virtual void _free(void* mem, const char* file, int line) override;
 
-	// ÎÄ¼ş¶ÁÈ¡
+	// æ–‡ä»¶è¯»å–
 	virtual char* _readFile(const spine::String& path, int* length) override;
 };
 
-// Íâ²¿º¯ÊıgetDefaultExtension()
+// å¤–éƒ¨å‡½æ•°getDefaultExtension()
 extern "C" SP_API spine::SpineExtension* getDefaultExtension();
 
 #endif // !Qt_Spine_Extension_H

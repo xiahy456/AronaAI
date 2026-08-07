@@ -37,31 +37,31 @@ class SystemTray : public QObject
 	Q_OBJECT
 
 public:
-	// ¹¹Ôìº¯Êı
+	// æ„é€ å‡½æ•°
 	SystemTray(MainWidget* mainWidget, QWidget* settingsWidget);
-	// Îö¹¹º¯Êı
+	// ææ„å‡½æ•°
 	~SystemTray();
 
-	// ÏÔÊ¾Ö÷´°¿Ú
+	// æ˜¾ç¤ºä¸»çª—å£
 	void showOrHideMainWidget();
-	// ÏÔÊ¾ÉèÖÃ´°¿Ú
+	// æ˜¾ç¤ºè®¾ç½®çª—å£
 	void showOrHideSettingsWidget();
-	// ÔÊĞí²Ù×÷Ö÷²Ëµ¥
+	// å…è®¸æ“ä½œä¸»èœå•
 	void ableEdit();
-	// ½ûÖ¹²Ù×÷Ö÷²Ëµ¥
+	// ç¦æ­¢æ“ä½œä¸»èœå•
 	void unableEdit();
 
 private:
-	MainWidget* m_mainWidget;	// mainWidgetÖ÷½çÃæ¶ÔÏóµÄÒıÓÃ
-	QWidget* m_settingsWidget;	// settingsWidgetÉèÖÃ½çÃæ¶ÔÏóµÄÒıÓÃ
-	QSystemTrayIcon* m_trayIcon = nullptr;	// ÏµÍ³ÍĞÅÌÍ¼±ê¶ÔÏó
-	QMenu* m_trayIconMenu = nullptr;	// ÍĞÅÌÍ¼±ê¹ØÁªµÄ²Ëµ¥
+	MainWidget* m_mainWidget;	// mainWidgetä¸»ç•Œé¢å¯¹è±¡çš„å¼•ç”¨
+	QWidget* m_settingsWidget;	// settingsWidgetè®¾ç½®ç•Œé¢å¯¹è±¡çš„å¼•ç”¨
+	QSystemTrayIcon* m_trayIcon = nullptr;	// ç³»ç»Ÿæ‰˜ç›˜å›¾æ ‡å¯¹è±¡
+	QMenu* m_trayIconMenu = nullptr;	// æ‰˜ç›˜å›¾æ ‡å…³è”çš„èœå•
 
-	QAction* m_operateMainWidget_showOrHide = nullptr;	// ÏÔÊ¾/Òş²ØÖ÷½çÃæ
-	QAction* m_operateSettingsWidget_showOrHide = nullptr;	// ÏÔÊ¾/Òş²ØÉèÖÃ½çÃæ
-	QAction* m_ableEdit = nullptr;	// ¿É²Ù×÷Ö÷²Ëµ¥
-	QAction* m_unableEdit = nullptr;	// ²»¿É²Ù×÷Ö÷²Ëµ¥
-	QAction* m_quitAction = nullptr;	// ÍË³ö³ÌĞò
+	QAction* m_operateMainWidget_showOrHide = nullptr;	// æ˜¾ç¤º/éšè—ä¸»ç•Œé¢
+	QAction* m_operateSettingsWidget_showOrHide = nullptr;	// æ˜¾ç¤º/éšè—è®¾ç½®ç•Œé¢
+	QAction* m_ableEdit = nullptr;	// å¯æ“ä½œä¸»èœå•
+	QAction* m_unableEdit = nullptr;	// ä¸å¯æ“ä½œä¸»èœå•
+	QAction* m_quitAction = nullptr;	// é€€å‡ºç¨‹åº
 };
 
 #endif // !SYSTEMTRAY_H

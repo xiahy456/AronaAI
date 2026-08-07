@@ -21,7 +21,7 @@ public:
     void setPressedColor(const QColor& color);
     void setBackgroundImage(const QString& imagePath);
     void setBackgroundImage(const QPixmap& pixmap);
-    void setImageScaleMode(Qt::AspectRatioMode mode);  // Í¼Æ¬Ëõ·ÅÄ£Ê½
+    void setImageScaleMode(Qt::AspectRatioMode mode);  // å›¾ç‰‡ç¼©æ”¾æ¨¡å¼
     void setTextColor(const QColor& color);
 	void setBorderWidth(int width);
 
@@ -33,16 +33,16 @@ protected:
     void mouseReleaseEvent(QMouseEvent* event) override;
 
 private:
-    qreal m_shear;          // ÇãĞ±ÏµÊı
-    QColor m_fillColor;     // Ìî³äÑÕÉ«
-    QColor m_hoverColor;    // ĞüÍ£ÑÕÉ«
-    QColor m_pressedColor;  // °´ÏÂÑÕÉ«
-    bool m_isHovered;       // ÊÇ·ñĞüÍ£
-    bool m_isPressed;       // ÊÇ·ñ°´ÏÂ
-    QPixmap m_backgroundImage;  // ±³¾°Í¼Æ¬
-    bool m_hasBackgroundImage;  // ÊÇ·ñÓĞ±³¾°Í¼Æ¬
-    Qt::AspectRatioMode m_imageScaleMode;  // Í¼Æ¬Ëõ·ÅÄ£Ê½
-    QColor m_textColor = QColor(44, 69, 99);  // Ä¬ÈÏÉîÀ¶É«
+    qreal m_shear;          // å€¾æ–œç³»æ•°
+    QColor m_fillColor;     // å¡«å……é¢œè‰²
+    QColor m_hoverColor;    // æ‚¬åœé¢œè‰²
+    QColor m_pressedColor;  // æŒ‰ä¸‹é¢œè‰²
+    bool m_isHovered;       // æ˜¯å¦æ‚¬åœ
+    bool m_isPressed;       // æ˜¯å¦æŒ‰ä¸‹
+    QPixmap m_backgroundImage;  // èƒŒæ™¯å›¾ç‰‡
+    bool m_hasBackgroundImage;  // æ˜¯å¦æœ‰èƒŒæ™¯å›¾ç‰‡
+    Qt::AspectRatioMode m_imageScaleMode;  // å›¾ç‰‡ç¼©æ”¾æ¨¡å¼
+    QColor m_textColor = QColor(44, 69, 99);  // é»˜è®¤æ·±è“è‰²
     int m_borderWidth = 0;
 };
 

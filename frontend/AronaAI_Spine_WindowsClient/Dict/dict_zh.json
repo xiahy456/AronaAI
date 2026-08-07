@@ -7,6 +7,7 @@
     "application_name": "阿洛娜AI",
     "main_widget_name": "阿洛娜AI-主界面",
     "settings_widget_name": "阿洛娜AI-设置界面",
+    "user_input_widget_name": "阿洛娜AI-用户输入界面",
     "system_tray": "系统托盘",
     "system_tray_not_support": "您的系统不支持系统托盘",
     "showOrHide_main_widget": "显示/隐藏主界面",
@@ -19,7 +20,8 @@
     "spine_settings_button_name": "Spine设置",
     "gpt_sovits_settings_button_name": "GPT-Sovits设置",
     "debug_output_button_name": "调试输出",
-    "about_developer_button_name": "关于开发者"
+    "about_developer_button_name": "关于开发者",
+    "user_input_widget_placeholder": "请输入消息，按下回车键与阿洛娜对话"
   },
   "formed_text": {
     "connected_to_os_operator": "已连接至系统管理员阿洛娜。欢迎回来，老师。",

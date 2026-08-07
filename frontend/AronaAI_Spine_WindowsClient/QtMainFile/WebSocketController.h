@@ -18,7 +18,7 @@ class WebSocketController : public QObject
     Q_OBJECT
 
 public:
-    // Á¬½Ó×´Ì¬Ã¶¾Ù
+    // è¿æ¥çŠ¶æ€æšä¸¾
     enum class ConnectionState {
         Disconnected,
         Connecting,
@@ -27,7 +27,7 @@ public:
     };
     Q_ENUM(ConnectionState)
 
-        // ´íÎóÂëÃ¶¾Ù
+        // é”™è¯¯ç æšä¸¾
         enum class ErrorCode {
         NoError,
         ConnectionRefused,
@@ -40,7 +40,7 @@ public:
     };
     Q_ENUM(ErrorCode)
 
-        // »Øµ÷º¯ÊıÀàĞÍ¶¨Òå
+        // å›è°ƒå‡½æ•°ç±»å‹å®šä¹‰
         using MessageCallback = std::function<void(const QJsonObject&)>;
     using ErrorCallback = std::function<void(ErrorCode, const QString&)>;
     using StateCallback = std::function<void(ConnectionState)>;
@@ -48,72 +48,72 @@ public:
     explicit WebSocketController(QObject* parent = nullptr);
     ~WebSocketController();
 
-    // ========== Á¬½Ó¹ÜÀí½Ó¿Ú ==========
+    // ========== è¿æ¥ç®¡ç†æ¥å£ ==========
 
-    // Á¬½Óµ½·şÎñÆ÷
+    // è¿æ¥åˆ°æœåŠ¡å™¨
     void connectToServer();
 
-    // ¶Ï¿ªÁ¬½Ó
+    // æ–­å¼€è¿æ¥
     void disconnectFromServer();
 
-    // »ñÈ¡µ±Ç°Á¬½Ó×´Ì¬
+    // è·å–å½“å‰è¿æ¥çŠ¶æ€
     ConnectionState state() const;
 
-    // ÊÇ·ñÒÑÁ¬½Ó
+    // æ˜¯å¦å·²è¿æ¥
     bool isConnected() const;
 
-    // ========== ÅäÖÃ½Ó¿Ú ==========
+    // ========== é…ç½®æ¥å£ ==========
 
-    // ÉèÖÃ·şÎñÆ÷URL
+    // è®¾ç½®æœåŠ¡å™¨URL
     void setServerUrl(const QString& url);
 
-    // ÉèÖÃĞÄÌø¼ä¸ô£¨ºÁÃë£©£¬Ä¬ÈÏ30000ms
+    // è®¾ç½®å¿ƒè·³é—´éš”ï¼ˆæ¯«ç§’ï¼‰ï¼Œé»˜è®¤30000ms
     void setHeartbeatInterval(int intervalMs);
 
-    // ÉèÖÃĞÄÌø³¬Ê±Ê±¼ä£¨ºÁÃë£©£¬Ä¬ÈÏ10000ms
+    // è®¾ç½®å¿ƒè·³è¶…æ—¶æ—¶é—´ï¼ˆæ¯«ç§’ï¼‰ï¼Œé»˜è®¤10000ms
     void setHeartbeatTimeout(int timeoutMs);
 
-    // ÉèÖÃÖØÁ¬¼ä¸ô£¨ºÁÃë£©£¬Ä¬ÈÏ3000ms
+    // è®¾ç½®é‡è¿é—´éš”ï¼ˆæ¯«ç§’ï¼‰ï¼Œé»˜è®¤3000ms
     void setReconnectInterval(int intervalMs);
 
-    // ÉèÖÃ×î´óÖØÁ¬´ÎÊı£¬-1±íÊ¾ÎŞÏŞÖØÁ¬£¬Ä¬ÈÏ5´Î
+    // è®¾ç½®æœ€å¤§é‡è¿æ¬¡æ•°ï¼Œ-1è¡¨ç¤ºæ— é™é‡è¿ï¼Œé»˜è®¤5æ¬¡
     void setMaxReconnectAttempts(int attempts);
 
-    // ÆôÓÃ/½ûÓÃ×Ô¶¯ÖØÁ¬
+    // å¯ç”¨/ç¦ç”¨è‡ªåŠ¨é‡è¿
     void setAutoReconnect(bool enabled);
 
-    // ========== ÏûÏ¢·¢ËÍ½Ó¿Ú ==========
+    // ========== æ¶ˆæ¯å‘é€æ¥å£ ==========
 
-    // ·¢ËÍÁÄÌìÏûÏ¢£¨·ÇÁ÷Ê½£©
+    // å‘é€èŠå¤©æ¶ˆæ¯ï¼ˆéæµå¼ï¼‰
     void sendChatMessage(const QString& content,
         bool useCache = true,
         bool useRag = true,
         bool useMemory = true);
 
-    // ·¢ËÍÁÄÌìÏûÏ¢£¨Á÷Ê½£©
+    // å‘é€èŠå¤©æ¶ˆæ¯ï¼ˆæµå¼ï¼‰
     void sendStreamChatMessage(const QString& content,
         bool useCache = true,
         bool useRag = true,
         bool useMemory = true);
 
-    // Çå¿Õ»á»°
+    // æ¸…ç©ºä¼šè¯
     void clearSession();
 
-    // »ñÈ¡Í³¼ÆĞÅÏ¢
+    // è·å–ç»Ÿè®¡ä¿¡æ¯
     void getStats();
 
-    // ·¢ËÍĞÄÌø
+    // å‘é€å¿ƒè·³
     void sendPing();
 
-    // ·¢ËÍ×Ô¶¨ÒåÏûÏ¢
+    // å‘é€è‡ªå®šä¹‰æ¶ˆæ¯
     void sendMessage(const QJsonObject& message);
 
-    // ========== »Øµ÷×¢²á½Ó¿Ú ==========
+    // ========== å›è°ƒæ³¨å†Œæ¥å£ ==========
 
-    // ×¢²áÏûÏ¢»Øµ÷
+    // æ³¨å†Œæ¶ˆæ¯å›è°ƒ
     void onMessageReceived(MessageCallback callback);
 
-    // ×¢²áÌØ¶¨ÀàĞÍÏûÏ¢»Øµ÷
+    // æ³¨å†Œç‰¹å®šç±»å‹æ¶ˆæ¯å›è°ƒ
     void onChatResponse(MessageCallback callback);
     void onChatStream(MessageCallback callback);
     void onError(ErrorCallback callback);
@@ -123,33 +123,33 @@ public:
     void onResult(MessageCallback callback);
     void onPong(MessageCallback callback);
 
-    // Í¨ÓÃ´íÎó»Øµ÷
+    // é€šç”¨é”™è¯¯å›è°ƒ
     void onErrorOccurred(ErrorCallback callback);
 
 signals:
-    // Á¬½Ó×´Ì¬±ä»¯ĞÅºÅ
+    // è¿æ¥çŠ¶æ€å˜åŒ–ä¿¡å·
     void connectionStateChanged(ConnectionState state);
 
-    // ÊÕµ½ÏûÏ¢ĞÅºÅ
+    // æ”¶åˆ°æ¶ˆæ¯ä¿¡å·
     void messageReceived(const QJsonObject& message);
 
-    // ÊÕµ½ÁÄÌìÏìÓ¦ĞÅºÅ£¨contextUsed Îªºó¶Ë¾­¹ıµÄÄ£¿é±êÊ¶£¬Èç "none"/"cache"/"memory+rag"£©
+    // æ”¶åˆ°èŠå¤©å“åº”ä¿¡å·ï¼ˆcontextUsed ä¸ºåç«¯ç»è¿‡çš„æ¨¡å—æ ‡è¯†ï¼Œå¦‚ "none"/"cache"/"memory+rag"ï¼‰
     void chatResponseReceived(const QString& content, bool fromCache,
         const QString& contextUsed, double latency);
 
-    // ÊÕµ½Á÷Ê½ÁÄÌìÆ¬¶ÎĞÅºÅ
+    // æ”¶åˆ°æµå¼èŠå¤©ç‰‡æ®µä¿¡å·
     void chatStreamReceived(const QString& content, bool done);
 
-    // ÊÕµ½´íÎóĞÅºÅ
+    // æ”¶åˆ°é”™è¯¯ä¿¡å·
     void errorOccurred(ErrorCode code, const QString& message);
 
-    // Á¬½Ó³É¹¦ĞÅºÅ
+    // è¿æ¥æˆåŠŸä¿¡å·
     void connected(const QString& sessionId);
 
-    // ¶Ï¿ªÁ¬½ÓĞÅºÅ
+    // æ–­å¼€è¿æ¥ä¿¡å·
     void disconnected();
 
-    // ĞÄÌø³¬Ê±ĞÅºÅ
+    // å¿ƒè·³è¶…æ—¶ä¿¡å·
     void heartbeatTimeout();
 
 private slots:
@@ -163,49 +163,49 @@ private slots:
     void onPongReceived();
 
 private:
-    // ·¢ËÍJSONÏûÏ¢
+    // å‘é€JSONæ¶ˆæ¯
     void sendJsonMessage(const QJsonObject& message);
 
-    // ´¦Àí½ÓÊÕµ½µÄÏûÏ¢
+    // å¤„ç†æ¥æ”¶åˆ°çš„æ¶ˆæ¯
     void handleMessage(const QJsonObject& message);
 
-    // ´¦ÀíÁÄÌìÏìÓ¦
+    // å¤„ç†èŠå¤©å“åº”
     void handleChatResponse(const QJsonObject& message);
 
-    // ´¦ÀíÁ÷Ê½ÁÄÌì
+    // å¤„ç†æµå¼èŠå¤©
     void handleChatStream(const QJsonObject& message);
 
-    // ´¦Àí´íÎó
+    // å¤„ç†é”™è¯¯
     void handleError(const QJsonObject& message);
 
-    // ´¦ÀíÁ¬½Ó³É¹¦
+    // å¤„ç†è¿æ¥æˆåŠŸ
     void handleConnected(const QJsonObject& message);
 
-    // ´¦ÀíÍ³¼ÆĞÅÏ¢
+    // å¤„ç†ç»Ÿè®¡ä¿¡æ¯
     void handleStats(const QJsonObject& message);
 
-    // ´¦Àí²Ù×÷½á¹û
+    // å¤„ç†æ“ä½œç»“æœ
     void handleResult(const QJsonObject& message);
 
-    // ´¦ÀíĞÄÌøÏìÓ¦
+    // å¤„ç†å¿ƒè·³å“åº”
     void handlePong(const QJsonObject& message);
 
-    // ¿ªÊ¼ĞÄÌø
+    // å¼€å§‹å¿ƒè·³
     void startHeartbeat();
 
-    // Í£Ö¹ĞÄÌø
+    // åœæ­¢å¿ƒè·³
     void stopHeartbeat();
 
-    // ¿ªÊ¼ÖØÁ¬
+    // å¼€å§‹é‡è¿
     void startReconnect();
 
-    // Í£Ö¹ÖØÁ¬
+    // åœæ­¢é‡è¿
     void stopReconnect();
 
-    // ÖØÖÃĞÄÌø¼ÆÊ±Æ÷
+    // é‡ç½®å¿ƒè·³è®¡æ—¶å™¨
     void resetHeartbeatTimer();
 
-    // ÉèÖÃÁ¬½Ó×´Ì¬
+    // è®¾ç½®è¿æ¥çŠ¶æ€
     void setState(ConnectionState newState);
 
 private:
@@ -217,20 +217,20 @@ private:
     QString m_serverUrl;
     ConnectionState m_currentState;
 
-    // ÅäÖÃ²ÎÊı
-    int m_heartbeatInterval;      // ĞÄÌø·¢ËÍ¼ä¸ô£¨ms£©
-    int m_heartbeatTimeout;       // ĞÄÌø³¬Ê±Ê±¼ä£¨ms£©
-    int m_reconnectInterval;      // ÖØÁ¬¼ä¸ô£¨ms£©
-    int m_maxReconnectAttempts;   // ×î´óÖØÁ¬´ÎÊı£¬-1±íÊ¾ÎŞÏŞ
-    int m_currentReconnectCount;  // µ±Ç°ÖØÁ¬´ÎÊı
-    bool m_autoReconnect;         // ÊÇ·ñ×Ô¶¯ÖØÁ¬
-    bool m_pongReceived;         // ÊÇ·ñÊÕµ½pongÏìÓ¦
+    // é…ç½®å‚æ•°
+    int m_heartbeatInterval;      // å¿ƒè·³å‘é€é—´éš”ï¼ˆmsï¼‰
+    int m_heartbeatTimeout;       // å¿ƒè·³è¶…æ—¶æ—¶é—´ï¼ˆmsï¼‰
+    int m_reconnectInterval;      // é‡è¿é—´éš”ï¼ˆmsï¼‰
+    int m_maxReconnectAttempts;   // æœ€å¤§é‡è¿æ¬¡æ•°ï¼Œ-1è¡¨ç¤ºæ— é™
+    int m_currentReconnectCount;  // å½“å‰é‡è¿æ¬¡æ•°
+    bool m_autoReconnect;         // æ˜¯å¦è‡ªåŠ¨é‡è¿
+    bool m_pongReceived;         // æ˜¯å¦æ”¶åˆ°pongå“åº”
 
-    // ÏûÏ¢¶ÓÁĞ£¨Î´Á¬½ÓÊ±»º´æÏûÏ¢£©
+    // æ¶ˆæ¯é˜Ÿåˆ—ï¼ˆæœªè¿æ¥æ—¶ç¼“å­˜æ¶ˆæ¯ï¼‰
     QQueue<QJsonObject> m_messageQueue;
-    bool m_cacheMessages;         // ÊÇ·ñ»º´æÏûÏ¢
+    bool m_cacheMessages;         // æ˜¯å¦ç¼“å­˜æ¶ˆæ¯
 
-    // »Øµ÷º¯Êı
+    // å›è°ƒå‡½æ•°
     MessageCallback m_onMessageCallback;
     MessageCallback m_onChatResponseCallback;
     MessageCallback m_onChatStreamCallback;
@@ -242,7 +242,7 @@ private:
     MessageCallback m_onPongCallback;
     ErrorCallback m_onErrorOccurredCallback;
 
-    // Á÷Ê½ÏûÏ¢»º³åÇø
+    // æµå¼æ¶ˆæ¯ç¼“å†²åŒº
     QString m_streamBuffer;
 };
 

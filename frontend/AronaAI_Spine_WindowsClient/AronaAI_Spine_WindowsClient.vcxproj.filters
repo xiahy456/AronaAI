@@ -50,6 +50,9 @@
     <QtUic Include="QtMainFile\SettingsWidget.ui">
       <Filter>Form Files</Filter>
     </QtUic>
+    <QtUic Include="QtMainFile\UserInputWidget.ui">
+      <Filter>Form Files</Filter>
+    </QtUic>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="spine-cpp\include\spine\QtSpineManager.h">
@@ -104,6 +107,9 @@
       <Filter>QtUtils</Filter>
     </QtMoc>
     <QtMoc Include="QtMainFile\WebSocketController.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="QtMainFile\UserInputWidget.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
@@ -387,6 +393,9 @@
       <Filter>QtUtils</Filter>
     </ClCompile>
     <ClCompile Include="QtMainFile\WebSocketController.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="QtMainFile\UserInputWidget.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

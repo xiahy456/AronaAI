@@ -20,6 +20,7 @@
 #include "Defines.h"
 #include "MainWidget.h"
 #include "SettingsWidget.h"
+#include "UserInputWidget.h"
 #include "SystemTray.h"
 #include "MainController.h"
 #include "TTSManager.h"
@@ -95,6 +96,9 @@ int main(int argc, char *argv[])
 	// 创建设置窗口对象
     SettingsWidget* settingsWidget = new SettingsWidget;
 
+    // 创建用户输入窗口对象
+    UserInputWidget* userInputWidget = new UserInputWidget;
+
     // 创建TTS对象
 	TTSManager* ttsManager = new TTSManager;
 
@@ -108,7 +112,7 @@ int main(int argc, char *argv[])
     WebSocketController* webSocketController = new WebSocketController;
 
     // 创建主控制对象
-	MainController* mainController = new MainController(mainWidget, ttsManager, audioRecorder, tencentSpeechRecognizer, webSocketController);
+	MainController* mainController = new MainController(mainWidget, ttsManager, audioRecorder, tencentSpeechRecognizer, webSocketController, userInputWidget);
 
 	// 创建快捷键对象
 	ShortCutKey* shortCutKey = new ShortCutKey(mainController);

@@ -18,25 +18,25 @@ class BlueakaFontLoader : public QObject
 public:
     static BlueakaFontLoader* instance();
 
-    // ´ÓÄ¿Â¼¼ÓÔØËùÓĞ TTF ÎÄ¼ş
+    // ä»ç›®å½•åŠ è½½æ‰€æœ‰ TTF æ–‡ä»¶
     bool loadFromDirectory(const QString& directory);
 
-    // ´Ó×ÊÔ´ÎÄ¼ş¼ÓÔØ
+    // ä»èµ„æºæ–‡ä»¶åŠ è½½
     bool loadFromResource(const QString& resourcePath);
 
-    // ¼ì²é×ÖÌåÊÇ·ñÒÑ¼ÓÔØ
+    // æ£€æŸ¥å­—ä½“æ˜¯å¦å·²åŠ è½½
     bool isLoaded() const { return !m_fontFamilies.isEmpty(); }
 
-    // »ñÈ¡×ÖÌå×åÃû³ÆÁĞ±í
+    // è·å–å­—ä½“æ—åç§°åˆ—è¡¨
     QStringList getFontFamilies() const { return m_fontFamilies; }
 
-    // ´´½¨×ÖÌå¶ÔÏó£¨¼ò»¯°æ£©
+    // åˆ›å»ºå­—ä½“å¯¹è±¡ï¼ˆç®€åŒ–ç‰ˆï¼‰
     QFont createFont(int pointSize = 12, bool bold = false, bool italic = false);
 
-    // ´´½¨×ÖÌå¶ÔÏó£¨¸ß¼¶°æ£©
+    // åˆ›å»ºå­—ä½“å¯¹è±¡ï¼ˆé«˜çº§ç‰ˆï¼‰
     QFont createFont(int pointSize, QFont::Weight weight, bool italic = false);
 
-    // »ñÈ¡Ö÷×ÖÌå×åÃû³Æ
+    // è·å–ä¸»å­—ä½“æ—åç§°
     QString getMainFontFamily() const { return m_fontFamilies.isEmpty() ? "" : m_fontFamilies.first(); }
 
 private:

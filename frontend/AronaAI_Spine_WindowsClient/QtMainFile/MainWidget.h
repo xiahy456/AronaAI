@@ -39,21 +39,21 @@ class MainWidget : public QWidget
     Q_OBJECT
 
 public:
-	// 构造函�?
+	// 构造函数
     MainWidget(QWidget *parent = nullptr);
 	// 析构函数
     ~MainWidget();
-	// 显示输出文本并显示气�?
+	// 显示输出文本并显示气泡
 	void showOutputText(const QString& text);
-    // 隐藏输出文本并隐藏气�?
+    // 隐藏输出文本并隐藏气泡
 	void hideOutputText();
     // 设置动画
 	void setAnimation(const QString& name, int track_idx, bool loop);
     // 清除动画
 	void clearAnimation(int track_idx, float mix_duration);
-    // ������������
+    // 修改鼠标可用性
 	void setMouseTransparent(bool isMouseTransparent);
-	// ��ȡ��ǰ�Ƿ���괩͸
+	// 获取当前是否鼠标穿透
 	bool isMouseTransparent() const;
 
     // Debug-显示文本
@@ -71,9 +71,9 @@ private:
     // 鼠标事件
     bool m_dragging;
     QPoint m_dragPosition;
-	bool m_mouseTransparent;   // �?否鼠标穿�?
+	bool m_mouseTransparent;   // 是否鼠标穿透
 
-    // 不透明度动画属�?
-	OpacityAnimation* m_opacityAnimation_aronaOutputTextBox = nullptr;   // 文本框不透明度动�?
+    // 不透明度动画属性
+	OpacityAnimation* m_opacityAnimation_aronaOutputTextBox = nullptr;   // 文本框不透明度动画
 
 };

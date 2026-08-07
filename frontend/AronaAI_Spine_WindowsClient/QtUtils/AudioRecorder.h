@@ -24,8 +24,8 @@
 #include "Defines.h"
 
 #include <QObject>
-#include <QAudioSource> // Qt 6: 使用 QAudioSource
-#include <QMediaDevices> // Qt 6: 用于获取设备信息
+#include <QAudioSource> // Qt 6: 浣跨敤 QAudioSource
+#include <QMediaDevices> // Qt 6: 鐢ㄤ簬鑾峰彇璁惧淇℃伅
 #include <QAudioDevice>
 #include <QAudioFormat>
 #include <QBuffer>

@@ -43,12 +43,12 @@ void DebugManager::sendDebugMessage(const QString& message, const QString& sende
     }
 
     //emit debugMessageReceived(formattedMsg);
-    // ¼ì²éÊÇ·ñÓÐ½ÓÊÕÕß
+    // æ£€æŸ¥æ˜¯å¦æœ‰æŽ¥æ”¶è€…
     if (receivers(SIGNAL(debugMessageReceived(QString))) > 0) {
         emit debugMessageReceived(formattedMsg);
     }
     else {
-        m_pendingMessages.append(formattedMsg);  // »º´æ
+        m_pendingMessages.append(formattedMsg);  // ç¼“å­˜
     }
 }
 

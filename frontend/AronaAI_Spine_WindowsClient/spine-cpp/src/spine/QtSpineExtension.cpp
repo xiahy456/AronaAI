@@ -1,89 +1,89 @@
 #include <spine/QtSpineExtension.h>
 
-// ¹¹Ôìº¯Êı¿ÕÊµÏÖ
+// æ„é€ å‡½æ•°ç©ºå®ç°
 QtSpineExtension::QtSpineExtension() : spine::SpineExtension() {
 }
 
-// ĞéÎö¹¹º¯Êı¿ÕÊµÏÖ
+// è™šææ„å‡½æ•°ç©ºå®ç°
 QtSpineExtension::~QtSpineExtension() {
 }
 
 void* QtSpineExtension::_alloc(size_t size, const char* file, int line)
 {
-	// ·ÖÅäÒ»¿ésizeÄÇÃ´´óµÄÄÚ´æ
+	// åˆ†é…ä¸€å—sizeé‚£ä¹ˆå¤§çš„å†…å­˜
 	void* mem = std::malloc(size);	
-	// µ÷ÊÔĞÅÏ¢
+	// è°ƒè¯•ä¿¡æ¯
 	//qDebug() << "[Spine Operation] Allocating memory: " << size << " bytes at " << file << ":line " << line;
-	// ·µ»Ø·ÖÅäµÄÄÚ´æµØÖ·
+	// è¿”å›åˆ†é…çš„å†…å­˜åœ°å€
 	return mem;	
 }
 
 void* QtSpineExtension::_calloc(size_t size, const char* file, int line)
 {
-	// ·ÖÅäÒ»¿ésizeÄÇÃ´´óµÄÄÚ´æ£¬²¢³õÊ¼»¯Îª0
+	// åˆ†é…ä¸€å—sizeé‚£ä¹ˆå¤§çš„å†…å­˜ï¼Œå¹¶åˆå§‹åŒ–ä¸º0
 	void* mem = std::calloc(1, size);
-	// µ÷ÊÔĞÅÏ¢
+	// è°ƒè¯•ä¿¡æ¯
 	//qDebug() << "[Spine Operation] Allocating zero-initialized memory: " << size << " bytes at " << file << ":line " << line;
-	// ·µ»Ø·ÖÅäµÄÄÚ´æµØÖ·
+	// è¿”å›åˆ†é…çš„å†…å­˜åœ°å€
 	return mem;
 }
 
 void* QtSpineExtension::_realloc(void* ptr, size_t size, const char* file, int line)
 {
-	// ÖØĞÂ·ÖÅäÄÚ´æ¿éptrÎªsize´óĞ¡
+	// é‡æ–°åˆ†é…å†…å­˜å—pträ¸ºsizeå¤§å°
 	void* mem = std::realloc(ptr, size);
-	// µ÷ÊÔĞÅÏ¢
+	// è°ƒè¯•ä¿¡æ¯
 	//qDebug() << "[Spine Operation] Reallocating memory: " << size << " bytes at " << file << ":line " << line;
-	// ·µ»ØÖØĞÂ·ÖÅäµÄÄÚ´æµØÖ·
+	// è¿”å›é‡æ–°åˆ†é…çš„å†…å­˜åœ°å€
 	return mem;
 }
 
 void QtSpineExtension::_free(void* mem, const char* file, int line)
 {
 	if (mem) {
-		// ÊÍ·ÅÄÚ´æ¿émem
+		// é‡Šæ”¾å†…å­˜å—mem
 		std::free(mem);
-		// µ÷ÊÔĞÅÏ¢
+		// è°ƒè¯•ä¿¡æ¯
 		//qDebug() << "[Spine Operation] Freeing memory at " << file << ":line " << line;
 	}
 }
 
 char* QtSpineExtension::_readFile(const spine::String& path, int* length)
 {
-	// ³õÊ¼»¯Êä³ö²ÎÊı£¬¶ÁÈ¡Ê§°ÜÊ±ÖÃ0
+	// åˆå§‹åŒ–è¾“å‡ºå‚æ•°ï¼Œè¯»å–å¤±è´¥æ—¶ç½®0
 	*length = 0;
-	// ½«spineÂ·¾¶×ª»»ÎªQString
+	// å°†spineè·¯å¾„è½¬æ¢ä¸ºQString
 	QString qPath = QString::fromStdString(path.buffer());
 	QFile file(qPath);
-	// ÒÔÖ»¶Á¶ş½øÖÆ´ò¿ªÎÄ¼ş
+	// ä»¥åªè¯»äºŒè¿›åˆ¶æ‰“å¼€æ–‡ä»¶
 	if (!file.open(QIODevice::ReadOnly | QIODevice::Unbuffered | QIODevice::Text)) {
-		// ´ò¿ªÊ§°Ü£¬Êä³öÈÕÖ¾
+		// æ‰“å¼€å¤±è´¥ï¼Œè¾“å‡ºæ—¥å¿—
 		qWarning() << "[Spine Operation] Open File Failed! Path: " << qPath << " | Reason: " << file.errorString();
 		return nullptr;
 	}
-	// ¶ÁÈ¡ËùÓĞÎÄ¼şµ½Qt×Ö½ÚÊı×é(QByteArray)
+	// è¯»å–æ‰€æœ‰æ–‡ä»¶åˆ°Qtå­—èŠ‚æ•°ç»„(QByteArray)
 	QByteArray byteData = file.readAll();
-	// ¹Ø±ÕÎÄ¼ş
+	// å…³é—­æ–‡ä»¶
 	file.close();
-	// ¶ÁÈ¡Ê§°ÜÅĞ¶Ï
+	// è¯»å–å¤±è´¥åˆ¤æ–­
 	if (byteData.isEmpty()) {
 		qWarning() << "[Spine Operation] File is Empty! Path: " << qPath;
 		return nullptr;
 	}
-	// ¸øÉÏ²ã·µ»ØÎÄ¼şÊı¾İ
+	// ç»™ä¸Šå±‚è¿”å›æ–‡ä»¶æ•°æ®
 	*length = byteData.size();
 	char* data = static_cast<char*>(_alloc(*length + 1, __FILE__, __LINE__));
 	std::memcpy(data, byteData.constData(), *length);
-	data[*length] = '\0';	// Ä©Î²¼Ó\0£¬Ö§³ÖC×Ö·û´®½âÎö
+	data[*length] = '\0';	// æœ«å°¾åŠ \0ï¼Œæ”¯æŒCå­—ç¬¦ä¸²è§£æ
 	//qDebug() << "[Spine Opperation] Read File Success! Path: " << qPath << " | Length: " << *length;
-	// ·µ»ØÎÄ¼şÊı¾İÖ¸Õë
+	// è¿”å›æ–‡ä»¶æ•°æ®æŒ‡é’ˆ
 	return data;
 }
 
-// ¾Ö²¿¾²Ì¬À©Õ¹ÊµÀı
+// å±€éƒ¨é™æ€æ‰©å±•å®ä¾‹
 static QtSpineExtension g_QtSpineExtension;
 
-// ÊµÏÖÈ«¾ÖÀ©Õ¹ÊµÀıµÄº¯Êı
+// å®ç°å…¨å±€æ‰©å±•å®ä¾‹çš„å‡½æ•°
 spine::SpineExtension* spine::getDefaultExtension() {
 	return &g_QtSpineExtension;
 }

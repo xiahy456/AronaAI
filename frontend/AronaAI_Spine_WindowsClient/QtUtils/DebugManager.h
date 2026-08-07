@@ -29,19 +29,19 @@ class DebugManager  : public QObject
 public:
     static DebugManager* instance();
 
-    // ·¢ËÍµ÷ÊÔÏûÏ¢
+    // å‘é€è°ƒè¯•æ¶ˆæ¯
     void sendDebugMessage(const QString& message, const QString& sender = "");
 
-    // »ñÈ¡»º´æµÄµ÷ÊÔĞÅÏ¢
+    // è·å–ç¼“å­˜çš„è°ƒè¯•ä¿¡æ¯
     void flushPendingMessages();
 
 signals:
-    // µ÷ÊÔÏûÏ¢ĞÅºÅ
+    // è°ƒè¯•æ¶ˆæ¯ä¿¡å·
     void debugMessageReceived(const QString& message);
 
 private:
     explicit DebugManager(QObject* parent = nullptr);
     static DebugManager* m_instance;
-    QStringList m_pendingMessages;  // »º´æÎ´·¢ËÍµÄÏûÏ¢
+    QStringList m_pendingMessages;  // ç¼“å­˜æœªå‘é€çš„æ¶ˆæ¯
 };
 

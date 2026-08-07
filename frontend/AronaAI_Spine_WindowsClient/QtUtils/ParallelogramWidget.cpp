@@ -4,16 +4,16 @@
 
 ParallelogramWidget::ParallelogramWidget(QWidget* parent)
     : QWidget(parent)
-    , m_skewFactor(0.5774)      // Ä¬ÈÏÇãĞ±ÏµÊı0.5774
-    , m_fillColor(Qt::white)  // Ä¬ÈÏÌî³äÀ¶É«
-    , m_borderColor(Qt::black) // Ä¬ÈÏ±ß¿òºÚÉ«
-    , m_borderWidth(0)        // Ä¬ÈÏ±ß¿ò¿í¶È0ÏñËØ
+    , m_skewFactor(0.5774)      // é»˜è®¤å€¾æ–œç³»æ•°0.5774
+    , m_fillColor(Qt::white)  // é»˜è®¤å¡«å……è“è‰²
+    , m_borderColor(Qt::black) // é»˜è®¤è¾¹æ¡†é»‘è‰²
+    , m_borderWidth(0)        // é»˜è®¤è¾¹æ¡†å®½åº¦0åƒç´ 
     , m_hasBackgroundImage(false)
-    , m_imageScaleMode(Qt::IgnoreAspectRatio)  // Ä¬ÈÏ²Ã¼ôÄ£Ê½
+    , m_imageScaleMode(Qt::IgnoreAspectRatio)  // é»˜è®¤è£å‰ªæ¨¡å¼
 {
     setWindowFlags(Qt::FramelessWindowHint);
     setAttribute(Qt::WA_TranslucentBackground);
-    // ÉèÖÃÄ¬ÈÏ´óĞ¡
+    // è®¾ç½®é»˜è®¤å¤§å°
     setFixedSize(200, 100);
 }
 
@@ -23,7 +23,7 @@ void ParallelogramWidget::setSkewFactor(double factor)
         return;
 
     m_skewFactor = factor;
-    update();  // ´¥·¢ÖØ»æ
+    update();  // è§¦å‘é‡ç»˜
 }
 
 void ParallelogramWidget::setFillColor(const QColor& color)
@@ -71,7 +71,7 @@ void ParallelogramWidget::setBorderPosition(bool top, bool bottom, bool left, bo
 void ParallelogramWidget::setFixedSize(int w, int h)
 {
     QWidget::setFixedSize(w, h);
-    update();  // ´óĞ¡¸Ä±äÊ±¸üĞÂ»æÖÆ
+    update();  // å¤§å°æ”¹å˜æ—¶æ›´æ–°ç»˜åˆ¶
 }
 
 void ParallelogramWidget::setFixedSize(const QSize& size)
@@ -106,17 +106,17 @@ QPainterPath ParallelogramWidget::createParallelogramPath() const
     int w = width();
     int h = height();
 
-    // ¼ÆËãÇãĞ±Æ«ÒÆÁ¿£¨»ùÓÚ¸ß¶ÈºÍÇãĞ±ÏµÊı£©
+    // è®¡ç®—å€¾æ–œåç§»é‡ï¼ˆåŸºäºé«˜åº¦å’Œå€¾æ–œç³»æ•°ï¼‰
     int skewOffset = static_cast<int>(h * m_skewFactor);
 
-    // ¶¨ÒåÆ½ĞĞËÄ±ßĞÎµÄËÄ¸ö¶¥µã
-    // ´Ó×óÉÏ½Ç¿ªÊ¼£¬Ë³Ê±Õë»òÄæÊ±Õë
+    // å®šä¹‰å¹³è¡Œå››è¾¹å½¢çš„å››ä¸ªé¡¶ç‚¹
+    // ä»å·¦ä¸Šè§’å¼€å§‹ï¼Œé¡ºæ—¶é’ˆæˆ–é€†æ—¶é’ˆ
     QPointF topLeft(skewOffset, 0);
     QPointF topRight(w, 0);
     QPointF bottomRight(w - skewOffset, h);
     QPointF bottomLeft(0, h);
 
-    // ¹¹½¨Â·¾¶
+    // æ„å»ºè·¯å¾„
     path.moveTo(topLeft);
     path.lineTo(topRight);
     path.lineTo(bottomRight);
@@ -128,7 +128,7 @@ QPainterPath ParallelogramWidget::createParallelogramPath() const
 
 void ParallelogramWidget::paintEvent(QPaintEvent* event)
 {
-    // ¿í¸ßÇãĞ±¶ÈÓë¸÷¸ö¶¥µã
+    // å®½é«˜å€¾æ–œåº¦ä¸å„ä¸ªé¡¶ç‚¹
     int w = width();
     int h = height();
     int skewOffset = static_cast<int>(h * m_skewFactor);
@@ -141,29 +141,29 @@ void ParallelogramWidget::paintEvent(QPaintEvent* event)
 
     QPainter painter(this);
 
-    // ÆôÓÃ¿¹¾â³İ£¬Ê¹±ßÔµ¸üÆ½»¬
+    // å¯ç”¨æŠ—é”¯é½¿ï¼Œä½¿è¾¹ç¼˜æ›´å¹³æ»‘
     painter.setRenderHint(QPainter::Antialiasing, true);
 
-    // ´´½¨Æ½ĞĞËÄ±ßĞÎÂ·¾¶
+    // åˆ›å»ºå¹³è¡Œå››è¾¹å½¢è·¯å¾„
     QPainterPath path = createParallelogramPath();
 
-    // »æÖÆ±³¾°
+    // ç»˜åˆ¶èƒŒæ™¯
     if (m_fillBackground) {
         if (m_hasBackgroundImage && !m_backgroundImage.isNull()) {
-            // ·½·¨1£ºÊ¹ÓÃÍ¼Æ¬×÷Îª±³¾°Ìî³ä
+            // æ–¹æ³•1ï¼šä½¿ç”¨å›¾ç‰‡ä½œä¸ºèƒŒæ™¯å¡«å……
             painter.save();
-            painter.setClipPath(path);  // ÉèÖÃ²Ã¼ôÇøÓòÎªÆ½ĞĞËÄ±ßĞÎ
+            painter.setClipPath(path);  // è®¾ç½®è£å‰ªåŒºåŸŸä¸ºå¹³è¡Œå››è¾¹å½¢
 
-            // Ëõ·ÅÍ¼Æ¬ÒÔÊÊÓ¦¿Ø¼ş´óĞ¡
+            // ç¼©æ”¾å›¾ç‰‡ä»¥é€‚åº”æ§ä»¶å¤§å°
             QPixmap scaledPixmap;
             if (m_imageScaleMode == Qt::IgnoreAspectRatio) {
-                // À­ÉìÌî³ä
+                // æ‹‰ä¼¸å¡«å……
                 scaledPixmap = m_backgroundImage.scaled(width(), height(),
                     Qt::IgnoreAspectRatio,
                     Qt::SmoothTransformation);
             }
             else {
-                // ±£³Ö±ÈÀı
+                // ä¿æŒæ¯”ä¾‹
                 scaledPixmap = m_backgroundImage.scaled(width(), height(),
                     m_imageScaleMode,
                     Qt::SmoothTransformation);
@@ -173,12 +173,12 @@ void ParallelogramWidget::paintEvent(QPaintEvent* event)
             painter.restore();
         }
         else {
-            // Ê¹ÓÃ´¿É«Ìî³ä£¨Ô­ÓĞÂß¼­£©
+            // ä½¿ç”¨çº¯è‰²å¡«å……ï¼ˆåŸæœ‰é€»è¾‘ï¼‰
             painter.fillPath(path, m_fillColor);
         }
     }
 
-    // »æÖÆ±ß¿ò
+    // ç»˜åˆ¶è¾¹æ¡†
     if (m_borderWidth > 0) {
         if (is_top_border) {
             QPen topPen(m_borderColor, m_borderWidth);
@@ -206,6 +206,6 @@ void ParallelogramWidget::paintEvent(QPaintEvent* event)
 void ParallelogramWidget::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
-    // ´óĞ¡¸Ä±äÊ±£¬¿ÉÒÔÔÚÕâÀïÌí¼Ó¶îÍâµÄ´¦ÀíÂß¼­
-    // update() »á×Ô¶¯±»µ÷ÓÃ
+    // å¤§å°æ”¹å˜æ—¶ï¼Œå¯ä»¥åœ¨è¿™é‡Œæ·»åŠ é¢å¤–çš„å¤„ç†é€»è¾‘
+    // update() ä¼šè‡ªåŠ¨è¢«è°ƒç”¨
 }

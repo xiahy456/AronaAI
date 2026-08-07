@@ -48,69 +48,69 @@ public:
     explicit TTSManager(QObject* parent = nullptr);
     ~TTSManager();
 
-    // ÉèÖÃ·şÎñÆ÷µØÖ·
+    // è®¾ç½®æœåŠ¡å™¨åœ°å€
     void setServerAddress(const QString& host, int port);
 
-    // TTSÇëÇó²ÎÊı½á¹¹Ìå
+    // TTSè¯·æ±‚å‚æ•°ç»“æ„ä½“
     struct TTSRequestParams {
-        QString text = "";  // ÒªºÏ³ÉµÄÎÄ±¾
-        QString textLang = "zh";    // ÎÄ±¾ÓïÑÔ
-        QString refAudioPath = "";  // ²Î¿¼ÒôÆµÂ·¾¶
-        QStringList auxRefAudioPaths;   // ¸¨Öú²Î¿¼ÒôÆµÂ·¾¶
-        QString promptText = "";    // ÌáÊ¾ÎÄ±¾
-        QString promptLang = "zh";  // ÌáÊ¾ÎÄ±¾ÓïÑÔ
-        int topK = 5;   // top k²ÉÑù
-        double topP = 1.0;  // top p²ÉÑù
-        double temperature = 1.0;   // ÎÂ¶È²ÎÊı
-        QString textSplitMethod = "cut0";   // ÎÄ±¾·Ö¸î·½·¨
-        int batchSize = 1;  // Åú´¦Àí´óĞ¡
-        double batchThreshold = 0.75;   // Åú´¦ÀíãĞÖµ
-        bool splitBucket = true;    // ÊÇ·ñ·Ö¸îÍ°
-        double speedFactor = 1.0;   // ÓïËÙÒò×Ó
-        double fragmentInterval = 0.3;  // Æ¬¶Î¼ä¸ô
-        int seed = -1;  // Ëæ»úÖÖ×Ó
-        bool streamingMode = false; // Á÷Ê½Ä£Ê½
-        bool parallelInfer = true;  // ²¢ĞĞÍÆÀí
-        double repetitionPenalty = 1.35;    // ÖØ¸´³Í·£
-        int sampleSteps = 32;   // ²ÉÑù²½Êı
-        bool superSampling = false; // ³¬²ÉÑù
-        QString mediaType = "wav";  // Ã½ÌåÀàĞÍ
+        QString text = "";  // è¦åˆæˆçš„æ–‡æœ¬
+        QString textLang = "zh";    // æ–‡æœ¬è¯­è¨€
+        QString refAudioPath = "";  // å‚è€ƒéŸ³é¢‘è·¯å¾„
+        QStringList auxRefAudioPaths;   // è¾…åŠ©å‚è€ƒéŸ³é¢‘è·¯å¾„
+        QString promptText = "";    // æç¤ºæ–‡æœ¬
+        QString promptLang = "zh";  // æç¤ºæ–‡æœ¬è¯­è¨€
+        int topK = 5;   // top ké‡‡æ ·
+        double topP = 1.0;  // top pé‡‡æ ·
+        double temperature = 1.0;   // æ¸©åº¦å‚æ•°
+        QString textSplitMethod = "cut0";   // æ–‡æœ¬åˆ†å‰²æ–¹æ³•
+        int batchSize = 1;  // æ‰¹å¤„ç†å¤§å°
+        double batchThreshold = 0.75;   // æ‰¹å¤„ç†é˜ˆå€¼
+        bool splitBucket = true;    // æ˜¯å¦åˆ†å‰²æ¡¶
+        double speedFactor = 1.0;   // è¯­é€Ÿå› å­
+        double fragmentInterval = 0.3;  // ç‰‡æ®µé—´éš”
+        int seed = -1;  // éšæœºç§å­
+        bool streamingMode = false; // æµå¼æ¨¡å¼
+        bool parallelInfer = true;  // å¹¶è¡Œæ¨ç†
+        double repetitionPenalty = 1.35;    // é‡å¤æƒ©ç½š
+        int sampleSteps = 32;   // é‡‡æ ·æ­¥æ•°
+        bool superSampling = false; // è¶…é‡‡æ ·
+        QString mediaType = "wav";  // åª’ä½“ç±»å‹
     };
 
-    // ·¢ËÍTTSÇëÇó£¨GET·½Ê½£©
+    // å‘é€TTSè¯·æ±‚ï¼ˆGETæ–¹å¼ï¼‰
     void requestTTSGet(const TTSRequestParams& params);
 
-    // ·¢ËÍTTSÇëÇó£¨POST·½Ê½£©
+    // å‘é€TTSè¯·æ±‚ï¼ˆPOSTæ–¹å¼ï¼‰
     void requestTTSPost(const TTSRequestParams& params);
 
-    // ¿ØÖÆÃüÁî
+    // æ§åˆ¶å‘½ä»¤
     void sendControlCommand(const QString& command);
 
-    // ÉèÖÃGPTÄ£ĞÍ
+    // è®¾ç½®GPTæ¨¡å‹
     void setGPTWeights(const QString& weightsPath);
 
-    // ÉèÖÃSovitsÄ£ĞÍ
+    // è®¾ç½®Sovitsæ¨¡å‹
     void setSovitsWeights(const QString& weightsPath);
 
-    // ²¥·ÅÒôÆµ
+    // æ’­æ”¾éŸ³é¢‘
     void playAudio(const QByteArray& audioData);
 
-    // ±£´æÒôÆµµ½ÎÄ¼ş
+    // ä¿å­˜éŸ³é¢‘åˆ°æ–‡ä»¶
     bool saveAudioToFile(const QByteArray& audioData, const QString& filePath);
 
-	// »ñÈ¡ÒôÆµ³¤¶È£¨Ãë£©
+	// è·å–éŸ³é¢‘é•¿åº¦ï¼ˆç§’ï¼‰
     double getWavDuration(const QByteArray& audioData);
 
 signals:
-    // TTSÍê³ÉĞÅºÅ
+    // TTSå®Œæˆä¿¡å·
     void ttsFinished(const QByteArray& audioData, const QString& mediaType);
-    // TTSÁ÷Ê½Êı¾İ½ÓÊÕĞÅºÅ
+    // TTSæµå¼æ•°æ®æ¥æ”¶ä¿¡å·
     void ttsChunkReceived(const QByteArray& chunkData);
-    // TTS´íÎóĞÅºÅ
+    // TTSé”™è¯¯ä¿¡å·
     void ttsError(const QString& errorString);
-    // ÃüÁîÖ´ĞĞÍê³ÉĞÅºÅ
+    // å‘½ä»¤æ‰§è¡Œå®Œæˆä¿¡å·
     void commandFinished(bool success, const QString& message);
-    // Ä£ĞÍÇĞ»»Íê³ÉĞÅºÅ
+    // æ¨¡å‹åˆ‡æ¢å®Œæˆä¿¡å·
     void modelSwitched(bool success, const QString& message);
 
 private slots:
@@ -129,11 +129,11 @@ private:
         };
 
         RequestType type;
-        TTSRequestParams params;  // ÓÃÓÚTTSÇëÇó
-        QString command;          // ÓÃÓÚ¿ØÖÆÃüÁî
-        QString weightsPath;      // ÓÃÓÚÄ£ĞÍÇĞ»»
+        TTSRequestParams params;  // ç”¨äºTTSè¯·æ±‚
+        QString command;          // ç”¨äºæ§åˆ¶å‘½ä»¤
+        QString weightsPath;      // ç”¨äºæ¨¡å‹åˆ‡æ¢
 
-        // ¹¹Ôìº¯Êı
+        // æ„é€ å‡½æ•°
         QueuedRequest(RequestType t, const TTSRequestParams& p)
             : type(t), params(p) {
         }
@@ -159,7 +159,7 @@ private:
     QBuffer* audioBuffer;
 
     bool isProcessingRequest;
-    bool isStreamingMode;  // ¼ÇÂ¼µ±Ç°ÇëÇóÊÇ·ñÎªÁ÷Ê½Ä£Ê½
+    bool isStreamingMode;  // è®°å½•å½“å‰è¯·æ±‚æ˜¯å¦ä¸ºæµå¼æ¨¡å¼
 
     void processNextRequest();
     void executeTTSGet(const TTSRequestParams& params);

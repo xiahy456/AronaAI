@@ -19,18 +19,18 @@ public:
     explicit SpineMouseController(QObject* parent = nullptr);
     ~SpineMouseController();
 
-    // ³õÊ¼»¯¿ØÖÆÆ÷
+    // åˆå§‹åŒ–æ§åˆ¶å™¨
     void initialize(spine::Skeleton* skeleton, spine::AnimationState* animationState,
         const QString& touchBoneName, const QString& headAnimationPrefix = "Pat_01", const QString& headAnimationEndPrefix = "PatEnd_01");
 
-    // Êó±êÊÂ¼ş´¦Àí
+    // é¼ æ ‡äº‹ä»¶å¤„ç†
     void handleMousePress(const QPointF& globalPos, const QPointF& localPos,
         float spineX, float spineY, float scale);
     void handleMouseRelease(const QPointF& globalPos);
     void handleMouseMove(const QPointF& globalPos, const QPointF& localPos,
         float spineX, float spineY, float scale);
 
-    // ÉèÖÃ²ÎÊı
+    // è®¾ç½®å‚æ•°
     void setEyeRadius(float radius) { m_eyeRadius = radius; }
     void setLinearAlgebraScale(float scale) { m_linearAlgebraScale = scale; }
     void setMouseTracking(bool enabled) { m_mouseTracking = enabled; }
@@ -38,19 +38,19 @@ public:
     void setMouseTrial(bool enabled) { m_mouseTrial = enabled; }
     void setLongTouchInterval(int ms) { m_longTouchTimer.setInterval(ms); }
 
-    // Í·²¿¶¯»­Ãû³ÆÉèÖÃ
+    // å¤´éƒ¨åŠ¨ç”»åç§°è®¾ç½®
     void setHeadAnimationNames(const QString& touch, const QString& end) {
         m_headAnimation = touch;
         m_headAnimationEnd = end;
     }
 
-    // »ñÈ¡µ±Ç°Êó±ê¾Ö²¿×ø±ê£¨ÓÃÓÚÑÛ¾¦×·×Ù£©
+    // è·å–å½“å‰é¼ æ ‡å±€éƒ¨åæ ‡ï¼ˆç”¨äºçœ¼ç›è¿½è¸ªï¼‰
     QPointF getMouseLocalPoint() const { return m_state.mouseLocalPoint; }
 
 signals:
-    void talkTriggered(int index);  // ´¥·¢¶Ô»°ĞÅºÅ
-    void headTouched(bool touched); // Í·²¿´¥Ãş×´Ì¬¸Ä±äĞÅºÅ
-    void longTouchTriggered(bool isLongTouch); // ³¤°´´¥·¢ĞÅºÅ
+    void talkTriggered(int index);  // è§¦å‘å¯¹è¯ä¿¡å·
+    void headTouched(bool touched); // å¤´éƒ¨è§¦æ‘¸çŠ¶æ€æ”¹å˜ä¿¡å·
+    void longTouchTriggered(bool isLongTouch); // é•¿æŒ‰è§¦å‘ä¿¡å·
 
 private slots:
     void onLongTouchTimeout();
@@ -58,19 +58,19 @@ private slots:
 
 private:
     struct State {
-        bool mouseDown = false;           // Êó±êÊÇ·ñ°´ÏÂ
-        bool isAnimation = false;          // ÊÇ·ñÕıÔÚ²¥·Å¶¯»­
-        int talkIndex = 1;                 // ¶Ô»°Ë÷Òı
-        bool isInterval = false;            // ÊÇ·ñÔÚ¼ä¸ôÖĞ
-        bool longTouch = false;             // ÊÇ·ñ³¤°´
-        bool patHead = false;               // ÊÇ·ñ´¥ÃşÍ·²¿
-        QPointF touchBonePoint;             // ´¥Ãş¹Ç÷Àµã
-        QPointF mouseLocalPoint;             // Êó±ê¾Ö²¿×ø±ê
-        float linearAlgebraScale = 1.1f;     // ÏßĞÔ´úÊıËõ·Å
-        int talkCount = 0;                   // ¶Ô»°¼ÆÊı
+        bool mouseDown = false;           // é¼ æ ‡æ˜¯å¦æŒ‰ä¸‹
+        bool isAnimation = false;          // æ˜¯å¦æ­£åœ¨æ’­æ”¾åŠ¨ç”»
+        int talkIndex = 1;                 // å¯¹è¯ç´¢å¼•
+        bool isInterval = false;            // æ˜¯å¦åœ¨é—´éš”ä¸­
+        bool longTouch = false;             // æ˜¯å¦é•¿æŒ‰
+        bool patHead = false;               // æ˜¯å¦è§¦æ‘¸å¤´éƒ¨
+        QPointF touchBonePoint;             // è§¦æ‘¸éª¨éª¼ç‚¹
+        QPointF mouseLocalPoint;             // é¼ æ ‡å±€éƒ¨åæ ‡
+        float linearAlgebraScale = 1.1f;     // çº¿æ€§ä»£æ•°ç¼©æ”¾
+        int talkCount = 0;                   // å¯¹è¯è®¡æ•°
     } m_state;
 
-    // SpineÏà¹ØÖ¸Õë
+    // Spineç›¸å…³æŒ‡é’ˆ
     spine::Skeleton* m_skeleton = nullptr;
     spine::AnimationState* m_animationState = nullptr;
     spine::Bone* m_touchBone = nullptr;
@@ -79,18 +79,18 @@ private:
     QString m_headAnimation;
     QString m_headAnimationEnd;
 
-    // ÅäÖÃ²ÎÊı
+    // é…ç½®å‚æ•°
     float m_eyeRadius = 400.0f;
     float m_linearAlgebraScale = 1.1f;
     bool m_mouseTracking = true;
     bool m_penetration = true;
     bool m_mouseTrial = true;
 
-    // ¶¨Ê±Æ÷
+    // å®šæ—¶å™¨
     QTimer m_longTouchTimer;
     QTimer m_updateTimer;
 
-    // ¸¨Öúº¯Êı
+    // è¾…åŠ©å‡½æ•°
     QPointF worldToLocal(const QPointF& worldPoint, float spineX, float spineY, float scale);
     QPointF localToBone(const QPointF& localPoint);
     float vectorLength(const QPointF& vec) const;
@@ -98,7 +98,7 @@ private:
     bool isPointNearHead(const QPointF& point, float scale) const;
     QPointF screenToSpineWorld(const QPointF& screenPoint, float spineX, float spineY, float scale);
 
-    // ²¥·Å¶¯»­
+    // æ’­æ”¾åŠ¨ç”»
     void playHeadAnimation(bool isTouch);
     void playHeadAnimationEnd();
 };

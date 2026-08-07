@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>UserInputWidgetClass</class>
+ <widget class="QWidget" name="UserInputWidgetClass">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>940</width>
+    <height>25</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>UserInputWidget</string>
+  </property>
+  <widget class="ParallelogramWidget" name="inputBGWidget" native="true">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>940</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">background-color: rgb(170, 255, 255);</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="inputLineEdit">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>0</y>
+     <width>900</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">background: transparent;</string>
+   </property>
+  <property name="text">
+   <string/>
+  </property>
+   <property name="alignment">
+    <set>Qt::AlignCenter</set>
+   </property>
+  </widget>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>ParallelogramWidget</class>
+   <extends>QWidget</extends>
+   <header>parallelogramwidget.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

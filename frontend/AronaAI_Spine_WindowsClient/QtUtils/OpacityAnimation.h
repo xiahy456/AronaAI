@@ -29,16 +29,16 @@ class OpacityAnimation
 public:
     OpacityAnimation(QWidget* widget, double opacity, int duration, QEasingCurve easingCurve);
 
-    // ³õÊ¼»¯²»Í¸Ã÷¶È£¬³õÊ¼»¯¶¯»­
+    // åˆå§‹åŒ–ä¸é€æ˜åº¦ï¼Œåˆå§‹åŒ–åŠ¨ç”»
     void startAnimation(double start_opacity, double goal_opacity);
-    // Ö±½ÓÉèÖÃ²»Í¸Ã÷¶È
+    // ç›´æ¥è®¾ç½®ä¸é€æ˜åº¦
 	void setOpacity(double opacity);
 
-    // ¿Ø¼ş¶ÔÏóÖ¸Õë
+    // æ§ä»¶å¯¹è±¡æŒ‡é’ˆ
 	QWidget* m_widget = nullptr;
-    // ²»Í¸Ã÷¶ÈĞ§¹û¶ÔÏó
+    // ä¸é€æ˜åº¦æ•ˆæœå¯¹è±¡
     QGraphicsOpacityEffect* m_opacityEffect = nullptr;
-    // ¶¯»­¶ÔÏó
+    // åŠ¨ç”»å¯¹è±¡
     QPropertyAnimation* m_animation_obj = nullptr;
 };
 

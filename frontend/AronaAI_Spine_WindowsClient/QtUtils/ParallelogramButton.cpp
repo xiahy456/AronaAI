@@ -11,11 +11,11 @@ ParallelogramButton::ParallelogramButton(QWidget* parent)
     , m_isHovered(false)
     , m_isPressed(false)
     , m_hasBackgroundImage(false)
-    , m_imageScaleMode(Qt::IgnoreAspectRatio)  // Ä¬ÈÏ²Ã¼ôÄ£Ê½
+    , m_imageScaleMode(Qt::IgnoreAspectRatio)  // é»˜è®¤è£å‰ªæ¨¡å¼
 {
     setFixedSize(150, 50);
     setCursor(Qt::PointingHandCursor);
-    setFlat(true);  // ÉèÖÃÎª±âÆ½ÑùÊ½£¬È¥µôÄ¬ÈÏ±ß¿ò
+    setFlat(true);  // è®¾ç½®ä¸ºæ‰å¹³æ ·å¼ï¼Œå»æ‰é»˜è®¤è¾¹æ¡†
     setAttribute(Qt::WA_StyledBackground, true);
 }
 
@@ -71,7 +71,7 @@ void ParallelogramButton::setImageScaleMode(Qt::AspectRatioMode mode)
 void ParallelogramButton::setTextColor(const QColor& color)
 {
     m_textColor = color;
-    update();  // ´¥·¢ÖØ»æ
+    update();  // è§¦å‘é‡ç»˜
 }
 
 void ParallelogramButton::setBorderWidth(int width)
@@ -85,15 +85,15 @@ void ParallelogramButton::paintEvent(QPaintEvent* event)
     Q_UNUSED(event);
 
     QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);  // ¿¹¾â³İ
+    painter.setRenderHint(QPainter::Antialiasing);  // æŠ—é”¯é½¿
 
-    // ´´½¨Æ½ĞĞËÄ±ßĞÎÂ·¾¶
+    // åˆ›å»ºå¹³è¡Œå››è¾¹å½¢è·¯å¾„
     QPainterPath path;
     int width = this->width();
     int height = this->height();
-    int offset = static_cast<int>(height * m_shear);  // ÇãĞ±Æ«ÒÆÁ¿
+    int offset = static_cast<int>(height * m_shear);  // å€¾æ–œåç§»é‡
 
-    // ¶¨ÒåËÄ¸ö¶¥µã£¨°´Ë³Ğò£©
+    // å®šä¹‰å››ä¸ªé¡¶ç‚¹ï¼ˆæŒ‰é¡ºåºï¼‰
     QPointF topLeft(offset, 0);
     QPointF topRight(width, 0);
     QPointF bottomRight(width - offset, height);
@@ -105,7 +105,7 @@ void ParallelogramButton::paintEvent(QPaintEvent* event)
     path.lineTo(bottomLeft);
     path.closeSubpath();
 
-    // ¸ù¾İ×´Ì¬Ñ¡ÔñÑÕÉ«
+    // æ ¹æ®çŠ¶æ€é€‰æ‹©é¢œè‰²
     QColor currentColor;
     if (m_isPressed) {
         currentColor = m_pressedColor;
@@ -117,22 +117,22 @@ void ParallelogramButton::paintEvent(QPaintEvent* event)
         currentColor = m_fillColor;
     }
 
-    // »æÖÆ±³¾°
+    // ç»˜åˆ¶èƒŒæ™¯
     if (m_hasBackgroundImage && !m_backgroundImage.isNull()) {
-        // ·½·¨1£ºÊ¹ÓÃÍ¼Æ¬×÷Îª±³¾°Ìî³ä
+        // æ–¹æ³•1ï¼šä½¿ç”¨å›¾ç‰‡ä½œä¸ºèƒŒæ™¯å¡«å……
         painter.save();
-        painter.setClipPath(path);  // ÉèÖÃ²Ã¼ôÇøÓòÎªÆ½ĞĞËÄ±ßĞÎ
+        painter.setClipPath(path);  // è®¾ç½®è£å‰ªåŒºåŸŸä¸ºå¹³è¡Œå››è¾¹å½¢
 
-        // Ëõ·ÅÍ¼Æ¬ÒÔÊÊÓ¦¿Ø¼ş´óĞ¡
+        // ç¼©æ”¾å›¾ç‰‡ä»¥é€‚åº”æ§ä»¶å¤§å°
         QPixmap scaledPixmap;
         if (m_imageScaleMode == Qt::IgnoreAspectRatio) {
-            // À­ÉìÌî³ä
+            // æ‹‰ä¼¸å¡«å……
             scaledPixmap = m_backgroundImage.scaled(width, height,
                 Qt::IgnoreAspectRatio,
                 Qt::SmoothTransformation);
         }
         else {
-            // ±£³Ö±ÈÀı
+            // ä¿æŒæ¯”ä¾‹
             scaledPixmap = m_backgroundImage.scaled(width, height,
                 m_imageScaleMode,
                 Qt::SmoothTransformation);
@@ -141,13 +141,13 @@ void ParallelogramButton::paintEvent(QPaintEvent* event)
         painter.drawPixmap(0, 0, scaledPixmap);
         painter.restore();
 
-        // ¿ÉÑ¡£ºÔÚÍ¼Æ¬ÉÏµş¼Ó°ëÍ¸Ã÷ÕÚÕÖ£¨¸ù¾İ°´Å¥×´Ì¬£©
+        // å¯é€‰ï¼šåœ¨å›¾ç‰‡ä¸Šå åŠ åŠé€æ˜é®ç½©ï¼ˆæ ¹æ®æŒ‰é’®çŠ¶æ€ï¼‰
         QColor overlayColor;
         if (m_isPressed) {
-            overlayColor = QColor(0, 0, 0, 80);  // °´ÏÂÊ±±ä°µ
+            overlayColor = QColor(0, 0, 0, 80);  // æŒ‰ä¸‹æ—¶å˜æš—
         }
         else if (m_isHovered) {
-            overlayColor = QColor(255, 255, 255, 50);  // ĞüÍ£Ê±±äÁÁ
+            overlayColor = QColor(255, 255, 255, 50);  // æ‚¬åœæ—¶å˜äº®
         }
 
         if (overlayColor.isValid()) {
@@ -155,7 +155,7 @@ void ParallelogramButton::paintEvent(QPaintEvent* event)
         }
     }
     else {
-        // Ê¹ÓÃ´¿É«Ìî³ä£¨Ô­ÓĞÂß¼­£©
+        // ä½¿ç”¨çº¯è‰²å¡«å……ï¼ˆåŸæœ‰é€»è¾‘ï¼‰
         QColor currentColor;
         if (m_isPressed) {
             currentColor = m_pressedColor;
@@ -169,17 +169,17 @@ void ParallelogramButton::paintEvent(QPaintEvent* event)
         painter.fillPath(path, currentColor);
     }
 
-    // »æÖÆ±ß¿ò
+    // ç»˜åˆ¶è¾¹æ¡†
     if (m_borderWidth) {
-        QPen leftPen(QColor(147, 230, 255), m_borderWidth);  // Ç³À¶É«£¬´Ö4
+        QPen leftPen(QColor(147, 230, 255), m_borderWidth);  // æµ…è“è‰²ï¼Œç²—4
         painter.setPen(leftPen);
         painter.drawLine(bottomLeft, topLeft);
     }
 
-    // »æÖÆÎÄ×Ö
+    // ç»˜åˆ¶æ–‡å­—
     painter.setPen(m_textColor);
     QFont font = painter.font();
-    //font.setBold(true); // ´ÖÌå
+    //font.setBold(true); // ç²—ä½“
     painter.setFont(font);
     painter.drawText(rect(), Qt::AlignCenter, text());
 }
