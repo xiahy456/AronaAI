@@ -7,7 +7,7 @@
     "offset_from_screen_bottom": 50,
     "mouse_event_transparent": true,
     "qhotkey_path": "QHotkey",
-    "open_setting_widget": true,
+    "open_setting_widget": false,
     "text_box_path": "Assets/ProgramAssets/TextBox.png",
     "push_button_path": "Assets/ProgramAssets/PushButton.png",
     "settings_bg_path": "Assets/ProgramAssets/SettingsMainBGWidget.png",

@@ -15,7 +15,9 @@
   Default: D:\Qt68\6.5.3\msvc2019_64\bin
 
 .PARAMETER DistDir
-  Output package directory. Default: <script_dir>\dist\AronaAI_Client
+  Output package directory. If omitted:
+    -KeepSecrets  → <script_dir>\dist\AronaAI_Client
+    (default)     → <script_dir>\dist\AronaAI_Client_Release
 
 .PARAMETER ExePath
   Path to Release exe. Default: <script_dir>\x64\Release\AronaAI_Spine_WindowsClient.exe
@@ -29,6 +31,11 @@
 
 .EXAMPLE
   .\pack.ps1 -KeepSecrets -QtBin "D:\Qt68\6.5.3\msvc2019_64\bin"
+
+.NOTES
+  推荐入口（两种密钥策略，输出到不同目录）：
+    .\pack_keep_secrets.ps1      → dist\AronaAI_Client
+    .\pack_sanitize_secrets.ps1  → dist\AronaAI_Client_Release
 #>
 [CmdletBinding()]
 param(
@@ -40,7 +47,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
-if (-not $DistDir) { $DistDir = Join-Path $Root "dist\AronaAI_Client" }
+if (-not $DistDir) {
+    if ($KeepSecrets) {
+        $DistDir = Join-Path $Root "dist\AronaAI_Client"
+    }
+    else {
+        $DistDir = Join-Path $Root "dist\AronaAI_Client_Release"
+    }
+}
 if (-not $ExePath) { $ExePath = Join-Path $Root "x64\Release\AronaAI_Spine_WindowsClient.exe" }
 
 function Write-Step([string]$Message) {
@@ -92,7 +106,33 @@ Assert-Path $SourceConfig "Config JSON"
 # --- Clean / create dist -----------------------------------------------------
 Write-Step "Preparing package directory: $DistDir"
 if (Test-Path -LiteralPath $DistDir) {
-    Remove-Item -LiteralPath $DistDir -Recurse -Force
+    # Stop processes launched from this package dir so DLLs are not locked.
+    $distFull = (Resolve-Path -LiteralPath $DistDir).Path.TrimEnd('\')
+    $locked = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.ExecutablePath -and
+            $_.ExecutablePath.StartsWith($distFull, [System.StringComparison]::OrdinalIgnoreCase)
+        }
+    foreach ($proc in $locked) {
+        Write-Host "Stopping locked process PID $($proc.ProcessId): $($proc.ExecutablePath)" -ForegroundColor Yellow
+        Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    if ($locked) {
+        Start-Sleep -Milliseconds 500
+    }
+
+    try {
+        Remove-Item -LiteralPath $DistDir -Recurse -Force -ErrorAction Stop
+    }
+    catch {
+        throw @"
+Cannot clean package directory (files locked):
+  $DistDir
+
+Close AronaAI_Spine_WindowsClient.exe (and any explorer preview locking DLLs), then retry.
+Original error: $($_.Exception.Message)
+"@
+    }
 }
 New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
 
