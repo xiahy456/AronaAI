@@ -42,7 +42,7 @@ This project integrates Arona Language Models (AronaLM), Text-to-Speech (TTS), A
 
 ---
 
-## 🏗️ 项目架构（main分支） / Project Architecture (main branch)
+## 🏗️ 项目架构 / Project Architecture
 
 ```
 arona-ai/
