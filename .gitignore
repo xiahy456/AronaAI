@@ -1,6 +1,7 @@
-# GPT-SoVITs：仅跟踪 go-apiv2.bat，其余一律不提交
+# GPT-SoVITs：仅跟踪启动脚本，其余一律不提交
 /gpt-sovits/**
 !/gpt-sovits/go-apiv2.bat
+!/gpt-sovits/go-apiv2.sh
 
 # unused_frontend
 **/AronaClient-PC/

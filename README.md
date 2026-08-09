@@ -95,6 +95,7 @@ arona-ai/
 │   │   └── ALuoNa_cn_e16_s256.pth    # 阿洛娜SoVITS权重
 │   ├── api_v2.py               # API 服务
 │   ├── go-apiv2.bat            # Windows 一键启动 API 服务
+│   ├── go-apiv2.sh             # Linux 一键启动 API 服务
 │   └── ref_audio/              # 参考音频
 │       └── Arona/              # 阿洛娜参考音频目录
 │            └── arona_academy_in_2.ogg   # 推荐的参考音频
@@ -364,7 +365,9 @@ gpt-sovits/ref_audio/Arona/arona_academy_in_2.ogg
 ```bash
 # 启动 GPT-SoVITS API 服务
 cd gpt-sovits
-go-apiv2.bat  # 或 python api_v2.py
+# Windows: go-apiv2.bat
+# Linux:   chmod +x go-apiv2.sh && ./go-apiv2.sh
+# 或直接:  python api_v2.py
 ```
 
 ### 模型微调 / Finetune（可选）
