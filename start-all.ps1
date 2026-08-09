@@ -1,11 +1,11 @@
 ﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-  Sequentially start AronaAI backend, GPT-SoVITS, then the desktop client.
+  Start AronaAI backend and GPT-SoVITS in parallel, then the desktop client.
 
 .DESCRIPTION
-  1) Start backend and wait until its log shows a ready signal
-  2) Start GPT-SoVITS and wait until its log shows a ready signal
+  1) Start backend and GPT-SoVITS at the same time
+  2) Wait until both logs show a ready signal
   3) Start the frontend client
 
   Ready signals (case-insensitive substring match):
@@ -16,7 +16,7 @@
   Conda env used for the backend. Default: shittim-chest
 
 .PARAMETER TimeoutSec
-  Per-service wait timeout in seconds. Default: 600
+  Wait timeout in seconds for both backend services to become ready. Default: 600
 
 .PARAMETER FrontendExe
   Optional path to AronaAI_Spine_WindowsClient.exe. If omitted, auto-detect.
@@ -114,28 +114,42 @@ function Test-ReadyLog {
     return $false
 }
 
-function Wait-ServiceReady {
+function Wait-ServicesReady {
     param(
-        [string]$Name,
-        [string]$LogPath,
-        [System.Diagnostics.Process]$Process,
+        [Parameter(Mandatory = $true)]
+        [hashtable[]]$Services,
         [int]$TimeoutSeconds
     )
 
-    Write-Step "Waiting for $Name ready (patterns: $($ReadyPatterns -join ' / ')) ..." Yellow
+    $names = ($Services | ForEach-Object { $_.Name }) -join " + "
+    Write-Step "Waiting for $names ready (patterns: $($ReadyPatterns -join ' / ')) ..." Yellow
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $ready = @{}
+    foreach ($svc in $Services) { $ready[$svc.Name] = $false }
 
     while ((Get-Date) -lt $deadline) {
-        if ($Process -and $Process.HasExited) {
-            throw "$Name exited early (code $($Process.ExitCode)). See log: $LogPath"
+        foreach ($svc in $Services) {
+            if ($ready[$svc.Name]) { continue }
+
+            $proc = $svc.Process
+            if ($proc -and $proc.HasExited) {
+                throw "$($svc.Name) exited early (code $($proc.ExitCode)). See log: $($svc.LogPath)"
+            }
+            if (Test-ReadyLog -LogPath $svc.LogPath) {
+                $ready[$svc.Name] = $true
+                Write-Step "$($svc.Name) is ready." Green
+            }
         }
-        if (Test-ReadyLog -LogPath $LogPath) {
-            Write-Step "$Name is ready." Green
-            return
-        }
+
+        $pending = @($ready.GetEnumerator() | Where-Object { -not $_.Value } | ForEach-Object { $_.Key })
+        if ($pending.Count -eq 0) { return }
+
         Start-Sleep -Milliseconds 500
     }
-    throw "Timed out after ${TimeoutSeconds}s waiting for $Name. See log: $LogPath"
+
+    $stillPending = @($ready.GetEnumerator() | Where-Object { -not $_.Value } | ForEach-Object { $_.Key })
+    $details = ($Services | Where-Object { $stillPending -contains $_.Name } | ForEach-Object { "$($_.Name): $($_.LogPath)" }) -join "; "
+    throw "Timed out after ${TimeoutSeconds}s waiting for: $($stillPending -join ', '). See logs: $details"
 }
 
 function Start-ServiceWindow {
@@ -152,7 +166,11 @@ function Start-ServiceWindow {
     }
     New-Item -ItemType File -Path $LogPath -Force | Out-Null
 
-    # Serialize args for the child PowerShell as a single-quoted list literal.
+    # Escape for single-quoted PowerShell string literals inside the child script.
+    $titleEsc = $Title -replace "'", "''"
+    $workDirEsc = $WorkDir -replace "'", "''"
+    $logPathEsc = $LogPath -replace "'", "''"
+    $exeEsc = $ExePath -replace "'", "''"
     $argLiterals = @($Arguments | ForEach-Object {
             "'" + ($_ -replace "'", "''") + "'"
         }) -join ", "
@@ -162,29 +180,93 @@ function Start-ServiceWindow {
         $argArrayExpr = "@($argLiterals)"
     }
 
+    # Avoid PowerShell 5.1 "& exe 2>&1" capture (mis-decodes UTF-8 Chinese).
+    # Launch with ProcessStartInfo UTF-8 readers and tee to console + log.
     $psCommand = @"
 `$ErrorActionPreference = 'Continue'
-`$Host.UI.RawUI.WindowTitle = '$($Title -replace "'", "''")'
-Set-Location -LiteralPath '$($WorkDir -replace "'", "''")'
-`$logPath = '$($LogPath -replace "'", "''")'
-`$exe = '$($ExePath -replace "'", "''")'
+`$Host.UI.RawUI.WindowTitle = '$titleEsc'
+try { chcp 65001 | Out-Null } catch {}
+`$utf8 = New-Object System.Text.UTF8Encoding `$false
+`$OutputEncoding = `$utf8
+try {
+    [Console]::OutputEncoding = `$utf8
+    [Console]::InputEncoding = `$utf8
+} catch {}
+`$env:PYTHONIOENCODING = 'utf-8'
+`$env:PYTHONUTF8 = '1'
+`$env:PYTHONLEGACYWINDOWSSTDIO = '0'
+Set-Location -LiteralPath '$workDirEsc'
+`$logPath = '$logPathEsc'
+`$exe = '$exeEsc'
 `$argv = $argArrayExpr
-Write-Host '=== $Title ===' -ForegroundColor Cyan
+Write-Host '=== $titleEsc ===' -ForegroundColor Cyan
 Write-Host ("WorkDir: {0}" -f (Get-Location))
 Write-Host ("Command: {0} {1}" -f `$exe, (`$argv -join ' '))
 Write-Host ("Log: {0}" -f `$logPath)
 Write-Host ''
-try {
-    & `$exe @argv 2>&1 | ForEach-Object {
-        `$line = `$_.ToString()
-        Write-Host `$line
-        [System.IO.File]::AppendAllText(`$logPath, `$line + [Environment]::NewLine, [System.Text.UTF8Encoding]::new(`$false))
+
+function Start-Utf8StreamPump {
+    param([System.IO.StreamReader]`$Reader)
+    `$rs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+    `$rs.Open()
+    `$ps = [PowerShell]::Create()
+    `$ps.Runspace = `$rs
+    [void]`$ps.AddScript({
+        param(`$reader, `$logPath, `$utf8)
+        try {
+            while (`$null -ne (`$line = `$reader.ReadLine())) {
+                [Console]::WriteLine(`$line)
+                [System.IO.File]::AppendAllText(`$logPath, `$line + [Environment]::NewLine, `$utf8)
+            }
+        } catch {}
+    }).AddArgument(`$Reader).AddArgument(`$logPath).AddArgument(`$utf8)
+    return @{
+        PowerShell = `$ps
+        Runspace   = `$rs
+        Handle     = `$ps.BeginInvoke()
     }
+}
+
+try {
+    `$psi = New-Object System.Diagnostics.ProcessStartInfo
+    `$psi.FileName = `$exe
+    # Quote args that contain whitespace; keep simple tokens as-is.
+    `$psi.Arguments = (`$argv | ForEach-Object {
+            `$a = [string]`$_
+            if (`$a -match '\s') { '"' + (`$a -replace '"', '\"') + '"' } else { `$a }
+        }) -join ' '
+    `$psi.WorkingDirectory = (Get-Location).Path
+    `$psi.UseShellExecute = `$false
+    `$psi.RedirectStandardOutput = `$true
+    `$psi.RedirectStandardError = `$true
+    `$psi.RedirectStandardInput = `$false
+    `$psi.CreateNoWindow = `$true
+    `$psi.StandardOutputEncoding = `$utf8
+    `$psi.StandardErrorEncoding = `$utf8
+    `$psi.EnvironmentVariables['PYTHONIOENCODING'] = 'utf-8'
+    `$psi.EnvironmentVariables['PYTHONUTF8'] = '1'
+    `$psi.EnvironmentVariables['PYTHONLEGACYWINDOWSSTDIO'] = '0'
+
+    `$proc = New-Object System.Diagnostics.Process
+    `$proc.StartInfo = `$psi
+    [void]`$proc.Start()
+
+    `$outPump = Start-Utf8StreamPump -Reader `$proc.StandardOutput
+    `$errPump = Start-Utf8StreamPump -Reader `$proc.StandardError
+
+    `$proc.WaitForExit()
+    try { [void]`$outPump.PowerShell.EndInvoke(`$outPump.Handle) } catch {}
+    try { [void]`$errPump.PowerShell.EndInvoke(`$errPump.Handle) } catch {}
+    `$outPump.PowerShell.Dispose()
+    `$errPump.PowerShell.Dispose()
+    `$outPump.Runspace.Close(); `$outPump.Runspace.Dispose()
+    `$errPump.Runspace.Close(); `$errPump.Runspace.Dispose()
+
     Write-Host ''
-    Write-Host ("Process exited with code {0}." -f `$LASTEXITCODE) -ForegroundColor Yellow
+    Write-Host ("Process exited with code {0}." -f `$proc.ExitCode) -ForegroundColor Yellow
 } catch {
     Write-Host `$_ -ForegroundColor Red
-    [System.IO.File]::AppendAllText(`$logPath, `$_.ToString() + [Environment]::NewLine, [System.Text.UTF8Encoding]::new(`$false))
+    [System.IO.File]::AppendAllText(`$logPath, `$_.ToString() + [Environment]::NewLine, `$utf8)
 }
 Write-Host 'Close this window when done.' -ForegroundColor Yellow
 pause
@@ -223,20 +305,8 @@ Write-Host "  CondaEnv:    $CondaEnv"
 Write-Host "  Frontend:    $($Frontend.Exe)"
 Write-Host "  FrontendCwd: $($Frontend.WorkDir)"
 Write-Host "  Logs:        $LogDir"
-Write-Host "  Timeout:     ${TimeoutSec}s per service"
+Write-Host "  Timeout:     ${TimeoutSec}s for backend + GPT-SoVITS"
 
-# ---- 1) Backend ----
-Write-Step "Starting backend ..."
-$backendProc = Start-ServiceWindow `
-    -Title "AronaAI Backend" `
-    -WorkDir $BackendDir `
-    -ExePath $Conda `
-    -Arguments @("run", "-n", $CondaEnv, "--no-capture-output", "python", "-m", "app.main") `
-    -LogPath $backendLog
-Wait-ServiceReady -Name "Backend" -LogPath $backendLog -Process $backendProc -TimeoutSeconds $TimeoutSec
-
-# ---- 2) GPT-SoVITS ----
-Write-Step "Starting GPT-SoVITS ..."
 if (Test-Path -LiteralPath $GptRuntimePy) {
     $gptExe = $GptRuntimePy
 } else {
@@ -245,15 +315,28 @@ if (Test-Path -LiteralPath $GptRuntimePy) {
     if (-not $py) { throw "Neither gpt-sovits\runtime\python.exe nor python on PATH was found." }
     $gptExe = $py.Source
 }
+
+# ---- 1) Backend + GPT-SoVITS in parallel ----
+Write-Step "Starting backend and GPT-SoVITS in parallel ..."
+$backendProc = Start-ServiceWindow `
+    -Title "AronaAI Backend" `
+    -WorkDir $BackendDir `
+    -ExePath $Conda `
+    -Arguments @("run", "-n", $CondaEnv, "--no-capture-output", "python", "-m", "app.main") `
+    -LogPath $backendLog
 $gptProc = Start-ServiceWindow `
     -Title "GPT-SoVITS API" `
     -WorkDir $GptDir `
     -ExePath $gptExe `
-    -Arguments @("-I", "api_v2.py") `
+    -Arguments @("-X", "utf8", "-I", "api_v2.py") `
     -LogPath $gptLog
-Wait-ServiceReady -Name "GPT-SoVITS" -LogPath $gptLog -Process $gptProc -TimeoutSeconds $TimeoutSec
 
-# ---- 3) Frontend ----
+Wait-ServicesReady -TimeoutSeconds $TimeoutSec -Services @(
+    @{ Name = "Backend"; LogPath = $backendLog; Process = $backendProc },
+    @{ Name = "GPT-SoVITS"; LogPath = $gptLog; Process = $gptProc }
+)
+
+# ---- 2) Frontend ----
 Write-Step "Starting frontend ..."
 Start-Process -FilePath $Frontend.Exe -WorkingDirectory $Frontend.WorkDir | Out-Null
 Write-Step "All services launched." Green

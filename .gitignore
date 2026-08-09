@@ -6,7 +6,7 @@
 # unused_frontend
 **/AronaClient-PC/
 
-# frontend config锛堝嬁鐢?**/Config/锛學indows 澶у皬鍐欎笉鏁忔劅浼氳浼?finetune/config锛?
+# frontend config
 /frontend/**/Config/
 
 # backend config
@@ -20,7 +20,7 @@
 /llm/aronaLM/data/
 /llm/aronaLM/finetune/data/
 
-# aronaLM finetune锛氬彧淇濈暀浠ｇ爜锛坈onfig / training / inference / data-process 绛夛級
+# aronaLM finetune
 /llm/aronaLM/finetune/outputs/
 /llm/aronaLM/finetune/model-backup/
 /llm/aronaLM/finetune/logs/
@@ -102,4 +102,3 @@ docs/unused/
 
 # Local start-all orchestrator logs
 .start-logs/
-

@@ -107,6 +107,12 @@ class ModelLoader:
         if self._llm is None:
             raise RuntimeError("Model not loaded")
 
+        logger.info(
+            "create_chat_completion sync messages=%d max_tokens=%s temperature=%s",
+            len(messages),
+            cfg.model.max_new_tokens,
+            cfg.model.temperature,
+        )
         with self._lock:
             result = self._llm.create_chat_completion(
                 messages=messages,
@@ -117,7 +123,15 @@ class ModelLoader:
                 stream=False,
             )
         content = result["choices"][0]["message"]["content"] or ""
-        return strip_think_tags(content)
+        cleaned = strip_think_tags(content)
+        usage = result.get("usage") or {}
+        logger.info(
+            "create_chat_completion sync done raw_chars=%d cleaned_chars=%d usage=%s",
+            len(content),
+            len(cleaned),
+            usage,
+        )
+        return cleaned
 
     def generate_stream(
         self, messages: list[dict[str, str]], config: AppConfig | None = None
@@ -129,7 +143,14 @@ class ModelLoader:
         if self._llm is None:
             raise RuntimeError("Model not loaded")
 
+        logger.info(
+            "create_chat_completion stream messages=%d max_tokens=%s temperature=%s",
+            len(messages),
+            cfg.model.max_new_tokens,
+            cfg.model.temperature,
+        )
         think_filter = _ThinkFilter()
+        visible_chars = 0
         with self._lock:
             stream = self._llm.create_chat_completion(
                 messages=messages,
@@ -147,10 +168,16 @@ class ModelLoader:
                 piece = delta.get("content") or ""
                 visible = think_filter.feed(piece)
                 if visible:
+                    visible_chars += len(visible)
                     yield visible
             tail = think_filter.flush()
             if tail:
+                visible_chars += len(tail)
                 yield tail
+        logger.info(
+            "create_chat_completion stream done visible_chars=%d",
+            visible_chars,
+        )
 
 
 _model_loader: ModelLoader | None = None

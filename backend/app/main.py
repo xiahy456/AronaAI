@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import os
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket
@@ -17,10 +20,53 @@ from .model_loader import get_model_loader
 from .orchestrator import Orchestrator
 from .ws_handler import AppState, websocket_endpoint
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+_LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+
+
+def _configure_stdio_utf8() -> None:
+    """Force UTF-8 for terminal / redirected stdout & stderr (esp. Windows)."""
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError, ValueError):
+            pass
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            ctypes.windll.kernel32.SetConsoleOutputCP(65001)
+            ctypes.windll.kernel32.SetConsoleCP(65001)
+        except Exception:
+            pass
+
+
+def _configure_logging() -> None:
+    root = logging.getLogger()
+    if not root.handlers:
+        logging.basicConfig(level=logging.INFO, format=_LOG_FORMAT)
+    else:
+        root.setLevel(logging.INFO)
+        for handler in root.handlers:
+            handler.setLevel(logging.INFO)
+            handler.setFormatter(logging.Formatter(_LOG_FORMAT))
+    # Keep app pipeline logs visible even if uvicorn tweaks root handlers later.
+    for name in (
+        "app",
+        "app.main",
+        "app.ws_handler",
+        "app.orchestrator",
+        "app.model_loader",
+        "app.knowledge",
+        "app.memory.store",
+        "app.memory.extractor",
+    ):
+        logging.getLogger(name).setLevel(logging.INFO)
+
+
+_configure_stdio_utf8()
+_configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -49,6 +95,12 @@ def create_app() -> FastAPI:
     async def lifespan(app: FastAPI):
         logger.info("Starting AronaAI backend")
         model.load(config)
+        await asyncio.to_thread(memory_store.warmup)
+        if knowledge.enabled:
+            try:
+                await asyncio.to_thread(knowledge.warmup)
+            except Exception:
+                logger.exception("Knowledge warmup failed; RAG will retry on first use")
         await extractor.start()
         app.state.arona = state  # type: ignore[attr-defined]
         yield
@@ -77,11 +129,14 @@ def main() -> None:
     import uvicorn
 
     config = get_config()
+    _configure_stdio_utf8()
+    _configure_logging()
     uvicorn.run(
         "app.main:app",
         host=config.server.host,
         port=config.server.port,
         reload=False,
+        log_level="info",
     )
 
 

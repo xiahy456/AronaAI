@@ -51,7 +51,14 @@ class MemoryExtractor:
 
     async def enqueue(self, *, transcript: str, user_text: str) -> None:
         if not self.config.enabled:
+            logger.info("memory extractor disabled; skip enqueue")
             return
+        qsize = self._queue.qsize() + 1
+        logger.info(
+            "memory extract queued qsize=%d user_text=%r",
+            qsize,
+            user_text,
+        )
         await self._queue.put({"transcript": transcript, "user_text": user_text})
 
     def _reset_daily_if_needed(self) -> None:
@@ -77,6 +84,11 @@ class MemoryExtractor:
     async def _process(self, job: dict[str, Any]) -> None:
         transcript = job.get("transcript") or ""
         user_text = job.get("user_text") or ""
+        logger.info(
+            "memory extract start user_text=%r transcript_chars=%d",
+            user_text,
+            len(transcript),
+        )
 
         memories: list[dict[str, Any]] = []
         used_api = False
@@ -86,17 +98,36 @@ class MemoryExtractor:
                 memories = await self._call_deepseek(transcript)
                 used_api = True
                 self._calls_today += 1
+                logger.info(
+                    "DeepSeek extract ok calls_today=%d memories=%d items=%s",
+                    self._calls_today,
+                    len(memories),
+                    memories,
+                )
             except Exception as exc:
                 logger.warning("DeepSeek extract failed: %s", exc)
                 memories = []
+        else:
+            logger.info(
+                "DeepSeek extract skipped under_quota=%s has_key=%s",
+                self._under_quota(),
+                bool(self.config.api_key and self.config.api_key != "YOUR_DEEPSEEK_API_KEY"),
+            )
 
         if not memories and self.config.fallback == "regex":
             memories = regex_extract_memories(user_text)
             if memories:
                 logger.info("Applied regex fallback memories: %s", memories)
+            else:
+                logger.info("regex fallback found no memories")
 
         source = "deepseek" if used_api else "regex"
         self._apply(memories, source=source)
+        logger.info(
+            "memory extract done source=%s applied=%d",
+            source,
+            len(memories),
+        )
 
     async def _call_deepseek(self, transcript: str) -> list[dict[str, Any]]:
         url = self.config.base_url.rstrip("/") + "/chat/completions"

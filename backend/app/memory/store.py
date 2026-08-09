@@ -49,6 +49,13 @@ class MemoryStore:
             )
             conn.commit()
 
+    def warmup(self) -> None:
+        """Eagerly build jieba prefix dict so first retrieve is not cold."""
+        logger.info("Warming up jieba dictionary")
+        jieba.initialize()
+        _tokenize("预热")
+        logger.info("jieba dictionary ready")
+
     def upsert(
         self,
         key: str,
@@ -116,12 +123,23 @@ class MemoryStore:
         and_q = " ".join(tokens)
         or_q = " OR ".join(tokens)
 
+        mode = "and"
         with self._connect() as conn:
             rows = self._fts_search(conn, and_q, top_k)
             if not rows and or_q != and_q:
                 rows = self._fts_search(conn, or_q, top_k)
+                mode = "or"
 
-        return [r["content"] for r in rows]
+        contents = [r["content"] for r in rows]
+        logger.info(
+            "memory retrieve query=%r tokens=%d mode=%s hits=%d items=%s",
+            query,
+            len(tokens),
+            mode,
+            len(contents),
+            contents,
+        )
+        return contents
 
     @staticmethod
     def _fts_search(conn: sqlite3.Connection, match_query: str, top_k: int) -> list[sqlite3.Row]:

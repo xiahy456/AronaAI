@@ -142,6 +142,12 @@ class KnowledgeRetriever:
             self.chroma_path,
         )
 
+    def warmup(self) -> None:
+        """Eagerly load BGE + Chroma so first RAG retrieve is not cold."""
+        if not self.enabled:
+            return
+        self._ensure_backend()
+
     def retrieve(self, query: str, top_k: int | None = None) -> list[str]:
         if not self.enabled:
             return []
@@ -175,6 +181,7 @@ class KnowledgeRetriever:
         metadatas = (result.get("metadatas") or [[]])[0]
 
         hits: list[str] = []
+        scored: list[tuple[float, str]] = []
         for doc, dist, meta in zip(documents, distances, metadatas):
             similarity = 1.0 - float(dist)
             if similarity < self.config.min_score:
@@ -187,6 +194,15 @@ class KnowledgeRetriever:
                 text = (doc or "").strip()
             if text:
                 hits.append(text)
+                scored.append((similarity, title or text[:40]))
+        logger.info(
+            "knowledge retrieve query=%r candidates=%d hits=%d min_score=%.3f scores=%s",
+            query,
+            len(documents),
+            len(hits),
+            self.config.min_score,
+            [(round(s, 3), t) for s, t in scored],
+        )
         return hits
 
     def ingest(self, *, rebuild: bool = False) -> int:
