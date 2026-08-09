@@ -71,7 +71,10 @@ arona-ai/
 │       ├── QHotkey/            # 全局快捷键支持
 │       ├── spine-cpp/          # Spine 2D 动画运行时
 │       ├── Assets/             # 资源文件（Spine 动画、UI 图片、字体）
-│       ├── Config/             # 配置文件（资源路径为相对路径）
+│       ├── Config/             # 配置文件（配置文件中资源路径为相对路径）
+│       ├── dist/               # 编译后的可执行目录
+│       │   └── AronaAI_Client/  # 客户端可执行目录（不处理秘钥）
+│       │   └── AronaAI_Client_Release/  # 发布版本可执行目录（处理秘钥）
 │       └── Dict/               # 词典文件
 │
 ├── llm/                        # 语言模型
