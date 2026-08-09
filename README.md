@@ -91,9 +91,10 @@ arona-ai/
 │   ├── SoVITS_weights_v2/      # SoVITS权重
 │   │   └── ALuoNa_cn_e16_s256.pth    # 阿洛娜SoVITS权重
 │   ├── api_v2.py               # API 服务
+│   ├── go-apiv2.bat            # Windows 一键启动 API 服务
 │   └── ref_audio/              # 参考音频
 │       └── Arona/              # 阿洛娜参考音频目录
-│            └── arona_academy_in_2.ogg   # 参考音频
+│            └── arona_academy_in_2.ogg   # 推荐的参考音频
 │
 ├── docs/                       # 相关文档
 ├── models/                     # 相关模型存放目录
@@ -148,11 +149,25 @@ arona-ai/
 | 后端依赖 | `backend/requirements.txt` |
 | 微调依赖 | `llm/aronaLM/finetune/requirements.txt`（仅训练时需要） |
 
+### 一键启动所有服务 / Start All Services
+
+```bash
+.\start-all.ps1
+```
+
+| 参数 | 说明 |
+|------|------|
+| -CondaEnv | 后端使用的 Conda 环境名称，默认为 `shittim-chest` |
+| -TimeoutSec | 每个服务的等待超时时间，默认为 `600` 秒 |
+| -FrontendExe | 可选的桌面客户端可执行文件路径，如果未提供，则自动检测 |
+
+> **注意**：如果您还没有配置好所有服务，请遵循下文的指示进行配置。
+
 ### 后端启动 / Backend Setup
 
 #### 启动前准备 / Pre-startup Preparation
 
-**1. 放置模型文件**
+**1. 放置后端模型文件**
 
 ```
 models/
@@ -325,10 +340,28 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
 
 ### 语音合成服务 / TTS Service
 
+#### 放置 GPT-SoVITS 模型文件 / Place GPT-SoVITS Model Files
+
+```
+models/
+├── GPT_weights_v2/            # GPT 模型权重
+│   └── ALuoNa_cn-e15.ckpt
+└── SoVITS_weights_v2/         # SoVITS 模型权重
+│   └── ALuoNa_cn_e16_s256.pth
+```
+
+#### 放置参考音频文件 / Place Reference Audio Files
+
+```
+gpt-sovits/ref_audio/Arona/arona_academy_in_2.ogg
+```
+
+#### 启动 GPT-SoVITS API 服务 / Start GPT-SoVITS API Service
+
 ```bash
 # 启动 GPT-SoVITS API 服务
 cd gpt-sovits
-python api_v2.py
+go-apiv2.bat  # 或 python api_v2.py
 ```
 
 ### 模型微调 / Finetune（可选）

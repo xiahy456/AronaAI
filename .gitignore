@@ -1,5 +1,6 @@
-# GPT-SoVITs
-/gpt-sovits/
+# GPT-SoVITs：仅跟踪 go-apiv2.bat，其余一律不提交
+/gpt-sovits/**
+!/gpt-sovits/go-apiv2.bat
 
 # unused_frontend
 **/AronaClient-PC/
@@ -97,3 +98,7 @@ backend/data/knowledge/chroma/
 
 # unused files
 docs/unused/
+
+# Local start-all orchestrator logs
+.start-logs/
+
