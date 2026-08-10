@@ -49,6 +49,7 @@ MainWidget::MainWidget(QWidget *parent)
     this->setWindowFlag(Qt::WindowStaysOnTopHint);	// 设置窗口始终在顶部
     this->setWindowFlag(Qt::Tool);	// 隐藏应用程序图标
 	this->setWindowTitle(GET_STRING_FROM_JSON(_global_dict, "application_data", "main_widget_name"));  // 设置窗口名称
+    this->setWindowOpacity(qBound(0.0, 1.0, GET_DOUBLE_FROM_JSON(_global_config, "settings", "transparent")));  // 设置窗口整体不透明度
     
     // 设置窗口大小
 	this->resize(300 * WIDGET_ZOOM, 440 * WIDGET_ZOOM);

@@ -267,6 +267,7 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
     "frame_rate": 60, // 全局帧率
     "dict_path": "Dict/dict_zh.json", // 词典文件路径
     "zoom": 1.0, // 界面缩放比例
+    "transparent": 1.0, // 主窗口整体不透明度（0.0~1.0）
     "offset_from_screen_bottom": -50, // 主窗口相对屏幕底部的向上偏移（像素）
     "offset_from_screen_left": 0, // 主窗口相对屏幕左侧的向右偏移（像素）
     "output_text_box_offset": -50, // 输出文本框相对默认位置的垂直偏移（像素；正值向上，负值向下）

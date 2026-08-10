@@ -4,6 +4,7 @@
     "dict_path": "Dict/dict_zh.json",
     "icon_path": "Assets/ProgramAssets/Icon.png",
     "zoom": 1.0,
+    "transparent": 1.0,
     "offset_from_screen_bottom": -50,
     "offset_from_screen_left": 0,
     "output_text_box_offset": -50,
