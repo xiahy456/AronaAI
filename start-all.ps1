@@ -1,12 +1,14 @@
 ﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-  Start AronaAI backend and GPT-SoVITS in parallel, then the desktop client.
+  Start AronaAI backend, GPT-SoVITS, and the desktop client; stay running until stopped.
 
 .DESCRIPTION
   1) Start backend and GPT-SoVITS at the same time
   2) Wait until both logs show a ready signal
   3) Start the frontend client
+  4) Keep this script alive; press Enter (or type q / exit) to stop all services
+     and exit. Ctrl+C also stops all tracked process trees.
 
   Ready signals (case-insensitive substring match):
     - "启动完毕"
@@ -36,6 +38,10 @@ $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 $LogDir = Join-Path $Root ".start-logs"
 $ReadyPatterns = @("启动完毕", "startup complete")
+$script:BackendProc = $null
+$script:GptProc = $null
+$script:FrontendProc = $null
+$script:ServicesStopped = $false
 
 function Write-Step {
     param([string]$Message, [ConsoleColor]$Color = [ConsoleColor]::Cyan)
@@ -150,6 +156,73 @@ function Wait-ServicesReady {
     $stillPending = @($ready.GetEnumerator() | Where-Object { -not $_.Value } | ForEach-Object { $_.Key })
     $details = ($Services | Where-Object { $stillPending -contains $_.Name } | ForEach-Object { "$($_.Name): $($_.LogPath)" }) -join "; "
     throw "Timed out after ${TimeoutSeconds}s waiting for: $($stillPending -join ', '). See logs: $details"
+}
+
+function Stop-TrackedProcessTree {
+    param(
+        [System.Diagnostics.Process]$Process,
+        [string]$Label = "process"
+    )
+
+    if ($null -eq $Process) { return }
+
+    try {
+        $Process.Refresh()
+    } catch {
+        return
+    }
+
+    if ($Process.HasExited) {
+        Write-Host ("  {0} already exited (PID {1})." -f $Label, $Process.Id) -ForegroundColor DarkGray
+        return
+    }
+
+    $procId = $Process.Id
+    Write-Host ("  Stopping {0} (PID {1}) and child processes ..." -f $Label, $procId) -ForegroundColor Yellow
+    $taskkill = Get-Command taskkill -ErrorAction SilentlyContinue
+    if ($taskkill) {
+        & taskkill.exe /PID $procId /T /F 2>$null | Out-Null
+    }
+
+    try {
+        $Process.Refresh()
+        if (-not $Process.HasExited) {
+            Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+        }
+    } catch {
+        # Process may already be gone.
+    }
+}
+
+function Stop-AllTrackedServices {
+    if ($script:ServicesStopped) { return }
+    $script:ServicesStopped = $true
+
+    Write-Step "Stopping all services ..." Yellow
+    Stop-TrackedProcessTree -Process $script:BackendProc -Label "Backend"
+    Stop-TrackedProcessTree -Process $script:GptProc -Label "GPT-SoVITS"
+    Stop-TrackedProcessTree -Process $script:FrontendProc -Label "Frontend"
+
+    $deadline = (Get-Date).AddSeconds(5)
+    while ((Get-Date) -lt $deadline) {
+        $alive = @()
+        foreach ($item in @(
+                @{ Name = "Backend"; Process = $script:BackendProc },
+                @{ Name = "GPT-SoVITS"; Process = $script:GptProc },
+                @{ Name = "Frontend"; Process = $script:FrontendProc }
+            )) {
+            $p = $item.Process
+            if ($null -eq $p) { continue }
+            try {
+                $p.Refresh()
+                if (-not $p.HasExited) { $alive += $item.Name }
+            } catch {}
+        }
+        if ($alive.Count -eq 0) { break }
+        Start-Sleep -Milliseconds 200
+    }
+
+    Write-Step "All tracked services stopped." Green
 }
 
 function Start-ServiceWindow {
@@ -317,35 +390,61 @@ if (Test-Path -LiteralPath $GptRuntimePy) {
 }
 
 # ---- 1) Backend + GPT-SoVITS in parallel ----
-Write-Step "Starting backend and GPT-SoVITS in parallel ..."
-$backendProc = Start-ServiceWindow `
-    -Title "AronaAI Backend" `
-    -WorkDir $BackendDir `
-    -ExePath $Conda `
-    -Arguments @("run", "-n", $CondaEnv, "--no-capture-output", "python", "-m", "app.main") `
-    -LogPath $backendLog
-$gptProc = Start-ServiceWindow `
-    -Title "GPT-SoVITS API" `
-    -WorkDir $GptDir `
-    -ExePath $gptExe `
-    -Arguments @("-X", "utf8", "-I", "api_v2.py") `
-    -LogPath $gptLog
+try {
+    Write-Step "Starting backend and GPT-SoVITS in parallel ..."
+    $script:BackendProc = Start-ServiceWindow `
+        -Title "AronaAI Backend" `
+        -WorkDir $BackendDir `
+        -ExePath $Conda `
+        -Arguments @("run", "-n", $CondaEnv, "--no-capture-output", "python", "-m", "app.main") `
+        -LogPath $backendLog
+    $script:GptProc = Start-ServiceWindow `
+        -Title "GPT-SoVITS API" `
+        -WorkDir $GptDir `
+        -ExePath $gptExe `
+        -Arguments @("-X", "utf8", "-I", "api_v2.py") `
+        -LogPath $gptLog
 
-Wait-ServicesReady -TimeoutSeconds $TimeoutSec -Services @(
-    @{ Name = "Backend"; LogPath = $backendLog; Process = $backendProc },
-    @{ Name = "GPT-SoVITS"; LogPath = $gptLog; Process = $gptProc }
-)
+    Wait-ServicesReady -TimeoutSeconds $TimeoutSec -Services @(
+        @{ Name = "Backend"; LogPath = $backendLog; Process = $script:BackendProc },
+        @{ Name = "GPT-SoVITS"; LogPath = $gptLog; Process = $script:GptProc }
+    )
 
-# ---- 2) Frontend ----
-Write-Step "Starting frontend ..."
-Start-Process -FilePath $Frontend.Exe -WorkingDirectory $Frontend.WorkDir | Out-Null
-Write-Step "All services launched." Green
-Write-Host @"
+    # ---- 2) Frontend ----
+    Write-Step "Starting frontend ..."
+    $script:FrontendProc = Start-Process -FilePath $Frontend.Exe `
+        -WorkingDirectory $Frontend.WorkDir `
+        -PassThru
+    Write-Step "All services launched." Green
+
+    $backendPid = if ($script:BackendProc) { $script:BackendProc.Id } else { "n/a" }
+    $gptPid = if ($script:GptProc) { $script:GptProc.Id } else { "n/a" }
+    $frontendPid = if ($script:FrontendProc) { $script:FrontendProc.Id } else { "n/a" }
+    Write-Host @"
 
 Backend / GPT-SoVITS keep running in their own windows.
-Frontend: $($Frontend.Exe)
+  Backend PID:    $backendPid
+  GPT-SoVITS PID: $gptPid
+  Frontend PID:   $frontendPid
+  Frontend:       $($Frontend.Exe)
 
 Logs:
   $backendLog
   $gptLog
+
+This window stays open. Press Enter to stop all services
+(or type q / exit then Enter). Ctrl+C also stops everything.
 "@
+
+    # ---- 3) Stay alive until user requests stop ----
+    while ($true) {
+        $answer = Read-Host "Stop all"
+        $trimmed = if ($null -eq $answer) { "" } else { $answer.Trim() }
+        if ($trimmed -eq "" -or $trimmed -match '^(?i)(q|quit|exit)$') {
+            break
+        }
+        Write-Host "Unrecognized input. Press Enter (or type q / exit) to stop all services." -ForegroundColor Yellow
+    }
+} finally {
+    Stop-AllTrackedServices
+}

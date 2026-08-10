@@ -54,3 +54,10 @@ token_budget:
   memory: 250
   knowledge: 250
   history: 700
+
+logging:
+  dir: "logs"
+  filename: "arona-backend.log"
+  level: "INFO"
+  max_bytes: 10485760
+  backup_count: 5

@@ -76,6 +76,14 @@ class TokenBudgetConfig(BaseModel):
     history: int = 700
 
 
+class LoggingConfig(BaseModel):
+    dir: str = "logs"
+    filename: str = "arona-backend.log"
+    level: str = "INFO"
+    max_bytes: int = 10_485_760
+    backup_count: int = 5
+
+
 class AppConfig(BaseModel):
     server: ServerConfig = Field(default_factory=ServerConfig)
     model: ModelConfig = Field(default_factory=ModelConfig)
@@ -84,6 +92,7 @@ class AppConfig(BaseModel):
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
     token_budget: TokenBudgetConfig = Field(default_factory=TokenBudgetConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
     def resolve_path(self, relative: str) -> Path:
         path = Path(relative)
@@ -110,6 +119,14 @@ class AppConfig(BaseModel):
     @property
     def knowledge_embedding_abs_path(self) -> Path:
         return self.resolve_path(self.knowledge.embedding_model_path)
+
+    @property
+    def logging_dir_abs_path(self) -> Path:
+        return self.resolve_path(self.logging.dir)
+
+    @property
+    def logging_file_abs_path(self) -> Path:
+        return self.logging_dir_abs_path / self.logging.filename
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

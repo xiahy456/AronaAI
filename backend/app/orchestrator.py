@@ -16,7 +16,7 @@ from .logging_utils import preview, preview_list
 from .memory.extractor import MemoryExtractor
 from .memory.store import MemoryStore
 from .memory.trigger import should_extract
-from .model_loader import ModelLoader, strip_think_tags
+from .model_loader import ModelLoader, clean_model_output
 from .prompt import build_messages
 from .protocol import msg_chat_response, msg_chat_stream
 
@@ -263,7 +263,7 @@ class Orchestrator:
             await send(msg_chat_stream(item, False))
 
         await producer_future
-        full = strip_think_tags("".join(parts))
+        full = clean_model_output("".join(parts))
         await send(msg_chat_stream("", True))
         logger.info(
             "stream finished chunks=%d chars=%d",

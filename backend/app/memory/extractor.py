@@ -13,6 +13,7 @@ import httpx
 from ..config import ExtractorConfig
 from .fallback import regex_extract_memories
 from .store import MemoryStore
+from .validate import memory_reject_reason
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +21,11 @@ EXTRACT_SYSTEM = """你是记忆抽取助手。根据对话片段，提取需要
 只输出 JSON，格式：
 {"memories":[{"op":"upsert或delete","key":"英文蛇形键","content":"短中文陈述句","category":"preference|profile|other"}]}
 规则：
-- 只提取稳定事实（名字、偏好、约定），不要闲聊、不要世界观百科
+- 只提取已确认的稳定事实（名字、偏好、约定），不要闲聊、不要世界观百科
 - 无值得记忆的内容时返回 {"memories":[]}
 - content 必须是短陈述句，例如「老师喜欢草莓牛奶」
+- 禁止疑问句、反问、猜测或未确认信息；错误示例：「老师喜欢什么颜色吗」
+- 不要把老师的提问本身当成事实写入
 - key 稳定可复用，同事实用同一 key
 """
 
@@ -171,4 +174,14 @@ class MemoryExtractor:
             if op == "delete":
                 self.store.delete(key)
             elif op == "upsert" and content:
+                reason = memory_reject_reason(key, content)
+                if reason:
+                    logger.info(
+                        "memory upsert skipped reason=%s key=%r content=%r source=%s",
+                        reason,
+                        key,
+                        content,
+                        source,
+                    )
+                    continue
                 self.store.upsert(key, content, category=category, source=source)
