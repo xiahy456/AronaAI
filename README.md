@@ -77,7 +77,7 @@ arona-ai/
 │       │   └── AronaAI_Client_Release/  # 发布版本可执行目录（处理秘钥）
 │       └── Dict/               # 词典文件
 │
-├── llm/                        # 语言模型
+├── llm/                        # 语言模型（其实不是大语言模型啦……只是一开始建项目的时候写错了）
 │   └── aronaLM/
 │       └── finetune/           # Qwen3-1.7B QLoRA 微调（Unsloth）
 │           ├── config/         # 训练 / 导出 / 推理配置
@@ -94,8 +94,10 @@ arona-ai/
 │   ├── SoVITS_weights_v2/      # SoVITS权重
 │   │   └── ALuoNa_cn_e16_s256.pth    # 阿洛娜SoVITS权重
 │   ├── api_v2.py               # API 服务
-│   ├── go-apiv2.bat            # Windows 一键启动 API 服务
-│   ├── go-apiv2.sh             # Linux 一键启动 API 服务
+│   ├── watch-apiv2.ps1         # Windows：API 卡死/崩溃自动重启
+│   ├── watch-apiv2.sh          # Linux：API 卡死/崩溃自动重启
+│   ├── go-apiv2.bat            # Windows 一键启动 API（经 watchdog）
+│   ├── go-apiv2.sh             # Linux 一键启动 API（经 watchdog）
 │   └── ref_audio/              # 参考音频
 │       └── Arona/              # 阿洛娜参考音频目录
 │            └── arona_academy_in_2.ogg   # 推荐的参考音频
@@ -164,8 +166,11 @@ arona-ai/
 | -CondaEnv | 后端使用的 Conda 环境名称，默认为 `shittim-chest` |
 | -TimeoutSec | 每个服务的等待超时时间，默认为 `600` 秒 |
 | -FrontendExe | 可选的桌面客户端可执行文件路径，如果未提供，则自动检测 |
+| -TtsStallSec | GPT-SoVITS 卡死判定秒数（传给 watchdog），默认 `60` |
+| -TtsRestartCooldownSec | GPT-SoVITS 自动重启冷却秒数，默认 `90` |
 
-> **注意**：如果您还没有配置好所有服务，请遵循下文的指示进行配置。
+> **注意**：如果您还没有配置好所有服务，请遵循下文的指示进行配置。  
+> `start-all.ps1` 会通过 `gpt-sovits/watch-apiv2.ps1` 启动 TTS（含卡死自动重启）。若 GPT-SoVITS 部署在**另一台机器**，请在该机器上单独运行 `go-apiv2.bat` / `go-apiv2.sh`，不必使用 `start-all`。
 
 ### 后端启动 / Backend Setup
 
@@ -303,7 +308,8 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
     "fragment_interval": 0.3, // 片段间隔（秒）
     "seed": -1, // 随机种子（-1 表示随机）
     "streaming_mode": false, // 是否启用流式合成
-    "parallel_infer": true, // 是否启用并行推理
+    "parallel_infer": true, // 是否启用并行推理（8GB 显卡建议 false）
+    "request_timeout_ms": 45000, // 客户端等待 /tts 的超时（毫秒）；超时后仍显示字幕，不卡死 UI
     "repetition_penalty": 1.35, // 重复惩罚系数
     "sample_steps": 32, // 采样步数
     "super_sampling": false // 是否启用超采样
@@ -325,6 +331,7 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
 > **注意**：
  - 资源路径相对**程序工作目录**解析；在 Visual Studio 中调试时默认为项目根目录，请勿直接双击 `x64/Debug` 或 `x64/Release` 下的 exe（工作目录会不对）。
  - 请将 AronaLM 后端服务、GPT-SoVITS 服务的地址、端口按实际情况填写。
+ - `tts.request_timeout_ms` 仅改配置即可生效（dist 客户端同理）；`TTSManager` / `MainController` 源码改动需重新编译客户端后才有超时与字幕兜底逻辑。
  - 使用 `pack_keep_secrects.ps1` 打包便携版时，脚本会自动写入与包内布局一致的相对路径，并保留配置文件中的腾讯云 SecretId 和 SecretKey。
  - 使用`pack_sanitize_secrets.ps1` 打包便携版时，脚本会自动写入与包内布局一致的相对路径，并删除配置文件中的腾讯云 SecretId 和 SecretKey。
 
@@ -364,12 +371,29 @@ gpt-sovits/ref_audio/Arona/arona_academy_in_2.ogg
 #### 启动 GPT-SoVITS API 服务 / Start GPT-SoVITS API Service
 
 ```bash
-# 启动 GPT-SoVITS API 服务
+# 在 GPT-SoVITS 所在机器上启动（推荐：带卡死自动重启的 watchdog）
 cd gpt-sovits
 # Windows: go-apiv2.bat
 # Linux:   chmod +x go-apiv2.sh && ./go-apiv2.sh
-# 或直接:  python api_v2.py
 ```
+
+`go-apiv2` 会调用 `watch-apiv2`：当推理日志长时间停在「提取文本Bert特征」或「预测语义Token」时，自动结束进程并重启 API。
+
+可选参数（PowerShell）：
+
+```powershell
+.\watch-apiv2.ps1 -StallSec 60 -RestartCooldownSec 90 -LogPath D:\logs\gpt-sovits.log
+```
+
+Linux：
+
+```bash
+./watch-apiv2.sh --stall-sec 60 --restart-cooldown 90 --log-path /var/log/gpt-sovits.log
+```
+
+**异机部署**：TTS 与客户端不在同一台机器时——在 TTS 机运行上述 `go-apiv2`；在客户端 `config.json` 将 `tts.host` 设为 TTS 机 IP，并配置 `request_timeout_ms`（建议 `45000`）。客户端超时只负责不堵 UI；**自动重启必须在 TTS 机上的 watchdog 完成**。
+
+> 仅调试、不要自动重启时，仍可直接运行 `python api_v2.py`（或 `runtime\python.exe -X utf8 -I api_v2.py`）。
 
 ### 模型微调 / Finetune（可选）
 

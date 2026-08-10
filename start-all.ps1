@@ -23,6 +23,12 @@
 .PARAMETER FrontendExe
   Optional path to AronaAI_Spine_WindowsClient.exe. If omitted, auto-detect.
 
+.PARAMETER TtsStallSec
+  Passed to GPT-SoVITS watchdog (stall seconds). Default: 60
+
+.PARAMETER TtsRestartCooldownSec
+  Passed to GPT-SoVITS watchdog (restart cooldown). Default: 90
+
 .EXAMPLE
   .\start-all.ps1
   .\start-all.ps1 -CondaEnv arona -TimeoutSec 900
@@ -31,7 +37,9 @@
 param(
     [string]$CondaEnv = "shittim-chest",
     [int]$TimeoutSec = 600,
-    [string]$FrontendExe = ""
+    [string]$FrontendExe = "",
+    [int]$TtsStallSec = 60,
+    [int]$TtsRestartCooldownSec = 90
 )
 
 $ErrorActionPreference = "Stop"
@@ -358,12 +366,14 @@ New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
 $BackendDir = Join-Path $Root "backend"
 $GptDir = Join-Path $Root "gpt-sovits"
 $GptApi = Join-Path $GptDir "api_v2.py"
+$GptWatch = Join-Path $GptDir "watch-apiv2.ps1"
 $GptRuntimePy = Join-Path $GptDir "runtime\python.exe"
 
 Assert-Path $BackendDir "backend directory"
 Assert-Path (Join-Path $BackendDir "app\main.py") "backend entry"
 Assert-Path $GptDir "gpt-sovits directory"
 Assert-Path $GptApi "GPT-SoVITS api_v2.py"
+Assert-Path $GptWatch "GPT-SoVITS watch-apiv2.ps1"
 
 $Conda = Resolve-CondaCmd
 $Frontend = Resolve-Frontend -Explicit $FrontendExe
@@ -399,11 +409,18 @@ try {
         -Arguments @("run", "-n", $CondaEnv, "--no-capture-output", "python", "-m", "app.main") `
         -LogPath $backendLog
     $script:GptProc = Start-ServiceWindow `
-        -Title "GPT-SoVITS API" `
+        -Title "GPT-SoVITS API (watchdog)" `
         -WorkDir $GptDir `
-        -ExePath $gptExe `
-        -Arguments @("-X", "utf8", "-I", "api_v2.py") `
-        -LogPath $gptLog
+        -ExePath "powershell.exe" `
+        -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $GptWatch,
+            "-LogPath", $gptLog,
+            "-StallSec", "$TtsStallSec",
+            "-RestartCooldownSec", "$TtsRestartCooldownSec"
+        ) `
+        -LogPath (Join-Path $LogDir "gpt-sovits-watchdog.log")
 
     Wait-ServicesReady -TimeoutSeconds $TimeoutSec -Services @(
         @{ Name = "Backend"; LogPath = $backendLog; Process = $script:BackendProc },

@@ -57,6 +57,7 @@
     "seed": -1,
     "streaming_mode": false,
     "parallel_infer": true,
+    "request_timeout_ms": 25000,
     "repetition_penalty": 1.35,
     "sample_steps": 32,
     "super_sampling": false

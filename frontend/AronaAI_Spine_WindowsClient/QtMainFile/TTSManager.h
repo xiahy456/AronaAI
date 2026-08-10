@@ -160,6 +160,7 @@ private:
 
     bool isProcessingRequest;
     bool isStreamingMode;  // 记录当前请求是否为流式模式
+    int requestTimeoutMs;  // /tts 请求超时（毫秒），0 表示不限制
 
     void processNextRequest();
     void executeTTSGet(const TTSRequestParams& params);
@@ -168,6 +169,7 @@ private:
     void executeSetGPTWeights(const QString& weightsPath);
     void executeSetSovitsWeights(const QString& weightsPath);
     void cleanupCurrentReply();
+    void applyRequestTimeout(QNetworkRequest& request) const;
     QUrl buildBaseUrl() const;
     QUrlQuery buildQueryFromParams(const TTSRequestParams& params) const;
     QJsonObject buildJsonFromParams(const TTSRequestParams& params) const;

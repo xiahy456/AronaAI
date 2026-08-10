@@ -18,6 +18,7 @@
 */
 
 #include "MainController.h"
+#include <QTimer>
 
 MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer, WebSocketController* webSocketController, UserInputWidget* userInputWidget)
     : m_mainWidget(mainWidget)
@@ -90,6 +91,7 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
 
     // 设置信号与槽
     connect(m_ttsManager, &TTSManager::ttsFinished, this, &MainController::onTTSFinished);
+    connect(m_ttsManager, &TTSManager::ttsError, this, &MainController::onTTSError);
 
     // 连接音频录制对象信号
     connect(m_audioRecorder, &AudioRecorder::errorOccurred,
@@ -168,6 +170,22 @@ void MainController::onTTSFinished(const QByteArray& audioData, const QString& m
         m_mainWidget->hideOutputText();
 		m_mainWidget->clearAnimation(1, 0.2f);   // 停止语言层动画
 		m_mainWidget->clearAnimation(2, 0.2f);   // 停止表情层动画
+        });
+}
+
+void MainController::onTTSError(const QString& errorString)
+{
+    ERROR_DEBUG_OUTPUT("[TTS Operation]TTS error: " + errorString);
+
+    if (m_currentText.isEmpty()) {
+        return;
+    }
+
+    // 语音失败时仍展示字幕，避免交互卡住
+    m_mainWidget->showOutputText(m_currentText);
+    int duration = qMax(1500, m_currentText.size() * 100);
+    QTimer::singleShot(duration, this, [this]() {
+        m_mainWidget->hideOutputText();
         });
 }
 

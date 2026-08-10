@@ -31,10 +31,17 @@ TTSManager::TTSManager(QObject* parent)
     , audioBuffer(nullptr)
     , isProcessingRequest(false)
     , isStreamingMode(false)
+    , requestTimeoutMs(45000)
 {
     // 设置服务器地址
     setServerAddress(GET_STRING_FROM_JSON(_global_config, "tts", "host"), GET_INT_FROM_JSON(_global_config, "tts", "port"));
     FINE_DEBUG_OUTPUT("[TTS Operation]Set server : Host: " + serverHost + " | Port: " + QString::number(serverPort));
+
+    int configuredTimeout = GET_INT_FROM_JSON(_global_config, "tts", "request_timeout_ms");
+    if (configuredTimeout > 0) {
+        requestTimeoutMs = configuredTimeout;
+    }
+    FINE_DEBUG_OUTPUT("[TTS Operation]Request timeout: " + QString::number(requestTimeoutMs) + " ms");
 
 	// 连接网络请求完成的信号到槽函数
     connect(networkManager, &QNetworkAccessManager::finished,
@@ -82,6 +89,13 @@ QUrl TTSManager::buildBaseUrl() const
     url.setHost(serverHost);
     url.setPort(serverPort);
     return url;
+}
+
+void TTSManager::applyRequestTimeout(QNetworkRequest& request) const
+{
+    if (requestTimeoutMs > 0) {
+        request.setTransferTimeout(requestTimeoutMs);
+    }
 }
 
 QUrlQuery TTSManager::buildQueryFromParams(const TTSRequestParams& params) const
@@ -199,7 +213,12 @@ void TTSManager::onNetworkReplyFinished()
     }
 
     if (reply->error() != QNetworkReply::NoError) {
-        emit ttsError(reply->errorString());
+        QString errorMsg = reply->errorString();
+        if (reply->error() == QNetworkReply::TimeoutError
+            || reply->error() == QNetworkReply::OperationCanceledError) {
+            errorMsg = QString("TTS request timed out after %1 ms").arg(requestTimeoutMs);
+        }
+        emit ttsError(errorMsg);
     }
     else {
         // 检查是否是TTS请求
@@ -426,6 +445,7 @@ void TTSManager::executeTTSGet(const TTSRequestParams& params)
     url.setQuery(buildQueryFromParams(params));
 
     QNetworkRequest request(url);
+    applyRequestTimeout(request);
     currentMediaType = params.mediaType;
     isStreamingMode = params.streamingMode;
 
@@ -454,6 +474,7 @@ void TTSManager::executeTTSPost(const TTSRequestParams& params)
 
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    applyRequestTimeout(request);
 
     QJsonObject json = buildJsonFromParams(params);
     QJsonDocument doc(json);

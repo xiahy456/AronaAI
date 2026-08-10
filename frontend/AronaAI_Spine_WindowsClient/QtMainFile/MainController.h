@@ -57,6 +57,8 @@ public:
 private slots:
 	// TTS工作完毕
 	void onTTSFinished(const QByteArray& audioData, const QString& mediaType);
+	// TTS失败（超时等）：仍显示字幕
+	void onTTSError(const QString& errorString);
 	// 音频输入出错
 	void onAudioError(const QString& error);
 	// 音频识别出错
