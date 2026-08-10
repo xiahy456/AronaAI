@@ -26,10 +26,10 @@
 
 **AronaAI** is a desktop AI assistant project based on the character "Arona" from the game "Blue Archive". She serves as the operating system administrator of the Shittim Chest, and has a cheerful, warm personality who loves helping Sensei (user) solve problems.
 
-This project integrates Arona Language Models (AronaLM), Text-to-Speech (TTS), Automatic Speech Recognition (ASR), Spine 2D character animation, and other technologies to provide a cute, lively, and fully-featured desktop interaction experience.
+This project integrates Arona Language Model (AronaLM), Text-to-Speech (TTS), Automatic Speech Recognition (ASR), Spine 2D character animation, and other technologies to provide a cute, lively, and fully-featured desktop interaction experience.
 
 <p align="center">
-  <img src="assets/running_example.png" alt="Running Example" width="600"/>
+  <img src="assets/running_example_1.png" alt="Running Example" width="600"/>
 </p>
 
 <p align="center">
@@ -263,7 +263,8 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
     "dict_path": "Dict/dict_zh.json", // 词典文件路径
     "zoom": 1.0, // 界面缩放比例
     "offset_from_screen_bottom": -50, // 主窗口相对屏幕底部的向上偏移（像素）
-    "offset_from_screen_left": -20, // 主窗口相对屏幕左侧的向右偏移（像素）
+    "offset_from_screen_left": 0, // 主窗口相对屏幕左侧的向右偏移（像素）
+    "output_text_box_offset": -50, // 输出文本框相对默认位置的垂直偏移（像素；正值向上，负值向下）
     "mouse_event_transparent": true, // 是否启用鼠标穿透（点击穿透桌宠）
     "open_setting_widget": false, // 启动时是否自动打开设置窗口
     "arona_ai_mode": 0, // 阿洛娜 AI 模式：0=日程模式，1=档案模式
@@ -279,8 +280,8 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
     "use_memory": true // 是否启用长期记忆
   },
   "spine": {
-    "skelOrJson_path": "Assets/AronaSpineAssets/arona_spr.json", // Spine 骨架文件（.skel / .json）路径
-    "atlas_path": "Assets/AronaSpineAssets/Arona01.atlas", // Spine 图集 atlas 路径
+    "skelOrJson_path": "Assets/AronaSpineAssets/arona_spr_full.skel", // Spine 骨架文件（.skel / .json）路径（如果想要普拉娜可以改为Assets/AronaSpineAssets/NP0035_spr.skel）
+    "atlas_path": "Assets/AronaSpineAssets/arona_spr_full.atlas", // Spine 图集 atlas 路径（如果想要普拉娜可以改为Assets/AronaSpineAssets/NP0035_spr.atlas）
     "animation_default_mix": 0.2 // 动画默认过渡混合时间（秒）
   },
   "tts": {

@@ -42,7 +42,7 @@ QtSpineManager::QtSpineManager(QWidget* parent) : QOpenGLWidget(parent)
     //this->setWindowFlag(Qt::ToolTip);	// 隐藏应用程序图标
 	//this->setWindowOpacity(0.5);    // 设置窗口半透明（0.0完全透明，1.0完全不透明）
 	this->setAutoFillBackground(false);   // 禁用自动填充背景，确保paintGL的背景颜色生效
-    this->resize(220 * WIDGET_ZOOM, 430 * WIDGET_ZOOM); // 设置窗口大小
+    this->resize(220 * WIDGET_ZOOM, 440 * WIDGET_ZOOM); // 设置窗口大小
 
     // 启动事件过滤器
     this->installEventFilter(this);

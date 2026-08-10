@@ -51,7 +51,7 @@ MainWidget::MainWidget(QWidget *parent)
 	this->setWindowTitle(GET_STRING_FROM_JSON(_global_dict, "application_data", "main_widget_name"));  // 设置窗口名称
     
     // 设置窗口大小
-	this->resize(300 * WIDGET_ZOOM, 430 * WIDGET_ZOOM);
+	this->resize(300 * WIDGET_ZOOM, 440 * WIDGET_ZOOM);
 
     // 移动窗口
     // 获取主屏幕
@@ -65,11 +65,11 @@ MainWidget::MainWidget(QWidget *parent)
 
     // 界面控件设置
     ui.aronaOutputTextBox->resize(300 * WIDGET_ZOOM, 80 * WIDGET_ZOOM);
-	ui.aronaOutputTextBox->move(0 * WIDGET_ZOOM, 310 * WIDGET_ZOOM - GET_INT_FROM_JSON(_global_config, "settings", "output_text_box_offset"));
+	ui.aronaOutputTextBox->move(0 * WIDGET_ZOOM, 320 * WIDGET_ZOOM - GET_INT_FROM_JSON(_global_config, "settings", "output_text_box_offset"));
 	ui.aronaOutputText->resize(280 * WIDGET_ZOOM, 60 * WIDGET_ZOOM);
 	ui.aronaOutputText->move(10 * WIDGET_ZOOM, 10 * WIDGET_ZOOM);
     ui.aronaOutputText->setFont(BlueakaFontLoader::instance()->createFont(12));
-	ui.qtSpineManagerWidget->resize(220 * WIDGET_ZOOM, 430 * WIDGET_ZOOM);
+	ui.qtSpineManagerWidget->resize(220 * WIDGET_ZOOM, 440 * WIDGET_ZOOM);
 	ui.qtSpineManagerWidget->move(40 * WIDGET_ZOOM, 0);
     ui.aronaOutputTextBox->setStyleSheet(
         "#aronaOutputTextBox {"

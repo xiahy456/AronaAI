@@ -5,7 +5,7 @@
     "icon_path": "Assets/ProgramAssets/Icon.png",
     "zoom": 1.0,
     "offset_from_screen_bottom": -50,
-    "offset_from_screen_left": -20,
+    "offset_from_screen_left": 0,
     "output_text_box_offset": -50,
     "mouse_event_transparent": true,
     "qhotkey_path": "QHotkey",
