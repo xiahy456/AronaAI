@@ -6,6 +6,7 @@
     "zoom": 1.0,
     "offset_from_screen_bottom": -50,
     "offset_from_screen_left": -20,
+    "output_text_box_offset": -50,
     "mouse_event_transparent": true,
     "qhotkey_path": "QHotkey",
     "open_setting_widget": false,
@@ -31,8 +32,8 @@
     "use_memory": true
   },
   "spine": {
-    "skelOrJson_path": "Assets/AronaSpineAssets/arona_spr.json",
-    "atlas_path": "Assets/AronaSpineAssets/Arona01.atlas",
+    "skelOrJson_path": "Assets/AronaSpineAssets/arona_spr_full.skel",
+    "atlas_path": "Assets/AronaSpineAssets/arona_spr_full.atlas",
     "animation_default_mix": 0.2
   },
   "tts": {

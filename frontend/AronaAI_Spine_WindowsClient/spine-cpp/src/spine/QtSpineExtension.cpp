@@ -55,8 +55,8 @@ char* QtSpineExtension::_readFile(const spine::String& path, int* length)
 	// 将spine路径转换为QString
 	QString qPath = QString::fromStdString(path.buffer());
 	QFile file(qPath);
-	// 以只读二进制打开文件
-	if (!file.open(QIODevice::ReadOnly | QIODevice::Unbuffered | QIODevice::Text)) {
+	// 以只读二进制打开文件（不可使用 QIODevice::Text：Windows 会剥掉 0x0D，破坏 .skel）
+	if (!file.open(QIODevice::ReadOnly | QIODevice::Unbuffered)) {
 		// 打开失败，输出日志
 		qWarning() << "[Spine Operation] Open File Failed! Path: " << qPath << " | Reason: " << file.errorString();
 		return nullptr;

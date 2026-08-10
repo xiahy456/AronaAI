@@ -69,6 +69,7 @@ public:
 
     struct TextureBatch {
         GLuint textureId;
+        bool premultiplied = false;
         QVector<SpineVertex> vertices;
     };
 
@@ -102,6 +103,8 @@ private:
     // 辅助函数
     GLuint getTextureId(spine::RegionAttachment* attachment);
     GLuint getTextureId(spine::MeshAttachment* attachment);
+    bool getTexturePremultiplied(spine::RegionAttachment* attachment);
+    bool getTexturePremultiplied(spine::MeshAttachment* attachment);
     void collectRegionAttachmentVertices(spine::RegionAttachment* attachment, spine::Slot* slot, const spine::Color& slotColor);
     void collectMeshAttachmentVertices(spine::MeshAttachment* attachment, spine::Slot* slot, const spine::Color& slotColor);
     void flushBatches();
@@ -140,6 +143,7 @@ private:
     // 统一变量位置
     GLint m_u_matrixLoc;
     GLint m_u_textureLoc;
+    GLint m_u_premultipliedLoc;
 
     // 批次数据
     QVector<TextureBatch> m_batches;

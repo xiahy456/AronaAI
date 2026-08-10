@@ -42,7 +42,7 @@ QtSpineManager::QtSpineManager(QWidget* parent) : QOpenGLWidget(parent)
     //this->setWindowFlag(Qt::ToolTip);	// 隐藏应用程序图标
 	//this->setWindowOpacity(0.5);    // 设置窗口半透明（0.0完全透明，1.0完全不透明）
 	this->setAutoFillBackground(false);   // 禁用自动填充背景，确保paintGL的背景颜色生效
-    this->resize(220 * WIDGET_ZOOM, 290 * WIDGET_ZOOM); // 设置窗口大小
+    this->resize(220 * WIDGET_ZOOM, 430 * WIDGET_ZOOM); // 设置窗口大小
 
     // 启动事件过滤器
     this->installEventFilter(this);
@@ -108,14 +108,15 @@ void QtSpineManager::initializeGL()
     const char* fragmentShaderSource =
         "#version 330 core\n"
         "uniform sampler2D u_texture;\n"
+        "uniform int u_premultiplied;\n"
         "in vec2 v_texCoord;\n"
         "in vec4 v_color;\n"
         "out vec4 fragColor;\n"
         "void main() {\n"
         "    vec4 texColor = texture(u_texture, v_texCoord);\n"
         "    \n"
-        "    // 关键步骤：还原预乘的RGB值\n"
-        "    if (texColor.a > 0.0) {\n"
+        "    // PMA 贴图需要还原直通 RGB；直通 Alpha 贴图不可再除 alpha，否则边缘发白\n"
+        "    if (u_premultiplied != 0 && texColor.a > 0.0) {\n"
         "        texColor.rgb /= texColor.a;\n"
         "    }\n"
         "    \n"
@@ -132,6 +133,7 @@ void QtSpineManager::initializeGL()
 
     m_u_matrixLoc = m_program->uniformLocation("u_matrix");
     m_u_textureLoc = m_program->uniformLocation("u_texture");
+    m_u_premultipliedLoc = m_program->uniformLocation("u_premultiplied");
 
     // 创建VBO
     m_vbo = new QOpenGLBuffer(QOpenGLBuffer::VertexBuffer);
@@ -290,14 +292,7 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
         return;
     }
 
-    // 设置图集的PMA标志（通常Spine图集使用预乘Alpha）
-    for (int i = 0; i < m_atlas->getPages().size(); i++) {
-        spine::AtlasPage* page = m_atlas->getPages()[i];
-        if (page) {
-            // 通常Spine导出的图集使用预乘Alpha
-            page->pma = true;
-        }
-    }
+    // 尊重 atlas 中的 pma 标记（缺省为 false）；勿强制覆盖，否则直通 Alpha 贴图会被错误反预乘
 
     bool isBinary = skelOrJsonPath.endsWith(".skel", Qt::CaseInsensitive);
 
@@ -367,6 +362,7 @@ void QtSpineManager::collectMeshAttachmentVertices(spine::MeshAttachment* attach
 
     GLuint textureId = getTextureId(attachment);
     if (textureId == 0) return;
+    const bool premultiplied = getTexturePremultiplied(attachment);
 
     int numVertices = attachment->getWorldVerticesLength();
     if (numVertices <= 0) return;
@@ -401,6 +397,7 @@ void QtSpineManager::collectMeshAttachmentVertices(spine::MeshAttachment* attach
     if (!batch) {
         TextureBatch newBatch;
         newBatch.textureId = textureId;
+        newBatch.premultiplied = premultiplied;
         m_batches.append(newBatch);
         batch = &m_batches.last();
     }
@@ -457,6 +454,7 @@ void QtSpineManager::collectRegionAttachmentVertices(spine::RegionAttachment* at
 
     GLuint textureId = getTextureId(attachment);
     if (textureId == 0) return;
+    const bool premultiplied = getTexturePremultiplied(attachment);
 
     float worldVertices[8];
     attachment->computeWorldVertices(*slot, worldVertices, 0, 8);
@@ -491,6 +489,7 @@ void QtSpineManager::collectRegionAttachmentVertices(spine::RegionAttachment* at
     if (!batch) {
         TextureBatch newBatch;
         newBatch.textureId = textureId;
+        newBatch.premultiplied = premultiplied;
         m_batches.append(newBatch);
         batch = &m_batches.last();
     }
@@ -538,6 +537,7 @@ void QtSpineManager::flushBatches()
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, batch.textureId);
+        m_program->setUniformValue(m_u_premultipliedLoc, batch.premultiplied ? 1 : 0);
 
         // 设置纹理参数
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -654,4 +654,22 @@ GLuint QtSpineManager::getTextureId(spine::MeshAttachment* attachment)
     if (!textureIdPtr) return 0;
 
     return *textureIdPtr;
+}
+
+bool QtSpineManager::getTexturePremultiplied(spine::RegionAttachment* attachment)
+{
+    if (!attachment) return false;
+    spine::TextureRegion* region = attachment->getRegion();
+    if (!region) return false;
+    spine::AtlasRegion* atlasRegion = static_cast<spine::AtlasRegion*>(region);
+    return atlasRegion && atlasRegion->page && atlasRegion->page->pma;
+}
+
+bool QtSpineManager::getTexturePremultiplied(spine::MeshAttachment* attachment)
+{
+    if (!attachment) return false;
+    spine::TextureRegion* region = attachment->getRegion();
+    if (!region) return false;
+    spine::AtlasRegion* atlasRegion = static_cast<spine::AtlasRegion*>(region);
+    return atlasRegion && atlasRegion->page && atlasRegion->page->pma;
 }

@@ -26,7 +26,7 @@ void QtTextureLoader::load(spine::AtlasPage& page, const spine::String& path) {
     // 使用QImage加载图片
     QImage image;
     if (!image.load(qImgPath)) {
-        FINE_DEBUG_OUTPUT("[Spine Operation] Texture Load Failed! Texture：" + qImgPath);
+        ERROR_DEBUG_OUTPUT("[Spine Operation] Texture Load Failed! Texture: " + qImgPath);
         return;
     }
 

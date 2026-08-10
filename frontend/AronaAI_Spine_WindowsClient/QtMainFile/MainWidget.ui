@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>350</width>
-    <height>290</height>
+    <width>300</width>
+    <height>430</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,10 +16,10 @@
   <widget class="QtSpineManager" name="qtSpineManagerWidget" native="true">
    <property name="geometry">
     <rect>
-     <x>65</x>
+     <x>40</x>
      <y>0</y>
      <width>220</width>
-     <height>290</height>
+     <height>430</height>
     </rect>
    </property>
    <property name="styleSheet">
@@ -29,8 +29,8 @@
   <widget class="QFrame" name="aronaOutputTextBox">
    <property name="geometry">
     <rect>
-     <x>25</x>
-     <y>170</y>
+     <x>0</x>
+     <y>310</y>
      <width>300</width>
      <height>80</height>
     </rect>
