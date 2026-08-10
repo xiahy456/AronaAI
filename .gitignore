@@ -3,6 +3,10 @@
 !/gpt-sovits/go-apiv2.bat
 !/gpt-sovits/go-apiv2.sh
 
+# social preview：仅跟踪成品图，其余素材不提交
+/assets/social_preview/**
+!/assets/social_preview/social_preview.png
+
 # unused_frontend
 **/AronaClient-PC/
 
