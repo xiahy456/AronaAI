@@ -51,7 +51,6 @@ python scripts/ingest_knowledge.py --rebuild
 - 本地：`config.yaml`（已 gitignore）
 - 记忆库：`data/memory.db`（已 gitignore）
 - 知识向量库：`data/knowledge/chroma/`（已 gitignore，由 ingest 生成）
-- 日志：默认写入 `logs/arona-backend.log`（按大小滚动），可用 `config.yaml` 的 `logging` 调整
 
 ## 协议摘要
 

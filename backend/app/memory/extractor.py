@@ -17,16 +17,17 @@ from .validate import memory_reject_reason
 
 logger = logging.getLogger(__name__)
 
-EXTRACT_SYSTEM = """你是记忆抽取助手。根据对话片段，提取需要长期记住的用户（老师）事实。
+EXTRACT_SYSTEM = """你是记忆抽取助手。根据「用户（老师）」与「阿洛娜」的对话片段，提取需要长期记住的用户（老师）事实。
 只输出 JSON，格式：
 {"memories":[{"op":"upsert或delete","key":"英文蛇形键","content":"短中文陈述句","category":"preference|profile|other"}]}
 规则：
 - 只提取已确认的稳定事实（名字、偏好、约定），不要闲聊、不要世界观百科
 - 无值得记忆的内容时返回 {"memories":[]}
-- content 必须是短陈述句，例如「老师喜欢草莓牛奶」
+- content 必须是短陈述句，例如「老师喜欢蓝色」
 - 禁止疑问句、反问、猜测或未确认信息；错误示例：「老师喜欢什么颜色吗」
 - 不要把老师的提问本身当成事实写入
 - key 稳定可复用，同事实用同一 key
+- 只记录与用户（老师）相关的记忆；例如「老师喜欢蓝色」
 """
 
 
