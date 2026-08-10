@@ -19,19 +19,24 @@ for _stream in (sys.stdout, sys.stderr):
     except (AttributeError, OSError):
         pass
 
+from app.config import load_config  # noqa: E402
 from app.memory.store import MemoryStore, _tokenize  # noqa: E402
 
-DEFAULT_DB = BACKEND_DIR / "data" / "memory.db"
 WRITE_HINT = "Hint: if you changed `memories`, run .sync_fts to rebuild FTS."
 
 
 def resolve_db(path: str | None) -> Path:
     if not path:
-        return DEFAULT_DB
+        return load_config().memory_db_abs_path
     p = Path(path)
     if not p.is_absolute():
         p = (BACKEND_DIR / p).resolve()
     return p
+
+
+def make_store(db_path: Path) -> MemoryStore:
+    config = load_config()
+    return MemoryStore(config, db_path=db_path)
 
 
 def connect(db_path: Path) -> sqlite3.Connection:
@@ -219,27 +224,27 @@ def cmd_upsert(
     category: str | None,
     source: str,
 ) -> int:
-    store = MemoryStore(db_path)
+    store = make_store(db_path)
     store.upsert(key, content, category=category, source=source)
     print(f"upserted key={key!r}")
     return 0
 
 
 def cmd_delete(db_path: Path, key: str) -> int:
-    store = MemoryStore(db_path)
+    store = make_store(db_path)
     store.delete(key)
     print(f"deleted key={key!r}")
     return 0
 
 
 def cmd_count(db_path: Path) -> int:
-    store = MemoryStore(db_path)
+    store = make_store(db_path)
     print(store.count())
     return 0
 
 
 def cmd_retrieve(db_path: Path, query: str, top_k: int) -> int:
-    store = MemoryStore(db_path)
+    store = make_store(db_path)
     hits = store.retrieve(query, top_k=top_k)
     if not hits:
         print("(0 hits)")
@@ -256,7 +261,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--db",
         default=None,
-        help=f"Path to SQLite DB (default: {DEFAULT_DB})",
+        help="Path to SQLite DB (default: memory.db_path from config.yaml)",
     )
     parser.add_argument(
         "-c",
@@ -272,18 +277,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_get = sub.add_parser("get", help="Get one memory by key")
     p_get.add_argument("key")
 
-    p_upsert = sub.add_parser("upsert", help="Upsert via MemoryStore (keeps FTS in sync)")
+    p_upsert = sub.add_parser("upsert", help="Upsert via MemoryStore (keeps FTS+Chroma in sync)")
     p_upsert.add_argument("key")
     p_upsert.add_argument("content")
     p_upsert.add_argument("--category", default=None)
     p_upsert.add_argument("--source", default="debug")
 
-    p_delete = sub.add_parser("delete", help="Delete via MemoryStore (keeps FTS in sync)")
+    p_delete = sub.add_parser("delete", help="Delete via MemoryStore (keeps FTS+Chroma in sync)")
     p_delete.add_argument("key")
 
     sub.add_parser("count", help="Count memories")
 
-    p_retrieve = sub.add_parser("retrieve", help="FTS retrieve via MemoryStore")
+    p_retrieve = sub.add_parser("retrieve", help="Hybrid FTS+vector retrieve via MemoryStore")
     p_retrieve.add_argument("query")
     p_retrieve.add_argument("--top-k", type=int, default=3)
 

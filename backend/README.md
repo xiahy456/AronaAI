@@ -49,7 +49,7 @@ python scripts/ingest_knowledge.py --rebuild
 
 - 模板：`config.example.yaml`
 - 本地：`config.yaml`（已 gitignore）
-- 记忆库：`data/memory.db`（已 gitignore）
+- 记忆库：`data/memory/memory.db`（已 gitignore）；向量索引：`data/memory/chroma`
 - 知识向量库：`data/knowledge/chroma/`（已 gitignore，由 ingest 生成）
 
 ## 协议摘要

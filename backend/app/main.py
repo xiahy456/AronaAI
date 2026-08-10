@@ -13,6 +13,7 @@ from fastapi import FastAPI, WebSocket
 from .cache import ResponseCache
 from .config import get_config
 from .conversation import ConversationManager
+from .embeddings import LocalBgeEncoder
 from .knowledge import KnowledgeRetriever
 from .logging_utils import configure_logging
 from .memory.extractor import MemoryExtractor
@@ -52,9 +53,11 @@ def create_app() -> FastAPI:
     conversations = ConversationManager(
         max_history_turns=config.conversation.max_history_turns
     )
-    memory_store = MemoryStore(config.memory_db_abs_path)
+    # Shared BGE encoder for memory + knowledge retrieval.
+    shared_encoder = LocalBgeEncoder(config.knowledge_embedding_abs_path)
+    memory_store = MemoryStore(config, encoder=shared_encoder)
     extractor = MemoryExtractor(memory_store, config.memory.extractor)
-    knowledge = KnowledgeRetriever(config)
+    knowledge = KnowledgeRetriever(config, encoder=shared_encoder)
     cache = ResponseCache(max_size=config.cache.max_size)
     orchestrator = Orchestrator(
         config,

@@ -32,8 +32,12 @@ knowledge:
   min_score: 0.3
 
 memory:
-  db_path: "data/memory.db"
+  db_path: "data/memory/memory.db"
+  chroma_path: "data/memory/chroma"
+  collection: "arona_memory"
   retrieve_top_k: 3
+  candidate_top_k: 10
+  min_score: 0.35
   max_inject_chars: 400
   extractor:
     enabled: true

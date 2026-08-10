@@ -111,7 +111,7 @@ async def run_test(*, keep_db: Path | None = None) -> int:
     for text in USER_INPUTS:
         print(f"  - {text}")
 
-    store = MemoryStore(db_path)
+    store = MemoryStore(config, db_path=db_path)
     extractor = MemoryExtractor(store, ext_cfg)
     await extractor.start()
     try:

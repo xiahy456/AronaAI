@@ -9,11 +9,9 @@ from pathlib import Path
 from typing import Any
 
 from .config import AppConfig, KnowledgeConfig
+from .embeddings import LocalBgeEncoder
 
 logger = logging.getLogger(__name__)
-
-# BGE-zh retrieval query instruction (short query -> passage).
-_BGE_QUERY_INSTRUCTION = "为这个句子生成表示以用于检索相关文章："
 
 _HEADING_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 
@@ -74,40 +72,12 @@ def load_corpus(corpus_dir: Path) -> list[KnowledgeChunk]:
     return chunks
 
 
-class LocalBgeEncoder:
-    """Local sentence-transformers BGE encoder (no HuggingFace download)."""
-
-    def __init__(self, model_path: Path) -> None:
-        if not model_path.is_dir():
-            raise FileNotFoundError(
-                f"Local BGE model not found: {model_path}. "
-                "Check knowledge.embedding_model_path (expected ../models/bge-small-zh-v1.5)."
-            )
-        from sentence_transformers import SentenceTransformer
-
-        logger.info("Loading local BGE embedding model from %s", model_path)
-        self._model = SentenceTransformer(str(model_path), local_files_only=True)
-
-    def encode_documents(self, texts: list[str]) -> list[list[float]]:
-        vectors = self._model.encode(
-            texts,
-            normalize_embeddings=True,
-            show_progress_bar=False,
-        )
-        return [v.tolist() for v in vectors]
-
-    def encode_queries(self, texts: list[str]) -> list[list[float]]:
-        prompted = [f"{_BGE_QUERY_INSTRUCTION}{q}" for q in texts]
-        vectors = self._model.encode(
-            prompted,
-            normalize_embeddings=True,
-            show_progress_bar=False,
-        )
-        return [v.tolist() for v in vectors]
-
-
 class KnowledgeRetriever:
-    def __init__(self, app_config: AppConfig) -> None:
+    def __init__(
+        self,
+        app_config: AppConfig,
+        encoder: LocalBgeEncoder | None = None,
+    ) -> None:
         self.app_config = app_config
         self.config: KnowledgeConfig = app_config.knowledge
         self.enabled = bool(self.config.enabled)
@@ -115,7 +85,7 @@ class KnowledgeRetriever:
         self.chroma_path = app_config.knowledge_chroma_abs_path
         self.embedding_path = app_config.knowledge_embedding_abs_path
         self._collection: Any | None = None
-        self._encoder: LocalBgeEncoder | None = None
+        self._encoder: LocalBgeEncoder | None = encoder
         self._client: Any | None = None
 
     def _ensure_backend(self) -> None:
@@ -126,7 +96,8 @@ class KnowledgeRetriever:
         from chromadb.config import Settings
 
         self.chroma_path.mkdir(parents=True, exist_ok=True)
-        self._encoder = LocalBgeEncoder(self.embedding_path)
+        if self._encoder is None:
+            self._encoder = LocalBgeEncoder(self.embedding_path)
         self._client = chromadb.PersistentClient(
             path=str(self.chroma_path),
             settings=Settings(anonymized_telemetry=False),
@@ -216,7 +187,8 @@ class KnowledgeRetriever:
         from chromadb.config import Settings
 
         self.chroma_path.mkdir(parents=True, exist_ok=True)
-        self._encoder = LocalBgeEncoder(self.embedding_path)
+        if self._encoder is None:
+            self._encoder = LocalBgeEncoder(self.embedding_path)
         self._client = chromadb.PersistentClient(
             path=str(self.chroma_path),
             settings=Settings(anonymized_telemetry=False),

@@ -59,8 +59,12 @@ class ExtractorConfig(BaseModel):
 
 
 class MemoryConfig(BaseModel):
-    db_path: str = "data/memory.db"
+    db_path: str = "data/memory/memory.db"
+    chroma_path: str = "data/memory/chroma"
+    collection: str = "arona_memory"
     retrieve_top_k: int = 3
+    candidate_top_k: int = 10
+    min_score: float = 0.35
     max_inject_chars: int = 400
     extractor: ExtractorConfig = Field(default_factory=ExtractorConfig)
 
@@ -107,6 +111,10 @@ class AppConfig(BaseModel):
     @property
     def memory_db_abs_path(self) -> Path:
         return self.resolve_path(self.memory.db_path)
+
+    @property
+    def memory_chroma_abs_path(self) -> Path:
+        return self.resolve_path(self.memory.chroma_path)
 
     @property
     def knowledge_corpus_abs_path(self) -> Path:
