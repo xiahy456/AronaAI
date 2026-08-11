@@ -16,8 +16,9 @@
 # backend config
 /backend/config.yaml
 
-# models
-/models/
+# models：仅跟踪 README，权重一律不提交
+/models/**
+!/models/README.md
 /llm/chatglm3/
 
 # aronaLM training data
