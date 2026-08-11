@@ -61,4 +61,4 @@ models/
 models/aronalm-v2.0-normal/aronalm-v2.0-normal.Q4_K_M.gguf
 ```
 
-启用知识库时再补上 `bge-small-zh-v1.5/`；启用语音时再配置 GPT-SoVITS 权重与参考音频。
+启用记忆知识库时再补上 `bge-small-zh-v1.5/`；启用语音合成时再配置 GPT-SoVITS 权重与参考音频。
