@@ -534,17 +534,18 @@ limitations under the License.
 
 ## 🙏 致谢 / Acknowledgements
 
-- **《蔚蓝档案》(Blue Archive)** - 角色原型
-- **Spine** - 2D 动画引擎
-- **Qt** - 跨平台 GUI 框架
-- **llama.cpp / llama-cpp-python** - 本地 GGUF 推理
-- **Qwen3-1.7B** - 微调训练基底模型
-- **Unsloth** - QLoRA 高效微调
-- **ChromaDB** - 向量数据库
-- **DeepSeek** - Planner 意图规划与记忆抽取 API
-- **GPT-SoVITS** - 语音合成模型
-- **腾讯云语音识别** - 在线语音识别
-- **Sentence-Transformers** - 文本嵌入模型
+- **《蔚蓝档案》(Blue Archive)** - 一切奇迹的起点（https://bluearchive-cn.com/）
+- **Spine** - 2D 动画引擎（https://esotericsoftware.com/）
+- **基沃托斯古书馆** - Spine 动画资源（https://kivo.wiki/）
+- **Qt** - 跨平台 GUI 框架（https://www.qt.io/）
+- **llama.cpp / llama-cpp-python** - 本地 GGUF 推理（https://github.com/ggml-org/llama.cpp）
+- **Qwen3-1.7B** - 微调训练基底模型（https://github.com/QwenLM/Qwen3）
+- **Unsloth** - QLoRA 高效微调（https://unsloth.ai/）
+- **ChromaDB** - 向量数据库（https://www.trychroma.com/products/chromadb）
+- **DeepSeek** - Planner 意图规划与记忆抽取 API（https://www.deepseek.com/）
+- **GPT-SoVITS** - 语音合成模型（https://github.com/RVC-Boss/GPT-SoVITS）
+- **腾讯云语音识别** - 在线语音识别（https://cloud.tencent.com/product/asr）
+- **bge-small-zh-v1.5** - 文本嵌入模型（https://huggingface.co/BAAI/bge-small-zh-v1.5）
 - **感谢所有协助开发的贡献者们**
 
 ---
