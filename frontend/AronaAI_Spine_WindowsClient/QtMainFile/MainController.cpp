@@ -164,7 +164,7 @@ void MainController::onTTSFinished(const QByteArray& audioData, const QString& m
     duration = (int)(1000 * (m_ttsManager->getWavDuration(audioData)));   // 按照实际音频时长设置，单位为毫秒
     // 启动动画
     //m_mainWidget->setAnimation("25", 1, true);   // 表情层
-    m_mainWidget->setAnimation("Arona_Work_In_1_CN", 2, true);   // 语言层
+    m_mainWidget->setAnimation("Arona_Work_In_1_CN", 2, true);   // 语言口型层
     // 在duration之后清除显示的文字，停止动画
     QTimer::singleShot(duration, this, [this]() {
         m_mainWidget->hideOutputText();

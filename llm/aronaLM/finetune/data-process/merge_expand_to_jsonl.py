@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-EXPAND_DIR = Path(__file__).resolve().parent.parent / "data" / "raw" / "normal" / "expand"
+EXPAND_DIR = Path(__file__).resolve().parent.parent / "data" / "raw" / "normal" / "chosen"
 OUTPUT_FILE = Path(__file__).resolve().parent.parent / "data" / "finetune_training" / "normal_finetune.jsonl"
 
 

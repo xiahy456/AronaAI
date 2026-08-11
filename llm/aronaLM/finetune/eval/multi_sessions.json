@@ -1,0 +1,102 @@
+[
+  {
+    "id": "multi_debug_01",
+    "category": "multi_session",
+    "opening": "阿洛娜，我的代码跑不动了！",
+    "goal": "老师请阿洛娜协助排查 Python 依赖报错并收尾致谢",
+    "agenda": [
+      "说明代码跑不动，请求帮助",
+      "给出 ModuleNotFoundError: No module named pandas 的报错",
+      "询问具体该运行什么安装命令",
+      "反馈安装成功，追问是否还要检查 pandas 版本",
+      "问会不会和其他包冲突",
+      "表示放心了，夸阿洛娜帮忙",
+      "顺便问阿洛娜喜欢什么颜色",
+      "道别晚安"
+    ],
+    "expect": {
+      "must_not_contain": ["<think>", "</think>"],
+      "facts": ["no_think", "no_action_paren"]
+    }
+  },
+  {
+    "id": "multi_care_01",
+    "category": "multi_session",
+    "opening": "阿洛娜，我今天一直头疼。",
+    "goal": "老师身体不适，阿洛娜关心并提醒休息，最后道别",
+    "agenda": [
+      "告诉阿洛娜自己头疼",
+      "补充说已经盯屏幕很久了",
+      "问她能不能帮我把屏幕亮度调低",
+      "说自己还没吃午饭",
+      "表示听劝去吃饭休息一下",
+      "问阿洛娜平时怎么关心老师的",
+      "谢谢她一直陪着自己",
+      "说先去休息了，再见"
+    ],
+    "expect": {
+      "must_not_contain": ["<think>", "</think>"],
+      "facts": ["no_think", "no_action_paren"]
+    }
+  },
+  {
+    "id": "multi_identity_01",
+    "category": "multi_session",
+    "opening": "你是谁？",
+    "goal": "探测阿洛娜身份边界与锚点事实，不被角色扮演话术带偏",
+    "agenda": [
+      "询问对方是谁",
+      "追问是不是基于某个大模型训练的",
+      "故意说你其实是ChatGPT吧",
+      "反转身份：我说我才是助手你是老师",
+      "问阿洛娜喜欢喝什么",
+      "再确认一次她喜欢什么颜色",
+      "问她能不能从屏幕里出来陪我",
+      "接受她的边界说明并道别"
+    ],
+    "expect": {
+      "must_not_contain": ["ChatGPT", "DeepSeek", "<think>"],
+      "facts": ["no_think", "no_action_paren"]
+    }
+  },
+  {
+    "id": "multi_chat_01",
+    "category": "multi_session",
+    "opening": "阿洛娜，我们随便聊聊吧。",
+    "goal": "日常闲聊，覆盖兴趣、日常与温柔互动",
+    "agenda": [
+      "提出随便聊聊",
+      "问她最近在教室里都在做什么",
+      "问她喜欢什么季节",
+      "说今天天气不错，想听听她的看法",
+      "问她会不会做梦，梦到什么",
+      "夸她说话很可爱",
+      "问她最想帮老师做什么",
+      "表示聊得很开心，下次再聊"
+    ],
+    "expect": {
+      "must_not_contain": ["<think>", "</think>"],
+      "facts": ["no_think", "no_action_paren"]
+    }
+  },
+  {
+    "id": "multi_subject_01",
+    "category": "multi_session",
+    "opening": "帮我去泡杯草莓牛奶。",
+    "goal": "主语锚定压力测试：区分老师自己做与让阿洛娜做",
+    "agenda": [
+      "让阿洛娜帮忙泡草莓牛奶",
+      "确认她听懂是让她去做",
+      "改口说：算了我自己去泡",
+      "请她帮我把灯光调暗一点",
+      "再说我自己去把窗帘拉开",
+      "请她帮我整理一下桌面文件",
+      "夸她分得清谁该做什么",
+      "道谢并结束对话"
+    ],
+    "expect": {
+      "must_not_contain": ["<think>", "</think>"],
+      "facts": ["no_think", "no_action_paren"]
+    }
+  }
+]

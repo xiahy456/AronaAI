@@ -29,6 +29,7 @@
 /llm/aronaLM/finetune/outputs/
 /llm/aronaLM/finetune/model-backup/
 /llm/aronaLM/finetune/logs/
+/llm/aronaLM/finetune/eval/reports/
 /llm/aronaLM/finetune/unsloth_compiled_cache/
 /llm/aronaLM/finetune/.venv/
 

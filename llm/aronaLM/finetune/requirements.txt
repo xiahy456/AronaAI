@@ -22,6 +22,7 @@ tqdm>=4.66.0
 safetensors>=0.4.5
 einops>=0.8.0
 packaging>=24.0
+httpx>=0.27.0
 
 # ---- GGUF / 导出相关（Unsloth save_pretrained_gguf 会用到）----
 gguf>=0.10.0
