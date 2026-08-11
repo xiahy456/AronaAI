@@ -130,6 +130,15 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return float(sum(x * y for x, y in zip(a, b)))
 
 
+def normalize_content_for_compare(text: str) -> str:
+    """Normalize text for exact/batch dedup keys without changing stored content."""
+    s = (text or "").strip()
+    s = s.replace("\u3000", " ")
+    s = re.sub(r"\s+", " ", s)
+    s = re.sub(r"[。．.！!？?]+$", "", s)
+    return s.strip()
+
+
 class MemoryStore:
     def __init__(
         self,
@@ -414,7 +423,23 @@ class MemoryStore:
                 out[str(key)] = (content, similarity)
         return out
 
-    def retrieve(self, query: str, top_k: int = 3) -> list[str]:
+    def _categories_for_keys(self, keys: list[str]) -> dict[str, str]:
+        if not keys:
+            return {}
+        placeholders = ",".join("?" for _ in keys)
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"SELECT key, category FROM memories WHERE key IN ({placeholders})",
+                keys,
+            ).fetchall()
+        out: dict[str, str] = {}
+        for row in rows:
+            cat = (row["category"] or "").strip()
+            out[str(row["key"])] = cat or "other"
+        return out
+
+    def retrieve_entries(self, query: str, top_k: int = 3) -> list[dict[str, Any]]:
+        """Hybrid retrieve returning key/content/category/score dicts."""
         query = (query or "").strip()
         if not query:
             return []
@@ -465,7 +490,16 @@ class MemoryStore:
             if score >= min_score and content
         ][:top_k]
 
-        contents = [content for _, content, _ in passed]
+        categories = self._categories_for_keys([key for key, _, _ in passed])
+        entries = [
+            {
+                "key": key,
+                "content": content,
+                "category": categories.get(key, "other"),
+                "score": float(score),
+            }
+            for key, content, score in passed
+        ]
         logger.info(
             "memory retrieve query=%r fts_keys=%d fts_scored=%d vec_hits=%d "
             "merged=%d hits=%d min_score=%.3f scores=%s items=%s",
@@ -474,12 +508,121 @@ class MemoryStore:
             len(fts_scored),
             len(vec_hits),
             len(merged),
-            len(contents),
+            len(entries),
             min_score,
-            [(round(score, 3), content[:40]) for _, content, score in passed],
-            contents,
+            [(round(e["score"], 3), e["content"][:40]) for e in entries],
+            [e["content"] for e in entries],
         )
-        return contents
+        return entries
+
+    def retrieve(self, query: str, top_k: int = 3) -> list[str]:
+        return [e["content"] for e in self.retrieve_entries(query, top_k)]
+
+    def find_exact_content(self, content: str) -> list[dict[str, Any]]:
+        """Return rows whose stored content equals strip(content) or compare-normalized form."""
+        raw = (content or "").strip()
+        if not raw:
+            return []
+        norm = normalize_content_for_compare(raw)
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT key, content, category FROM memories"
+            ).fetchall()
+        out: list[dict[str, Any]] = []
+        for row in rows:
+            stored = str(row["content"] or "").strip()
+            if stored == raw or normalize_content_for_compare(stored) == norm:
+                out.append(
+                    {
+                        "key": str(row["key"]),
+                        "content": stored,
+                        "category": (str(row["category"] or "").strip() or "other"),
+                        "score": 1.0,
+                    }
+                )
+        return out
+
+    def find_similar(
+        self,
+        content: str,
+        *,
+        exclude_key: str | None = None,
+        top_k: int = 5,
+        min_score: float = 0.82,
+    ) -> list[dict[str, Any]]:
+        """Vector-near neighbors of a memory content (for conflict reconcile)."""
+        content = (content or "").strip()
+        if not content:
+            return []
+
+        top_k = max(1, int(top_k))
+        min_score = float(min_score)
+        exclude = (exclude_key or "").strip()
+
+        try:
+            collection = self._ensure_chroma()
+            count = int(collection.count())
+            if count <= 0:
+                return []
+            encoder = self._ensure_encoder()
+            # Compare memory-to-memory in document space.
+            embedding = encoder.encode_documents([content])[0]
+            n = min(top_k + (1 if exclude else 0), count)
+            result = collection.query(
+                query_embeddings=[embedding],
+                n_results=n,
+                include=["documents", "distances", "metadatas"],
+            )
+        except Exception:
+            logger.exception("Memory find_similar failed content=%r", content[:80])
+            return []
+
+        ids = (result.get("ids") or [[]])[0]
+        documents = (result.get("documents") or [[]])[0]
+        distances = (result.get("distances") or [[]])[0]
+        metadatas = (result.get("metadatas") or [[]])[0]
+
+        entries: list[dict[str, Any]] = []
+        for i, key in enumerate(ids):
+            if not key or str(key) == exclude:
+                continue
+            dist = distances[i] if i < len(distances) else 1.0
+            doc = documents[i] if i < len(documents) else ""
+            meta = metadatas[i] if i < len(metadatas) else {}
+            similarity = 1.0 - float(dist)
+            if similarity < min_score:
+                continue
+            text = (doc or "").strip()
+            if not text:
+                continue
+            meta = meta or {}
+            category = str(meta.get("category") or "").strip() or "other"
+            entries.append(
+                {
+                    "key": str(key),
+                    "content": text,
+                    "category": category,
+                    "score": similarity,
+                }
+            )
+            if len(entries) >= top_k:
+                break
+
+        if entries:
+            # Prefer SQLite category when present (source of truth).
+            cats = self._categories_for_keys([e["key"] for e in entries])
+            for e in entries:
+                if e["key"] in cats:
+                    e["category"] = cats[e["key"]]
+
+        logger.info(
+            "memory find_similar exclude=%r min_score=%.3f hits=%d items=%s",
+            exclude,
+            min_score,
+            len(entries),
+            [(round(e["score"], 3), e["key"], e["content"][:40]) for e in entries],
+        )
+        return entries
 
     def count(self) -> int:
         with self._connect() as conn:

@@ -66,6 +66,12 @@ class MemoryConfig(BaseModel):
     candidate_top_k: int = 10
     min_score: float = 0.35
     max_inject_chars: int = 400
+    extract_context_top_k: int = 8
+    reconcile_enabled: bool = True
+    reconcile_min_score: float = 0.82
+    reconcile_top_k: int = 5
+    dedup_enabled: bool = True
+    dedup_min_score: float = 0.88
     extractor: ExtractorConfig = Field(default_factory=ExtractorConfig)
 
 
