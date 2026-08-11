@@ -12,6 +12,11 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from .config import AppConfig
 from .conversation import ConversationManager
+from .input_filter import (
+    ASR_FALLBACK_EMOTION,
+    ASR_FALLBACK_REPLY,
+    is_unusable_user_text,
+)
 from .logging_utils import preview
 from .orchestrator import Orchestrator
 from .protocol import (
@@ -26,6 +31,7 @@ from .protocol import (
     TYPE_GET_STATS,
     TYPE_PING,
     TYPE_PONG,
+    msg_chat_response,
     msg_connected,
     msg_error,
     msg_pong,
@@ -183,6 +189,23 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                         options,
                         content,
                     )
+                    if is_unusable_user_text(str(content)):
+                        logger.warning(
+                            "WS chat dropped session=%s reason=unusable_user_text "
+                            "content=%r",
+                            session_id,
+                            content,
+                        )
+                        await send(
+                            msg_chat_response(
+                                ASR_FALLBACK_REPLY,
+                                from_cache=False,
+                                context_used="asr_filter",
+                                latency=0.0,
+                                emotion=ASR_FALLBACK_EMOTION,
+                            )
+                        )
+                        continue
                     chat_task = asyncio.create_task(
                         _run_chat(
                             str(content),

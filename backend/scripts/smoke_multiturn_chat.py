@@ -1,4 +1,4 @@
-"""Smoke: multi-turn greeting stickiness + topic proposal.
+"""Smoke: multi-turn greeting stickiness + Arona picks one topic to open.
 
 Usage:
   python backend/scripts/smoke_multiturn_chat.py
@@ -22,14 +22,11 @@ from app.planner import PlannerClient  # noqa: E402
 from app.prompt import build_renderer_messages  # noqa: E402
 
 GREETING_WORDS = ("早上好", "下午好", "晚上好", "晚安", "早安")
+CHOICE_RE = re.compile(r"老师想聊.+还是")
 
 
 def _must_blob(card) -> str:
     return " | ".join(card.must_say)
-
-
-def _not_blob(card) -> str:
-    return " | ".join(card.must_not)
 
 
 def _requires_greeting(card) -> bool:
@@ -38,6 +35,11 @@ def _requires_greeting(card) -> bool:
         re.search(rf"用[「『]?{w}[」』]?回应", blob) or blob.strip() == w
         for w in GREETING_WORDS
     )
+
+
+def _has_concrete_topic(joined: str) -> bool:
+    keys = ("草莓", "基沃托斯", "牛奶", "开心", "趣事", "见闻", "工作", "待办", "休息")
+    return any(k in joined for k in keys) or ("先聊" in joined) or ("开聊" in joined)
 
 
 async def amain() -> int:
@@ -66,23 +68,23 @@ async def amain() -> int:
         {
             "user": "晚上好呀。",
             "expect_greeting": True,
-            "expect_topics": False,
+            "expect_open_topic": False,
         },
         {
             "user": "今天没什么计划。",
             "expect_greeting": False,
-            "expect_topics": False,
+            "expect_open_topic": False,
             "forbid_reply_greeting": True,
         },
         {
             "user": "那聊些什么呢？",
             "expect_greeting": False,
-            "expect_topics": True,
+            "expect_open_topic": True,
         },
         {
-            "user": "你有什么想聊的吗？",
+            "user": "阿罗那想要聊什么？",
             "expect_greeting": False,
-            "expect_topics": True,
+            "expect_open_topic": True,
         },
     ]
 
@@ -114,35 +116,19 @@ async def amain() -> int:
             if not any("问候" in s or "晚上好" in s or "再次" in s for s in card.must_not):
                 print("WARN must_not may lack anti-greeting:", card.must_not)
 
-        if turn["expect_topics"]:
-            # Concrete topic names should appear in must_say (not just 提出话题)
+        if turn["expect_open_topic"]:
             joined = _must_blob(card)
-            vague_only = (
-                "提出" in joined
-                and "草莓" not in joined
-                and "基沃托斯" not in joined
-                and "开心" not in joined
-                and "趣事" not in joined
-                and "见闻" not in joined
-                and "牛奶" not in joined
-            )
-            # At least one must_say item should look concrete (len>8 or contains named topic)
-            concrete = any(
-                len(s) >= 8
-                and not s.startswith("提出几个")
-                and "话题选项" not in s
-                for s in card.must_say
-            ) or any(
-                k in joined
-                for k in ("草莓", "基沃托斯", "牛奶", "开心", "趣事", "见闻", "今天")
-            )
-            if vague_only or not concrete:
-                # Soft fail if no concrete token — still count as fail per plan
-                print("FAIL must_say lacks concrete topics:", card.must_say)
+            if not _has_concrete_topic(joined):
+                print("FAIL must_say lacks concrete open topic:", card.must_say)
                 failed += 1
-            bounce = any("老师想聊什么" in s for s in card.must_say)
-            if bounce:
-                print("FAIL must_say asks teacher to choose without topics")
+            if any("供老师选择" in s or "几个话题选项" in s for s in card.must_say):
+                print("FAIL must_say still plans a menu for teacher:", card.must_say)
+                failed += 1
+            not_blob = " | ".join(card.must_not)
+            if "还是" not in not_blob and "选择题" not in not_blob and "抛回" not in not_blob:
+                print("WARN must_not may lack choice-ban:", card.must_not)
+            if any("老师想聊什么" in s for s in card.must_say):
+                print("FAIL must_say bounces to teacher")
                 failed += 1
 
         reply = ""
@@ -159,15 +145,15 @@ async def amain() -> int:
                 if any(w in reply[:12] for w in ("早上好", "下午好", "晚上好", "晚安")):
                     print("FAIL reply starts with greeting:", reply)
                     failed += 1
-            if turn["expect_topics"]:
-                # Should list something concrete; not only bounce
-                if "老师想聊什么" in reply and not any(
-                    k in reply for k in ("草莓", "基沃托斯", "牛奶", "开心", "趣事", "见闻", "还是")
-                ):
-                    print("FAIL reply only bounces question:", reply)
+            if turn["expect_open_topic"]:
+                if CHOICE_RE.search(reply) or ("还是" in reply and "老师想聊" in reply):
+                    print("FAIL reply is choice bounce:", reply)
                     failed += 1
-                if "列几个" in reply and "、" not in reply and "或者" not in reply:
-                    print("FAIL reply claims to list but does not:", reply)
+                if "话题单" in reply or "列个话题" in reply or "列几个" in reply:
+                    print("FAIL reply claims topic list without opening:", reply)
+                    failed += 1
+                if reply.strip() in {"老师想聊什么呀？", "老师想聊什么呢？"}:
+                    print("FAIL empty bounce:", reply)
                     failed += 1
 
         history.append({"role": "user", "content": user})
@@ -175,7 +161,11 @@ async def amain() -> int:
             {
                 "role": "assistant",
                 "content": reply
-                or ("（占位回复）" if not turn["expect_topics"] else "要不要聊聊草莓牛奶呀~"),
+                or (
+                    "（占位回复）"
+                    if not turn["expect_open_topic"]
+                    else "阿洛娜想先跟老师聊聊草莓牛奶呀~"
+                ),
             }
         )
 

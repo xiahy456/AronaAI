@@ -253,14 +253,28 @@ void MainController::onRecognizeError(const QString& error)
 
 void MainController::onRecognizeFinished(const QString& text)
 {
-    FINE_DEBUG_OUTPUT("[Audio Input Processing]Recognize finished! Result: " + text);
-    // 处理识别结果
-	processInputText(text);
+    const QString trimmed = text.trimmed();
+    FINE_DEBUG_OUTPUT("[Audio Input Processing]Recognize finished! Result: " + trimmed);
+    // Drop ASR error strings that were historically mis-emitted as success
+    if (trimmed.isEmpty()
+        || trimmed.contains(QStringLiteral("[Tencent Speech Recognizer]"))
+        || trimmed.contains(QStringLiteral("Didnt recognize"), Qt::CaseInsensitive)
+        || trimmed.contains(QStringLiteral("Didn't recognize"), Qt::CaseInsensitive)) {
+        ERROR_DEBUG_OUTPUT("[Audio Input Processing]Ignoring unusable ASR text, not sending chat");
+        return;
+    }
+    processInputText(trimmed);
 }
 
 void MainController::processInputText(const QString& text)
 {
-    FINE_DEBUG_OUTPUT("[Main Controller] Processing input: " + text);
+    const QString trimmed = text.trimmed();
+    FINE_DEBUG_OUTPUT("[Main Controller] Processing input: " + trimmed);
+
+    if (trimmed.isEmpty()) {
+        ERROR_DEBUG_OUTPUT("[Main Controller] Empty input, skip send");
+        return;
+    }
 
     // 检查 WebSocket 是否已连接
     if (!m_webSocketController->isConnected()) {
@@ -289,9 +303,9 @@ void MainController::processInputText(const QString& text)
     bool useRag = GET_BOOL_FROM_JSON(_global_config, "aronalm", "use_rag");
     bool useMemory = GET_BOOL_FROM_JSON(_global_config, "aronalm", "use_memory");
 
-    m_webSocketController->sendChatMessage(text, useCache, useRag, useMemory);
+    m_webSocketController->sendChatMessage(trimmed, useCache, useRag, useMemory);
 
-    FINE_DEBUG_OUTPUT("[Main Controller] Sent to AI service: " + text.left(50) + "...");
+    FINE_DEBUG_OUTPUT("[Main Controller] Sent to AI service: " + trimmed.left(50) + "...");
 }
 
 //void MainController::processInputText(const QString& text)

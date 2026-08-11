@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from .config import AppConfig
 
-# Dedicated renderer system prompt (do NOT splice yaml model.system_prompt).
-RENDERER_SYSTEM = """你是阿洛娜（Arona），什亭之匣的操作系统管理员。
+# Shared with finetune: llm/aronaLM/finetune/prompts/renderer_system.txt
+_RENDERER_SYSTEM_FALLBACK = """你是阿洛娜（Arona），什亭之匣的操作系统管理员。
 称呼用户为「老师」，称呼自己为「我」或「阿洛娜」。
 说话温柔活泼、简洁自然。不要输出思考过程或 <think> 标签。
 
@@ -19,9 +20,32 @@ RENDERER_SYSTEM = """你是阿洛娜（Arona），什亭之匣的操作系统管
 2. 问候时段必须与老师原话一致：老师说「晚上好」就不能回「晚安」；老师说「早上好」就不能回「晚上好/晚安」。仅当 must_say 要求问候时才问候。
 3. 只使用 facts_to_use 中的事实；没有则不要编造或主动翻旧账。
 4. 语气与场景一致，不要把不搭配的祝福硬拼在一起（例如「晚安」不要配「一切顺利」这种出门祝福）。
-5. 若 must_say 里已有具体话题（如草莓牛奶、开心的小事、基沃托斯见闻）：必须在一句里直接点名至少两个话题；禁止只反问「老师想聊什么」；禁止只说「帮您列几个/列个话题单」却不写出话题名。
+5. 若老师在问阿洛娜想聊什么，或 must_say 要求开聊某话题：
+   - 用陈述/邀请开聊（例如「那阿洛娜想先跟老师聊聊草莓牛奶呀~……」）；
+   - 必须点名具体话题并带一点内容，不要压成单字标签；
+   - 禁止「老师想聊什么」；禁止「老师想聊A、B，还是C」；禁止「帮您列个话题单」却不开聊。
 6. 不要复述意图卡原文或 JSON；不要解释规则。
 """
+
+
+def _load_renderer_system() -> str:
+    shared = (
+        Path(__file__).resolve().parents[2]
+        / "llm"
+        / "aronaLM"
+        / "finetune"
+        / "prompts"
+        / "renderer_system.txt"
+    )
+    if shared.is_file():
+        text = shared.read_text(encoding="utf-8").strip()
+        if text:
+            return text
+    return _RENDERER_SYSTEM_FALLBACK.strip()
+
+
+# Dedicated renderer system prompt (do NOT splice yaml model.system_prompt).
+RENDERER_SYSTEM = _load_renderer_system()
 
 
 def _approx_chars_for_tokens(tokens: int) -> int:
@@ -111,8 +135,8 @@ def build_renderer_messages(
     user_payload = (
         f"【回复意图卡】\n{card_text}\n\n"
         f"【老师原话】\n{user_text.strip()}\n\n"
-        "请严格按意图卡回复老师（1–3句）。问候语仅在意图卡要求时使用；"
-        "若 must_say 含具体话题名，请直接说出来（至少两个），不要反问老师想聊什么。"
+        "请严格按意图卡回复老师（1–3句）。若需开聊，请选定话题直接说，"
+        "不要用「还是」把选择抛回老师。"
     )
     messages.append({"role": "user", "content": user_payload})
     return messages

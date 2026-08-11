@@ -16,7 +16,18 @@ def merge_expand_to_jsonl(
     if not input_dir.is_dir():
         raise FileNotFoundError(f"Input directory not found: {input_dir}")
 
-    json_files = sorted(input_dir.glob("*.json"))
+    # Renderer training has its own merge (merge_renderer_finetune.py).
+    # Skip weak/disabled synth and renderer-only corpora here.
+    skip_names = {
+        "renderer_synth.json",
+        "renderer_synth_v2.json",
+        "renderer_curated.json",
+        "renderer_intent.json",
+    }
+
+    json_files = sorted(
+        p for p in input_dir.glob("*.json") if p.name not in skip_names
+    )
     if not json_files:
         raise FileNotFoundError(f"No JSON files found in: {input_dir}")
 

@@ -163,10 +163,10 @@ void TencentSpeechRecognizer::onNetworkReplyFinished(QNetworkReply* reply)
             emit errorOccurred("[Tencent Speech Recognizer]TencentClout API error: " + errorMsg);
         }
         else {
-            QString result = resp["Result"].toString();
+            QString result = resp["Result"].toString().trimmed();
             if (result.isEmpty()) {
-                // 可能是部分识别结果或其他格式
-                emit recognizeFinished("[Tencent Speech Recognizer]Didnt recognize vailable content!");
+                // Empty ASR must not go through recognizeFinished → chat pipeline
+                emit errorOccurred("[Tencent Speech Recognizer]Didnt recognize vailable content!");
             }
             else {
                 emit recognizeFinished(result);
