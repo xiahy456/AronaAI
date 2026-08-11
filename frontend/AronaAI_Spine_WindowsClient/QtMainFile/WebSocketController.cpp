@@ -467,10 +467,15 @@ void WebSocketController::handleChatResponse(const QJsonObject& message)
     bool fromCache = message["from_cache"].toBool(false);
     QString contextUsed = message["context_used"].toString("none");
     double latency = message["latency"].toDouble(0.0);
+    QString emotion = message["emotion"].toString("normal");
+    if (emotion.trimmed().isEmpty()) {
+        emotion = QStringLiteral("normal");
+    }
 
-    FINE_DEBUG_OUTPUT("[WebSocketController]Received chat response: " + content.left(50) + "...");
+    FINE_DEBUG_OUTPUT("[WebSocketController]Received chat response: " + content.left(50)
+        + "... emotion=" + emotion);
 
-    emit chatResponseReceived(content, fromCache, contextUsed, latency);
+    emit chatResponseReceived(content, fromCache, contextUsed, latency, emotion);
 
     if (m_onChatResponseCallback) {
         m_onChatResponseCallback(message);

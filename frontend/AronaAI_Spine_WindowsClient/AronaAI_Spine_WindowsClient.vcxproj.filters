@@ -691,6 +691,9 @@
     <ClInclude Include="QtMainFile\GlobalVariables.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="QtMainFile\AronaEmotionMap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="QtUtils\Defines.h">
       <Filter>Header Files</Filter>
     </ClInclude>

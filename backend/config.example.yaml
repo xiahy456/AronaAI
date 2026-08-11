@@ -60,6 +60,16 @@ cache:
   enabled: true
   max_size: 256
 
+planner:
+  enabled: true
+  base_url: "https://api.deepseek.com"
+  api_key: "YOUR_DEEPSEEK_API_KEY"
+  model: "deepseek-v4-flash"
+  timeout_sec: 20
+  temperature: 0.3
+  max_tokens: 512
+  router_enabled: true
+
 token_budget:
   memory: 250
   knowledge: 250

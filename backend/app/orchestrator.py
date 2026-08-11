@@ -1,4 +1,4 @@
-"""Chat orchestrator: retrieve -> prompt -> generate -> async memory extract."""
+"""Chat orchestrator: retrieve -> (plan) -> prompt -> generate -> async memory extract."""
 
 from __future__ import annotations
 
@@ -17,7 +17,8 @@ from .memory.extractor import MemoryExtractor
 from .memory.store import MemoryStore
 from .memory.trigger import should_extract
 from .model_loader import ModelLoader, clean_model_output
-from .prompt import build_messages
+from .planner import DEFAULT_EMOTION, IntentCard, PlannerClient, route_mode
+from .prompt import build_messages, build_renderer_messages
 from .protocol import msg_chat_response, msg_chat_stream
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,7 @@ class Orchestrator:
         extractor: MemoryExtractor,
         knowledge: KnowledgeRetriever,
         cache: ResponseCache,
+        planner: PlannerClient | None = None,
     ) -> None:
         self.config = config
         self.model = model
@@ -44,10 +46,15 @@ class Orchestrator:
         self.extractor = extractor
         self.knowledge = knowledge
         self.cache = cache
+        self.planner = planner or PlannerClient(config.planner)
         self.stats: dict[str, Any] = {
             "chat_count": 0,
             "cache_hits": 0,
             "stream_count": 0,
+            "planner_hits": 0,
+            "planner_fallbacks": 0,
+            "local_route_count": 0,
+            "dual_route_count": 0,
         }
 
     async def handle_chat(
@@ -62,12 +69,21 @@ class Orchestrator:
         user_text = (content or "").strip()
         if not user_text:
             logger.info("chat empty content session=%s", session_id)
-            await send(msg_chat_response("", context_used="none", latency=0.0))
+            await send(
+                msg_chat_response(
+                    "",
+                    context_used="none",
+                    latency=0.0,
+                    emotion=DEFAULT_EMOTION,
+                )
+            )
             return
 
         use_cache = bool(options.get("use_cache", self.config.cache.enabled))
         use_rag = bool(options.get("use_rag", self.config.knowledge.enabled))
         use_memory = bool(options.get("use_memory", True))
+        # Dual-model path is non-streaming by product decision; keep stream only
+        # for explicit client requests when planner is off / local path.
         do_stream = self.config.model.stream if stream is None else bool(stream)
 
         start = time.perf_counter()
@@ -86,26 +102,29 @@ class Orchestrator:
         if use_cache and self.config.cache.enabled:
             cached = self.cache.get(user_text)
             if cached is not None:
+                cached_text, cached_emotion = cached
                 self.stats["cache_hits"] += 1
                 self.conversations.append(session_id, "user", user_text)
-                self.conversations.append(session_id, "assistant", cached)
+                self.conversations.append(session_id, "assistant", cached_text)
                 latency = time.perf_counter() - start
                 logger.info(
-                    "cache hit session=%s latency=%.3fs response=%r",
+                    "cache hit session=%s latency=%.3fs emotion=%s response=%r",
                     session_id,
                     latency,
-                    cached,
+                    cached_emotion,
+                    cached_text,
                 )
                 if do_stream:
-                    await send(msg_chat_stream(cached, False))
+                    await send(msg_chat_stream(cached_text, False))
                     await send(msg_chat_stream("", True))
                 else:
                     await send(
                         msg_chat_response(
-                            cached,
+                            cached_text,
                             from_cache=True,
                             context_used="cache",
                             latency=round(latency, 4),
+                            emotion=cached_emotion,
                         )
                     )
                 await self._maybe_extract(session_id, user_text)
@@ -117,7 +136,7 @@ class Orchestrator:
                     do_stream,
                     latency,
                     user_text,
-                    cached,
+                    cached_text,
                 )
                 return
             logger.info("cache miss session=%s", session_id)
@@ -171,21 +190,72 @@ class Orchestrator:
             len(history),
         )
 
-        messages = build_messages(
-            self.config,
-            user_text=user_text,
-            history=history,
-            memories=memories,
-            knowledge=knowledge_chunks,
-        )
+        mode = "local"
+        if self.config.planner.router_enabled:
+            mode = route_mode(user_text)
+        elif self.planner.enabled:
+            mode = "dual"
+
+        use_dual = mode == "dual" and self.planner.enabled
+        # Dual path always non-stream so emotion lands with final payload.
+        if use_dual:
+            do_stream = False
+            self.stats["dual_route_count"] += 1
+        else:
+            self.stats["local_route_count"] += 1
+
+        emotion = DEFAULT_EMOTION
+        intent: IntentCard | None = None
+        if use_dual:
+            context_parts.append("planner")
+            t0 = time.perf_counter()
+            intent = await self.planner.plan(
+                user_text=user_text,
+                history=history,
+                memories=memories,
+                knowledge=knowledge_chunks,
+            )
+            logger.info(
+                "planner session=%s ok=%s latency=%.3fs",
+                session_id,
+                intent is not None,
+                time.perf_counter() - t0,
+            )
+            if intent is None:
+                self.stats["planner_fallbacks"] += 1
+                logger.info("planner fallback to local path session=%s", session_id)
+            else:
+                self.stats["planner_hits"] += 1
+                emotion = intent.arona_emotion
+
+        if intent is not None:
+            messages = build_renderer_messages(
+                self.config,
+                user_text=user_text,
+                intent_card=intent.to_renderer_dict(),
+                history=history,
+                max_history_turns=2,
+            )
+            context_parts.append("renderer")
+        else:
+            messages = build_messages(
+                self.config,
+                user_text=user_text,
+                history=history,
+                memories=memories,
+                knowledge=knowledge_chunks,
+            )
+
         context_used = "+".join(context_parts) if context_parts else "none"
         system_chars = len(messages[0]["content"]) if messages else 0
         logger.info(
-            "prompt built session=%s messages=%d system_chars=%d context=%s",
+            "prompt built session=%s mode=%s messages=%d system_chars=%d context=%s emotion=%s",
             session_id,
+            "renderer" if intent is not None else "local",
             len(messages),
             system_chars,
             context_used,
+            emotion,
         )
 
         if do_stream:
@@ -218,6 +288,7 @@ class Orchestrator:
                     from_cache=False,
                     context_used=context_used,
                     latency=round(latency, 4),
+                    emotion=emotion,
                 )
             )
 
@@ -225,18 +296,19 @@ class Orchestrator:
         self.conversations.append(session_id, "assistant", full)
 
         if use_cache and self.config.cache.enabled and full:
-            self.cache.put(user_text, full)
-            logger.info("cache put session=%s", session_id)
+            self.cache.put(user_text, full, emotion)
+            logger.info("cache put session=%s emotion=%s", session_id, emotion)
 
         await self._maybe_extract(session_id, user_text)
         self.stats["chat_count"] += 1
         total_latency = time.perf_counter() - start
         logger.info(
-            "chat done session=%s stream=%s context=%s latency=%.3fs "
+            "chat done session=%s stream=%s context=%s emotion=%s latency=%.3fs "
             "request=%r response=%r",
             session_id,
             do_stream,
             context_used,
+            emotion,
             total_latency,
             user_text,
             full,

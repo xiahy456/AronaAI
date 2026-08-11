@@ -20,6 +20,7 @@ from .memory.extractor import MemoryExtractor
 from .memory.store import MemoryStore
 from .model_loader import get_model_loader
 from .orchestrator import Orchestrator
+from .planner import PlannerClient
 from .ws_handler import AppState, websocket_endpoint
 
 
@@ -59,6 +60,7 @@ def create_app() -> FastAPI:
     extractor = MemoryExtractor(memory_store, config.memory.extractor)
     knowledge = KnowledgeRetriever(config, encoder=shared_encoder)
     cache = ResponseCache(max_size=config.cache.max_size)
+    planner = PlannerClient(config.planner)
     orchestrator = Orchestrator(
         config,
         model=model,
@@ -67,6 +69,7 @@ def create_app() -> FastAPI:
         extractor=extractor,
         knowledge=knowledge,
         cache=cache,
+        planner=planner,
     )
     state = AppState(config, orchestrator, conversations)
 

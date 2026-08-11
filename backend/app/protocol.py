@@ -43,6 +43,7 @@ def msg_chat_response(
     from_cache: bool = False,
     context_used: str = "none",
     latency: float = 0.0,
+    emotion: str = "normal",
 ) -> dict[str, Any]:
     return {
         "type": TYPE_CHAT_RESPONSE,
@@ -50,6 +51,7 @@ def msg_chat_response(
         "from_cache": from_cache,
         "context_used": context_used,
         "latency": latency,
+        "emotion": emotion,
     }
 
 

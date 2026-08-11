@@ -162,14 +162,15 @@ void MainController::onTTSFinished(const QByteArray& audioData, const QString& m
     // 计算播放时长
     int duration = m_currentText.size() * 100; // 每个字符100ms
     duration = (int)(1000 * (m_ttsManager->getWavDuration(audioData)));   // 按照实际音频时长设置，单位为毫秒
-    // 启动动画
-    //m_mainWidget->setAnimation("25", 1, true);   // 表情层
+    // 启动动画：表情层(1) + 语言口型层(2)
+    const QString expressionAnim = AronaEmotion::toAnimationName(m_currentEmotion);
+    m_mainWidget->setAnimation(expressionAnim, 1, true);   // 表情层
     m_mainWidget->setAnimation("Arona_Work_In_1_CN", 2, true);   // 语言口型层
     // 在duration之后清除显示的文字，停止动画
     QTimer::singleShot(duration, this, [this]() {
         m_mainWidget->hideOutputText();
-		m_mainWidget->clearAnimation(1, 0.2f);   // 停止语言层动画
-		m_mainWidget->clearAnimation(2, 0.2f);   // 停止表情层动画
+		m_mainWidget->clearAnimation(2, 0.2f);   // 停止语言口型层
+		m_mainWidget->clearAnimation(1, 0.2f);   // 停止表情层
         });
 }
 
@@ -181,11 +182,14 @@ void MainController::onTTSError(const QString& errorString)
         return;
     }
 
-    // 语音失败时仍展示字幕，避免交互卡住
+    // 语音失败时仍展示字幕与表情，避免交互卡住
     m_mainWidget->showOutputText(m_currentText);
+    const QString expressionAnim = AronaEmotion::toAnimationName(m_currentEmotion);
+    m_mainWidget->setAnimation(expressionAnim, 1, true);
     int duration = qMax(1500, m_currentText.size() * 100);
     QTimer::singleShot(duration, this, [this]() {
         m_mainWidget->hideOutputText();
+        m_mainWidget->clearAnimation(1, 0.2f);
         });
 }
 
@@ -324,16 +328,18 @@ void MainController::onWebSocketConnected(const QString& sessionId)
     // 连接成功后可以发送欢迎消息或其他初始化操作
 }
 
-void MainController::onWebSocketChatResponse(const QString& content, bool fromCache, const QString& contextUsed, double latency)
+void MainController::onWebSocketChatResponse(const QString& content, bool fromCache, const QString& contextUsed, double latency, const QString& emotion)
 {
     FINE_DEBUG_OUTPUT("[WebSocket] Received AI response: " + content.left(50) + "...");
-    FINE_DEBUG_OUTPUT(QString("[WebSocket] Cache: %1, Context: %2, Latency: %3s")
+    FINE_DEBUG_OUTPUT(QString("[WebSocket] Cache: %1, Context: %2, Latency: %3s, Emotion: %4")
         .arg(fromCache ? "yes" : "no")
         .arg(contextUsed)
-        .arg(latency));
+        .arg(latency)
+        .arg(emotion));
 
     // 重置等待状态
     m_waitingForAIResponse = false;
+    m_currentEmotion = emotion.isEmpty() ? QStringLiteral("normal") : emotion;
 
     // 通过TTS播放AI回复
     executeOutput(content);

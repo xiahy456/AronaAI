@@ -80,6 +80,20 @@ class CacheConfig(BaseModel):
     max_size: int = 256
 
 
+class PlannerConfig(BaseModel):
+    """Big-LLM intent planner (separate from memory extractor)."""
+
+    enabled: bool = True
+    base_url: str = "https://api.deepseek.com"
+    api_key: str = ""
+    model: str = "deepseek-v4-flash"
+    timeout_sec: float = 20
+    temperature: float = 0.3
+    max_tokens: int = 512
+    # When True, greetings/identity use local AronaLM only.
+    router_enabled: bool = True
+
+
 class TokenBudgetConfig(BaseModel):
     memory: int = 250
     knowledge: int = 250
@@ -101,6 +115,7 @@ class AppConfig(BaseModel):
     knowledge: KnowledgeConfig = Field(default_factory=KnowledgeConfig)
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
+    planner: PlannerConfig = Field(default_factory=PlannerConfig)
     token_budget: TokenBudgetConfig = Field(default_factory=TokenBudgetConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 

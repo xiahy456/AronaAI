@@ -134,8 +134,9 @@ signals:
     void messageReceived(const QJsonObject& message);
 
     // 收到聊天响应信号（contextUsed 为后端经过的模块标识，如 "none"/"cache"/"memory+rag"）
+    // emotion 为英文表情值（如 smile），由客户端映射到 Spine 动画值
     void chatResponseReceived(const QString& content, bool fromCache,
-        const QString& contextUsed, double latency);
+        const QString& contextUsed, double latency, const QString& emotion);
 
     // 收到流式聊天片段信号
     void chatStreamReceived(const QString& content, bool done);
