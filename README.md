@@ -49,18 +49,25 @@ arona-ai/
 ├── backend/                    # Python 后端服务（FastAPI + WebSocket）
 │   ├── app/                    # 应用核心
 │   │   ├── main.py             # 服务入口
-│   │   ├── orchestrator.py     # 对话编排（检索 → Prompt → 生成 → 记忆抽取）
+│   │   ├── orchestrator.py     # 对话编排（检索 → Planner/本地 → Prompt → 生成 → 记忆抽取）
 │   │   ├── model_loader.py     # GGUF 模型加载（llama-cpp-python）
+│   │   ├── planner/            # 双模型 Planner（DeepSeek 意图卡 → Renderer）
 │   │   ├── knowledge.py        # 世界观知识 RAG
 │   │   ├── conversation.py     # 多轮对话历史
 │   │   ├── cache.py            # 响应缓存
-│   │   ├── prompt.py           # Prompt 组装
+│   │   ├── prompt.py           # Prompt / Renderer 消息组装
+│   │   ├── input_filter.py     # ASR 脏文本过滤（入口兜底）
+│   │   ├── embeddings.py       # 本地 BGE 嵌入（记忆 / 知识共用）
 │   │   ├── protocol.py         # WebSocket 协议消息
 │   │   ├── ws_handler.py       # WebSocket 处理
 │   │   ├── config.py           # 配置加载
-│   │   └── memory/             # 长期记忆（SQLite + DeepSeek 抽取）
+│   │   ├── logging_utils.py    # 日志工具
+│   │   └── memory/             # 长期记忆（SQLite + FTS5 + Chroma + DeepSeek 抽取）
 │   ├── scripts/                # 联调 / 灌库 / 测试脚本
 │   ├── data/                   # 记忆库、知识语料与向量库
+│   │   ├── memory/             # memory.db + chroma
+│   │   └── knowledge/          # 语料 corpus + chroma
+│   ├── logs/                   # 后端运行日志
 │   ├── config.example.yaml     # 配置模板
 │   └── requirements.txt
 │
@@ -104,8 +111,9 @@ arona-ai/
 │
 ├── docs/                       # 相关文档
 ├── models/                     # 相关模型存放目录
-│   ├── aronalm-v2.0-normal/    # AronaLM GGUF 语言模型
-│   ├── bge-small-zh-v1.5/      # 知识 RAG 嵌入模型
+│   ├── aronalm-v2.1-renderer/  # Renderer GGUF（默认双模型链路）
+│   ├── aronalm-v2.0-normal/    # AronaLM GGUF（回落 / 本地单模型）
+│   ├── bge-small-zh-v1.5/      # 知识 / 记忆嵌入模型
 │   └── Qwen3-1.7B-unsloth-bnb-4bit/  # 微调基座（仅训练时需要）
 └── assets/                     # 项目资源
 ```
@@ -115,9 +123,11 @@ arona-ai/
 ## ✨ 核心功能 / Core Features
 
 ### 🤖 AI 对话引擎
-- **AronaLM（GGUF）**：通过 `llama-cpp-python` 加载微调后的 GGUF 模型，支持同步与流式生成
+- **双模型链路**：**Planner（DeepSeek）→ 意图卡 → Renderer（AronaLM v2.1）**；简单轮次可由路由走本地单模型，Planner 关闭或失败时回落本地路径
+- **AronaLM Renderer（GGUF）**：通过 `llama-cpp-python` 加载 Renderer 微调 GGUF；默认双模型路径非流式，本地回落路径可流式
 - **世界观知识 RAG**：Markdown 语料入库 ChromaDB，按需检索并注入 Prompt
-- **长期记忆**：SQLite 持久化用户信息；DeepSeek 异步抽取（可降级为正则）
+- **长期记忆**：SQLite + FTS5 + Chroma 混合检索；DeepSeek 异步抽取（可降级为正则）
+- **ASR 脏文本过滤**：入口丢弃空串 / 腾讯云 ASR 错误模板，避免误触发 Planner
 - **响应缓存**：相同问题快速命中，降低重复推理开销
 - **对话管理**：多轮历史截断，配合 token budget 控制上下文长度
 
@@ -134,11 +144,12 @@ arona-ai/
 - **系统托盘**：最小化到系统托盘运行
 
 ### 🎯 技术亮点
-- **本地推理主路径**：后端以 `llama-cpp-python` 加载 Qwen3-1.7B 微调后的 GGUF（Q4_K_M），支持同步/流式生成，并过滤 `<think>` 推理块
-- **记忆与知识分离**：用户长期事实进 SQLite + FTS5（jieba 检索）；世界观设定进 Markdown 语料 → 本地 BGE + Chroma RAG，互不混写
-- **异步记忆抽取**：对话主路径不阻塞；DeepSeek JSON 抽取（含日配额），失败或无 Key 时自动正则降级
+- **双模型主路径**：DeepSeek Planner 产出结构化意图卡，本地 AronaLM Renderer 按卡渲染；简单轮次可路由到本地单模型，失败则回落至本地单模型
+- **本地 Renderer 推理**：`llama-cpp-python` 加载 Qwen3-1.7B 微调 GGUF（默认 `aronalm-v2.1-renderer` Q4_K_M），过滤 `<think>` 推理块
+- **记忆与知识分离**：用户长期事实进 SQLite + FTS5 + Chroma（jieba / BGE）；世界观设定进 Markdown 语料 → 本地 BGE + Chroma RAG，互不混写
+- **异步记忆抽取**：对话主路径不阻塞；DeepSeek JSON 抽取（含日配额与缓冲批量），失败或无 Key 时自动正则降级
 - **完整微调链路**：Unsloth QLoRA（面向约 6–8GB 显存）→ LoRA 适配器 → 合并导出 GGUF，可直接给后端加载
-- **桌面端完整交互**：Qt/C++ + Spine 桌宠客户端经 WebSocket 对接后端；可接 GPT-SoVITS TTS 与腾讯云 ASR
+- **桌面端完整交互**：Qt/C++ + Spine 2D 角色动画桌面客户端经 WebSocket 对接后端；可接 GPT-SoVITS TTS 与腾讯云 ASR
 - **上下文可控**：多轮历史截断 + memory/knowledge/history token budget + 精确匹配响应缓存，控制延迟与重复推理
 
 ---
@@ -163,7 +174,7 @@ arona-ai/
 
 | 参数 | 说明 |
 |------|------|
-| -CondaEnv | 后端使用的 Conda 环境名称，默认为 `shittim-chest` |
+| -CondaEnv | 后端使用的 Conda 环境名称，默认为 `shittim-chest`|
 | -TimeoutSec | 每个服务的等待超时时间，默认为 `600` 秒 |
 | -FrontendExe | 可选的桌面客户端可执行文件路径，如果未提供，则自动检测 |
 | -TtsStallSec | GPT-SoVITS 卡死判定秒数（传给 watchdog），默认 `60` |
@@ -180,12 +191,16 @@ arona-ai/
 
 ```
 models/
-├── aronalm-v2.0-normal/          # AronaLM GGUF（后端推理）
+├── aronalm-v2.1-renderer/        # Renderer GGUF（双模型链路）
+│   └── aronalm-v2.1-renderer.Q4_K_M.gguf
+├── aronalm-v2.0-normal/          # 可选：本地单模型 / Planner 回落
 │   └── aronalm-v2.0-normal.Q4_K_M.gguf
-└── bge-small-zh-v1.5/            # 知识 RAG 嵌入模型（启用 knowledge 时需要）
+└── bge-small-zh-v1.5/            # 知识 / 记忆嵌入模型（启用 knowledge 或记忆向量检索时需要）
 ```
 
-> **AronaLM**：请使用模型 [xiahy456/aronalm-v2.0-normal](https://www.modelscope.cn/models/xiahy456/aronalm-v2.0-normal)
+> **AronaLM-renderer**：请使用 [xiahy456/aronalm-v2.1-renderer](https://www.modelscope.cn/models/xiahy456/aronalm-v2.1-renderer)。
+
+> **AronaLM-normal**：可选，见 [xiahy456/aronalm-v2.0-normal](https://www.modelscope.cn/models/xiahy456/aronalm-v2.0-normal)。仅在关闭 Planner 或需要回落单模型时使用。
 
 **2. 配置 `config.yaml`**
 
@@ -196,7 +211,8 @@ cp config.example.yaml config.yaml   # Linux / macOS
 ```
 
 按需填写：
-- `model.gguf_path`：GGUF 模型路径
+- `model.gguf_path`：默认 `aronalm-v2.1-renderer`；仅使用单模型时改为注释中的 v2.0 路径
+- `planner.enabled` / `planner.api_key`：默认开启双模型；填写 DeepSeek API Key。不填 Key 或关闭 `enabled` 则回落本地单模型
 - `memory.extractor.api_key`：DeepSeek API Key（可选；不填则记忆抽取走正则降级）
 - `knowledge.enabled`：是否启用世界观 RAG（默认 `false`，启用前请先灌库）
 
@@ -207,7 +223,7 @@ cp config.example.yaml config.yaml   # Linux / macOS
 工作目录必须是 `backend/`：
 
 ```bash
-conda activate shittim-chest   # 若使用已有 conda 环境
+conda activate shittim-chest   # 环境配置见 backend README
 cd backend
 pip install -r requirements.txt
 
@@ -228,6 +244,7 @@ python scripts/smoke_ws.py
 
 # 按 data/knowledge/WRITING.md 编写语料后灌库
 python scripts/ingest_knowledge.py
+
 # 大幅改标题/结构后建议：
 python scripts/ingest_knowledge.py --rebuild
 
@@ -424,16 +441,20 @@ start.bat
 | 配置段 | 说明 |
 |--------|------|
 | `server` | 监听地址、端口、WebSocket 路径（默认 `/ws`） |
-| `model` | GGUF 路径、上下文长度、采样参数、system prompt |
+| `model` | GGUF 路径（默认 Renderer v2.1）、上下文长度、采样参数、本地回落用 system prompt |
 | `conversation` | 多轮历史保留轮数 |
 | `knowledge` | 世界观 RAG（语料目录、Chroma、嵌入模型、检索阈值） |
-| `memory` | SQLite 路径、检索条数、DeepSeek 抽取器（`every_n_turns` / `extract_buffer_turns` 缓冲批量）与正则降级 |
+| `memory` | SQLite + Chroma 路径、混合检索、DeepSeek 抽取器（`every_n_turns` / `extract_buffer_turns`）与正则降级 |
+| `planner` | 默认开启的双模型 Planner（DeepSeek 意图卡、路由开关；无 Key / `enabled: false` 则回落本地） |
 | `cache` | 响应缓存开关与容量 |
 | `token_budget` | memory / knowledge / history 注入预算 |
+| `logging` | 日志目录、文件名、级别与滚动策略 |
 
 本地数据路径（均已 gitignore）：
-- 记忆库：`backend/data/memory.db`
+- 记忆库：`backend/data/memory/memory.db`
+- 记忆向量索引：`backend/data/memory/chroma/`
 - 知识向量库：`backend/data/knowledge/chroma/`
+- 运行日志：`backend/logs/arona-backend.log`
 
 ### 客户端配置
 
@@ -453,16 +474,19 @@ start.bat
 | 模块 | 路径 | 功能描述 |
 |------|------|----------|
 | **服务入口** | `app/main.py` | FastAPI 应用、健康检查、WebSocket 路由 |
-| **对话编排** | `app/orchestrator.py` | 缓存 → 记忆/知识检索 → Prompt → 生成 → 异步记忆抽取 |
+| **对话编排** | `app/orchestrator.py` | 缓存 → 记忆/知识检索 → Planner 或本地 → Prompt → 生成 → 异步记忆抽取 |
+| **Planner** | `app/planner/` | DeepSeek 意图卡、情感白名单、简单/复杂路由 |
 | **模型加载** | `app/model_loader.py` | llama-cpp-python 加载 GGUF，支持流式与 `<think>` 过滤 |
-| **WebSocket** | `app/ws_handler.py` | 会话连接、消息分发 |
+| **WebSocket** | `app/ws_handler.py` | 会话连接、消息分发、ASR 过滤接入 |
+| **输入过滤** | `app/input_filter.py` | 丢弃空串 / 腾讯云 ASR 错误模板，避免误触发对话 |
 | **协议** | `app/protocol.py` | 客户端/服务端消息类型定义 |
 | **对话历史** | `app/conversation.py` | 多轮历史管理与截断 |
 | **知识 RAG** | `app/knowledge.py` | ChromaDB 检索世界观知识 |
-| **记忆存储** | `app/memory/store.py` | SQLite 长期记忆读写 |
+| **嵌入** | `app/embeddings.py` | 本地 BGE 编码器（记忆 / 知识共用） |
+| **记忆存储** | `app/memory/store.py` | SQLite + FTS5 + Chroma 混合长期记忆 |
 | **记忆抽取** | `app/memory/extractor.py` | DeepSeek 异步抽取（失败走正则） |
 | **响应缓存** | `app/cache.py` | 相同输入快速返回 |
-| **Prompt** | `app/prompt.py` | 组装 system / memory / knowledge / history |
+| **Prompt** | `app/prompt.py` | 默认 Renderer 意图卡消息组装；本地回落路径 Prompt |
 
 **WebSocket 协议摘要**：连接后服务端发送 `{"type":"connected","session_id":"..."}`。客户端发起对话示例：
 
@@ -517,7 +541,7 @@ limitations under the License.
 - **Qwen3-1.7B** - 微调训练基底模型
 - **Unsloth** - QLoRA 高效微调
 - **ChromaDB** - 向量数据库
-- **DeepSeek** - 记忆抽取 API
+- **DeepSeek** - Planner 意图规划与记忆抽取 API
 - **GPT-SoVITS** - 语音合成模型
 - **腾讯云语音识别** - 在线语音识别
 - **Sentence-Transformers** - 文本嵌入模型

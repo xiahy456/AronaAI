@@ -308,34 +308,6 @@ void MainController::processInputText(const QString& text)
     FINE_DEBUG_OUTPUT("[Main Controller] Sent to AI service: " + trimmed.left(50) + "...");
 }
 
-//void MainController::processInputText(const QString& text)
-//{
-//    // 将文本交给ai服务端处理
-//     
-//    // 
-//    
-//    //// 路径对象
-//    //QString path;
-//
-//    //// 检查指令
-//    //if (text.contains("QQ") || text.contains("qq")) {
-//    //    path = GET_STRING_FROM_JSON(_global_config, "program_path", "QQ");
-//    //    executeOutput("好的，正在打开QQ...");
-//    //}
-//    //if (text.contains("微信")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "wechat");
-//    //if (text.contains("终末地")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "hypergryph");
-//    //if (text.contains("我的世界") || text.contains("PCL") || text.contains("Minecraft")) path = GET_STRING_FROM_JSON(_global_config, "program_path", "minecraft");
-//
-//    //// 执行指令
-//    //if (QFile::exists(path)) {
-//    //    QProcess::startDetached(path);
-//    //    FINE_DEBUG_OUTPUT("[Main Controller]Opening program...");
-//    //}
-//    //else {
-//    //    ERROR_DEBUG_OUTPUT("[Main Controller]Failed to open program!");
-//    //}
-//}
-
 void MainController::onWebSocketConnected(const QString& sessionId)
 {
     FINE_DEBUG_OUTPUT("[WebSocket] Connected! Session ID: " + sessionId);

@@ -21,6 +21,7 @@
 #include <QCryptographicHash>
 #include <QMessageAuthenticationCode>
 #include <QDateTime>
+#include <QTimeZone>
 #include <QUrlQuery>
 #include <QHttpMultiPart>
 #include <QHttpPart>
@@ -92,7 +93,8 @@ QString TencentSpeechRecognizer::recognize(const QByteArray& audioData)
     QString timestampStr = QString::number(timestamp);
 
     FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Current timestamp: " + timestampStr);
-    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Current time:" + QDateTime::fromSecsSinceEpoch(timestamp).toString("yyyy-MM-dd hh:mm:ss"));
+    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Current UTC time:"
+        + QDateTime::fromSecsSinceEpoch(timestamp, QTimeZone::UTC).toString("yyyy-MM-dd hh:mm:ss"));
 
     // 3. 生成签名
     QByteArray signature = generateSignature(SERVICE, ACTION, VERSION, REGION, requestBody, timestampStr);
@@ -204,8 +206,10 @@ QByteArray TencentSpeechRecognizer::generateSignature(const QString& service, co
         hashedRequestPayload;
 
     // 构建 StringToSign
+    // Date 必须用 UTC+0（腾讯云 TC3 要求）。本地时区（如 UTC+8）在本地 00:00–08:00
+    // 会算出“下一天”的日期，导致 AuthFailure.SignatureFailure。
     QByteArray hashedCanonicalRequest = QCryptographicHash::hash(canonicalRequest.toUtf8(), QCryptographicHash::Sha256).toHex();
-    QString date = QDateTime::fromSecsSinceEpoch(timestamp.toLongLong()).toString("yyyy-MM-dd");
+    QString date = QDateTime::fromSecsSinceEpoch(timestamp.toLongLong(), QTimeZone::UTC).toString("yyyy-MM-dd");
     QString credentialScope = date + "/" + service + "/tc3_request";
     QString stringToSign = algorithm + "\n" +
         timestamp + "\n" +
