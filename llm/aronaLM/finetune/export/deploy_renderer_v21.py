@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Copy exported GGUF into models/aronalm-v2.1-renderer and print backend switch notes.
+"""Copy exported GGUF into models/AronaLM-Renderer-V2.1 and print backend switch notes.
 
 Does NOT modify backend/config.yaml (keep rollback manual).
 """
@@ -13,9 +13,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[4]
 FINETUNE = Path(__file__).resolve().parents[1]
-DEFAULT_SRC = FINETUNE / "outputs" / "aronalm-v2.1-renderer-gguf"
-DEFAULT_DST = REPO / "models" / "aronalm-v2.1-renderer"
-V20 = REPO / "models" / "aronalm-v2.0-normal"
+DEFAULT_SRC = FINETUNE / "outputs" / "AronaLM-Renderer-V2.1-gguf"
+DEFAULT_DST = REPO / "models" / "AronaLM-Renderer-V2.1"
+V20 = REPO / "models" / "AronaLM-Generator-V2.0"
 
 
 def main() -> None:
@@ -41,12 +41,12 @@ def main() -> None:
             break
 
     args.dst.mkdir(parents=True, exist_ok=True)
-    dest_file = args.dst / "aronalm-v2.1-renderer.Q4_K_M.gguf"
+    dest_file = args.dst / "AronaLM-Renderer-V2.1.Q4_K_M.gguf"
     shutil.copy2(pick, dest_file)
     print(f"Copied {pick} -> {dest_file}")
 
-    rel = "../models/aronalm-v2.1-renderer/aronalm-v2.1-renderer.Q4_K_M.gguf"
-    rollback = "../models/aronalm-v2.0-normal/aronalm-v2.0-normal.Q4_K_M.gguf"
+    rel = "../models/AronaLM-Renderer-V2.1/AronaLM-Renderer-V2.1.Q4_K_M.gguf"
+    rollback = "../models/AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf"
     print()
     print("Deploy: set backend/config.yaml")
     print(f'  model.gguf_path: "{rel}"')

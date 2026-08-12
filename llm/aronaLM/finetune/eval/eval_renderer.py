@@ -5,8 +5,8 @@
 Supports llama-cpp GGUF (production-like) or printing dry-run cards.
 
 Examples:
-  python eval/eval_renderer.py --gguf ../../../models/aronalm-v2.0-normal/aronalm-v2.0-normal.Q4_K_M.gguf
-  python eval/eval_renderer.py --gguf ../../../models/aronalm-v2.1-renderer/aronalm-v2.1-renderer.Q4_K_M.gguf
+  python eval/eval_renderer.py --gguf ../../../models/AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf
+  python eval/eval_renderer.py --gguf ../../../models/AronaLM-Renderer-V2.1/AronaLM-Renderer-V2.1.Q4_K_M.gguf
 """
 
 from __future__ import annotations

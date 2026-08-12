@@ -111,8 +111,8 @@ arona-ai/
 │
 ├── docs/                       # 相关文档
 ├── models/                     # 相关模型存放目录
-│   ├── aronalm-v2.1-renderer/  # Renderer GGUF（默认双模型链路）
-│   ├── aronalm-v2.0-normal/    # AronaLM GGUF（回落 / 本地单模型）
+│   ├── AronaLM-Renderer-V2.1/  # Renderer GGUF（默认双模型链路）
+│   ├── AronaLM-Generator-V2.0/    # AronaLM GGUF（回落 / 本地单模型）
 │   ├── bge-small-zh-v1.5/      # 知识 / 记忆嵌入模型
 │   └── Qwen3-1.7B-unsloth-bnb-4bit/  # 微调基座（仅训练时需要）
 └── assets/                     # 项目资源
@@ -123,8 +123,8 @@ arona-ai/
 ## ✨ 核心功能 / Core Features
 
 ### 🤖 AI 对话引擎
-- **双模型链路**：**Planner（DeepSeek）→ 意图卡 → Renderer（AronaLM v2.1）**；简单轮次可由路由走本地单模型，Planner 关闭或失败时回落本地路径
-- **AronaLM Renderer（GGUF）**：通过 `llama-cpp-python` 加载 Renderer 微调 GGUF；默认双模型路径非流式，本地回落路径可流式
+- **双模型链路**：**Planner（DeepSeek）→ 意图卡 → Renderer（AronaLM-Renderer-V2.1）**；简单轮次可由路由走本地单模型，Planner 关闭或失败时回落本地路径
+- **AronaLM-Renderer-V2.1（GGUF）**：通过 `llama-cpp-python` 加载 Renderer 微调 GGUF；默认双模型路径非流式，本地回落路径可流式
 - **世界观知识 RAG**：Markdown 语料入库 ChromaDB，按需检索并注入 Prompt
 - **长期记忆**：SQLite + FTS5 + Chroma 混合检索；DeepSeek 异步抽取（可降级为正则）
 - **ASR 脏文本过滤**：入口丢弃空串 / 腾讯云 ASR 错误模板，避免误触发 Planner
@@ -144,7 +144,7 @@ arona-ai/
 
 ### 🎯 技术亮点
 - **双模型主路径**：DeepSeek Planner 产出结构化意图卡，AronaLM Renderer 按卡渲染；简单轮次可路由到本地单模型，失败则回落至本地单模型
-- **本地 Renderer 推理**：`llama-cpp-python` 加载 Qwen3-1.7B 微调 GGUF（默认 `aronalm-v2.1-renderer` Q4_K_M），过滤 `<think>` 推理块
+- **本地 Renderer 推理**：`llama-cpp-python` 加载 Qwen3-1.7B 微调 GGUF（默认 `AronaLM-Renderer-V2.1` Q4_K_M），过滤 `<think>` 推理块
 - **记忆与知识分离**：用户长期事实进 SQLite + FTS5 + Chroma（jieba / BGE）；世界观设定进 Markdown 语料 → 本地 BGE + Chroma RAG，互不混写
 - **异步记忆抽取**：对话主路径不阻塞；DeepSeek JSON 抽取（含日配额与缓冲批量），失败或无 Key 时自动正则降级
 - **完整微调链路**：Unsloth QLoRA（面向约 6–8GB 显存）→ LoRA 适配器 → 合并导出 GGUF，可直接给后端加载
@@ -191,16 +191,16 @@ arona-ai/
 
 ```
 models/
-├── aronalm-v2.1-renderer/        # Renderer GGUF（双模型链路）
-│   └── aronalm-v2.1-renderer.Q4_K_M.gguf
-├── aronalm-v2.0-normal/          # 可选：本地单模型 / Planner 回落
-│   └── aronalm-v2.0-normal.Q4_K_M.gguf
+├── AronaLM-Renderer-V2.1/        # Renderer GGUF（双模型链路）
+│   └── AronaLM-Renderer-V2.1.Q4_K_M.gguf
+├── AronaLM-Generator-V2.0/          # 可选：本地单模型 / Planner 回落
+│   └── AronaLM-Generator-V2.0.Q4_K_M.gguf
 └── bge-small-zh-v1.5/            # 知识 / 记忆嵌入模型（启用 knowledge 或记忆向量检索时需要）
 ```
 
-> **AronaLM-renderer**：请使用 [xiahy456/aronalm-v2.1-renderer](https://www.modelscope.cn/models/xiahy456/aronalm-v2.1-renderer)。
+> **AronaLM-Renderer-V2.1**：请使用 [xiahy456/AronaLM-Renderer-V2.1](https://www.modelscope.cn/models/xiahy456/AronaLM-Renderer-V2.1)。
 
-> **AronaLM-normal**：可选，见 [xiahy456/aronalm-v2.0-normal](https://www.modelscope.cn/models/xiahy456/aronalm-v2.0-normal)。仅在关闭 Planner 或需要回落单模型时使用。
+> **AronaLM-Generator-V2.0**：可选，见 [xiahy456/AronaLM-Generator-V2.0](https://www.modelscope.cn/models/xiahy456/AronaLM-Generator-V2.1)。仅在关闭 Planner 或需要回落单模型时使用。
 
 **2. 配置 `config.yaml`**
 
@@ -211,7 +211,7 @@ cp config.example.yaml config.yaml   # Linux / macOS
 ```
 
 按需填写：
-- `model.gguf_path`：默认 `aronalm-v2.1-renderer`；仅使用单模型时改为注释中的 v2.0 路径
+- `model.gguf_path`：默认 `AronaLM-Renderer-V2.1`；仅使用单模型时改为注释中的 v2.0 路径
 - `planner.enabled` / `planner.api_key`：默认开启双模型；填写 DeepSeek API Key。不填 Key 或关闭 `enabled` 则回落本地单模型
 - `memory.extractor.api_key`：DeepSeek API Key（可选；不填则记忆抽取走正则降级）
 - `knowledge.enabled`：是否启用世界观 RAG（默认 `false`，启用前请先灌库）
@@ -539,7 +539,7 @@ limitations under the License.
 - **基沃托斯古书馆** - Spine 动画资源（https://kivo.wiki/）
 - **Qt** - 跨平台 GUI 框架（https://www.qt.io/）
 - **llama.cpp / llama-cpp-python** - 本地 GGUF 推理（https://github.com/ggml-org/llama.cpp）
-- **Qwen3-1.7B** - 微调训练基底模型（https://github.com/QwenLM/Qwen3）
+- **Qwen3-1.7B** - 微调训练基底模型（https://huggingface.co/Qwen/Qwen3-1.7B）
 - **Unsloth** - QLoRA 高效微调（https://unsloth.ai/）
 - **ChromaDB** - 向量数据库（https://www.trychroma.com/products/chromadb）
 - **DeepSeek** - Planner 意图规划与记忆抽取 API（https://www.deepseek.com/）

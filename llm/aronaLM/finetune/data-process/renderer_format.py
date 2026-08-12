@@ -10,7 +10,7 @@ PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 RENDERER_SYSTEM_FILE = PROMPTS_DIR / "renderer_system.txt"
 
 USER_TAIL = (
-    "请严格按意图卡回复老师（1–3句）。若需开聊，请选定话题直接说，"
+    "请严格按意图卡回复老师（1–2句）。若需开聊，请选定话题直接说，"
     "不要用「还是」把选择抛回老师。"
 )
 

@@ -65,7 +65,7 @@ python scripts/ingest_knowledge.py --rebuild
 
 - 模板：`config.example.yaml`
 - 本地：`config.yaml`（已 gitignore）
-- 模型：`model.gguf_path`（示例默认 v2.0；Renderer 微调产物见注释中的 v2.1 路径）
+- 模型：`model.gguf_path`（示例默认 AronaLM-Renderer-V2.1；回落见注释中的 AronaLM-Generator-V2.0）
 - 记忆库：`data/memory/memory.db`（已 gitignore）；向量索引：`data/memory/chroma`
 - 知识向量库：`data/knowledge/chroma/`（已 gitignore，由 ingest 生成）
 

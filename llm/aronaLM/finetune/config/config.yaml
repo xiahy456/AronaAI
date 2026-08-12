@@ -40,7 +40,7 @@ lora:
 
 # ---------- 训练超参数（针对 RTX 4060 6GB 优化）----------
 training:
-  output_dir: "outputs/aronalm-v2.0-normal-lora"
+  output_dir: "outputs/AronaLM-Generator-V2.0-lora"
   per_device_train_batch_size: 2
   gradient_accumulation_steps: 4
   num_train_epochs: 4
@@ -67,7 +67,7 @@ training:
 export:
   # 训练结束后自动导出 GGUF
   save_gguf: true
-  gguf_dir: "outputs/aronalm-v2.0-normal-gguf"
+  gguf_dir: "outputs/AronaLM-Generator-V2.0-gguf"
   # 导出 GGUF 用的本地 16bit 基座（勿用 *-bnb-4bit）
   gguf_base_model: "../../../models/Qwen3-1.7B"
   # q4_k_m 体积更小；显存/质量允许可改 q5_k_m
@@ -76,12 +76,12 @@ export:
   maximum_memory_usage: 0.7
   # 同时保存 LoRA 适配器
   save_lora: true
-  lora_dir: "outputs/aronalm-v2.0-normal-lora-adapter"
+  lora_dir: "outputs/AronaLM-Generator-V2.0-lora-adapter"
 
 # ---------- 推理 ----------
 inference:
   # 优先加载合并后的 LoRA 适配器目录；也可指向 GGUF 导出前的适配器
-  adapter_path: "outputs/aronalm-v2.0-normal-lora-adapter"
+  adapter_path: "outputs/AronaLM-Generator-V2.0-lora-adapter"
   max_new_tokens: 128
   temperature: 0.7
   top_p: 0.85

@@ -8,7 +8,7 @@
   python eval\\eval.py --no-judge
   python eval\\eval.py --no-multi
   python eval\\eval.py --no-summary
-  python eval\\eval.py --adapter outputs\\aronalm-v2.0-normal-lora-adapter
+  python eval\\eval.py --adapter outputs\\AronaLM-Generator-V2.0-lora-adapter
   python eval\\eval.py --cases eval\\cases.json --multi-sessions eval\\multi_sessions.json
 
 默认开启 --compare、Judge、8 轮多轮会话、全局 LLM 总结。

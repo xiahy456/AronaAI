@@ -20,7 +20,7 @@ class ServerConfig(BaseModel):
 
 
 class ModelConfig(BaseModel):
-    gguf_path: str = "../models/aronalm-v2.0-normal/aronalm-v2.0-normal.Q4_K_M.gguf"
+    gguf_path: str = "../models/AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf"
     n_ctx: int = 2048
     n_gpu_layers: int = -1
     max_new_tokens: int = 128

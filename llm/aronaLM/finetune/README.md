@@ -8,8 +8,8 @@
 
 | 产物 | 配置 | 用途 |
 |------|------|------|
-| **AronaLM v2.0 Normal** | `config/config.yaml` | 自由对话 / Planner 关闭或失败时的本地回落 |
-| **AronaLM v2.1 Renderer** | `config/config_renderer.yaml` | 双模型主路径：按 Planner **意图卡**渲染 1–3 句短回复 |
+| **AronaLM-Generator-V2.0** | `config/config.yaml` | 自由对话 / Planner 关闭或失败时的本地回落 |
+| **AronaLM-Renderer-V2.1** | `config/config_renderer.yaml` | 双模型主路径：按 Planner **意图卡**渲染 1–2 句短回复 |
 
 后端默认加载 Renderer GGUF，见仓库 [`models/README.md`](../../../models/README.md)。
 
@@ -20,15 +20,15 @@
 ```
 finetune/
 ├── config/
-│   ├── config.yaml              # v2.0 Normal：模型 / 数据 / LoRA / 训练 / 导出 / 推理
-│   └── config_renderer.yaml     # v2.1 Renderer（勿覆盖 v2.0 产物目录）
+│   ├── config.yaml              # AronaLM-Generator-V2.0：模型 / 数据 / LoRA / 训练 / 导出 / 推理
+│   └── config_renderer.yaml     # AronaLM-Renderer-V2.1（勿覆盖 v2.0 产物目录）
 ├── training/
 │   └── train.py                 # 微调主脚本
 ├── inference/
 │   └── inference.py             # LoRA 交互式推理
 ├── export/
 │   ├── export_gguf.py           # 16bit 基座 + LoRA → GGUF（4bit 训练后推荐走此脚本）
-│   └── deploy_renderer_v21.py   # 将 Renderer GGUF 拷到 models/aronalm-v2.1-renderer/
+│   └── deploy_renderer_v21.py   # 将 Renderer GGUF 拷到 models/AronaLM-Renderer-V2.1/
 ├── eval/
 │   ├── eval.py                  # Normal：基座 vs LoRA 完整评测
 │   ├── eval_renderer.py         # Renderer：意图卡硬例规则评测（GGUF）
@@ -44,8 +44,8 @@ finetune/
 ├── outputs/                     # 训练产物（自动创建）
 ├── logs/                        # 训练 / 导出日志（自动创建）
 ├── requirements.txt
-├── start.bat                    # Windows：v2.0 Normal 一键训练
-├── start_renderer.bat           # Windows：v2.1 Renderer 训练 → GGUF → 部署
+├── start.bat                    # Windows：AronaLM-Generator-V2.0 一键训练
+├── start_renderer.bat           # Windows：AronaLM-Renderer-V2.1 训练 → GGUF → 部署
 └── README.md
 ```
 
@@ -118,8 +118,8 @@ python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_
 
 | 文件 | 约条数 | 用途 |
 |------|--------|------|
-| `data/finetune_training/normal_finetune.jsonl` | ~500 | v2.0 Normal（`config.yaml`） |
-| `data/finetune_training/mixed_renderer_finetune.jsonl` | ~476 | v2.1 Renderer（`config_renderer.yaml`，renderer + 少量 persona） |
+| `data/finetune_training/normal_finetune.jsonl` | ~500 | AronaLM-Generator-V2.0（`config.yaml`） |
+| `data/finetune_training/mixed_renderer_finetune.jsonl` | ~476 | AronaLM-Renderer-V2.1（`config_renderer.yaml`，renderer + 少量 persona） |
 | `data/finetune_training/renderer_finetune.jsonl` | ~326 | 仅 Renderer 样本（合并脚本副产物） |
 
 ### 重新合并
@@ -151,7 +151,7 @@ python data-process\merge_renderer_finetune.py --persona-max 150
 
 ## 训练启动
 
-### A. v2.0 Normal（自由对话）
+### A. AronaLM-Generator-V2.0（自由对话）
 
 ```bat
 cd llm\aronaLM\finetune
@@ -174,7 +174,7 @@ python training\train.py --config config\config.yaml
 
 默认日志：`logs/train.log`。配置中 `export.save_gguf: true` 时，训练结束会尝试导出 GGUF；若因 4bit 基座失败，请改用下方 `export/export_gguf.py`。
 
-### B. v2.1 Renderer（意图卡 → 短回复，推荐主路径）
+### B. AronaLM-Renderer-V2.1（意图卡 → 短回复，推荐主路径）
 
 ```bat
 cd llm\aronaLM\finetune
@@ -209,13 +209,13 @@ python export\deploy_renderer_v21.py
 
 | 路径 | 内容 |
 |------|------|
-| `outputs/aronalm-v2.0-normal-lora/` | Normal Trainer checkpoint |
-| `outputs/aronalm-v2.0-normal-lora-adapter/` | Normal LoRA 适配器 |
-| `outputs/aronalm-v2.0-normal-gguf/` | Normal GGUF（默认 `q4_k_m`） |
-| `outputs/aronalm-v2.1-renderer-lora/` | Renderer Trainer checkpoint |
-| `outputs/aronalm-v2.1-renderer-lora-adapter/` | Renderer LoRA 适配器 |
-| `outputs/aronalm-v2.1-renderer-gguf/` | Renderer GGUF |
-| `../../../models/aronalm-v2.1-renderer/` | `deploy_renderer_v21.py` 部署目标 |
+| `outputs/AronaLM-Generator-V2.0-lora/` | Generator Trainer checkpoint |
+| `outputs/AronaLM-Generator-V2.0-lora-adapter/` | Generator LoRA 适配器 |
+| `outputs/AronaLM-Generator-V2.0-gguf/` | Generator GGUF（默认 `q4_k_m`） |
+| `outputs/AronaLM-Renderer-V2.1-lora/` | Renderer Trainer checkpoint |
+| `outputs/AronaLM-Renderer-V2.1-lora-adapter/` | Renderer LoRA 适配器 |
+| `outputs/AronaLM-Renderer-V2.1-gguf/` | Renderer GGUF |
+| `../../../models/AronaLM-Renderer-V2.1/` | `deploy_renderer_v21.py` 部署目标 |
 
 部署后手动改 `backend/config.yaml` 的 `model.gguf_path`（脚本不会改配置，便于回滚到 v2.0）。
 
@@ -238,7 +238,7 @@ python inference\inference.py --config config\config.yaml --prompt "阿洛娜，
 指定适配器：
 
 ```bat
-python inference\inference.py --adapter outputs\aronalm-v2.0-normal-lora-adapter
+python inference\inference.py --adapter outputs\AronaLM-Generator-V2.0-lora-adapter
 ```
 
 对话中输入 `quit` / `exit` / `q` 退出，`clear` 清空历史。
@@ -259,7 +259,7 @@ python inference\inference.py --adapter outputs\aronalm-v2.0-normal-lora-adapter
 ```bat
 python export\export_gguf.py --config config\config.yaml
 python export\export_gguf.py --config config\config_renderer.yaml
-python export\export_gguf.py --adapter outputs\aronalm-v2.0-normal-lora-adapter --quant q4_k_m
+python export\export_gguf.py --adapter outputs\AronaLM-Generator-V2.0-lora-adapter --quant q4_k_m
 ```
 
 需先放置 `models/Qwen3-1.7B`（完整 16bit 权重，含 `config.json`）。
@@ -267,12 +267,12 @@ python export\export_gguf.py --adapter outputs\aronalm-v2.0-normal-lora-adapter 
 **llama.cpp 示例：**
 
 ```bat
-llama-cli -m outputs\aronalm-v2.1-renderer-gguf\*.gguf -p "老师：阿洛娜你好" -n 128
+llama-cli -m outputs\AronaLM-Renderer-V2.1-gguf\*.gguf -p "老师：阿洛娜你好" -n 128
 ```
 
 **Ollama：** 新建 `Modelfile` 指向该 GGUF，再 `ollama create arona -f Modelfile`。
 
-**后端：** 将 GGUF 放到 `models/aronalm-v2.1-renderer/`（或 v2.0），并设置 `model.gguf_path`。
+**后端：** 将 GGUF 放到 `models/AronaLM-Renderer-V2.1/`（或 v2.0），并设置 `model.gguf_path`。
 
 ---
 
@@ -282,7 +282,7 @@ llama-cli -m outputs\aronalm-v2.1-renderer-gguf\*.gguf -p "老师：阿洛娜你
 
 ```bat
 python eval\eval.py --config config\config.yaml
-python eval\eval.py --adapter outputs\aronalm-v2.0-normal-lora-adapter
+python eval\eval.py --adapter outputs\AronaLM-Generator-V2.0-lora-adapter
 python eval\eval.py --no-judge --no-multi
 ```
 
@@ -291,8 +291,8 @@ python eval\eval.py --no-judge --no-multi
 ### Renderer（意图卡硬例，生产向 GGUF）
 
 ```bat
-python eval\eval_renderer.py --gguf ..\..\..\models\aronalm-v2.0-normal\aronalm-v2.0-normal.Q4_K_M.gguf --tag v20
-python eval\eval_renderer.py --gguf ..\..\..\models\aronalm-v2.1-renderer\aronalm-v2.1-renderer.Q4_K_M.gguf --tag v21
+python eval\eval_renderer.py --gguf ..\..\..\models\AronaLM-Generator-V2.0\AronaLM-Generator-V2.0.Q4_K_M.gguf --tag v20
+python eval\eval_renderer.py --gguf ..\..\..\models\AronaLM-Renderer-V2.1\AronaLM-Renderer-V2.1.Q4_K_M.gguf --tag v21
 ```
 
 用例见 `eval/renderer_cases.json`（问候时段、must_say / must_not、禁止话题反弹等）。
@@ -352,25 +352,25 @@ Renderer 请对 `start_renderer.bat` / `config_renderer.yaml` 使用同样方式
 确认 `--adapter` 指向正确的 `*-lora-adapter` 目录，且含 `adapter_config.json` / `adapter_model.safetensors`。后端路径则检查 `model.gguf_path` 是否指向新导出的 GGUF。
 
 **8. Renderer 回滚**  
-将 `backend/config.yaml` 的 `model.gguf_path` 改回 `../models/aronalm-v2.0-normal/aronalm-v2.0-normal.Q4_K_M.gguf`。
+将 `backend/config.yaml` 的 `model.gguf_path` 改回 `../models/AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf`。
 
 ---
 
 ## 配置速查
 
-### v2.0 Normal（`config/config.yaml`）
+### AronaLM-Generator-V2.0（`config/config.yaml`）
 
 - 数据：`normal_finetune.jsonl`
 - LoRA：`r=16`, `lora_alpha=16`, `dropout=0`
 - 训练：`batch=2`, `grad_accum=4`, `epochs=4`, `lr=2e-4`, `optim=adamw_8bit`
-- 导出：`save_gguf: true`，目录 `outputs/aronalm-v2.0-normal-*`
+- 导出：`save_gguf: true`，目录 `outputs/AronaLM-Generator-V2.0-*`
 
-### v2.1 Renderer（`config/config_renderer.yaml`）
+### AronaLM-Renderer-V2.1（`config/config_renderer.yaml`）
 
 - 数据：`mixed_renderer_finetune.jsonl`
 - LoRA：`r=16`, `lora_alpha=16`, `dropout=0.05`
 - 训练：`batch=2`, `grad_accum=4`, `epochs=3`, `lr=1.5e-4`
-- 导出：`save_gguf: false`（训练后用 `export_gguf.py`），目录 `outputs/aronalm-v2.1-renderer-*`
+- 导出：`save_gguf: false`（训练后用 `export_gguf.py`），目录 `outputs/AronaLM-Renderer-V2.1-*`
 - 系统提示与 `prompts/renderer_system.txt` / 生产 Renderer 对齐
 
 修改 YAML 后无需改代码，重新运行对应 `start*.bat` 即可。

@@ -8,7 +8,7 @@ save_pretrained_gguf；本脚本会加载 16bit 基座 + LoRA 再导出。
 
 用法（在 finetune/ 目录下）:
   python export\\export_gguf.py
-  python export\\export_gguf.py --adapter outputs\\aronalm-v2.0-normal-lora-adapter
+  python export\\export_gguf.py --adapter outputs\\AronaLM-Generator-V2.0-lora-adapter
   python export\\export_gguf.py --base ..\\..\\..\\models\\Qwen3-1.7B --quant q4_k_m
 """
 
@@ -148,7 +148,7 @@ def main() -> None:
         args.adapter
         or export_cfg.get("lora_dir")
         or infer_cfg.get("adapter_path")
-        or "outputs/aronalm-v2.0-normal-lora-adapter"
+        or "outputs/AronaLM-Generator-V2.0-lora-adapter"
     )
     if not adapter_str:
         logger.error("未指定 LoRA 适配器路径（--adapter 或 config export.lora_dir）")
@@ -166,7 +166,7 @@ def main() -> None:
     gguf_str = (
         args.gguf_dir
         or export_cfg.get("gguf_dir")
-        or "outputs/aronalm-v2.0-normal-gguf"
+        or "outputs/AronaLM-Generator-V2.0-gguf"
     )
     gguf_dir = resolve_path(str(gguf_str))
     gguf_dir.mkdir(parents=True, exist_ok=True)
