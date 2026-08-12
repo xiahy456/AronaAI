@@ -123,13 +123,13 @@ arona-ai/
 ## ✨ 核心功能 / Core Features
 
 ### 🤖 AI 对话引擎
-- **双模型链路**：**Planner（DeepSeek）→ 意图卡 → Renderer（AronaLM-Renderer-V2.1）**；简单轮次可由路由走本地单模型，Planner 关闭或失败时回落本地路径
-- **AronaLM-Renderer-V2.1（GGUF）**：通过 `llama-cpp-python` 加载 Renderer 微调 GGUF；默认双模型路径非流式，本地回落路径可流式
-- **世界观知识 RAG**：Markdown 语料入库 ChromaDB，按需检索并注入 Prompt
-- **长期记忆**：SQLite + FTS5 + Chroma 混合检索；DeepSeek 异步抽取（可降级为正则）
+- **双模型链路**：**Planner（DeepSeek）→ 结构化意图卡 → Renderer（AronaLM-Renderer-V2.1）**；简单轮次可由路由走本地单模型，Planner 关闭或失败时回落本地路径
+- **AronaLM-Renderer-V2.1（GGUF）**：`llama-cpp-python` 加载 Qwen3-1.7B 微调 GGUF（默认 Q4_K_M），过滤 `<think>` 推理块；默认双模型路径非流式，本地回落路径可流式
+- **记忆与知识分离**：用户长期事实进 SQLite + FTS5 + Chroma（jieba / BGE）；世界观设定进 Markdown 语料 → 本地 BGE + Chroma RAG，互不混写、按需注入 Prompt
+- **异步记忆抽取**：对话主路径不阻塞；DeepSeek JSON 抽取（含日配额与缓冲批量），失败或无 Key 时自动正则降级
 - **ASR 脏文本过滤**：入口丢弃空串 / 腾讯云 ASR 错误模板，避免误触发 Planner
-- **响应缓存**：相同问题快速命中，降低重复推理开销
-- **对话管理**：多轮历史截断，配合 token budget 控制上下文长度
+- **上下文可控**：多轮历史截断 + memory/knowledge/history token budget + 精确匹配响应缓存，控制延迟与重复推理
+- **完整微调链路**：Unsloth QLoRA（面向约 6–8GB 显存）→ LoRA 适配器 → 合并导出 GGUF，可直接给后端加载
 
 ### 🎤 语音交互
 - **语音合成（TTS）**：基于 GPT-SoVITS 的高质量语音合成，还原阿洛娜的声音
@@ -137,19 +137,10 @@ arona-ai/
 
 ### 🖥️ 桌面客户端
 - **Spine 2D 动画**：使用 Spine 实现阿洛娜的 Live2D 角色动画
-- **Qt 界面**：基于 Qt/C++ 的 Windows 桌面应用
+- **Qt 界面**：基于 Qt/C++ 的 Windows 桌面应用，经 WebSocket 对接后端，可接 GPT-SoVITS TTS 与腾讯云 ASR
 - **WebSocket 通信**：与后端服务实时通信，支持流式输出
 - **全局快捷键**：支持自定义快捷键操作
 - **系统托盘**：最小化到系统托盘运行
-
-### 🎯 技术亮点
-- **双模型主路径**：DeepSeek Planner 产出结构化意图卡，AronaLM Renderer 按卡渲染；简单轮次可路由到本地单模型，失败则回落至本地单模型
-- **本地 Renderer 推理**：`llama-cpp-python` 加载 Qwen3-1.7B 微调 GGUF（默认 `AronaLM-Renderer-V2.1` Q4_K_M），过滤 `<think>` 推理块
-- **记忆与知识分离**：用户长期事实进 SQLite + FTS5 + Chroma（jieba / BGE）；世界观设定进 Markdown 语料 → 本地 BGE + Chroma RAG，互不混写
-- **异步记忆抽取**：对话主路径不阻塞；DeepSeek JSON 抽取（含日配额与缓冲批量），失败或无 Key 时自动正则降级
-- **完整微调链路**：Unsloth QLoRA（面向约 6–8GB 显存）→ LoRA 适配器 → 合并导出 GGUF，可直接给后端加载
-- **桌面端完整交互**：Qt/C++ + Spine 2D 角色动画桌面客户端经 WebSocket 对接后端；可接 GPT-SoVITS TTS 与腾讯云 ASR
-- **上下文可控**：多轮历史截断 + memory/knowledge/history token budget + 精确匹配响应缓存，控制延迟与重复推理
 
 ---
 
@@ -293,7 +284,7 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
 }
 ```
 
-完整字段说明见下文 [客户端配置](#客户端配置)。
+完整字段说明见 [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md)。
 
 > **注意**：
  - 资源路径相对**程序工作目录**解析；在 Visual Studio 中调试时默认为项目根目录，请勿直接双击 `x64/Debug` 或 `x64/Release` 下的 exe（工作目录会不对）。
@@ -369,143 +360,15 @@ start.bat
 
 ---
 
-## 🔧 配置说明 / Configuration
+## 📚 模块与配置 / Modules & Configuration
 
-### 后端配置 (`backend/config.yaml`)
+各模块说明、协议与配置见对应 README：
 
-由 `config.example.yaml` 复制而来，主要段落：
-
-| 配置段 | 说明 |
-|--------|------|
-| `server` | 监听地址、端口、WebSocket 路径（默认 `/ws`） |
-| `model` | GGUF 路径（默认 Renderer v2.1）、上下文长度、采样参数、本地回落用 system prompt |
-| `conversation` | 多轮历史保留轮数 |
-| `knowledge` | 世界观 RAG（语料目录、Chroma、嵌入模型、检索阈值） |
-| `memory` | SQLite + Chroma 路径、混合检索、DeepSeek 抽取器（`every_n_turns` / `extract_buffer_turns`）与正则降级 |
-| `planner` | 默认开启的双模型 Planner（DeepSeek 意图卡、路由开关；无 Key / `enabled: false` 则回落本地） |
-| `cache` | 响应缓存开关与容量 |
-| `token_budget` | memory / knowledge / history 注入预算 |
-| `logging` | 日志目录、文件名、级别与滚动策略 |
-
-本地数据路径（均已 gitignore）：
-- 记忆库：`backend/data/memory/memory.db`
-- 记忆向量索引：`backend/data/memory/chroma/`
-- 知识向量库：`backend/data/knowledge/chroma/`
-- 运行日志：`backend/logs/arona-backend.log`
-
-### 客户端配置
-
-客户端配置文件位于 `frontend/AronaAI_Spine_WindowsClient/Config/`（由 `config.example.json` 复制为 `config.json`），完整示例如下：
-
-```json
-{
-  "settings": {
-    "frame_rate": 60, // 全局帧率
-    "dict_path": "Dict/dict_zh.json", // 词典文件路径
-    "zoom": 1.0, // 界面缩放比例
-    "transparent": 1.0, // 主窗口整体不透明度（0.0~1.0）
-    "offset_from_screen_bottom": -50, // 主窗口相对屏幕底部的向上偏移（像素）
-    "offset_from_screen_left": 0, // 主窗口相对屏幕左侧的向右偏移（像素）
-    "output_text_box_offset": -50, // 输出文本框相对默认位置的垂直偏移（像素；正值向上，负值向下）
-    "mouse_event_transparent": true, // 是否启用鼠标穿透（点击穿透桌宠）
-    "open_setting_widget": false, // 启动时是否自动打开设置窗口
-    "arona_ai_mode": 0, // 阿洛娜 AI 模式：0=日程模式，1=档案模式
-  },
-  "aronalm": {
-    "websocket_url": "ws://your.aronalm.ip:20456/ws", // AronaLM 后端 WebSocket 地址
-    "heartbeat_interval": 30000, // 心跳发送间隔（毫秒）
-    "heartbeat_timeout": 10000, // 心跳超时时间（毫秒）
-    "reconnect_interval": 3000, // 断线重连间隔（毫秒）
-    "max_reconnect_attempts": 5, // 最大重连次数
-    "use_cache": true, // 是否启用响应缓存
-    "use_rag": true, // 是否启用知识库 RAG 检索
-    "use_memory": true // 是否启用长期记忆
-  },
-  "spine": {
-    "skelOrJson_path": "Assets/AronaSpineAssets/arona_spr_full.json", // Spine 骨架文件（.skel / .json）路径（如果想要普拉娜可以改为Assets/AronaSpineAssets/NP0035_spr.skel）
-    "atlas_path": "Assets/AronaSpineAssets/arona_spr_full.atlas", // Spine 图集 atlas 路径（如果想要普拉娜可以改为Assets/AronaSpineAssets/NP0035_spr.atlas）
-    "animation_default_mix": 0.2 // 动画默认过渡混合时间（秒）
-  },
-  "tts": {
-    "host": "your.gpt.sovits.ip", // GPT-SoVITS 服务地址
-    "port": 9880, // GPT-SoVITS 服务端口
-    "gpt_path": "GPT_weights_v2/ALuoNa_cn-e15.ckpt", // 推荐的 GPT 模型权重路径（服务端侧）
-    "sovits_path": "SoVITS_weights_v2/ALuoNa_cn_e16_s256.pth", // 推荐的 SoVITS 模型权重路径（服务端侧）
-    "ref_audio_path": "ref_audio/Arona/arona_academy_in_2.ogg", // 推荐的参考音频路径（服务端侧）
-    "prompt_text": "这里为您准备了各种课程和活动，请按您喜欢的方式安排日程吧！", // 参考音频对应的提示文本
-    "prompt_lang": "zh", // 提示文本语言
-    "top_k": 15, // Top-K 采样
-    "top_p": 1.0, // Top-P 采样
-    "temperature": 1.0, // 采样温度
-    "text_split_method": "cut0", // 文本分割方法
-    "batch_size": 1, // 批处理大小
-    "batch_threshold": 0.75, // 批处理阈值
-    "split_bucket": true, // 是否按桶分割推理
-    "speed_factor": 1.0, // 语速因子
-    "fragment_interval": 0.3, // 片段间隔（秒）
-    "seed": -1, // 随机种子（-1 表示随机）
-    "parallel_infer": true, // 是否启用并行推理（8GB 显卡建议 false）
-    "request_timeout_ms": 45000, // 客户端等待 /tts 的超时（毫秒）；超时后仍显示字幕，不卡死 UI
-    "repetition_penalty": 1.35, // 重复惩罚系数
-    "sample_steps": 32, // 采样步数
-    "super_sampling": false // 是否启用超采样
-  },
-  "audio_input": {
-    "device": "" // 音频输入设备名（空字符串表示使用系统默认设备）
-  },
-  "short_cut_key": {
-    "switch_audio_input": "Ctrl+Alt+V", // 切换 / 触发语音输入的快捷键
-    "switch_mouse_transparent": "Ctrl+Alt+C"  // 切换 / 触发鼠标穿透的快捷键
-  },
-  "tencent_speech_recognizer": {
-    "secret_id": "${TENCENT_SECRET_ID}", // 腾讯云 SecretId（可用环境变量占位）
-    "secret_key": "${TENCENT_SECRET_KEY}" // 腾讯云 SecretKey（可用环境变量占位）
-  }
-}
-```
-
----
-
-## 📚 模块详解 / Module Details
-
-### Backend 模块
-
-| 模块 | 路径 | 功能描述 |
-|------|------|----------|
-| **服务入口** | `app/main.py` | FastAPI 应用、健康检查、WebSocket 路由 |
-| **对话编排** | `app/orchestrator.py` | 缓存 → 记忆/知识检索 → Planner 或本地 → Prompt → 生成 → 异步记忆抽取 |
-| **Planner** | `app/planner/` | DeepSeek 意图卡、情感白名单、简单/复杂路由 |
-| **模型加载** | `app/model_loader.py` | llama-cpp-python 加载 GGUF，支持流式与 `<think>` 过滤 |
-| **WebSocket** | `app/ws_handler.py` | 会话连接、消息分发、ASR 过滤接入 |
-| **输入过滤** | `app/input_filter.py` | 丢弃空串 / 腾讯云 ASR 错误模板，避免误触发对话 |
-| **协议** | `app/protocol.py` | 客户端/服务端消息类型定义 |
-| **对话历史** | `app/conversation.py` | 多轮历史管理与截断 |
-| **知识 RAG** | `app/knowledge.py` | ChromaDB 检索世界观知识 |
-| **嵌入** | `app/embeddings.py` | 本地 BGE 编码器（记忆 / 知识共用） |
-| **记忆存储** | `app/memory/store.py` | SQLite + FTS5 + Chroma 混合长期记忆 |
-| **记忆抽取** | `app/memory/extractor.py` | DeepSeek 异步抽取（失败走正则） |
-| **响应缓存** | `app/cache.py` | 相同输入快速返回 |
-| **Prompt** | `app/prompt.py` | 默认 Renderer 意图卡消息组装；本地回落路径 Prompt |
-
-**WebSocket 协议摘要**：连接后服务端发送 `{"type":"connected","session_id":"..."}`。客户端发起对话示例：
-
-```json
-{"type":"chat","content":"你好","options":{"use_cache":true,"use_rag":true,"use_memory":true}}
-```
-
-更多细节见 [`backend/README.md`](backend/README.md)。
-
-### LLM 微调模块（`llm/aronaLM/finetune`）
-
-基于 Unsloth 对本地 `Qwen3-1.7B-unsloth-bnb-4bit` 做 QLoRA 微调，ShareGPT JSONL 数据，训练后可导出 GGUF 供 llama.cpp / 后端使用。
-
-| 模块 | 功能描述 |
-|------|----------|
-| **配置** | `config/config.yaml` 统一管理模型、LoRA、训练、导出、推理参数 |
-| **训练** | `training/train.py` / `start.bat` 一键 QLoRA 微调 |
-| **推理** | `inference/inference.py` 加载 LoRA 适配器做交互测试 |
-| **导出** | 训练结束导出 LoRA 适配器与 GGUF（默认 `q4_k_m`） |
-| **数据** | ShareGPT 格式 JSONL；可用 `data-process/` 合并预处理 |
+| 模块 | 文档 |
+|------|------|
+| **Backend**（含 `config.yaml`） | [`backend/README.md`](backend/README.md) |
+| **桌面客户端**（含 `config.json`） | [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md) |
+| **LLM 微调**（`llm/aronaLM/finetune`） | [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md) |
 
 ---
 

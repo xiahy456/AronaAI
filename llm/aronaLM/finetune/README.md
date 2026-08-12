@@ -13,6 +13,19 @@
 
 后端默认加载 Renderer GGUF，见仓库 [`models/README.md`](../../../models/README.md)。
 
+## 模块详解
+
+基于 Unsloth 对本地 `Qwen3-1.7B-unsloth-bnb-4bit` 做 QLoRA 微调，ShareGPT JSONL 数据，训练后可导出 GGUF 供 llama.cpp / 后端使用。
+
+| 模块 | 功能描述 |
+|------|----------|
+| **配置** | `config/config.yaml`（Generator）/ `config/config_renderer.yaml`（Renderer）统一管理模型、LoRA、训练、导出、推理参数 |
+| **训练** | `training/train.py`；`start.bat`（Generator）/ `start_renderer.bat`（Renderer）一键 QLoRA 微调 |
+| **推理** | `inference/inference.py` 加载 LoRA 适配器做交互测试 |
+| **导出** | `export/export_gguf.py` 导出 LoRA 适配器与 GGUF（默认 `q4_k_m`）；Renderer 可用 `deploy_renderer_v21.py` 部署到 `models/` |
+| **评测** | `eval/eval.py`（Generator）、`eval/eval_renderer.py`（Renderer 意图卡硬例） |
+| **数据** | ShareGPT 格式 JSONL；可用 `data-process/` 合并预处理 |
+
 ---
 
 ## 项目结构
