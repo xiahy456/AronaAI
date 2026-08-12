@@ -134,7 +134,6 @@ arona-ai/
 ### 🎤 语音交互
 - **语音合成（TTS）**：基于 GPT-SoVITS 的高质量语音合成，还原阿洛娜的声音
 - **语音识别（ASR）**：基于腾讯云语音识别（SentenceRecognition）提供在线 ASR
-- **语音唤醒**：支持语音输入触发对话
 
 ### 🖥️ 桌面客户端
 - **Spine 2D 动画**：使用 Spine 实现阿洛娜的 Live2D 角色动画
@@ -144,7 +143,7 @@ arona-ai/
 - **系统托盘**：最小化到系统托盘运行
 
 ### 🎯 技术亮点
-- **双模型主路径**：DeepSeek Planner 产出结构化意图卡，本地 AronaLM Renderer 按卡渲染；简单轮次可路由到本地单模型，失败则回落至本地单模型
+- **双模型主路径**：DeepSeek Planner 产出结构化意图卡，AronaLM Renderer 按卡渲染；简单轮次可路由到本地单模型，失败则回落至本地单模型
 - **本地 Renderer 推理**：`llama-cpp-python` 加载 Qwen3-1.7B 微调 GGUF（默认 `aronalm-v2.1-renderer` Q4_K_M），过滤 `<think>` 推理块
 - **记忆与知识分离**：用户长期事实进 SQLite + FTS5 + Chroma（jieba / BGE）；世界观设定进 Markdown 语料 → 本地 BGE + Chroma RAG，互不混写
 - **异步记忆抽取**：对话主路径不阻塞；DeepSeek JSON 抽取（含日配额与缓冲批量），失败或无 Key 时自动正则降级
@@ -181,6 +180,7 @@ arona-ai/
 | -TtsRestartCooldownSec | GPT-SoVITS 自动重启冷却秒数，默认 `90` |
 
 > **注意**：如果您还没有配置好所有服务，请遵循下文的指示进行配置。  
+
 > `start-all.ps1` 会通过 `gpt-sovits/watch-apiv2.ps1` 启动 TTS（含卡死自动重启）。若 GPT-SoVITS 部署在**另一台机器**，请在该机器上单独运行 `go-apiv2.bat` / `go-apiv2.sh`，不必使用 `start-all`。
 
 ### 后端启动 / Backend Setup

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 import uuid
 from typing import Any
 
@@ -67,8 +68,31 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         client_port,
     )
 
+    chat_recv_at: float | None = None
+    chat_request_json: str | None = None
+    ttfb_logged = False
+
     async def send(payload: dict[str, Any]) -> None:
+        nonlocal ttfb_logged
         msg_type = payload.get("type")
+        if (
+            msg_type == TYPE_CHAT_RESPONSE
+            and not ttfb_logged
+            and chat_recv_at is not None
+            and chat_request_json is not None
+        ):
+            elapsed = time.perf_counter() - chat_recv_at
+            response_json = json.dumps(payload, ensure_ascii=False)
+            logger.info(
+                "interactive information: \n"
+                "\trequest=%s\n"
+                "\tresponse=%s\n"
+                "\telapsed=%.3fs",
+                chat_request_json,
+                response_json,
+                elapsed,
+            )
+            ttfb_logged = True
         if msg_type == TYPE_CHAT_RESPONSE:
             logger.info(
                 "WS send session=%s type=%s from_cache=%s context=%s latency=%s content=%r",
@@ -177,6 +201,9 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                             )
                         )
                         continue
+                    chat_recv_at = time.perf_counter()
+                    chat_request_json = raw
+                    ttfb_logged = False
                     content = data.get("content", "")
                     stream = data.get("stream")
                     options = data.get("options") or {}

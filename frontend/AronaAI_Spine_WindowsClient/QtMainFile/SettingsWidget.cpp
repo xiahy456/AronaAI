@@ -111,8 +111,8 @@ SettingsWidget::SettingsWidget(QWidget *parent)
     WIDGET_CHILD_SETTING_LABEL(ui.basicSettings_shortCutLabel, "voiceInput_shortCut", 2);
     WIDGET_CHILD_SETTING_INPUT_STRING(ui.basicSettings_shortCutLineEdit, "short_cut_key", "switch_audio_input", 2);
 
-	// 阿罗娜AI模式
-    ui.basicSettings_aronaAIModeWidget->move(STEP_POSITION_POINT(230, 20, 40, 3));  // 阿罗娜AI设置控件基准位置
+	// 阿洛娜AI模式
+    ui.basicSettings_aronaAIModeWidget->move(STEP_POSITION_POINT(230, 20, 40, 3));  // 阿洛娜AI设置控件基准位置
 	ui.basicSettings_aronaAIModeWidget->resize(400 * WIDGET_ZOOM, 120 * WIDGET_ZOOM);
     ui.basicSettings_aronaAIModeWidget->setStyleSheet("color: rgb(44, 69, 99);");
 

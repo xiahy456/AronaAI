@@ -1,8 +1,17 @@
 # Qwen3-1.7B QLoRA 微调（阿洛娜）
 
-基于 [Unsloth](https://github.com/unslothai/unsloth) 对本地 `Qwen3-1.7B-unsloth-bnb-4bit` 做 QLoRA 微调，训练数据为 ShareGPT 格式 JSONL，训练结束后可导出 GGUF 供 llama.cpp / Ollama 使用。
+基于 [Unsloth](https://github.com/unslothai/unsloth) 对本地 `Qwen3-1.7B-unsloth-bnb-4bit` 做 QLoRA 微调，训练数据为 ShareGPT 格式 JSONL，训练结束后导出 LoRA / GGUF，供后端 `llama-cpp-python` 或 Ollama 使用。
 
 面向硬件：**RTX 4060 笔记本（约 6–8GB 显存）**。
+
+本目录支持两条产物线（**勿互相覆盖输出目录**）：
+
+| 产物 | 配置 | 用途 |
+|------|------|------|
+| **AronaLM v2.0 Normal** | `config/config.yaml` | 自由对话 / Planner 关闭或失败时的本地回落 |
+| **AronaLM v2.1 Renderer** | `config/config_renderer.yaml` | 双模型主路径：按 Planner **意图卡**渲染 1–3 句短回复 |
+
+后端默认加载 Renderer GGUF，见仓库 [`models/README.md`](../../../models/README.md)。
 
 ---
 
@@ -11,27 +20,41 @@
 ```
 finetune/
 ├── config/
-│   └── config.yaml          # 统一配置（模型 / 数据 / LoRA / 训练 / 导出 / 推理）
+│   ├── config.yaml              # v2.0 Normal：模型 / 数据 / LoRA / 训练 / 导出 / 推理
+│   └── config_renderer.yaml     # v2.1 Renderer（勿覆盖 v2.0 产物目录）
 ├── training/
-│   └── train.py             # 微调主脚本
+│   └── train.py                 # 微调主脚本
 ├── inference/
-│   └── inference.py         # 交互式推理测试
+│   └── inference.py             # LoRA 交互式推理
+├── export/
+│   ├── export_gguf.py           # 16bit 基座 + LoRA → GGUF（4bit 训练后推荐走此脚本）
+│   └── deploy_renderer_v21.py   # 将 Renderer GGUF 拷到 models/aronalm-v2.1-renderer/
+├── eval/
+│   ├── eval.py                  # Normal：基座 vs LoRA 完整评测
+│   ├── eval_renderer.py         # Renderer：意图卡硬例规则评测（GGUF）
+│   ├── cases.json / multi_sessions.json / renderer_cases.json
+│   └── ...
+├── data-process/                # 语料构建与合并
 ├── data/
-│   └── finetune_training/
-│       └── normal_finetune.jsonl
-├── data-process/            # 数据合并等预处理脚本
-├── outputs/                 # 训练产物（自动创建）
-├── logs/                    # 训练日志（自动创建）
+│   ├── raw/normal/chosen/       # 选用语料 JSON（persona + renderer）
+│   ├── raw/normal/disabled/     # 禁用语料（不参与合并）
+│   └── finetune_training/       # 合并后的 JSONL
+├── prompts/
+│   └── renderer_system.txt      # Renderer 系统提示（与生产对齐）
+├── outputs/                     # 训练产物（自动创建）
+├── logs/                        # 训练 / 导出日志（自动创建）
 ├── requirements.txt
-├── start.bat                # Windows 一键训练
+├── start.bat                    # Windows：v2.0 Normal 一键训练
+├── start_renderer.bat           # Windows：v2.1 Renderer 训练 → GGUF → 部署
 └── README.md
 ```
 
-本地基座模型默认路径（相对本目录）：
+本地模型默认路径（相对本目录，即仓库根 `models/`）：
 
-`../../../models/Qwen3-1.7B-unsloth-bnb-4bit`
-
-即仓库根目录下的 `models/Qwen3-1.7B-unsloth-bnb-4bit`。
+| 用途 | 路径 |
+|------|------|
+| 训练 4bit 基座 | `../../../models/Qwen3-1.7B-unsloth-bnb-4bit` |
+| 导出 GGUF 用 16bit 基座 | `../../../models/Qwen3-1.7B`（勿用 `*-bnb-4bit`） |
 
 ---
 
@@ -87,24 +110,48 @@ python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_
 - 字段名：`conversations`
 - 消息字段：`from`（`human` / `gpt`，可选 `system`）、`value`
 - 支持多轮：`human` / `gpt` 交替出现
+- **Renderer** 样本的 `human` 侧为「老师原话 + 意图卡」文本；格式由 `data-process/renderer_format.py` 生成，系统提示见 `prompts/renderer_system.txt`
 
-当前默认数据：
+训练启动时会自动校验格式，并打印：总条数、角色计数、轮次分布、字符长度统计。
 
-`data/finetune_training/normal_finetune.jsonl`（约 1265 条）
+### 当前默认 JSONL
 
-若从 `data/raw/normal/expand/*.json` 重新合并，可运行：
+| 文件 | 约条数 | 用途 |
+|------|--------|------|
+| `data/finetune_training/normal_finetune.jsonl` | ~500 | v2.0 Normal（`config.yaml`） |
+| `data/finetune_training/mixed_renderer_finetune.jsonl` | ~476 | v2.1 Renderer（`config_renderer.yaml`，renderer + 少量 persona） |
+| `data/finetune_training/renderer_finetune.jsonl` | ~326 | 仅 Renderer 样本（合并脚本副产物） |
+
+### 重新合并
+
+**Normal**（从 `data/raw/normal/chosen/*.json`，自动跳过 renderer 专用文件）：
 
 ```bat
 python data-process\merge_expand_to_jsonl.py
 ```
 
-训练启动时会自动校验格式，并打印：总条数、角色计数、轮次分布、字符长度统计。
+**Renderer**（`renderer_curated` + `renderer_synth_v2` 等，并可混入 persona）：
+
+```bat
+python data-process\merge_renderer_finetune.py
+python data-process\merge_renderer_finetune.py --persona-max 150
+```
+
+### Renderer 语料构建（可选）
+
+| 脚本 | 说明 |
+|------|------|
+| `build_renderer_curated.py` | 手写金标 → `chosen/renderer_curated.json` |
+| `build_renderer_synth_v2.py` | 模板 / LLM 合成（禁止虚卡 `must_say`）→ `chosen/renderer_synth_v2.json` |
+| `build_renderer_pairs.py` | **已废弃**；弱虚卡不得进入 `chosen/` |
+
+`data/raw/normal/disabled/` 中的文件不参与任何合并。
 
 ---
 
 ## 训练启动
 
-### 方式 A：一键脚本（推荐）
+### A. v2.0 Normal（自由对话）
 
 ```bat
 cd llm\aronaLM\finetune
@@ -119,14 +166,34 @@ start.bat --resume
 start.bat --epochs 2
 ```
 
-### 方式 B：直接调用 Python
+或直接：
 
 ```bat
-cd llm\aronaLM\finetune
 python training\train.py --config config\config.yaml
 ```
 
-常用参数：
+默认日志：`logs/train.log`。配置中 `export.save_gguf: true` 时，训练结束会尝试导出 GGUF；若因 4bit 基座失败，请改用下方 `export/export_gguf.py`。
+
+### B. v2.1 Renderer（意图卡 → 短回复，推荐主路径）
+
+```bat
+cd llm\aronaLM\finetune
+start_renderer.bat
+```
+
+流程：`train.py --config config_renderer.yaml --no-gguf` → `export/export_gguf.py` → `export/deploy_renderer_v21.py`。
+
+也可分步：
+
+```bat
+python training\train.py --config config\config_renderer.yaml --no-gguf
+python export\export_gguf.py --config config\config_renderer.yaml
+python export\deploy_renderer_v21.py
+```
+
+默认日志：`logs/train_renderer.log`。Renderer 配置里 **`save_gguf: false`**（训练脚本内直接对 4bit 基座导出 GGUF 会失败），必须走 `export_gguf.py`。
+
+### 常用 CLI 参数
 
 | 参数 | 说明 |
 |------|------|
@@ -136,71 +203,99 @@ python training\train.py --config config\config.yaml
 | `--output-dir` | 覆盖输出目录 |
 | `--epochs` | 覆盖训练轮数 |
 | `--resume` | 从最新 checkpoint 恢复；也可 `--resume path\to\checkpoint-xxx` |
-| `--no-gguf` | 跳过 GGUF 导出 |
+| `--no-gguf` | 跳过训练脚本内的 GGUF 导出 |
 
-日志写入：`logs/train.log`。
-
-### 产物说明
+### 产物目录
 
 | 路径 | 内容 |
 |------|------|
-| `outputs/arona-qwen3-lora/` | Trainer checkpoint |
-| `outputs/arona-qwen3-lora-adapter/` | LoRA 适配器（推理用） |
-| `outputs/arona-qwen3-gguf/` | GGUF（默认 `q4_k_m`） |
+| `outputs/aronalm-v2.0-normal-lora/` | Normal Trainer checkpoint |
+| `outputs/aronalm-v2.0-normal-lora-adapter/` | Normal LoRA 适配器 |
+| `outputs/aronalm-v2.0-normal-gguf/` | Normal GGUF（默认 `q4_k_m`） |
+| `outputs/aronalm-v2.1-renderer-lora/` | Renderer Trainer checkpoint |
+| `outputs/aronalm-v2.1-renderer-lora-adapter/` | Renderer LoRA 适配器 |
+| `outputs/aronalm-v2.1-renderer-gguf/` | Renderer GGUF |
+| `../../../models/aronalm-v2.1-renderer/` | `deploy_renderer_v21.py` 部署目标 |
+
+部署后手动改 `backend/config.yaml` 的 `model.gguf_path`（脚本不会改配置，便于回滚到 v2.0）。
 
 ---
 
-## 推理测试
+## 推理测试（LoRA）
 
 ```bat
 cd llm\aronaLM\finetune
 python inference\inference.py --config config\config.yaml
+python inference\inference.py --config config\config_renderer.yaml
 ```
 
-单条非交互测试：
+单条非交互：
 
 ```bat
-python inference\inference.py --prompt "阿洛娜，早上好！"
+python inference\inference.py --config config\config.yaml --prompt "阿洛娜，早上好！"
 ```
 
 指定适配器：
 
 ```bat
-python inference\inference.py --adapter outputs\arona-qwen3-lora-adapter
+python inference\inference.py --adapter outputs\aronalm-v2.0-normal-lora-adapter
 ```
 
 对话中输入 `quit` / `exit` / `q` 退出，`clear` 清空历史。
 
-默认生成参数（可在 `config.yaml` 的 `inference` 段修改）：
+默认生成参数（见对应 YAML 的 `inference` 段）：
 
-- `max_new_tokens: 256`
+- `max_new_tokens: 128`
 - `temperature: 0.7`
-- `top_p: 0.9`
+- `top_p: 0.85`
 - `do_sample: true`
 
 ---
 
-## GGUF / Ollama 使用摘要
+## GGUF 导出与使用
 
-训练成功且 `export.save_gguf: true` 时，会在 `outputs/arona-qwen3-gguf/` 生成 `.gguf` 文件。
+**推荐方式**（16bit 基座 + LoRA）：
+
+```bat
+python export\export_gguf.py --config config\config.yaml
+python export\export_gguf.py --config config\config_renderer.yaml
+python export\export_gguf.py --adapter outputs\aronalm-v2.0-normal-lora-adapter --quant q4_k_m
+```
+
+需先放置 `models/Qwen3-1.7B`（完整 16bit 权重，含 `config.json`）。
 
 **llama.cpp 示例：**
 
 ```bat
-llama-cli -m outputs\arona-qwen3-gguf\*.gguf -p "老师：阿洛娜你好" -n 256
+llama-cli -m outputs\aronalm-v2.1-renderer-gguf\*.gguf -p "老师：阿洛娜你好" -n 128
 ```
 
 **Ollama：** 新建 `Modelfile` 指向该 GGUF，再 `ollama create arona -f Modelfile`。
 
-若自动导出失败，可先保留 LoRA，再在 Python 中手动：
+**后端：** 将 GGUF 放到 `models/aronalm-v2.1-renderer/`（或 v2.0），并设置 `model.gguf_path`。
 
-```python
-from unsloth import FastLanguageModel
-model, tokenizer = FastLanguageModel.from_pretrained("outputs/arona-qwen3-lora-adapter", load_in_4bit=True)
-model.save_pretrained_gguf("outputs/arona-qwen3-gguf", tokenizer, quantization_method="q4_k_m")
+---
+
+## 评测
+
+### Normal（基座 vs LoRA）
+
+```bat
+python eval\eval.py --config config\config.yaml
+python eval\eval.py --adapter outputs\aronalm-v2.0-normal-lora-adapter
+python eval\eval.py --no-judge --no-multi
 ```
 
-或先 `save_pretrained_merged(..., save_method="merged_16bit")`，再用 llama.cpp 的 `convert_hf_to_gguf.py` 转换。
+默认开启基座对比、规则/Judge、多轮会话与训练集探针；DeepSeek Judge 配置读自 `backend/config.yaml` 的 `memory.extractor`。报告写入 `eval/reports/`。
+
+### Renderer（意图卡硬例，生产向 GGUF）
+
+```bat
+python eval\eval_renderer.py --gguf ..\..\..\models\aronalm-v2.0-normal\aronalm-v2.0-normal.Q4_K_M.gguf --tag v20
+python eval\eval_renderer.py --gguf ..\..\..\models\aronalm-v2.1-renderer\aronalm-v2.1-renderer.Q4_K_M.gguf --tag v21
+```
+
+用例见 `eval/renderer_cases.json`（问候时段、must_say / must_not、禁止话题反弹等）。
 
 ---
 
@@ -210,8 +305,9 @@ model.save_pretrained_gguf("outputs/arona-qwen3-gguf", tokenizer, quantization_m
 |------|------|
 | CUDA OOM | `per_device_train_batch_size: 1`；或 `max_seq_length: 1024`；确认 `load_in_4bit: true`、`use_gradient_checkpointing: "unsloth"` |
 | 显存仍紧张 | `gradient_accumulation_steps` 提到 8，保持有效 batch≈8 |
-| 欠拟合 / 不像阿洛娜 | `num_train_epochs: 4~5`，或 `lora.r / lora_alpha: 32` |
-| 过拟合 / 复读 | 降到 2 epoch，或略降 `learning_rate` 到 `1e-4` |
+| Normal 欠拟合 / 不像阿洛娜 | `num_train_epochs: 4~5`，或 `lora.r / lora_alpha: 32` |
+| Renderer 不听话 / 漏 must_say | 检查语料卡质量；略增 epoch 或 curated 占比；勿用虚卡合成 |
+| 过拟合 / 复读 | 降 epoch，或略降 `learning_rate`（Normal 默认 `2e-4`，Renderer 默认 `1.5e-4`） |
 | 回复太短/太长 | 调推理 `max_new_tokens`、`temperature`（0.6~0.9） |
 | GGUF 转换 OOM | `export.maximum_memory_usage: 0.3`，或改 `q8_0` / 先 merged_16bit 再 CPU 量化 |
 | 想要更高质量 GGUF | `quantization_method: q5_k_m`（体积更大） |
@@ -237,27 +333,44 @@ model.save_pretrained_gguf("outputs/arona-qwen3-gguf", tokenizer, quantization_m
 start.bat --resume
 ```
 
-或在 `config.yaml` 设置：
+或在 YAML 中设置：
 
 ```yaml
 training:
   resume_from_checkpoint: true   # 或具体 checkpoint 路径
 ```
 
+Renderer 请对 `start_renderer.bat` / `config_renderer.yaml` 使用同样方式；**不要**把旧 free-chat LoRA resume 到 Renderer 训练。
+
 **5. Unsloth 在 Windows 安装困难**  
 优先 WSL2 + Linux 环境训练；或使用官方 Colab/Docker 镜像，再把适配器拷回本机。
 
-**6. 推理仍像基座、不像微调结果**  
-确认 `--adapter` 指向 `outputs/arona-qwen3-lora-adapter`，且该目录含 `adapter_config.json` / `adapter_model.safetensors`。
+**6. 训练内 GGUF 导出失败**  
+属预期（4bit 基座）。改用 `python export\export_gguf.py --config ...`，并确认已下载 `models/Qwen3-1.7B`。
+
+**7. 推理仍像基座、不像微调结果**  
+确认 `--adapter` 指向正确的 `*-lora-adapter` 目录，且含 `adapter_config.json` / `adapter_model.safetensors`。后端路径则检查 `model.gguf_path` 是否指向新导出的 GGUF。
+
+**8. Renderer 回滚**  
+将 `backend/config.yaml` 的 `model.gguf_path` 改回 `../models/aronalm-v2.0-normal/aronalm-v2.0-normal.Q4_K_M.gguf`。
 
 ---
 
 ## 配置速查
 
-核心默认值见 `config/config.yaml`：
+### v2.0 Normal（`config/config.yaml`）
 
-- LoRA：`r=16`, `lora_alpha=16`, `dropout=0`，目标模块含 q/k/v/o/gate/up/down
-- 训练：`batch=2`, `grad_accum=4`, `epochs=3`, `lr=2e-4`, `optim=adamw_8bit`
-- 导出：`q4_k_m` GGUF + LoRA 适配器
+- 数据：`normal_finetune.jsonl`
+- LoRA：`r=16`, `lora_alpha=16`, `dropout=0`
+- 训练：`batch=2`, `grad_accum=4`, `epochs=4`, `lr=2e-4`, `optim=adamw_8bit`
+- 导出：`save_gguf: true`，目录 `outputs/aronalm-v2.0-normal-*`
 
-修改后无需改代码，直接重新运行 `start.bat` 即可。
+### v2.1 Renderer（`config/config_renderer.yaml`）
+
+- 数据：`mixed_renderer_finetune.jsonl`
+- LoRA：`r=16`, `lora_alpha=16`, `dropout=0.05`
+- 训练：`batch=2`, `grad_accum=4`, `epochs=3`, `lr=1.5e-4`
+- 导出：`save_gguf: false`（训练后用 `export_gguf.py`），目录 `outputs/aronalm-v2.1-renderer-*`
+- 系统提示与 `prompts/renderer_system.txt` / 生产 Renderer 对齐
+
+修改 YAML 后无需改代码，重新运行对应 `start*.bat` 即可。

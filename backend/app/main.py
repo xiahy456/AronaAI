@@ -79,6 +79,7 @@ def create_app() -> FastAPI:
         logger.info("Starting AronaAI backend")
         logger.info("Logging to %s", log_path)
         model.load(config)
+        await asyncio.to_thread(model.warmup)
         await asyncio.to_thread(memory_store.warmup)
         if knowledge.enabled:
             try:

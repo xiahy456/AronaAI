@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import threading
+import time
 from collections.abc import Iterator
 from typing import Any
 
@@ -167,6 +168,31 @@ class ModelLoader:
             )
             self._config = config
             logger.info("Model loaded")
+
+    def warmup(self) -> None:
+        """Run a tiny sync completion so first user request is not GPU-cold."""
+        if self._llm is None:
+            logger.warning("Local LLM warmup skipped: model not loaded")
+            return
+        logger.info("Warming up local LLM")
+        t0 = time.perf_counter()
+        try:
+            with self._lock:
+                self._llm.create_chat_completion(
+                    messages=[{"role": "user", "content": "hi"}],
+                    max_tokens=1,
+                    temperature=0,
+                    stream=False,
+                )
+            logger.info(
+                "Local LLM warmup done latency=%.3fs",
+                time.perf_counter() - t0,
+            )
+        except Exception:
+            logger.exception(
+                "Local LLM warmup failed latency=%.3fs; first request may be cold",
+                time.perf_counter() - t0,
+            )
 
     @property
     def ready(self) -> bool:
