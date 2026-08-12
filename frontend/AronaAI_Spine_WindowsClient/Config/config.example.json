@@ -33,7 +33,7 @@
     "use_memory": true
   },
   "spine": {
-    "skelOrJson_path": "Assets/AronaSpineAssets/arona_spr_full.skel",
+    "skelOrJson_path": "Assets/AronaSpineAssets/arona_spr_full.json",
     "atlas_path": "Assets/AronaSpineAssets/arona_spr_full.atlas",
     "animation_default_mix": 0.2
   },
@@ -53,7 +53,7 @@
     "batch_size": 1,
     "batch_threshold": 0.75,
     "split_bucket": true,
-    "speed_factor": 1.1,
+    "speed_factor": 1.0,
     "fragment_interval": 0.3,
     "seed": -1,
     "streaming_mode": false,
