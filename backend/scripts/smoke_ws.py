@@ -8,7 +8,7 @@ import json
 import sys
 
 
-async def run(url: str, message: str, stream: bool) -> int:
+async def run(url: str, message: str) -> int:
     try:
         import websockets
     except ImportError:
@@ -28,34 +28,22 @@ async def run(url: str, message: str, stream: bool) -> int:
         payload = {
             "type": "chat",
             "content": message,
-            "stream": stream,
             "options": {"use_cache": False, "use_rag": False, "use_memory": True},
         }
         await ws.send(json.dumps(payload, ensure_ascii=False))
         print(">>", payload)
 
-        if stream:
-            while True:
-                raw = await ws.recv()
-                data = json.loads(raw)
-                print("<<", data)
-                if data.get("type") == "chat_stream" and data.get("done"):
-                    break
-                if data.get("type") == "error":
-                    return 1
-        else:
-            raw = await ws.recv()
-            data = json.loads(raw)
-            print("<<", data)
-            if data.get("type") != "chat_response":
-                return 1
+        raw = await ws.recv()
+        data = json.loads(raw)
+        print("<<", data)
+        if data.get("type") != "chat_response":
+            return 1
 
         await ws.send(
             json.dumps(
                 {
                     "type": "chat",
                     "content": "请记住：我喜欢草莓牛奶",
-                    "stream": False,
                     "options": {"use_cache": False, "use_rag": False, "use_memory": True},
                 },
                 ensure_ascii=False,
@@ -76,9 +64,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="AronaAI WS smoke test")
     parser.add_argument("--url", default="ws://127.0.0.1:20456/ws")
     parser.add_argument("--message", default="老师好，阿洛娜~")
-    parser.add_argument("--stream", action="store_true")
     args = parser.parse_args()
-    raise SystemExit(asyncio.run(run(args.url, args.message, args.stream)))
+    raise SystemExit(asyncio.run(run(args.url, args.message)))
 
 
 if __name__ == "__main__":

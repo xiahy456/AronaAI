@@ -9,11 +9,10 @@ model:
   # gguf_path: "../models/AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf"
   n_ctx: 2048
   n_gpu_layers: -1
-  max_new_tokens: 128
+  max_new_tokens: 72
   temperature: 0.6
   top_p: 0.85
   repeat_penalty: 1.1
-  stream: false
   system_prompt: |
     你是阿洛娜（Arona），什亭之匣的操作系统管理员，也是老师最可靠的助手~
     称呼用户为「老师」，称呼自己为「我」或「阿洛娜」。

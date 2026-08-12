@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import re
 from pathlib import Path
 
 FINETUNE_ROOT = Path(__file__).resolve().parent.parent
@@ -42,6 +43,42 @@ PERSONA_FILES = (
     "routine.json",
     "self.json",
 )
+
+_SENT_SPLIT = re.compile(r"(?<=[。！？!?~～])\s*")
+
+
+def _compress_gpt_reply(text: str, max_sents: int = 2) -> str:
+    t = (text or "").strip()
+    if not t:
+        return t
+    parts = [p.strip() for p in _SENT_SPLIT.split(t) if p.strip()]
+    if len(parts) <= max_sents:
+        return t
+    return "".join(parts[:max_sents])
+
+
+def _shorten_persona_item(item: dict) -> dict:
+    """Keep persona voice but clip assistant turns to <=2 sentences."""
+    conv = item.get("conversations")
+    if not isinstance(conv, list):
+        return item
+    new_conv = []
+    changed = False
+    for turn in conv:
+        if not isinstance(turn, dict):
+            new_conv.append(turn)
+            continue
+        if turn.get("from") == "gpt":
+            old = str(turn.get("value") or "")
+            new = _compress_gpt_reply(old)
+            if new != old:
+                changed = True
+            new_conv.append({**turn, "value": new})
+        else:
+            new_conv.append(turn)
+    if not changed:
+        return item
+    return {**item, "conversations": new_conv}
 
 
 def _load_list(path: Path) -> list[dict]:
@@ -110,8 +147,11 @@ def merge(
     # but plan also says cap e.g. 150 — use min(cap, ratio-based)
     if renderer_items:
         ratio_cap = int(len(renderer_items) * 0.4 / 0.6)
-        persona_pick = persona_pool[: min(persona_max, max(ratio_cap, 1))]
         persona_pick = persona_pool[: min(len(persona_pool), min(persona_max, max(ratio_cap, 1)))]
+    else:
+        persona_pick = persona_pool[: max(0, persona_max)]
+
+    persona_pick = [_shorten_persona_item(x) for x in persona_pick]
 
     mixed = list(renderer_items) + list(persona_pick)
     rng.shuffle(mixed)

@@ -30,7 +30,6 @@ TTSManager::TTSManager(QObject* parent)
     , audioSink(nullptr)
     , audioBuffer(nullptr)
     , isProcessingRequest(false)
-    , isStreamingMode(false)
     , requestTimeoutMs(45000)
 {
     // 设置服务器地址
@@ -78,8 +77,6 @@ void TTSManager::cleanupCurrentReply()
         currentReply->deleteLater();
         currentReply = nullptr;
     }
-    accumulatedAudioData.clear();
-    isStreamingMode = false;
 }
 
 QUrl TTSManager::buildBaseUrl() const
@@ -122,7 +119,7 @@ QUrlQuery TTSManager::buildQueryFromParams(const TTSRequestParams& params) const
     query.addQueryItem("fragment_interval", QString::number(params.fragmentInterval));
     query.addQueryItem("seed", QString::number(params.seed));
     query.addQueryItem("media_type", params.mediaType);
-    query.addQueryItem("streaming_mode", params.streamingMode ? "true" : "false");
+    query.addQueryItem("streaming_mode", "false");
     query.addQueryItem("parallel_infer", params.parallelInfer ? "true" : "false");
     query.addQueryItem("repetition_penalty", QString::number(params.repetitionPenalty));
     query.addQueryItem("sample_steps", QString::number(params.sampleSteps));
@@ -159,7 +156,7 @@ QJsonObject TTSManager::buildJsonFromParams(const TTSRequestParams& params) cons
     json["fragment_interval"] = params.fragmentInterval;
     json["seed"] = params.seed;
     json["media_type"] = params.mediaType;
-    json["streaming_mode"] = params.streamingMode;
+    json["streaming_mode"] = false;
     json["parallel_infer"] = params.parallelInfer;
     json["repetition_penalty"] = params.repetitionPenalty;
     json["sample_steps"] = params.sampleSteps;
@@ -212,6 +209,17 @@ void TTSManager::onNetworkReplyFinished()
         return;
     }
 
+    if (reply->url().path() == "/tts") {
+        if (reply->error() != QNetworkReply::NoError) {
+            FINE_DEBUG_OUTPUT(QString("[Latency] TTS RTT: %1 ms (error)")
+                .arg(m_ttsRequestTimer.elapsed()));
+        }
+        else {
+            FINE_DEBUG_OUTPUT(QString("[Latency] TTS RTT: %1 ms")
+                .arg(m_ttsRequestTimer.elapsed()));
+        }
+    }
+
     if (reply->error() != QNetworkReply::NoError) {
         QString errorMsg = reply->errorString();
         if (reply->error() == QNetworkReply::TimeoutError
@@ -226,32 +234,6 @@ void TTSManager::onNetworkReplyFinished()
             handleTTSResponse(reply);
         }
     }
-
-    // 清理当前回复并处理下一个请求
-    cleanupCurrentReply();
-    isProcessingRequest = false;
-    processNextRequest();
-}
-
-void TTSManager::onStreamReadyRead()
-{
-    if (!currentReply) return;
-
-    QByteArray chunk = currentReply->readAll();
-    if (!chunk.isEmpty()) {
-        accumulatedAudioData.append(chunk);
-        emit ttsChunkReceived(chunk);
-    }
-}
-
-void TTSManager::onStreamFinished()
-{
-    if (!currentReply) return;
-
-    if (!accumulatedAudioData.isEmpty()) {
-        emit ttsFinished(accumulatedAudioData, currentMediaType);
-    }
-    accumulatedAudioData.clear();
 
     // 清理当前回复并处理下一个请求
     cleanupCurrentReply();
@@ -447,24 +429,12 @@ void TTSManager::executeTTSGet(const TTSRequestParams& params)
     QNetworkRequest request(url);
     applyRequestTimeout(request);
     currentMediaType = params.mediaType;
-    isStreamingMode = params.streamingMode;
 
     cleanupCurrentReply();
     currentReply = networkManager->get(request);
 
-    if (params.streamingMode) {
-        connect(currentReply, &QNetworkReply::readyRead,
-            this, &TTSManager::onStreamReadyRead);
-        connect(currentReply, &QNetworkReply::finished,
-            this, &TTSManager::onStreamFinished);
-    }
-    else {
-        // 非流式模式，使用原有的finished信号
-        connect(currentReply, &QNetworkReply::finished,
-            this, &TTSManager::onNetworkReplyFinished);
-    }
-
-    accumulatedAudioData.clear();
+    connect(currentReply, &QNetworkReply::finished,
+        this, &TTSManager::onNetworkReplyFinished);
 }
 
 void TTSManager::executeTTSPost(const TTSRequestParams& params)
@@ -481,24 +451,13 @@ void TTSManager::executeTTSPost(const TTSRequestParams& params)
     QByteArray data = doc.toJson();
 
     currentMediaType = params.mediaType;
-    isStreamingMode = params.streamingMode;
 
     cleanupCurrentReply();
+    m_ttsRequestTimer.restart();
     currentReply = networkManager->post(request, data);
 
-    if (params.streamingMode) {
-        connect(currentReply, &QNetworkReply::readyRead,
-            this, &TTSManager::onStreamReadyRead);
-        connect(currentReply, &QNetworkReply::finished,
-            this, &TTSManager::onStreamFinished);
-    }
-    else {
-        // 非流式模式，使用原有的finished信号
-        connect(currentReply, &QNetworkReply::finished,
-            this, &TTSManager::onNetworkReplyFinished);
-    }
-
-    accumulatedAudioData.clear();
+    connect(currentReply, &QNetworkReply::finished,
+        this, &TTSManager::onNetworkReplyFinished);
 }
 
 void TTSManager::executeControlCommand(const QString& command)

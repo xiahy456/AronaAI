@@ -153,24 +153,6 @@ void WebSocketController::sendChatMessage(const QString& content,
     QJsonObject message;
     message["type"] = "chat";
     message["content"] = content;
-    message["stream"] = false;
-
-    QJsonObject options;
-    options["use_cache"] = useCache;
-    options["use_rag"] = useRag;
-    options["use_memory"] = useMemory;
-    message["options"] = options;
-
-    sendMessage(message);
-}
-
-void WebSocketController::sendStreamChatMessage(const QString& content,
-    bool useCache, bool useRag, bool useMemory)
-{
-    QJsonObject message;
-    message["type"] = "chat";
-    message["content"] = content;
-    message["stream"] = true;
 
     QJsonObject options;
     options["use_cache"] = useCache;
@@ -239,11 +221,6 @@ void WebSocketController::onMessageReceived(MessageCallback callback)
 void WebSocketController::onChatResponse(MessageCallback callback)
 {
     m_onChatResponseCallback = callback;
-}
-
-void WebSocketController::onChatStream(MessageCallback callback)
-{
-    m_onChatStreamCallback = callback;
 }
 
 void WebSocketController::onError(ErrorCallback callback)
@@ -438,9 +415,6 @@ void WebSocketController::handleMessage(const QJsonObject& message)
     if (type == "chat_response") {
         handleChatResponse(message);
     }
-    else if (type == "chat_stream") {
-        handleChatStream(message);
-    }
     else if (type == "error") {
         handleError(message);
     }
@@ -479,28 +453,6 @@ void WebSocketController::handleChatResponse(const QJsonObject& message)
 
     if (m_onChatResponseCallback) {
         m_onChatResponseCallback(message);
-    }
-}
-
-void WebSocketController::handleChatStream(const QJsonObject& message)
-{
-    bool done = message["done"].toBool(false);
-    QString content = message["content"].toString();
-
-    if (done) {
-        // 流式传输完成
-        FINE_DEBUG_OUTPUT("[WebSocketController]Stream transmission completed");
-        m_streamBuffer.clear();
-    }
-    else {
-        // 累积流式内容
-        m_streamBuffer += content;
-    }
-
-    emit chatStreamReceived(content, done);
-
-    if (m_onChatStreamCallback) {
-        m_onChatStreamCallback(message);
     }
 }
 

@@ -39,6 +39,7 @@
 # logs
 /logs/
 backend/logs/
+/frontend/AronaAI_Spine_WindowsClient/logs/*.log
 
 # pycache
 **/__pycache__/

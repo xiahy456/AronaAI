@@ -16,10 +16,10 @@ from .logging_utils import preview, preview_list
 from .memory.extractor import MemoryExtractor
 from .memory.store import MemoryStore
 from .memory.trigger import should_extract
-from .model_loader import ModelLoader, clean_model_output
+from .model_loader import ModelLoader
 from .planner import DEFAULT_EMOTION, IntentCard, PlannerClient, route_mode
 from .prompt import build_messages, build_renderer_messages
-from .protocol import msg_chat_response, msg_chat_stream
+from .protocol import msg_chat_response
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,6 @@ class Orchestrator:
         self.stats: dict[str, Any] = {
             "chat_count": 0,
             "cache_hits": 0,
-            "stream_count": 0,
             "planner_hits": 0,
             "planner_fallbacks": 0,
             "local_route_count": 0,
@@ -62,7 +61,6 @@ class Orchestrator:
         *,
         session_id: str,
         content: str,
-        stream: bool | None,
         options: dict[str, Any],
         send: SendFn,
     ) -> None:
@@ -82,17 +80,13 @@ class Orchestrator:
         use_cache = bool(options.get("use_cache", self.config.cache.enabled))
         use_rag = bool(options.get("use_rag", self.config.knowledge.enabled))
         use_memory = bool(options.get("use_memory", True))
-        # Dual-model path is non-streaming by product decision; keep stream only
-        # for explicit client requests when planner is off / local path.
-        do_stream = self.config.model.stream if stream is None else bool(stream)
 
         start = time.perf_counter()
         context_parts: list[str] = []
 
         logger.info(
-            "chat start session=%s stream=%s use_cache=%s use_rag=%s use_memory=%s request=%r",
+            "chat start session=%s use_cache=%s use_rag=%s use_memory=%s request=%r",
             session_id,
-            do_stream,
             use_cache and self.config.cache.enabled,
             use_rag,
             use_memory,
@@ -114,26 +108,21 @@ class Orchestrator:
                     cached_emotion,
                     cached_text,
                 )
-                if do_stream:
-                    await send(msg_chat_stream(cached_text, False))
-                    await send(msg_chat_stream("", True))
-                else:
-                    await send(
-                        msg_chat_response(
-                            cached_text,
-                            from_cache=True,
-                            context_used="cache",
-                            latency=round(latency, 4),
-                            emotion=cached_emotion,
-                        )
+                await send(
+                    msg_chat_response(
+                        cached_text,
+                        from_cache=True,
+                        context_used="cache",
+                        latency=round(latency, 4),
+                        emotion=cached_emotion,
                     )
+                )
                 await self._maybe_extract(session_id, user_text)
                 self.stats["chat_count"] += 1
                 logger.info(
-                    "chat done session=%s stream=%s context=cache latency=%.3fs "
+                    "chat done session=%s context=cache latency=%.3fs "
                     "request=%r response=%r",
                     session_id,
-                    do_stream,
                     latency,
                     user_text,
                     cached_text,
@@ -197,9 +186,7 @@ class Orchestrator:
             mode = "dual"
 
         use_dual = mode == "dual" and self.planner.enabled
-        # Dual path always non-stream so emotion lands with final payload.
         if use_dual:
-            do_stream = False
             self.stats["dual_route_count"] += 1
         else:
             self.stats["local_route_count"] += 1
@@ -258,39 +245,26 @@ class Orchestrator:
             emotion,
         )
 
-        if do_stream:
-            self.stats["stream_count"] += 1
-            logger.info("llm generate start session=%s mode=stream", session_id)
-            t0 = time.perf_counter()
-            full = await self._stream_generate(messages, send)
-            logger.info(
-                "llm generate done session=%s mode=stream latency=%.3fs chars=%d response=%r",
-                session_id,
-                time.perf_counter() - t0,
-                len(full),
+        logger.info("llm generate start session=%s mode=sync", session_id)
+        t0 = time.perf_counter()
+        full = await asyncio.to_thread(self.model.generate, messages, self.config)
+        latency = time.perf_counter() - start
+        logger.info(
+            "llm generate done session=%s mode=sync latency=%.3fs chars=%d response=%r",
+            session_id,
+            time.perf_counter() - t0,
+            len(full),
+            full,
+        )
+        await send(
+            msg_chat_response(
                 full,
+                from_cache=False,
+                context_used=context_used,
+                latency=round(latency, 4),
+                emotion=emotion,
             )
-        else:
-            logger.info("llm generate start session=%s mode=sync", session_id)
-            t0 = time.perf_counter()
-            full = await asyncio.to_thread(self.model.generate, messages, self.config)
-            latency = time.perf_counter() - start
-            logger.info(
-                "llm generate done session=%s mode=sync latency=%.3fs chars=%d response=%r",
-                session_id,
-                time.perf_counter() - t0,
-                len(full),
-                full,
-            )
-            await send(
-                msg_chat_response(
-                    full,
-                    from_cache=False,
-                    context_used=context_used,
-                    latency=round(latency, 4),
-                    emotion=emotion,
-                )
-            )
+        )
 
         self.conversations.append(session_id, "user", user_text)
         self.conversations.append(session_id, "assistant", full)
@@ -303,46 +277,15 @@ class Orchestrator:
         self.stats["chat_count"] += 1
         total_latency = time.perf_counter() - start
         logger.info(
-            "chat done session=%s stream=%s context=%s emotion=%s latency=%.3fs "
+            "chat done session=%s context=%s emotion=%s latency=%.3fs "
             "request=%r response=%r",
             session_id,
-            do_stream,
             context_used,
             emotion,
             total_latency,
             user_text,
             full,
         )
-
-    async def _stream_generate(self, messages: list[dict[str, str]], send: SendFn) -> str:
-        loop = asyncio.get_running_loop()
-        queue: asyncio.Queue[str | None] = asyncio.Queue()
-
-        def _producer() -> None:
-            try:
-                for piece in self.model.generate_stream(messages, self.config):
-                    asyncio.run_coroutine_threadsafe(queue.put(piece), loop).result()
-            finally:
-                asyncio.run_coroutine_threadsafe(queue.put(None), loop).result()
-
-        producer_future = loop.run_in_executor(None, _producer)
-        parts: list[str] = []
-        while True:
-            item = await queue.get()
-            if item is None:
-                break
-            parts.append(item)
-            await send(msg_chat_stream(item, False))
-
-        await producer_future
-        full = clean_model_output("".join(parts))
-        await send(msg_chat_stream("", True))
-        logger.info(
-            "stream finished chunks=%d chars=%d",
-            len(parts),
-            len(full),
-        )
-        return full
 
     async def _maybe_extract(self, session_id: str, user_text: str) -> None:
         # Buffer this completed turn (history was already appended by caller).

@@ -293,7 +293,7 @@ def _llm_rewrite_batch(
         "你是训练数据标注助手。为每条对话生成意图卡(JSON)与金标短回复。"
         "卡字段: user_emotion,topic,stance,must_say,must_not,facts_to_use,tone,length。"
         "禁止 must_say 使用虚词如「回应老师本轮意图」。must_say 必须具体可核对。"
-        "回复1-3句阿洛娜口吻，覆盖must_say，避开must_not；不要用「还是」抛选择题。"
+        "回复1-2句阿洛娜口吻，覆盖must_say，避开must_not；能一句说完就一句；不要用「还是」抛选择题。"
         '只输出一个 JSON 对象：{"items":[{user,card,reply},...]}。不要markdown。'
     )
     body = {

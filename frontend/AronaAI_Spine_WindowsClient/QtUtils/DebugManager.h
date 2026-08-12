@@ -21,6 +21,7 @@
 #include <QObject>
 #include <QDateTime>
 #include <QTime>
+#include <QFile>
 
 class DebugManager  : public QObject
 {
@@ -41,7 +42,15 @@ signals:
 
 private:
     explicit DebugManager(QObject* parent = nullptr);
+    ~DebugManager() override;
+
+    bool ensureLogFile();
+    void appendToLogFile(const QString& formattedMsg);
+
     static DebugManager* m_instance;
     QStringList m_pendingMessages;  // 缓存未发送的消息
-};
 
+    QFile m_logFile;
+    QString m_logDate;
+    bool m_logOpenFailed = false;
+};

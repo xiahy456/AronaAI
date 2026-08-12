@@ -61,7 +61,7 @@ def make_card(
     must_not: list[str] | None = None,
     facts_to_use: list[str] | None = None,
     tone: str = "温柔活泼短句",
-    length: str = "1-3句",
+    length: str = "1-2句",
 ) -> dict[str, Any]:
     mn = list(BASE_MUST_NOT)
     for item in must_not or []:
@@ -71,9 +71,9 @@ def make_card(
         "user_emotion": user_emotion,
         "topic": topic,
         "stance": stance,
-        "must_say": must_say,
+        "must_say": must_say[:2],
         "must_not": mn,
         "facts_to_use": list(facts_to_use or []),
         "tone": tone,
-        "length": length,
+        "length": length if length in ("1-2句", "1–2句") else "1-2句",
     }

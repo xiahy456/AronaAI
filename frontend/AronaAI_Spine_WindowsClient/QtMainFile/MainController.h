@@ -27,6 +27,7 @@
 #include <QEventLoop>
 #include <QMessageBox>
 #include <QProcess>
+#include <QElapsedTimer>
 
 #include <MainWidget.h>
 #include <TTSManager.h>
@@ -69,7 +70,6 @@ private slots:
 	// WebSocket 相关槽函数
 	void onWebSocketConnected(const QString& sessionId);
 	void onWebSocketChatResponse(const QString& content, bool fromCache, const QString& contextUsed, double latency, const QString& emotion);
-	void onWebSocketChatStream(const QString& content, bool done);
 	void onWebSocketError(WebSocketController::ErrorCode code, const QString& message);
 	void onWebSocketStateChanged(WebSocketController::ConnectionState state);
 
@@ -84,6 +84,9 @@ private:
 	QString m_currentText = "";	// 当前正在处理的文本
 	QString m_currentEmotion = "normal";	// 当前回复表情（英文值）
 	bool m_waitingForAIResponse = false;	// 是否正在等待AI回复
+	bool m_measuringUserTurn = false;	// 是否正在测量用户回合端到端耗时
+	QElapsedTimer m_backendTimer;	// 后端 WebSocket RTT
+	QElapsedTimer m_userTurnTimer;	// 用户发送到字幕上屏
 
 	// 处理用户输入的文本（语音识别或文本输入）
 	void processInputText(const QString& text);

@@ -39,6 +39,7 @@
 #include <QMediaDevices>
 #include <QAudioSink>
 #include <QQueue>
+#include <QElapsedTimer>
 
 class TTSManager : public QObject
 {
@@ -69,7 +70,6 @@ public:
         double speedFactor = 1.0;   // 语速因子
         double fragmentInterval = 0.3;  // 片段间隔
         int seed = -1;  // 随机种子
-        bool streamingMode = false; // 流式模式
         bool parallelInfer = true;  // 并行推理
         double repetitionPenalty = 1.35;    // 重复惩罚
         int sampleSteps = 32;   // 采样步数
@@ -104,8 +104,6 @@ public:
 signals:
     // TTS完成信号
     void ttsFinished(const QByteArray& audioData, const QString& mediaType);
-    // TTS流式数据接收信号
-    void ttsChunkReceived(const QByteArray& chunkData);
     // TTS错误信号
     void ttsError(const QString& errorString);
     // 命令执行完成信号
@@ -115,8 +113,6 @@ signals:
 
 private slots:
     void onNetworkReplyFinished();
-    void onStreamReadyRead();
-    void onStreamFinished();
 
 private:
     struct QueuedRequest {
@@ -152,15 +148,14 @@ private:
     int serverPort;
 
     QNetworkReply* currentReply;
-    QByteArray accumulatedAudioData;
     QString currentMediaType;
 
     QAudioSink* audioSink;
     QBuffer* audioBuffer;
 
     bool isProcessingRequest;
-    bool isStreamingMode;  // 记录当前请求是否为流式模式
     int requestTimeoutMs;  // /tts 请求超时（毫秒），0 表示不限制
+    QElapsedTimer m_ttsRequestTimer;  // TTS HTTP RTT
 
     void processNextRequest();
     void executeTTSGet(const TTSRequestParams& params);

@@ -37,6 +37,16 @@ def _choice_bounce(text: str) -> bool:
     return "帮您列" in text
 
 
+def _sentence_count(text: str) -> int:
+    import re
+
+    t = re.sub(r"<think>.*?</think>", "", text or "", flags=re.S).strip()
+    if not t:
+        return 0
+    parts = [p for p in re.split(r"(?<=[。！？!?~～])\s*", t) if p.strip()]
+    return len(parts) if parts else 1
+
+
 def score_reply(reply: str, expect: dict) -> tuple[bool, list[str]]:
     fails: list[str] = []
     reply = (reply or "").strip()
@@ -54,6 +64,11 @@ def score_reply(reply: str, expect: dict) -> tuple[bool, list[str]]:
     if expect.get("forbid_choice_bounce") and _choice_bounce(reply):
         fails.append("choice_bounce")
 
+    max_sents = expect.get("max_sentences", 2)
+    n_sent = _sentence_count(reply)
+    if n_sent > max_sents:
+        fails.append(f"too_many_sentences:{n_sent}>{max_sents}")
+
     return len(fails) == 0, fails
 
 
@@ -68,7 +83,7 @@ def load_llm(gguf: Path, n_ctx: int = 2048):
     )
 
 
-def generate(llm, user_payload: str, max_tokens: int = 128) -> str:
+def generate(llm, user_payload: str, max_tokens: int = 72) -> str:
     system = load_renderer_system()
     out = llm.create_chat_completion(
         messages=[

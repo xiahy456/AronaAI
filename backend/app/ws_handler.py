@@ -26,7 +26,6 @@ from .protocol import (
     CODE_INVALID_JSON,
     TYPE_CHAT,
     TYPE_CHAT_RESPONSE,
-    TYPE_CHAT_STREAM,
     TYPE_CLEAR_SESSION,
     TYPE_CONNECTED,
     TYPE_GET_STATS,
@@ -103,16 +102,6 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                 payload.get("latency"),
                 payload.get("content", ""),
             )
-        elif msg_type == TYPE_CHAT_STREAM:
-            if payload.get("done"):
-                logger.info("WS send session=%s type=%s done=True", session_id, msg_type)
-            else:
-                logger.debug(
-                    "WS send session=%s type=%s chunk=%s",
-                    session_id,
-                    msg_type,
-                    preview(str(payload.get("content", "")), 80),
-                )
         elif msg_type not in (TYPE_PONG, TYPE_CONNECTED):
             logger.info(
                 "WS send session=%s type=%s payload=%s",
@@ -128,14 +117,12 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
 
     async def _run_chat(
         content: str,
-        stream: bool | None,
         options: dict[str, Any],
     ) -> None:
         try:
             await state.orchestrator.handle_chat(
                 session_id=session_id,
                 content=content,
-                stream=stream,
                 options=options,
                 send=send,
             )
@@ -205,14 +192,12 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                     chat_request_json = raw
                     ttfb_logged = False
                     content = data.get("content", "")
-                    stream = data.get("stream")
                     options = data.get("options") or {}
                     if not isinstance(options, dict):
                         options = {}
                     logger.info(
-                        "WS chat recv session=%s stream=%s options=%s content=%r",
+                        "WS chat recv session=%s options=%s content=%r",
                         session_id,
-                        stream,
                         options,
                         content,
                     )
@@ -236,7 +221,6 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                     chat_task = asyncio.create_task(
                         _run_chat(
                             str(content),
-                            stream if isinstance(stream, bool) else None,
                             options,
                         )
                     )

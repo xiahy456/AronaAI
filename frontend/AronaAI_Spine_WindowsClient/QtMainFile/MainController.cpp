@@ -46,7 +46,6 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
     ttsRequestParams.speedFactor = GET_DOUBLE_FROM_JSON(_global_config, "tts", "speed_factor");   // 语速因子
     ttsRequestParams.fragmentInterval = GET_DOUBLE_FROM_JSON(_global_config, "tts", "fragment_interval");  // 片段间隔
     ttsRequestParams.seed = GET_INT_FROM_JSON(_global_config, "tts", "seed");  // 随机种子
-    ttsRequestParams.streamingMode = GET_BOOL_FROM_JSON(_global_config, "tts", "streaming_mode"); // 流式模式
     ttsRequestParams.parallelInfer = GET_BOOL_FROM_JSON(_global_config, "tts", "parallel_infer");  // 并行推理
     ttsRequestParams.repetitionPenalty = GET_DOUBLE_FROM_JSON(_global_config, "tts", "repetition_penalty");    // 重复惩罚
     ttsRequestParams.sampleSteps = GET_INT_FROM_JSON(_global_config, "tts", "sample_steps");   // 采样步数
@@ -115,8 +114,6 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
         this, &MainController::onWebSocketConnected);
     connect(m_webSocketController, &WebSocketController::chatResponseReceived,
         this, &MainController::onWebSocketChatResponse);
-    connect(m_webSocketController, &WebSocketController::chatStreamReceived,
-        this, &MainController::onWebSocketChatStream);
     connect(m_webSocketController, &WebSocketController::errorOccurred,
         this, &MainController::onWebSocketError);
     connect(m_webSocketController, &WebSocketController::connectionStateChanged,
@@ -159,6 +156,11 @@ void MainController::onTTSFinished(const QByteArray& audioData, const QString& m
     m_ttsManager->playAudio(audioData);
     // 显示文字
     m_mainWidget->showOutputText(m_currentText);
+    if (m_measuringUserTurn) {
+        FINE_DEBUG_OUTPUT(QString("[Latency] User send to text on screen: %1 ms")
+            .arg(m_userTurnTimer.elapsed()));
+        m_measuringUserTurn = false;
+    }
     // 计算播放时长
     int duration = m_currentText.size() * 100; // 每个字符100ms
     duration = (int)(1000 * (m_ttsManager->getWavDuration(audioData)));   // 按照实际音频时长设置，单位为毫秒
@@ -179,11 +181,17 @@ void MainController::onTTSError(const QString& errorString)
     ERROR_DEBUG_OUTPUT("[TTS Operation]TTS error: " + errorString);
 
     if (m_currentText.isEmpty()) {
+        m_measuringUserTurn = false;
         return;
     }
 
     // 语音失败时仍展示字幕与表情，避免交互卡住
     m_mainWidget->showOutputText(m_currentText);
+    if (m_measuringUserTurn) {
+        FINE_DEBUG_OUTPUT(QString("[Latency] User send to text on screen: %1 ms")
+            .arg(m_userTurnTimer.elapsed()));
+        m_measuringUserTurn = false;
+    }
     const QString expressionAnim = AronaEmotion::toAnimationName(m_currentEmotion);
     m_mainWidget->setAnimation(expressionAnim, 1, true);
     int duration = qMax(1500, m_currentText.size() * 100);
@@ -297,11 +305,15 @@ void MainController::processInputText(const QString& text)
     // 给用户一个等待提示
     FINE_DEBUG_OUTPUT("[Main Controller] 、Generating responce...");
 
-    // 发送消息给AI服务端（非流式）
+    // 发送消息给AI服务端
     // 可以从配置中读取是否使用缓存、RAG、记忆等功能
     bool useCache = GET_BOOL_FROM_JSON(_global_config, "aronalm", "use_cache");
     bool useRag = GET_BOOL_FROM_JSON(_global_config, "aronalm", "use_rag");
     bool useMemory = GET_BOOL_FROM_JSON(_global_config, "aronalm", "use_memory");
+
+    m_backendTimer.restart();
+    m_userTurnTimer.restart();
+    m_measuringUserTurn = true;
 
     m_webSocketController->sendChatMessage(trimmed, useCache, useRag, useMemory);
 
@@ -316,6 +328,9 @@ void MainController::onWebSocketConnected(const QString& sessionId)
 
 void MainController::onWebSocketChatResponse(const QString& content, bool fromCache, const QString& contextUsed, double latency, const QString& emotion)
 {
+    FINE_DEBUG_OUTPUT(QString("[Latency] Backend RTT: %1 ms (server_reported: %2s)")
+        .arg(m_backendTimer.elapsed())
+        .arg(latency, 0, 'f', 2));
     FINE_DEBUG_OUTPUT("[WebSocket] Received AI response: " + content.left(50) + "...");
     FINE_DEBUG_OUTPUT(QString("[WebSocket] Cache: %1, Context: %2, Latency: %3s, Emotion: %4")
         .arg(fromCache ? "yes" : "no")
@@ -331,23 +346,15 @@ void MainController::onWebSocketChatResponse(const QString& content, bool fromCa
     executeOutput(content);
 }
 
-void MainController::onWebSocketChatStream(const QString& content, bool done)
-{
-    if (done) {
-        // 流式传输完成
-        FINE_DEBUG_OUTPUT("[WebSocket] Stream completed");
-        m_waitingForAIResponse = false;
-    }
-    else {
-        // 流式传输中，可以实时显示片段
-        FINE_DEBUG_OUTPUT("[WebSocket] Stream chunk: " + content);
-        // 如果需要实时显示流式内容，可以在这里处理
-    }
-}
-
 void MainController::onWebSocketError(WebSocketController::ErrorCode code, const QString& message)
 {
     ERROR_DEBUG_OUTPUT(QString("[WebSocket] Error (code: %1): %2").arg(static_cast<int>(code)).arg(message));
+
+    if (m_waitingForAIResponse) {
+        FINE_DEBUG_OUTPUT(QString("[Latency] Backend RTT (failed): %1 ms")
+            .arg(m_backendTimer.elapsed()));
+        m_measuringUserTurn = false;
+    }
 
     // 重置等待状态
     m_waitingForAIResponse = false;
@@ -403,6 +410,11 @@ void MainController::onWebSocketStateChanged(WebSocketController::ConnectionStat
 
     // 如果连接断开，更新UI状态
     if (state == WebSocketController::ConnectionState::Disconnected) {
+        if (m_waitingForAIResponse) {
+            FINE_DEBUG_OUTPUT(QString("[Latency] Backend RTT (failed): %1 ms")
+                .arg(m_backendTimer.elapsed()));
+            m_measuringUserTurn = false;
+        }
         m_waitingForAIResponse = false;
     }
 }

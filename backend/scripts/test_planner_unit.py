@@ -23,7 +23,7 @@ def main() -> None:
     raw = (
         '{"user_emotion":"沮丧","topic":"考试","stance":"共情",'
         '"must_say":["安慰"],"must_not":[],"facts_to_use":[],'
-        '"tone":"温柔","length":"1-3句","arona_emotion":"smile"}'
+        '"tone":"温柔","length":"1-2句","arona_emotion":"smile"}'
     )
     card = parse_and_gate_intent(raw)
     assert card is not None

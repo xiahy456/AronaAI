@@ -27,7 +27,6 @@ class ModelConfig(BaseModel):
     temperature: float = 0.6
     top_p: float = 0.85
     repeat_penalty: float = 1.1
-    stream: bool = False
     system_prompt: str = ""
 
 

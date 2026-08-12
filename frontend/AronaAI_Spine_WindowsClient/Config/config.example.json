@@ -56,7 +56,6 @@
     "speed_factor": 1.0,
     "fragment_interval": 0.3,
     "seed": -1,
-    "streaming_mode": false,
     "parallel_infer": true,
     "request_timeout_ms": 25000,
     "repetition_penalty": 1.35,

@@ -14,7 +14,6 @@ TYPE_PING = "ping"
 # Server -> client
 TYPE_CONNECTED = "connected"
 TYPE_CHAT_RESPONSE = "chat_response"
-TYPE_CHAT_STREAM = "chat_stream"
 TYPE_ERROR = "error"
 TYPE_STATS = "stats"
 TYPE_RESULT = "result"
@@ -53,10 +52,6 @@ def msg_chat_response(
         "latency": latency,
         "emotion": emotion,
     }
-
-
-def msg_chat_stream(content: str, done: bool) -> dict[str, Any]:
-    return {"type": TYPE_CHAT_STREAM, "content": content, "done": done}
 
 
 def msg_result(success: bool, message: str) -> dict[str, Any]:

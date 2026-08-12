@@ -84,14 +84,8 @@ public:
 
     // ========== 消息发送接口 ==========
 
-    // 发送聊天消息（非流式）
+    // 发送聊天消息
     void sendChatMessage(const QString& content,
-        bool useCache = true,
-        bool useRag = true,
-        bool useMemory = true);
-
-    // 发送聊天消息（流式）
-    void sendStreamChatMessage(const QString& content,
         bool useCache = true,
         bool useRag = true,
         bool useMemory = true);
@@ -115,7 +109,6 @@ public:
 
     // 注册特定类型消息回调
     void onChatResponse(MessageCallback callback);
-    void onChatStream(MessageCallback callback);
     void onError(ErrorCallback callback);
     void onConnectionStateChanged(StateCallback callback);
     void onConnected(MessageCallback callback);
@@ -137,9 +130,6 @@ signals:
     // emotion 为英文表情值（如 smile），由客户端映射到 Spine 动画值
     void chatResponseReceived(const QString& content, bool fromCache,
         const QString& contextUsed, double latency, const QString& emotion);
-
-    // 收到流式聊天片段信号
-    void chatStreamReceived(const QString& content, bool done);
 
     // 收到错误信号
     void errorOccurred(ErrorCode code, const QString& message);
@@ -172,9 +162,6 @@ private:
 
     // 处理聊天响应
     void handleChatResponse(const QJsonObject& message);
-
-    // 处理流式聊天
-    void handleChatStream(const QJsonObject& message);
 
     // 处理错误
     void handleError(const QJsonObject& message);
@@ -234,7 +221,6 @@ private:
     // 回调函数
     MessageCallback m_onMessageCallback;
     MessageCallback m_onChatResponseCallback;
-    MessageCallback m_onChatStreamCallback;
     ErrorCallback m_onErrorCallback;
     StateCallback m_onStateChangedCallback;
     MessageCallback m_onConnectedCallback;
@@ -242,9 +228,6 @@ private:
     MessageCallback m_onResultCallback;
     MessageCallback m_onPongCallback;
     ErrorCallback m_onErrorOccurredCallback;
-
-    // 流式消息缓冲区
-    QString m_streamBuffer;
 };
 
 #endif // WEBSOCKETCONTROLLER_H

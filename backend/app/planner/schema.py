@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -10,7 +11,11 @@ from typing import Any
 from .emotions import DEFAULT_EMOTION, normalize_emotion
 from .prompts import FIXED_MUST_NOT
 
+logger = logging.getLogger(__name__)
+
 _JSON_OBJECT_RE = re.compile(r"\{[\s\S]*\}")
+_MAX_MUST_SAY = 2
+_ALLOWED_LENGTH = "1-2句"
 
 
 def _as_str_list(value: object | None) -> list[str]:
@@ -38,7 +43,7 @@ class IntentCard:
     must_not: list[str] = field(default_factory=list)
     facts_to_use: list[str] = field(default_factory=list)
     tone: str = "温柔短句"
-    length: str = "1-3句"
+    length: str = "1-2句"
     arona_emotion: str = DEFAULT_EMOTION
 
     @classmethod
@@ -51,7 +56,7 @@ class IntentCard:
             must_not=_as_str_list(data.get("must_not")),
             facts_to_use=_as_str_list(data.get("facts_to_use")),
             tone=_as_str(data.get("tone"), "温柔短句"),
-            length=_as_str(data.get("length"), "1-3句"),
+            length=_as_str(data.get("length"), "1-2句"),
             arona_emotion=normalize_emotion(data.get("arona_emotion")),
         )
 
@@ -61,6 +66,24 @@ class IntentCard:
             if item not in seen:
                 self.must_not.append(item)
                 seen.add(item)
+
+    def normalize_length_and_must_say(self) -> None:
+        """Clamp length/must_say so Renderer is not forced into 3+ sentences."""
+        if self.length != _ALLOWED_LENGTH:
+            logger.info(
+                "planner gate length normalized from %r to %r",
+                self.length,
+                _ALLOWED_LENGTH,
+            )
+            self.length = _ALLOWED_LENGTH
+        if len(self.must_say) > _MAX_MUST_SAY:
+            logger.info(
+                "planner gate must_say truncated %d -> %d topic=%r",
+                len(self.must_say),
+                _MAX_MUST_SAY,
+                self.topic,
+            )
+            self.must_say = self.must_say[:_MAX_MUST_SAY]
 
     def to_renderer_dict(self) -> dict[str, Any]:
         """Intent fields for AronaLM — emotion stripped."""
@@ -105,6 +128,7 @@ def parse_and_gate_intent(raw_text: str) -> IntentCard | None:
         return None
     card = IntentCard.from_dict(data)
     card.merge_fixed_must_not()
+    card.normalize_length_and_must_say()
     # Soft gate: empty planning is weak but still usable if emotion is valid.
     if not card.topic and not card.must_say and not card.stance:
         # Still allow if we at least got emotion; otherwise fail.

@@ -76,7 +76,7 @@ python scripts/ingest_knowledge.py --rebuild
 客户端 `chat`：
 
 ```json
-{"type":"chat","content":"你好","stream":false,"options":{"use_cache":true,"use_rag":true,"use_memory":true}}
+{"type":"chat","content":"你好","options":{"use_cache":true,"use_rag":true,"use_memory":true}}
 ```
 
 正常回复：`{"type":"chat_response","content":"...","emotion":"...","from_cache":false,"context_used":"...","latency":...}`。

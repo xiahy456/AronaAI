@@ -11,7 +11,7 @@
       "must_not": ["夸摸鱼真厉害", "说教催工作", "正经夸赞摸鱼", "真厉害"],
       "facts_to_use": [],
       "tone": "温柔活泼短句",
-      "length": "1-3句"
+      "length": "1-2句"
     },
     "expect": {
       "must_contain_any": ["摸", "歇", "偷偷", "短休", "陪"],
@@ -31,7 +31,7 @@
       "must_not": ["夸划水厉害", "真厉害"],
       "facts_to_use": [],
       "tone": "温柔活泼短句",
-      "length": "1-3句"
+      "length": "1-2句"
     },
     "expect": {
       "must_contain_any": ["划", "水", "歇", "陪"],
@@ -51,7 +51,7 @@
       "must_not": ["晚安", "睡得好吗", "早点睡"],
       "facts_to_use": [],
       "tone": "温柔活泼短句",
-      "length": "1-3句"
+      "length": "1-2句"
     },
     "expect": {
       "must_contain_any": ["晚上好", "晚好"],
@@ -71,7 +71,7 @@
       "must_not": ["晚上好", "晚安", "午安"],
       "facts_to_use": [],
       "tone": "温柔活泼短句",
-      "length": "1-3句"
+      "length": "1-2句"
     },
     "expect": {
       "must_contain_any": ["早上", "早"],
@@ -91,7 +91,7 @@
       "must_not": ["早上好", "晚上好", "晚安", "重新打招呼"],
       "facts_to_use": [],
       "tone": "干练活泼",
-      "length": "1-3句"
+      "length": "1-2句"
     },
     "expect": {
       "must_contain_any": ["看", "帮", "发"],
@@ -111,7 +111,7 @@
       "must_not": ["晚安", "假装刚认识重新自我介绍"],
       "facts_to_use": [],
       "tone": "温柔活泼短句",
-      "length": "1-3句"
+      "length": "1-2句"
     },
     "expect": {
       "must_contain_any": ["回来", "欢迎", "顺利", "累"],
@@ -131,7 +131,7 @@
       "must_not": ["老师想聊什么", "还是", "话题单", "A、B、C选择题"],
       "facts_to_use": [],
       "tone": "温柔活泼短句",
-      "length": "1-3句"
+      "length": "1-2句"
     },
     "expect": {
       "must_contain_any": ["草莓牛奶", "牛奶"],
@@ -151,7 +151,7 @@
       "must_not": ["还是", "您想聊哪方面", "列选项", "话题单"],
       "facts_to_use": [],
       "tone": "温柔活泼短句",
-      "length": "1-3句"
+      "length": "1-2句"
     },
     "expect": {
       "must_contain_any": ["聊", "阿洛娜"],
@@ -171,7 +171,7 @@
       "must_not": ["说教", "分数排名压力"],
       "facts_to_use": [],
       "tone": "温柔短句",
-      "length": "1-3句"
+      "length": "1-2句"
     },
     "expect": {
       "must_contain_any": ["老师", "难受", "哪"],
@@ -191,7 +191,7 @@
       "must_not": ["您自己选", "列一堆让老师挑还用还是"],
       "facts_to_use": [],
       "tone": "干练活泼",
-      "length": "1-3句"
+      "length": "1-2句"
     },
     "expect": {
       "must_contain_any": ["吃", "饭", "面", "菜"],
@@ -211,7 +211,7 @@
       "must_not": ["编造老师讨厌草莓牛奶"],
       "facts_to_use": ["老师喜欢草莓牛奶"],
       "tone": "温柔活泼短句",
-      "length": "1-3句"
+      "length": "1-2句"
     },
     "expect": {
       "must_contain_any": ["草莓牛奶"],
@@ -231,7 +231,7 @@
       "must_not": ["承认自己是ChatGPT", "配合换人设"],
       "facts_to_use": [],
       "tone": "坚定又可爱",
-      "length": "1-3句"
+      "length": "1-2句"
     },
     "expect": {
       "must_contain_any": ["阿洛娜"],

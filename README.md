@@ -444,7 +444,6 @@ start.bat
     "speed_factor": 1.0, // 语速因子
     "fragment_interval": 0.3, // 片段间隔（秒）
     "seed": -1, // 随机种子（-1 表示随机）
-    "streaming_mode": false, // 是否启用流式合成
     "parallel_infer": true, // 是否启用并行推理（8GB 显卡建议 false）
     "request_timeout_ms": 45000, // 客户端等待 /tts 的超时（毫秒）；超时后仍显示字幕，不卡死 UI
     "repetition_penalty": 1.35, // 重复惩罚系数
@@ -491,7 +490,7 @@ start.bat
 **WebSocket 协议摘要**：连接后服务端发送 `{"type":"connected","session_id":"..."}`。客户端发起对话示例：
 
 ```json
-{"type":"chat","content":"你好","stream":false,"options":{"use_cache":true,"use_rag":true,"use_memory":true}}
+{"type":"chat","content":"你好","options":{"use_cache":true,"use_rag":true,"use_memory":true}}
 ```
 
 更多细节见 [`backend/README.md`](backend/README.md)。
