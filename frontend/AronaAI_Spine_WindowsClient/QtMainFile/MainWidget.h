@@ -59,6 +59,9 @@ public:
     // Debug-显示文本
 	void debug_showText();
 
+signals:
+	void spineReady();
+
 protected:
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;

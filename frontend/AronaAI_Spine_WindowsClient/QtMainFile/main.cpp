@@ -29,12 +29,14 @@
 #include "ShortCutKey.h"
 #include "BlueakaFontLoader.h"
 #include "WebSocketController.h"
+#include "StartWidget.h"
 
 #include <QtWidgets/QApplication>
 #include <QDebug>
 #include <QString>
 #include <QJsonObject>
 #include <QElapsedTimer>
+#include <QPointer>
 
 #include <GlobalInclude.h>
 
@@ -72,6 +74,9 @@ int main(int argc, char *argv[])
     // 输出启动信息
     FINE_DEBUG_OUTPUT("[Qt Operation]Starting application...");
 
+    // 优先使用 FFmpeg 后端，避免 Windows 媒体后端对 .mov 只解出一帧就 EndOfMedia
+    qputenv("QT_MEDIA_BACKEND", "ffmpeg");
+
 	// 设置OpenGL格式，启用抗锯齿和透明度支持
     OPENGL_INITIALLIZE;
 
@@ -90,8 +95,18 @@ int main(int argc, char *argv[])
     // 加载Blueaka字体
     loadBlueakaFont();
 
+    // 创建启动界面对象
+    QPointer<StartWidget> startWidget = new StartWidget;
+    startWidget->show();
+    startWidget->raise();
+    startWidget->activateWindow();
+    // 先播完启动视频（主线程专供刷新），再做 MainWidget/Spine 等重加载
+    startWidget->waitUntilVideoEnded();
+    FINE_DEBUG_OUTPUT(QString("[Qt Operation]StartWidget visible=%1").arg(startWidget && startWidget->isVisible() ? "true" : "false"));
+
 	// 创建主窗口对象
     MainWidget* mainWidget = new MainWidget;
+    QObject::connect(mainWidget, &MainWidget::spineReady, startWidget, &StartWidget::onSpineReady);
 
 	// 创建设置窗口对象
     SettingsWidget* settingsWidget = new SettingsWidget;
@@ -126,6 +141,12 @@ int main(int argc, char *argv[])
     // 界面显示
     mainWidget->show();
     if (GET_BOOL_FROM_JSON(_global_config, "settings", "open_setting_widget")) settingsWidget->show();
+    // MainWidget 同样置顶，需把启动遮罩重新抬到最前，否则会被挤到普通窗口后面
+    if (startWidget) {
+        startWidget->raise();
+        startWidget->activateWindow();
+        startWidget->onAppReady();
+    }
 
     // 开始应用程序事件循环
     return app.exec();

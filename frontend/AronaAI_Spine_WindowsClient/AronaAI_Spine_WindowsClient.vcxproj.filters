@@ -53,6 +53,9 @@
     <QtUic Include="QtMainFile\UserInputWidget.ui">
       <Filter>Form Files</Filter>
     </QtUic>
+    <QtUic Include="QtMainFile\StartWidget.ui">
+      <Filter>Form Files</Filter>
+    </QtUic>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="spine-cpp\include\spine\QtSpineManager.h">
@@ -110,6 +113,9 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="QtMainFile\UserInputWidget.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="QtMainFile\StartWidget.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
@@ -396,6 +402,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="QtMainFile\UserInputWidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="QtMainFile\StartWidget.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -13,6 +13,7 @@
   <ItemGroup>
     <QtUic Include="QtMainFile\MainWidget.ui" />
     <QtUic Include="QtMainFile\SettingsWidget.ui" />
+    <QtUic Include="QtMainFile\StartWidget.ui" />
     <QtUic Include="QtMainFile\UserInputWidget.ui" />
   </ItemGroup>
   <ItemGroup>
@@ -29,6 +30,7 @@
     <ClCompile Include="QtMainFile\MainController.cpp" />
     <ClCompile Include="QtMainFile\MainWidget.cpp" />
     <ClCompile Include="QtMainFile\SettingsWidget.cpp" />
+    <ClCompile Include="QtMainFile\StartWidget.cpp" />
     <ClCompile Include="QtMainFile\SystemTray.cpp" />
     <ClCompile Include="QtMainFile\TTSManager.cpp" />
     <ClCompile Include="QtMainFile\UserInputWidget.cpp" />
@@ -131,6 +133,7 @@
     <QtMoc Include="QtUtils\DebugManager.h" />
     <QtMoc Include="QtMainFile\WebSocketController.h" />
     <QtMoc Include="QtMainFile\UserInputWidget.h" />
+    <QtMoc Include="QtMainFile\StartWidget.h" />
     <ClInclude Include="QtUtils\Defines.h" />
     <ClInclude Include="QtUtils\GlobalInclude.h" />
     <ClInclude Include="QtUtils\JsonOperation.h" />

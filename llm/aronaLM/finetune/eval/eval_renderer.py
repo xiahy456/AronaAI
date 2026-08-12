@@ -7,6 +7,7 @@ Supports llama-cpp GGUF (production-like) or printing dry-run cards.
 Examples:
   python eval/eval_renderer.py --gguf ../../../models/AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf
   python eval/eval_renderer.py --gguf ../../../models/AronaLM-Renderer-V2.1/AronaLM-Renderer-V2.1.Q4_K_M.gguf
+  python eval/eval_renderer.py --gguf ../../../models/AronaLM-Renderer-V2.2/AronaLM-Renderer-V2.2.Q4_K_M.gguf --tag v22 --max-tokens 72
 """
 
 from __future__ import annotations
@@ -102,7 +103,7 @@ def main() -> None:
     parser.add_argument("--cases", type=Path, default=CASES_PATH)
     parser.add_argument("--gguf", type=Path, required=True)
     parser.add_argument("--tag", type=str, default="")
-    parser.add_argument("--max-tokens", type=int, default=128)
+    parser.add_argument("--max-tokens", type=int, default=72)
     args = parser.parse_args()
 
     cases = json.loads(args.cases.read_text(encoding="utf-8"))

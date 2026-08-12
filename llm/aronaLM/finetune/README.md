@@ -42,7 +42,7 @@ finetune/
 ├── export/
 │   ├── export_gguf.py           # 16bit 基座 + LoRA → GGUF（4bit 训练后推荐走此脚本）
 │   └── deploy_renderer_v21.py   # 将 Renderer GGUF 拷到 models/AronaLM-Renderer-V2.1/
-├── eval/
+├── eval/                        
 │   ├── eval.py                  # Normal：基座 vs LoRA 完整评测
 │   ├── eval_renderer.py         # Renderer：意图卡硬例规则评测（GGUF）
 │   ├── cases.json / multi_sessions.json / renderer_cases.json

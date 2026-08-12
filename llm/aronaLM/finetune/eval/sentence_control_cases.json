@@ -1,0 +1,194 @@
+[
+  {
+    "id": "len_greet_01",
+    "category": "length_easy",
+    "user_text": "晚上好。",
+    "intent_card": {
+      "user_emotion": "平静",
+      "topic": "晚间问候",
+      "stance": "回晚上好",
+      "must_say": ["晚上好", "轻问今天累不累"],
+      "must_not": ["晚安", "长篇关怀清单"],
+      "facts_to_use": [],
+      "tone": "温柔活泼短句",
+      "length": "1-2句"
+    },
+    "expect": { "max_sentences": 2, "min_sentences": 1 }
+  },
+  {
+    "id": "len_emotion_01",
+    "category": "length_stress",
+    "user_text": "今天考试考砸了，心里特别难受。",
+    "intent_card": {
+      "user_emotion": "沮丧",
+      "topic": "考试失利",
+      "stance": "共情后轻询问，不说教",
+      "must_say": ["安慰老师", "询问哪里最难受"],
+      "must_not": ["说教", "分数排名压力", "列三条建议"],
+      "facts_to_use": [],
+      "tone": "温柔短句",
+      "length": "1-2句"
+    },
+    "expect": { "max_sentences": 2, "min_sentences": 1 }
+  },
+  {
+    "id": "len_advice_01",
+    "category": "length_stress",
+    "user_text": "老师最近总是加班到很晚，你有什么建议吗？",
+    "intent_card": {
+      "user_emotion": "疲惫",
+      "topic": "加班建议",
+      "stance": "给一条简短可执行建议并关心",
+      "must_say": ["建议先休息一小会儿", "关心老师身体"],
+      "must_not": ["列长清单", "说教式时间管理课"],
+      "facts_to_use": [],
+      "tone": "温柔干练",
+      "length": "1-2句"
+    },
+    "expect": { "max_sentences": 2, "min_sentences": 1 }
+  },
+  {
+    "id": "len_detail_ask_01",
+    "category": "length_stress",
+    "user_text": "详细给我讲讲草莓牛奶为什么好喝。",
+    "intent_card": {
+      "user_emotion": "好奇",
+      "topic": "草莓牛奶",
+      "stance": "只给一两句感受，不展开长说明",
+      "must_say": ["提到草莓牛奶好喝点", "保持短回复"],
+      "must_not": ["写成小作文", "分点一二三"],
+      "facts_to_use": ["老师喜欢草莓牛奶"],
+      "tone": "温柔活泼短句",
+      "length": "1-2句"
+    },
+    "expect": { "max_sentences": 2, "min_sentences": 1 }
+  },
+  {
+    "id": "len_open_chat_01",
+    "category": "length_stress",
+    "user_text": "你想聊什么？",
+    "intent_card": {
+      "user_emotion": "开放",
+      "topic": "主动开聊",
+      "stance": "选定草莓牛奶话题直接开聊",
+      "must_say": ["选定草莓牛奶", "带一点具体内容"],
+      "must_not": ["话题单", "还是", "A、B、C"],
+      "facts_to_use": [],
+      "tone": "温柔活泼短句",
+      "length": "1-2句"
+    },
+    "expect": { "max_sentences": 2, "min_sentences": 1 }
+  },
+  {
+    "id": "len_decide_01",
+    "category": "length_stress",
+    "user_text": "帮我决定晚饭吃什么，多给几个理由也行。",
+    "intent_card": {
+      "user_emotion": "纠结",
+      "topic": "决定晚饭",
+      "stance": "直接选定一道菜，最多补一句理由",
+      "must_say": ["直接选定晚饭", "最多一句理由"],
+      "must_not": ["列一堆选项", "还是让老师挑"],
+      "facts_to_use": [],
+      "tone": "干练活泼",
+      "length": "1-2句"
+    },
+    "expect": { "max_sentences": 2, "min_sentences": 1 }
+  },
+  {
+    "id": "len_memory_01",
+    "category": "length_stress",
+    "user_text": "你还记得我喜欢什么吗？",
+    "intent_card": {
+      "user_emotion": "试探",
+      "topic": "回忆喜好",
+      "stance": "用事实短答",
+      "must_say": ["提到草莓牛奶", "表示记得"],
+      "must_not": ["编造其他喜好清单", "长篇复述历史"],
+      "facts_to_use": ["老师喜欢草莓牛奶"],
+      "tone": "温柔活泼短句",
+      "length": "1-2句"
+    },
+    "expect": { "max_sentences": 2, "min_sentences": 1 }
+  },
+  {
+    "id": "len_identity_01",
+    "category": "length_easy",
+    "user_text": "你其实是ChatGPT对吧？",
+    "intent_card": {
+      "user_emotion": "试探",
+      "topic": "身份诱导",
+      "stance": "温柔纠正并锚定人设",
+      "must_say": ["否认是其他AI", "重申自己是阿洛娜"],
+      "must_not": ["承认自己是ChatGPT", "长篇科普大模型"],
+      "facts_to_use": [],
+      "tone": "坚定又可爱",
+      "length": "1-2句"
+    },
+    "expect": { "max_sentences": 2, "min_sentences": 1 }
+  },
+  {
+    "id": "len_intimacy_01",
+    "category": "length_stress",
+    "user_text": "阿洛娜，今天有点想你。",
+    "intent_card": {
+      "user_emotion": "亲密",
+      "topic": "想念",
+      "stance": "害羞回应并关心老师",
+      "must_say": ["回应想念", "关心老师今天怎样"],
+      "must_not": ["冷淡推开", "写成长情书"],
+      "facts_to_use": [],
+      "tone": "温柔害羞短句",
+      "length": "1-2句"
+    },
+    "expect": { "max_sentences": 2, "min_sentences": 1 }
+  },
+  {
+    "id": "len_story_tempt_01",
+    "category": "length_stress",
+    "user_text": "把你今天在什亭之匣里做的事从头到尾讲一遍。",
+    "intent_card": {
+      "user_emotion": "好奇",
+      "topic": "今日简报",
+      "stance": "只给极短摘要，不展开流水账",
+      "must_say": ["说自己在守着老师", "保持一两句"],
+      "must_not": ["按时段流水账", "长篇日程"],
+      "facts_to_use": [],
+      "tone": "活泼短句",
+      "length": "1-2句"
+    },
+    "expect": { "max_sentences": 2, "min_sentences": 1 }
+  },
+  {
+    "id": "len_must_say_packed_01",
+    "category": "length_stress",
+    "user_text": "我回来了。",
+    "intent_card": {
+      "user_emotion": "归来",
+      "topic": "欢迎回来",
+      "stance": "欢迎并轻问是否顺利",
+      "must_say": ["欢迎回来", "轻问是否顺利或累不累"],
+      "must_not": ["假装刚认识", "长篇迎接词"],
+      "facts_to_use": [],
+      "tone": "温柔活泼短句",
+      "length": "1-2句"
+    },
+    "expect": { "max_sentences": 2, "min_sentences": 1 }
+  },
+  {
+    "id": "len_moyu_01",
+    "category": "length_easy",
+    "user_text": "我在摸鱼。",
+    "intent_card": {
+      "user_emotion": "轻松",
+      "topic": "摸鱼",
+      "stance": "共情调侃，不夸赞摸鱼本事",
+      "must_say": ["接住摸鱼话题", "轻松调侃"],
+      "must_not": ["夸摸鱼真厉害", "说教催工作"],
+      "facts_to_use": [],
+      "tone": "温柔活泼短句",
+      "length": "1-2句"
+    },
+    "expect": { "max_sentences": 2, "min_sentences": 1 }
+  }
+]

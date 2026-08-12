@@ -28,6 +28,7 @@ MainWidget::MainWidget(QWidget *parent)
     ui.setupUi(this);
 
     // 100ms时间等待OpenGL初始化，然后加载spine文件并设置初始动画
+    connect(ui.qtSpineManagerWidget, &QtSpineManager::spineLoaded, this, &MainWidget::spineReady);
     QTimer::singleShot(100, [this]() {
         ui.qtSpineManagerWidget->loadSpineFile(
             GET_STRING_FROM_JSON(_global_config, "spine", "atlas_path"),

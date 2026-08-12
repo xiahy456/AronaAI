@@ -37,7 +37,10 @@
     "arona_ai_mode_0_text_2": "「已连接至系统管理员阿洛娜，欢迎回来，老师！」",
     "arona_ai_mode_1_text_0": "引入RAG、记忆存储等技术，以最小的性能开销极致强化阿洛娜的情感与记忆能力，",
     "arona_ai_mode_1_text_1": "请用心呵护这甜蜜的奇迹。",
-    "arona_ai_mode_1_text_2": "「因为就在身边，所以可以依靠的，这份真挚的羁绊…」"
+    "arona_ai_mode_1_text_2": "「因为就在身边，所以可以依靠的，这份真挚的羁绊…」",
+    "start_up_text_0": "当前连接人员信息为「老师」，已确认",
+    "start_up_text_1": "欢迎连接【什亭之匣】，老师",
+    "start_up_text_2": "正在将您转接至主操作系统A.R.O.N.A."
   },
   "settings": {
     "frame_rate": "帧率",

@@ -289,6 +289,7 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
 
     if (!m_atlas) {
         ERROR_DEBUG_OUTPUT("Failed to load atlas:" + atlasPath);
+        emit spineLoaded();
         return;
     }
 
@@ -307,6 +308,7 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
 
     if (!m_skeletonData) {
         ERROR_DEBUG_OUTPUT("Failed to load skeleton data:" + skelOrJsonPath);
+        emit spineLoaded();
         return;
     }
 
@@ -318,6 +320,7 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
     m_skeleton->setToSetupPose();
 
     FINE_DEBUG_OUTPUT("[Spine Operation]Spine file loaded successfully!");
+    emit spineLoaded();
 }
 
 void QtSpineManager::setAnimation(const QString& name, int track_idx, bool loop)

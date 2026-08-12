@@ -82,6 +82,9 @@ public:
 
     // 摸头相关函数
 
+signals:
+    void spineLoaded();
+
 protected:
     // 重写OpenGL相关函数
     void initializeGL() override;
