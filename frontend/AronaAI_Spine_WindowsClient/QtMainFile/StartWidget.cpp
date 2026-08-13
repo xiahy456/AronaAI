@@ -100,6 +100,7 @@ StartWidget::StartWidget(QWidget *parent)
 		m_videoEnded = true;
 	} else {
 		m_preloading = true;
+		m_decodeTimer.start();
 		m_player->setSource(QUrl::fromLocalFile(absolutePath));
 		m_player->play();
 	}
@@ -262,11 +263,14 @@ void StartWidget::onDecodeFinished()
 	m_player->stop();
 	m_player->setSource(QUrl());
 
-	FINE_DEBUG_OUTPUT(QString("[StartWidget] decode finished, startupFps=%1 cachedFrames=%2 maxFrames=%3 durationMs=%4")
+	FINE_DEBUG_OUTPUT(QString("[StartWidget] decode finished, startupFps=%1 cachedFrames=%2 maxFrames=%3 durationMs=%4 decodeMs=%5 frameSize=%6x%7")
 		.arg(m_startupFps)
 		.arg(m_frames.size())
 		.arg(durationMs > 0 ? qMax(1, qRound(static_cast<double>(durationMs) * m_startupFps / 1000.0)) : -1)
-		.arg(durationMs));
+		.arg(durationMs)
+		.arg(m_decodeTimer.isValid() ? m_decodeTimer.elapsed() : -1)
+		.arg(m_frames.isEmpty() ? 0 : m_frames.first().width())
+		.arg(m_frames.isEmpty() ? 0 : m_frames.first().height()));
 
 	if (m_frames.isEmpty()) {
 		ERROR_DEBUG_OUTPUT("[StartWidget] no frames decoded; skip animation");
@@ -293,6 +297,7 @@ void StartWidget::startCachedPlayback(qint64 durationMs)
 	m_frame = m_frames.first();
 	update();
 
+	m_playbackElapsed.start();
 	m_playbackTimer->start(intervalMs);
 }
 
@@ -446,7 +451,8 @@ void StartWidget::markVideoEnded()
 		return;
 	}
 	m_videoEnded = true;
-	FINE_DEBUG_OUTPUT("[StartWidget] video ended");
+	FINE_DEBUG_OUTPUT(QString("[StartWidget] video ended, playbackMs=%1")
+		.arg(m_playbackElapsed.isValid() ? m_playbackElapsed.elapsed() : 0));
 	if (m_videoLoop) {
 		m_videoLoop->quit();
 	}
@@ -455,7 +461,14 @@ void StartWidget::markVideoEnded()
 
 void StartWidget::tryClose()
 {
-	if (!(m_spineReady && m_appReady && m_welcomeReady) || m_closing) {
+	if (m_closing) {
+		return;
+	}
+	if (!(m_spineReady && m_appReady && m_welcomeReady)) {
+		FINE_DEBUG_OUTPUT(QString("[StartWidget] tryClose waiting spine=%1 app=%2 welcome=%3")
+			.arg(m_spineReady ? "true" : "false")
+			.arg(m_appReady ? "true" : "false")
+			.arg(m_welcomeReady ? "true" : "false"));
 		return;
 	}
 	startCloseScaleAnimation();

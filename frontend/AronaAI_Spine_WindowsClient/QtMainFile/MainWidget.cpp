@@ -27,17 +27,22 @@ MainWidget::MainWidget(QWidget *parent)
 	// 加载UI界面
     ui.setupUi(this);
 
-    // 100ms时间等待OpenGL初始化，然后加载spine文件并设置初始动画
-    connect(ui.qtSpineManagerWidget, &QtSpineManager::spineLoaded, this, &MainWidget::spineReady);
-    QTimer::singleShot(100, [this]() {
+    connect(ui.qtSpineManagerWidget, &QtSpineManager::spineLoaded, this, [this]() {
+        m_spineReady = true;
+        emit spineReady();
+    });
+    auto loadSpine = [this]() {
         ui.qtSpineManagerWidget->loadSpineFile(
             GET_STRING_FROM_JSON(_global_config, "spine", "atlas_path"),
             GET_STRING_FROM_JSON(_global_config, "spine", "skelOrJson_path")
             );
         ui.qtSpineManagerWidget->setAnimation("Idle_01", 0, true);  // 基础层
-		//ui.qtSpineManagerWidget->setAnimation("Pat_01_A", 3, true);  // 摸头A层
-		//ui.qtSpineManagerWidget->setAnimation("Pat_01_M", 4, true);  // 摸头M层
-        });
+    };
+    if (ui.qtSpineManagerWidget->isGLReady()) {
+        loadSpine();
+    } else {
+        connect(ui.qtSpineManagerWidget, &QtSpineManager::glReady, this, loadSpine, Qt::SingleShotConnection);
+    }
 
     // 初始化相关控件
     m_opacityAnimation_aronaOutputTextBox = new OpacityAnimation(ui.aronaOutputTextBox, 0.0, 250, QEasingCurve::Linear); // 默认气泡文本不透明度为0
@@ -139,6 +144,11 @@ void MainWidget::setMouseTransparent(bool isMouseTransparent)
 bool MainWidget::isMouseTransparent() const
 {
 	return m_mouseTransparent;
+}
+
+bool MainWidget::isSpineReady() const
+{
+	return m_spineReady;
 }
 
 void MainWidget::debug_showText()

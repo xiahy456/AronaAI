@@ -76,6 +76,8 @@ public:
     explicit QtSpineManager(QWidget* parent = nullptr);
     ~QtSpineManager();
 
+    bool isGLReady() const { return m_glReady; }
+
     void loadSpineFile(const QString& atlasPath, const QString& skelOrJsonPath);
     void setAnimation(const QString& name, int track_idx, bool loop = true);
 	void clearAnimation(int track_idx, float mix_duration);
@@ -84,6 +86,7 @@ public:
 
 signals:
     void spineLoaded();
+    void glReady();
 
 protected:
     // 重写OpenGL相关函数
@@ -142,6 +145,7 @@ private:
     QOpenGLShaderProgram* m_program = nullptr;
     QOpenGLBuffer* m_vbo = nullptr;
     QOpenGLVertexArrayObject* m_vao = nullptr;
+    bool m_glReady = false;
 
     // 统一变量位置
     GLint m_u_matrixLoc;

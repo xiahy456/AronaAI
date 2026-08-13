@@ -52,51 +52,35 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
     ttsRequestParams.superSampling = GET_BOOL_FROM_JSON(_global_config, "tts", "super_sampling"); // 超采样
     ttsRequestParams.mediaType = "wav";  // 媒体类型
 
-    int m_modelsLoaded = 0; // 已加载的模型计数器
-    const int TOTAL_MODELS = 2;  // 总共需要加载的模型数
-
-    // 为TTS设置GPT模型
-    m_ttsManager->setGPTWeights(GET_STRING_FROM_JSON(_global_config, "tts", "gpt_path"));
-
-    // 为TTS设置SoVITS模型
-    m_ttsManager->setSovitsWeights(GET_STRING_FROM_JSON(_global_config, "tts", "sovits_path"));
-
-    // 连接信号，使用计数器判断两个模型都加载完成
-    QEventLoop loop; // 创建事件循环
-    connect(m_ttsManager, &TTSManager::modelSwitched, this,
-        [&](bool success, const QString& message) {
-            m_modelsLoaded++;
-            if (success) {
-                FINE_DEBUG_OUTPUT("[TTS Operation]Model set: " + QString(success?"true":"false")
-                    + ", Message: " + message 
-                    + "(" + QString::number(m_modelsLoaded) + "/" + QString::number(TOTAL_MODELS) + ")");
-            }
-            else {
-                ERROR_DEBUG_OUTPUT("[TTS Operation]Model set: " + QString(success?"true":"false")
-                    + ", Message: " + message 
-					+ "(" + QString::number(m_modelsLoaded) + "/" + QString::number(TOTAL_MODELS) + ")");
-            }
-
-            // 当两个模型都加载完成时退出事件循环
-            if (m_modelsLoaded >= TOTAL_MODELS) {
-                loop.quit();
-            }
-        });
-    // 启动事件循环，等待模型设置完成
-    if (m_modelsLoaded < TOTAL_MODELS) {
-        loop.exec();
-    }
-    FINE_DEBUG_OUTPUT("[TTS Operation]All models loaded!");
-
-    // 设置信号与槽
     connect(m_ttsManager, &TTSManager::ttsFinished, this, &MainController::onTTSFinished);
     connect(m_ttsManager, &TTSManager::ttsError, this, &MainController::onTTSError);
 
-    // 连接音频录制对象信号
+    m_ttsWeightTimer.start();
+    connect(m_ttsManager, &TTSManager::modelSwitched, this,
+        [this](bool success, const QString& message) {
+            m_ttsModelsLoaded++;
+            if (success) {
+                FINE_DEBUG_OUTPUT("[TTS Operation]Model set: true, Message: " + message
+                    + "(" + QString::number(m_ttsModelsLoaded) + "/2)");
+            }
+            else {
+                ERROR_DEBUG_OUTPUT("[TTS Operation]Model set: false, Message: " + message
+                    + "(" + QString::number(m_ttsModelsLoaded) + "/2)");
+            }
+            if (m_ttsModelsLoaded >= 2) {
+                FINE_DEBUG_OUTPUT(QString("[Startup] TTS models ready: %1 ms")
+                    .arg(m_ttsWeightTimer.isValid() ? m_ttsWeightTimer.elapsed() : -1));
+            }
+        });
+
+    // 切权重与 WebSocket 并行：欢迎语 TTS 会在权重请求之后排队
+    m_ttsManager->setGPTWeights(GET_STRING_FROM_JSON(_global_config, "tts", "gpt_path"));
+    m_ttsManager->setSovitsWeights(GET_STRING_FROM_JSON(_global_config, "tts", "sovits_path"));
+    FINE_DEBUG_OUTPUT("[Startup] TTS weight switch started, connecting WebSocket without waiting");
+
     connect(m_audioRecorder, &AudioRecorder::errorOccurred,
         this, &MainController::onAudioError);
 
-    // 连接腾讯云语音识别信号（对象由 main 传入）
     if (m_tencentRecognizer) {
         m_tencentRecognizer->setParent(this);
     }
@@ -105,11 +89,8 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
     connect(m_tencentRecognizer, &TencentSpeechRecognizer::recognizeFinished,
 		this, &MainController::onRecognizeFinished);
 
-    // 设置你的腾讯云密钥 (请务必从安全的地方读取，不要硬编码)
     m_tencentRecognizer->setCredentials(GET_STRING_FROM_JSON(_global_config, "tencent_speech_recognizer", "secret_id"), GET_STRING_FROM_JSON(_global_config, "tencent_speech_recognizer", "secret_key"));
 
-    // 与服务端建立WebSocket连接
-    // 连接 WebSocket 信号到 MainController 槽函数
     connect(m_webSocketController, &WebSocketController::connected,
         this, &MainController::onWebSocketConnected);
     connect(m_webSocketController, &WebSocketController::chatResponseReceived,
@@ -119,11 +100,8 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
     connect(m_webSocketController, &WebSocketController::connectionStateChanged,
         this, &MainController::onWebSocketStateChanged);
 
-    // 开始连接服务端
-    m_webSocketController->connectToServer();
-    FINE_DEBUG_OUTPUT("[WebSocket] Connecting to: " + GET_STRING_FROM_JSON(_global_config, "aronalm", "websocket_url"));
+    FINE_DEBUG_OUTPUT("[Startup] TTS weight switch started; WebSocket connect deferred until splash hooks are ready");
 
-    // 连接用户文本输入提交信号
     if (m_userInputWidget) {
         connect(m_userInputWidget, &UserInputWidget::textSubmitted,
             this, &MainController::processInputText);
@@ -134,6 +112,12 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
 MainController::~MainController()
 {
 
+}
+
+void MainController::startSession()
+{
+    m_webSocketController->connectToServer();
+    FINE_DEBUG_OUTPUT("[WebSocket] Connecting to: " + GET_STRING_FROM_JSON(_global_config, "aronalm", "websocket_url"));
 }
 
 void MainController::executeOutput(const QString& text)
@@ -260,7 +244,7 @@ void MainController::onSplashClosed()
 
 void MainController::dismissSplashOnUnrecoverableError()
 {
-    if (!m_splashActive || !m_awaitingStartupWelcome) {
+    if (!m_splashActive) {
         return;
     }
     m_awaitingStartupWelcome = false;
@@ -390,7 +374,8 @@ void MainController::processInputText(const QString& text)
 void MainController::onWebSocketConnected(const QString& sessionId)
 {
     FINE_DEBUG_OUTPUT("[WebSocket] Connected! Session ID: " + sessionId);
-    // 连接成功后可以发送欢迎消息或其他初始化操作
+    FINE_DEBUG_OUTPUT(QString("[Startup] WebSocket connected, TTS models loaded: %1/2")
+        .arg(m_ttsModelsLoaded));
 }
 
 void MainController::onWebSocketChatResponse(const QString& content, bool fromCache, const QString& contextUsed, double latency, const QString& emotion)
@@ -453,13 +438,11 @@ void MainController::onWebSocketError(WebSocketController::ErrorCode code, const
     }
 
     if (m_splashActive) {
-        if (m_awaitingStartupWelcome) {
-            m_currentText = userMessage;
-            m_currentEmotion = QStringLiteral("normal");
-            m_hasPendingOutput = true;
-            m_pendingIsError = true;
-            dismissSplashOnUnrecoverableError();
-        }
+        m_currentText = userMessage;
+        m_currentEmotion = QStringLiteral("normal");
+        m_hasPendingOutput = true;
+        m_pendingIsError = true;
+        dismissSplashOnUnrecoverableError();
         return;
     }
 

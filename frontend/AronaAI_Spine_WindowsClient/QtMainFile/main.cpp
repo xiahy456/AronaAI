@@ -19,7 +19,6 @@
 
 #include "Defines.h"
 #include "MainWidget.h"
-#include "SettingsWidget.h"
 #include "UserInputWidget.h"
 #include "SystemTray.h"
 #include "MainController.h"
@@ -83,17 +82,28 @@ int main(int argc, char *argv[])
 	// 创建应用程序对象
     QApplication app(argc, argv);
 
+    QElapsedTimer startupTotal;
+    QElapsedTimer startupPhase;
+    startupTotal.start();
+    startupPhase.start();
+
     // 获取配置信息
     getConfig();
 
     // 获取字典信息
     FINE_DEBUG_OUTPUT("[Qt Operation]Load dictionary succeed! Changing to language: " + getDict());
+    FINE_DEBUG_OUTPUT(QString("[Startup] Config+dict: %1 ms (total %2 ms)")
+        .arg(startupPhase.restart())
+        .arg(startupTotal.elapsed()));
 
     // 应用程序初始化
     APPLICATION_INITIALLIZE;
 
     // 加载Blueaka字体
     loadBlueakaFont();
+    FINE_DEBUG_OUTPUT(QString("[Startup] Fonts: %1 ms (total %2 ms)")
+        .arg(startupPhase.restart())
+        .arg(startupTotal.elapsed()));
 
     // 创建启动界面对象
     QPointer<StartWidget> startWidget = new StartWidget;
@@ -102,14 +112,17 @@ int main(int argc, char *argv[])
     startWidget->activateWindow();
     // 先播完启动视频（主线程专供刷新），再做 MainWidget/Spine 等重加载
     startWidget->waitUntilVideoEnded();
+    FINE_DEBUG_OUTPUT(QString("[Startup] Video phase: %1 ms (total %2 ms)")
+        .arg(startupPhase.restart())
+        .arg(startupTotal.elapsed()));
     FINE_DEBUG_OUTPUT(QString("[Qt Operation]StartWidget visible=%1").arg(startWidget && startWidget->isVisible() ? "true" : "false"));
 
 	// 创建主窗口对象
-    MainWidget* mainWidget = new MainWidget;
+	MainWidget* mainWidget = new MainWidget;
     QObject::connect(mainWidget, &MainWidget::spineReady, startWidget, &StartWidget::onSpineReady);
-
-	// 创建设置窗口对象
-    SettingsWidget* settingsWidget = new SettingsWidget;
+    if (mainWidget->isSpineReady()) {
+        startWidget->onSpineReady();
+    }
 
     // 创建用户输入窗口对象
     UserInputWidget* userInputWidget = new UserInputWidget;
@@ -125,9 +138,15 @@ int main(int argc, char *argv[])
 
 	// 创建WebSocket控制器对象
     WebSocketController* webSocketController = new WebSocketController;
+    FINE_DEBUG_OUTPUT(QString("[Startup] Widgets+services: %1 ms (total %2 ms)")
+        .arg(startupPhase.restart())
+        .arg(startupTotal.elapsed()));
 
-    // 创建主控制对象
+    // 创建主控制对象（TTS 切权重与 WebSocket 并行，不再阻塞构造）
 	MainController* mainController = new MainController(mainWidget, ttsManager, audioRecorder, tencentSpeechRecognizer, webSocketController, userInputWidget);
+    FINE_DEBUG_OUTPUT(QString("[Startup] MainController: %1 ms (total %2 ms)")
+        .arg(startupPhase.restart())
+        .arg(startupTotal.elapsed()));
 
     if (startWidget) {
         QObject::connect(mainController, &MainController::welcomePlaybackReady,
@@ -137,25 +156,34 @@ int main(int argc, char *argv[])
     } else {
         mainController->onSplashClosed();
     }
+    mainController->startSession();
 
 	// 创建快捷键对象
 	ShortCutKey* shortCutKey = new ShortCutKey(mainController);
 
-    // 创建系统托盘类对象
-    SystemTray* systemTray = new SystemTray(mainWidget, settingsWidget);
+    // 创建系统托盘（启动即加载；设置窗口首次打开时再创建）
+    SystemTray* systemTray = new SystemTray(mainWidget);
 
     // 输出信息必要类实例化完毕，准备启动应用程序事件循环
     FINE_DEBUG_OUTPUT("[Qt Operation]Necessary class instantiation complete! Starting application loop...");
+    FINE_DEBUG_OUTPUT(QString("[Startup] Tray+hotkeys: %1 ms (total %2 ms)")
+        .arg(startupPhase.restart())
+        .arg(startupTotal.elapsed()));
 
     // 界面显示
     mainWidget->show();
-    if (GET_BOOL_FROM_JSON(_global_config, "settings", "open_setting_widget")) settingsWidget->show();
+    if (GET_BOOL_FROM_JSON(_global_config, "settings", "open_setting_widget")) {
+        systemTray->showSettingsWidget();
+    }
     // MainWidget 同样置顶，需把启动遮罩重新抬到最前，否则会被挤到普通窗口后面
     if (startWidget) {
         startWidget->raise();
         startWidget->activateWindow();
         startWidget->onAppReady();
     }
+
+    FINE_DEBUG_OUTPUT(QString("[Startup] Entering app.exec at %1 ms")
+        .arg(startupTotal.elapsed()));
 
     // 开始应用程序事件循环
     return app.exec();

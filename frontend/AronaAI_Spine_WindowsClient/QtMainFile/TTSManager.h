@@ -154,7 +154,7 @@ private:
     QBuffer* audioBuffer;
 
     bool isProcessingRequest;
-    int requestTimeoutMs;  // /tts 请求超时（毫秒），0 表示不限制
+    int requestTimeoutMs;  // HTTP 请求超时（毫秒），0 表示不限制
     QElapsedTimer m_ttsRequestTimer;  // TTS HTTP RTT
 
     void processNextRequest();

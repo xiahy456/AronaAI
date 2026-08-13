@@ -209,7 +209,8 @@ void TTSManager::onNetworkReplyFinished()
         return;
     }
 
-    if (reply->url().path() == "/tts") {
+    const bool isTts = reply->url().path() == QLatin1String("/tts");
+    if (isTts) {
         if (reply->error() != QNetworkReply::NoError) {
             FINE_DEBUG_OUTPUT(QString("[Latency] TTS RTT: %1 ms (error)")
                 .arg(m_ttsRequestTimer.elapsed()));
@@ -221,18 +222,17 @@ void TTSManager::onNetworkReplyFinished()
     }
 
     if (reply->error() != QNetworkReply::NoError) {
-        QString errorMsg = reply->errorString();
-        if (reply->error() == QNetworkReply::TimeoutError
-            || reply->error() == QNetworkReply::OperationCanceledError) {
-            errorMsg = QString("TTS request timed out after %1 ms").arg(requestTimeoutMs);
+        if (isTts) {
+            QString errorMsg = reply->errorString();
+            if (reply->error() == QNetworkReply::TimeoutError
+                || reply->error() == QNetworkReply::OperationCanceledError) {
+                errorMsg = QString("TTS request timed out after %1 ms").arg(requestTimeoutMs);
+            }
+            emit ttsError(errorMsg);
         }
-        emit ttsError(errorMsg);
     }
-    else {
-        // 检查是否是TTS请求
-        if (reply->url().path() == "/tts") {
-            handleTTSResponse(reply);
-        }
+    else if (isTts) {
+        handleTTSResponse(reply);
     }
 
     // 清理当前回复并处理下一个请求
@@ -498,10 +498,17 @@ void TTSManager::executeSetGPTWeights(const QString& weightsPath)
     url.setQuery(query);
 
     QNetworkRequest request(url);
+    applyRequestTimeout(request);
     cleanupCurrentReply();
     currentReply = networkManager->get(request);
 
     connect(currentReply, &QNetworkReply::finished, [this]() {
+        if (!currentReply) {
+            emit modelSwitched(false, "GPT weight request aborted");
+            isProcessingRequest = false;
+            processNextRequest();
+            return;
+        }
         if (currentReply->error() == QNetworkReply::NoError) {
             QByteArray data = currentReply->readAll();
             if (data.contains("success")) {
@@ -512,10 +519,14 @@ void TTSManager::executeSetGPTWeights(const QString& weightsPath)
             }
         }
         else {
-            emit modelSwitched(false, currentReply->errorString());
+            QString errorMsg = currentReply->errorString();
+            if (currentReply->error() == QNetworkReply::TimeoutError
+                || currentReply->error() == QNetworkReply::OperationCanceledError) {
+                errorMsg = QString("GPT weight request timed out after %1 ms").arg(requestTimeoutMs);
+            }
+            emit modelSwitched(false, errorMsg);
         }
 
-        // 清理并处理下一个请求
         cleanupCurrentReply();
         isProcessingRequest = false;
         processNextRequest();
@@ -532,10 +543,17 @@ void TTSManager::executeSetSovitsWeights(const QString& weightsPath)
     url.setQuery(query);
 
     QNetworkRequest request(url);
+    applyRequestTimeout(request);
     cleanupCurrentReply();
     currentReply = networkManager->get(request);
 
     connect(currentReply, &QNetworkReply::finished, [this]() {
+        if (!currentReply) {
+            emit modelSwitched(false, "Sovits weight request aborted");
+            isProcessingRequest = false;
+            processNextRequest();
+            return;
+        }
         if (currentReply->error() == QNetworkReply::NoError) {
             QByteArray data = currentReply->readAll();
             if (data.contains("success")) {
@@ -546,10 +564,14 @@ void TTSManager::executeSetSovitsWeights(const QString& weightsPath)
             }
         }
         else {
-            emit modelSwitched(false, currentReply->errorString());
+            QString errorMsg = currentReply->errorString();
+            if (currentReply->error() == QNetworkReply::TimeoutError
+                || currentReply->error() == QNetworkReply::OperationCanceledError) {
+                errorMsg = QString("Sovits weight request timed out after %1 ms").arg(requestTimeoutMs);
+            }
+            emit modelSwitched(false, errorMsg);
         }
 
-        // 清理并处理下一个请求
         cleanupCurrentReply();
         isProcessingRequest = false;
         processNextRequest();

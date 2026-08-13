@@ -38,22 +38,26 @@ class SystemTray : public QObject
 
 public:
 	// 构造函数
-	SystemTray(MainWidget* mainWidget, QWidget* settingsWidget);
+	SystemTray(MainWidget* mainWidget);
 	// 析构函数
 	~SystemTray();
 
 	// 显示主窗口
 	void showOrHideMainWidget();
-	// 显示设置窗口
+	// 显示/隐藏设置窗口（首次打开时创建设置界面）
 	void showOrHideSettingsWidget();
+	// 显示设置窗口（首次打开时创建）
+	void showSettingsWidget();
 	// 允许操作主菜单
 	void ableEdit();
 	// 禁止操作主菜单
 	void unableEdit();
 
 private:
+	void ensureSettingsWidget();
+
 	MainWidget* m_mainWidget;	// mainWidget主界面对象的引用
-	QWidget* m_settingsWidget;	// settingsWidget设置界面对象的引用
+	QWidget* m_settingsWidget = nullptr;	// settingsWidget设置界面（首次打开时创建）
 	QSystemTrayIcon* m_trayIcon = nullptr;	// 系统托盘图标对象
 	QMenu* m_trayIconMenu = nullptr;	// 托盘图标关联的菜单
 

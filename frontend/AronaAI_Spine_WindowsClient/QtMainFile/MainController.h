@@ -25,7 +25,6 @@
 #include <QByteArray>
 #include <QObject>
 #include <QString>
-#include <QEventLoop>
 #include <QMessageBox>
 #include <QProcess>
 #include <QElapsedTimer>
@@ -58,6 +57,8 @@ public:
 	void showUserInput();
 	// 启动遮罩已关闭，冲刷待播欢迎语
 	void onSplashClosed();
+	// 遮罩信号接好后再连后端，避免连接失败早于槽绑定
+	void startSession();
 
 signals:
 	void welcomePlaybackReady();
@@ -99,6 +100,8 @@ private:
 	bool m_pendingIsError = false;	// 待呈现输出是否为 TTS 失败兜底
 	QByteArray m_pendingAudio;	// 待播放的欢迎语音频
 	QString m_pendingMediaType;	// 待播放音频的媒体类型
+	int m_ttsModelsLoaded = 0;	// 已切完的 TTS 权重数
+	QElapsedTimer m_ttsWeightTimer;	// TTS 切权重耗时
 
 	// 处理用户输入的文本（语音识别或文本输入）
 	void processInputText(const QString& text);

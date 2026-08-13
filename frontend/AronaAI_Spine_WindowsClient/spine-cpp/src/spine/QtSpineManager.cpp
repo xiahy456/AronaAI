@@ -145,6 +145,8 @@ void QtSpineManager::initializeGL()
     m_vao->create();
 
     FINE_DEBUG_OUTPUT("[Spine Operation]OpenGL initialized successfully");
+    m_glReady = true;
+    emit glReady();
 }
 
 void QtSpineManager::paintGL()
@@ -284,6 +286,8 @@ void QtSpineManager::onLongTouchTimeout()
 
 void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skelOrJsonPath)
 {
+    QElapsedTimer loadTimer;
+    loadTimer.start();
     m_textureLoader = new QtTextureLoader();
     m_atlas = new spine::Atlas(atlasPath.toStdString().c_str(), m_textureLoader);
 
@@ -319,6 +323,7 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
     m_animationState = new spine::AnimationState(m_animationStateData);
     m_skeleton->setToSetupPose();
 
+    FINE_DEBUG_OUTPUT(QString("[Startup] Spine file loaded: %1 ms").arg(loadTimer.elapsed()));
     FINE_DEBUG_OUTPUT("[Spine Operation]Spine file loaded successfully!");
     emit spineLoaded();
 }

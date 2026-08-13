@@ -22,6 +22,7 @@
 #include "Defines.h"
 #include "GlobalVariables.h"
 
+#include <QElapsedTimer>
 #include <QFont>
 #include <QImage>
 #include <QStringList>
@@ -101,6 +102,8 @@ private:
 	int m_dotsIndex = 0;
 	qint64 m_nextKeepTimeUs = 0;
 	qreal m_closeScaleY = 1.0;
+	QElapsedTimer m_decodeTimer;
+	QElapsedTimer m_playbackElapsed;
 	bool m_preloading = true;
 	bool m_loggedAlpha = false;
 	bool m_videoEnded = false;

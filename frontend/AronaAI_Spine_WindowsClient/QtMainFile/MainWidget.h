@@ -55,6 +55,8 @@ public:
 	void setMouseTransparent(bool isMouseTransparent);
 	// 获取当前是否鼠标穿透
 	bool isMouseTransparent() const;
+	// Spine 是否已加载（构造期间 setMouseTransparent->show 可能已经加载完）
+	bool isSpineReady() const;
 
     // Debug-显示文本
 	void debug_showText();
@@ -75,6 +77,7 @@ private:
     bool m_dragging;
     QPoint m_dragPosition;
 	bool m_mouseTransparent;   // 是否鼠标穿透
+	bool m_spineReady = false;	// Spine 是否已加载
 
     // 不透明度动画属性
 	OpacityAnimation* m_opacityAnimation_aronaOutputTextBox = nullptr;   // 文本框不透明度动画

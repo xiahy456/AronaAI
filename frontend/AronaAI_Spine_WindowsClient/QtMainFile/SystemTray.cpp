@@ -18,10 +18,11 @@
 */
 
 #include <SystemTray.h>
+#include "SettingsWidget.h"
 
-SystemTray::SystemTray(MainWidget* mainWidget, QWidget* settingsWidget)
+SystemTray::SystemTray(MainWidget* mainWidget)
     : m_mainWidget(mainWidget)
-	, m_settingsWidget(settingsWidget)
+	, m_settingsWidget(nullptr)
 {
     // 检查系统是否支持托盘图标
     if (!QSystemTrayIcon::isSystemTrayAvailable()) {
@@ -68,6 +69,17 @@ SystemTray::SystemTray(MainWidget* mainWidget, QWidget* settingsWidget)
 
 SystemTray::~SystemTray()
 {
+	delete m_settingsWidget;
+	m_settingsWidget = nullptr;
+}
+
+void SystemTray::ensureSettingsWidget()
+{
+	if (m_settingsWidget) {
+		return;
+	}
+	m_settingsWidget = new SettingsWidget;
+	FINE_DEBUG_OUTPUT("[Qt Operation]SettingsWidget created on first open");
 }
 
 void SystemTray::showOrHideMainWidget()
@@ -78,8 +90,15 @@ void SystemTray::showOrHideMainWidget()
 
 void SystemTray::showOrHideSettingsWidget()
 {
+	ensureSettingsWidget();
 	if (m_settingsWidget->isVisible()) m_settingsWidget->hide();
     else m_settingsWidget->show();
+}
+
+void SystemTray::showSettingsWidget()
+{
+	ensureSettingsWidget();
+	m_settingsWidget->show();
 }
 
 void SystemTray::ableEdit()
