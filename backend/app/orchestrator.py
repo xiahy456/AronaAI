@@ -63,6 +63,8 @@ class Orchestrator:
         self.stats: dict[str, Any] = {
             "chat_count": 0,
             "welcome_count": 0,
+            "idle_count": 0,
+            "care_count": 0,
             "silence_count": 0,
             "refuse_count": 0,
             "cache_hits": 0,
@@ -330,25 +332,72 @@ class Orchestrator:
         climate = None
         if self.relationship is not None and self.config.proactive.relationship.enabled:
             climate = self.relationship.peek_climate()
-        user_text = build_welcome_instruction(
-            slot, first_in_slot=first_in_slot, climate=climate
+        return await self.handle_initiate(
+            session_id=session_id,
+            kind="welcome",
+            instruction=build_welcome_instruction(
+                slot, first_in_slot=first_in_slot, climate=climate
+            ),
+            history_marker=HISTORY_USER_MARKER,
+            send=send,
+            retrieve_memory=False,
+            climate_block=self._welcome_climate_block(climate),
+            extra_must_not=["想聊什么", "把问题抛回老师", "用『还是』列选择题"],
+            climate=climate,
         )
+
+    async def handle_initiate(
+        self,
+        *,
+        session_id: str,
+        kind: str,
+        instruction: str,
+        history_marker: str,
+        send: SendFn,
+        retrieve_memory: bool = False,
+        memory_query: str = "",
+        climate_block: str = "",
+        extra_must_not: list[str] | None = None,
+        climate: str | None = None,
+        decision: Decision | None = None,
+    ) -> bool:
+        """Generate a system-event line (welcome / idle / care). Returns True on success."""
+        user_text = instruction
         start = time.perf_counter()
-        context_parts: list[str] = ["welcome"]
-        if climate:
+        context_parts: list[str] = [kind]
+        if climate or decision is not None:
             context_parts.append("climate")
 
         logger.info(
-            "welcome start session=%s slot=%s first=%s date=%s instruction=%r",
+            "initiate start session=%s kind=%s instruction=%r",
             session_id,
-            slot.slot_id,
-            first_in_slot,
-            slot.date_key,
+            kind,
             user_text,
         )
 
         memories: list[str] = []
-        logger.info("welcome memory retrieve skipped session=%s", session_id)
+        if retrieve_memory and memory_query:
+            t0 = time.perf_counter()
+            memories = await asyncio.to_thread(
+                self.memory_store.retrieve,
+                memory_query,
+                self.config.memory.retrieve_top_k,
+            )
+            logger.info(
+                "initiate memory retrieve session=%s kind=%s hits=%d latency=%.3fs",
+                session_id,
+                kind,
+                len(memories),
+                time.perf_counter() - t0,
+            )
+            if memories:
+                context_parts.append("memory")
+        else:
+            logger.info(
+                "initiate memory retrieve skipped session=%s kind=%s",
+                session_id,
+                kind,
+            )
 
         history = self.conversations.get_history(session_id)
         if history:
@@ -368,6 +417,7 @@ class Orchestrator:
 
         emotion = DEFAULT_EMOTION
         intent: IntentCard | None = None
+        block = climate_block or self._climate_block(decision)
         if use_dual:
             context_parts.append("planner")
             t0 = time.perf_counter()
@@ -376,27 +426,25 @@ class Orchestrator:
                 history=history,
                 memories=memories,
                 knowledge=[],
-                climate_block=self._welcome_climate_block(climate),
+                climate_block=block,
             )
             logger.info(
-                "welcome planner session=%s ok=%s latency=%.3fs",
+                "initiate planner session=%s kind=%s ok=%s latency=%.3fs",
                 session_id,
+                kind,
                 intent is not None,
                 time.perf_counter() - t0,
             )
             if intent is None:
                 self.stats["planner_fallbacks"] += 1
                 logger.info(
-                    "welcome planner fallback to local path session=%s", session_id
+                    "initiate planner fallback session=%s kind=%s", session_id, kind
                 )
             else:
                 self.stats["planner_hits"] += 1
                 emotion = intent.arona_emotion
-                for item in (
-                    "想聊什么",
-                    "把问题抛回老师",
-                    "用『还是』列选择题",
-                ):
+                self._merge_decision_into_intent(intent, decision)
+                for item in extra_must_not or ():
                     if item not in intent.must_not:
                         intent.must_not.append(item)
                 intent.drop_conflicting_must_say()
@@ -417,12 +465,14 @@ class Orchestrator:
                 history=history,
                 memories=memories,
                 knowledge=[],
+                extra_system=self._local_hint(decision) if decision is not None else None,
             )
 
         context_used = "+".join(context_parts)
         logger.info(
-            "welcome prompt built session=%s mode=%s context=%s emotion=%s",
+            "initiate prompt built session=%s kind=%s mode=%s context=%s emotion=%s",
             session_id,
+            kind,
             "renderer" if intent is not None else "local",
             context_used,
             emotion,
@@ -432,15 +482,18 @@ class Orchestrator:
         full = await asyncio.to_thread(self.model.generate, messages, self.config)
         latency = time.perf_counter() - start
         logger.info(
-            "welcome llm done session=%s latency=%.3fs chars=%d response=%r",
+            "initiate llm done session=%s kind=%s latency=%.3fs chars=%d response=%r",
             session_id,
+            kind,
             time.perf_counter() - t0,
             len(full),
             full,
         )
 
         if not (full or "").strip():
-            logger.warning("welcome empty response session=%s", session_id)
+            logger.warning(
+                "initiate empty response session=%s kind=%s", session_id, kind
+            )
             return False
 
         await send(
@@ -453,17 +506,26 @@ class Orchestrator:
             )
         )
 
-        # Keep history clean: short marker instead of system instruction.
-        self.conversations.append(session_id, "user", HISTORY_USER_MARKER)
+        self.conversations.append(session_id, "user", history_marker)
         self.conversations.append(session_id, "assistant", full)
 
         if self.relationship is not None and self.config.proactive.relationship.enabled:
-            self.relationship.on_arona_action("initiate", climate or "steady")
-        self.stats["welcome_count"] += 1
+            used_climate = (
+                decision.climate if decision is not None else climate
+            ) or "steady"
+            motive = None if kind == "welcome" else kind
+            self.relationship.on_arona_action(
+                "initiate", used_climate, motive_kind=motive
+            )
+        stat_key = {"welcome": "welcome_count", "idle": "idle_count"}.get(
+            kind, "care_count"
+        )
+        self.stats[stat_key] = int(self.stats.get(stat_key, 0)) + 1
         self.stats["chat_count"] += 1
         logger.info(
-            "welcome done session=%s context=%s emotion=%s latency=%.3fs response=%r",
+            "initiate done session=%s kind=%s context=%s emotion=%s latency=%.3fs response=%r",
             session_id,
+            kind,
             context_used,
             emotion,
             time.perf_counter() - start,

@@ -88,6 +88,18 @@ proactive:
     baseline_trust: 0.55
     baseline_dependence: 0.30
     baseline_tension: 0.25
+  idle:
+    enabled: true
+    after_sec: 900
+    cooldown_sec: 1800
+    max_per_day: 3
+  care:
+    enabled: true
+    persist_path: "data/memory/proactive.json"
+    lunch_start: "12:00"
+    lunch_end: "12:30"
+    sleep_start: "23:00"
+    sleep_end: "23:20"
 
 token_budget:
   memory: 250

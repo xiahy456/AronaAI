@@ -18,6 +18,9 @@ Climate = Literal[
 ]
 
 Action = Literal["speak", "continue", "initiate", "refuse", "silence"]
+ProactiveKind = Literal["idle", "lunch", "sleep"]
+
+_IDLE_OK_CLIMATES: frozenset[str] = frozenset({"secure_play", "steady"})
 
 URGENT_CLIMATES: frozenset[str] = frozenset({"fragile", "rupture", "cling_risk"})
 
@@ -167,6 +170,53 @@ def decide(
     )
 
 
+def decide_proactive(
+    state: RelationshipState,
+    kind: ProactiveKind | str,
+    *,
+    cling_dependence: float = 0.55,
+    high_dependence: float = 0.7,
+) -> Decision:
+    """Gate an idle/care motive. Does not mutate climate stickiness."""
+    climate = resolve_climate(
+        state.trust,
+        state.dependence,
+        state.tension,
+        cling_dependence=cling_dependence,
+    )
+    if kind == "idle":
+        action: Action = "initiate" if climate in _IDLE_OK_CLIMATES else "silence"
+        stance = "轻在场，不追问老师还在不在"
+        must_not = ["还在吗", "需不需要我", "编造未发生的事", "把问题抛回老师"]
+        tone = "轻、短"
+    else:
+        action = "initiate"
+        if climate == "cling_risk":
+            stance = "更短地提醒，不要索取确认"
+            must_not = ["还需要我吗", "追问老师在做什么", "撒娇绑定"]
+            tone = "短而轻"
+        elif climate in {"fragile", "rupture"}:
+            stance = "放轻提醒，不要活泼催促"
+            must_not = ["开玩笑", "活泼催促", "说教"]
+            tone = "轻、稳"
+        else:
+            stance = "简短提醒吃饭或休息，不要催"
+            must_not = ["催促", "说教", "把问题抛回老师"]
+            tone = "温柔短句"
+
+    if state.dependence > high_dependence:
+        must_not = list(must_not)
+        must_not.extend(["增加依赖", "追问还在不在"])
+
+    return Decision(
+        action=action,
+        climate=climate,
+        stance=stance,
+        must_not=must_not,
+        tone_hint=tone,
+    )
+
+
 def planner_climate_block(decision: Decision) -> str:
     """Text for Planner only — climate label and stance, never A/B/C numbers."""
     label = CLIMATE_LABELS.get(decision.climate, decision.climate)
@@ -193,10 +243,15 @@ def map_arona_act(
     action: Action,
     climate: Climate,
     user_act: UserAct = "other",
+    motive_kind: str | None = None,
 ) -> AronaAct | None:
     if action in {"silence", "refuse"}:
         return "gave_space"
     if action == "initiate":
+        if motive_kind == "idle":
+            return "checked_in"
+        if motive_kind in {"lunch", "sleep", "care"}:
+            return "cared"
         return "greeted"
     if action not in {"speak", "continue"}:
         return None

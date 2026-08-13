@@ -267,6 +267,12 @@ def test_welcome_not_teased_and_speak_not_ratchet() -> None:
     print("== welcome greeted / speak not teased ==")
     if map_arona_act("initiate", "secure_play") != "greeted":
         _fail("welcome initiate should be greeted")
+    if map_arona_act("initiate", "secure_play", motive_kind="idle") != "checked_in":
+        _fail("idle initiate should be checked_in")
+    if map_arona_act("initiate", "secure_play", motive_kind="sleep") != "cared":
+        _fail("care initiate should be cared")
+    if ARONA_DELTAS["checked_in"][1] != 0.0 or ARONA_DELTAS["cared"][1] != 0.0:
+        _fail("checked_in/cared must not raise dependence")
     if map_arona_act("speak", "secure_play", "other") != "followed_up":
         _fail("normal speak should be followed_up")
     if map_arona_act("speak", "secure_play", "play_tease") != "teased":
@@ -348,6 +354,8 @@ def test_config_loads() -> None:
         _fail("relationship should default enabled")
     if "relationship.json" not in rel.persist_path:
         _fail(f"unexpected persist_path {rel.persist_path}")
+    if not cfg.proactive.idle.enabled or not cfg.proactive.care.enabled:
+        _fail("idle/care should default enabled")
     print("  ok")
 
 

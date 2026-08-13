@@ -1,8 +1,8 @@
 # AronaAI Backend
 
-本地桌面陪伴后端：FastAPI WebSocket + AronaLM（llama-cpp）+ 关系气候决策 + SQLite 记忆 + DeepSeek 异步抽取 + 向量知识 RAG。
+非交互式桌面 AI 的本地后端：FastAPI WebSocket + AronaLM（llama-cpp）+ 关系气候决策 + 主动触发 + SQLite 记忆 + DeepSeek 异步抽取 + 向量知识 RAG。
 
-对话默认走 **关系决策 → Planner（DeepSeek）→ 意图卡 → Renderer（AronaLM）**；Planner 关闭或失败时回落本地单模型路径。决策层可以选择沉默，不调用 LLM。
+她不是每轮必答的问答机。链路是 **关系决策 →（可选）Planner → Renderer**；决策层可以沉默，也可以在上线、空闲、午饭/睡觉窗口主动开口。Planner 关闭或失败时回落本地单模型。
 
 ## 模块详解
 
@@ -11,7 +11,7 @@
 | **服务入口** | `app/main.py` | FastAPI 应用、健康检查、WebSocket 路由；启动时加载关系引擎 |
 | **对话编排** | `app/orchestrator.py` | 分类/更新关系 → 决策 →（可选）检索 → Planner 或本地 → 生成 → 回写自身行动 → 异步记忆抽取 |
 | **关系气候** | `app/relationship/` | 信任/依赖/张力状态、事件 Δ 表、规则分类、气候分区与行动策略、JSON 落盘 |
-| **主动事件** | `app/proactive/` | 上线欢迎时段、同槽问候策略、欢迎指令 |
+| **主动事件** | `app/proactive/` | 上线欢迎、空闲轻搭话、午饭/睡觉照料；连接表 + 调度落盘 |
 | **Planner** | `app/planner/` | DeepSeek 意图卡、情感白名单、简单/复杂路由；只读气候档位与姿态，不见 A/B/C 数字 |
 | **模型加载** | `app/model_loader.py` | llama-cpp-python 加载 GGUF，支持流式与 `<think>` 过滤 |
 | **WebSocket** | `app/ws_handler.py` | 会话连接、上线欢迎、消息分发、ASR 过滤接入 |
@@ -52,6 +52,7 @@ python scripts/smoke_ws.py
 python scripts/test_input_filter.py        # ASR / 空串脏文本过滤断言
 python scripts/test_relationship_unit.py   # 关系公式 / 分区 / 分类 / 沉默（不加载 GGUF）
 python scripts/test_welcome_unit.py        # 欢迎时段与指令（不加载 GGUF）
+python scripts/test_proactive_unit.py      # 空闲搭话 / 时刻照料 / 调度落盘（不加载 GGUF）
 ```
 
 确保服务已启动后再跑 `smoke_ws.py`。脚本会发送 `ping` / `chat`，并打印响应。
@@ -72,7 +73,7 @@ python scripts/test_welcome_unit.py        # 欢迎时段与指令（不加载 G
 
 Planner 只看见【关系气候】档位与【建议姿态】，禁止下发 A/B/C 浮点或「提升信任度」。缓存命中也会先分类、后回写，避免绕过关系层。
 
-`action` 目前实际用到的是 `speak`（开口）与 `silence`（沉默）。`refuse` / `continue` / `initiate` 已在策略枚举中；欢迎走 `initiate` 回写 `greeted`。
+`action` 目前实际用到的是 `speak`（开口）、`silence`（沉默）与 `initiate`（欢迎 / 空闲搭话 / 照料）。欢迎回写 `greeted`，空闲回写 `checked_in`，照料回写 `cared`（均不抬依赖）。
 
 ## 关系气候
 
@@ -128,6 +129,18 @@ WebSocket 连接并发送 `connected` 后，若 `proactive.welcome.enabled` 为�
 
 同一时段再次上线改为「老师好 / 欢迎回来」，不再重复时段问候。时段状态在内存中，进程重启后会再问候一次。失败不标记时段。历史写入短标记 `【上线】`，不把系统指令写进对话。欢迎允许一句轻问开场，但禁止「想聊什么」这类抛回。
 
+## 空闲搭话与时刻照料
+
+进程级 tick（约 30 秒）查看已连接且未在生成中的会话，每 tick 最多选 1 条动机（照料优先于空闲），先过 `decide_proactive` 再生成。推普通 `chat_response`。忙时跳过，不排队。
+
+| 触发 | 默认 | 要点 |
+|------|------|------|
+| 空闲轻搭话 | 老师安静 15 分钟（`after_sec`）；两次搭话间隔 30 分钟（`cooldown_sec`）；每天最多 3 次 | 欢迎/照料之后只需再等 `after_sec`，不占用 `cooldown_sec`；深夜/凌晨不闲聊；上一轮 `depart` 不闲聊；仅 `secure_play` / `steady` 可开口；历史 `【搭话】`；不检索记忆 |
+| 午饭照料 | 12:00–12:30，每天一次 | 短提醒吃饭，不催；`cling_risk` 更短；可检索作息记忆 |
+| 睡觉照料 | 23:00–23:20，每天一次 | 提醒休息；允许在休息时段触发；历史 `【提醒】` |
+
+调度状态落 `data/memory/proactive.json`（`last_user_at` / `last_proactive_at` / `last_idle_at` / 当日次数与已做照料）。`cooldown_sec` 只约束两次空闲搭话；欢迎与照料写入 `last_proactive_at`。生成失败不标记。满足安静时长却仍被冷却/政策挡住时，日志会写 `proactive idle skipped reason=...`。关闭：`proactive.idle.enabled` / `proactive.care.enabled`。
+
 ## ASR 脏文本过滤
 
 腾讯云 ASR 空结果曾被前端误当成识别成功，把  
@@ -168,7 +181,7 @@ python scripts/ingest_knowledge.py --rebuild
 | `knowledge` | 世界观 RAG（语料目录、Chroma、嵌入模型、检索阈值） |
 | `memory` | SQLite + Chroma 路径、混合检索、DeepSeek 抽取器（`every_n_turns` / `extract_buffer_turns`）与正则降级 |
 | `planner` | 默认开启的双模型 Planner（DeepSeek 意图卡、路由开关；无 Key / `enabled: false` 则回落本地） |
-| `proactive` | 上线欢迎开关；关系气候（α/β、日封顶、分区阈值、`persist_path`） |
+| `proactive` | 上线欢迎；关系气候；空闲搭话（`after_sec` / 冷却 / 日上限）；照料窗口与 `persist_path` |
 | `cache` | 响应缓存开关与容量 |
 | `token_budget` | memory / knowledge / history 注入预算 |
 | `logging` | 日志目录、文件名、级别与滚动策略 |
@@ -181,6 +194,7 @@ python scripts/ingest_knowledge.py --rebuild
 - 记忆库：`data/memory/memory.db`
 - 记忆向量索引：`data/memory/chroma/`
 - 关系气候：`data/memory/relationship.json`
+- 主动调度：`data/memory/proactive.json`
 - 知识向量库：`data/knowledge/chroma/`（由 ingest 生成）
 - 运行日志：`logs/arona-backend.log`
 
@@ -196,6 +210,6 @@ python scripts/ingest_knowledge.py --rebuild
 
 正常回复：`{"type":"chat_response","content":"...","emotion":"...","from_cache":false,"context_used":"...","latency":...}`。
 
-连接后若欢迎开启，服务端会再推一条 `chat_response`（`context_used` 含 `welcome`）。关系层决定沉默时**不**发 `chat_response`，前端保持安静。
+连接后若欢迎开启，服务端会再推一条 `chat_response`（`context_used` 含 `welcome`）。空闲搭话 / 照料同样推 `chat_response`（`context_used` 含 `idle` / `lunch` / `sleep`）。关系层决定沉默时**不**发 `chat_response`，前端保持安静。
 
 若 `content` 被判定为 ASR 脏文本，仍返回 `chat_response`，但 `context_used` 为 `"asr_filter"`，且不会进入双模型链路。

@@ -24,6 +24,8 @@ AronaAct = Literal[
     "gave_space",
     "teased",
     "greeted",
+    "checked_in",
+    "cared",
     "missed_promise",
 ]
 
@@ -48,6 +50,8 @@ ARONA_DELTAS: dict[AronaAct, tuple[float, float, float]] = {
     "gave_space": (0.0, -0.06, -0.04),
     "teased": (0.02, 0.0, 0.08),
     "greeted": (0.03, 0.0, 0.0),
+    "checked_in": (0.01, 0.0, 0.0),
+    "cared": (0.02, 0.0, 0.0),
     "missed_promise": (-0.12, 0.0, 0.06),
 }
 

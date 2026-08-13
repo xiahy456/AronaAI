@@ -9,7 +9,7 @@ from typing import Any
 
 from .classify import classify_user_act
 from .events import AronaAct, UserAct, arona_delta, user_delta
-from .policy import Action, Climate, Decision, decide, map_arona_act
+from .policy import Action, Climate, Decision, decide, decide_proactive, map_arona_act
 from .state import RelationshipState
 from .store import RelationshipStore
 
@@ -113,13 +113,22 @@ class RelationshipEngine:
             cling_dependence=self.settings.cling_dependence,
         )
 
+    def decide_proactive(self, kind: str) -> Decision:
+        return decide_proactive(
+            self.state,
+            kind,
+            cling_dependence=self.settings.cling_dependence,
+            high_dependence=self.settings.high_dependence,
+        )
+
     def on_arona_action(
         self,
         action: Action,
         climate: Climate,
         user_act: UserAct = "other",
+        motive_kind: str | None = None,
     ) -> AronaAct | None:
-        event = map_arona_act(action, climate, user_act)
+        event = map_arona_act(action, climate, user_act, motive_kind=motive_kind)
         if event is None:
             return None
         self._apply(arona_delta(event))

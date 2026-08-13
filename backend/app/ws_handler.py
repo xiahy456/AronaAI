@@ -20,7 +20,7 @@ from .input_filter import (
 )
 from .logging_utils import preview
 from .orchestrator import Orchestrator
-from .proactive import WelcomeState, resolve_welcome_context
+from .proactive import ConnectionHub, ProactiveScheduler, WelcomeState, resolve_welcome_context
 from .protocol import (
     CODE_BAD_REQUEST,
     CODE_INTERNAL,
@@ -50,11 +50,15 @@ class AppState:
         orchestrator: Orchestrator,
         conversations: ConversationManager,
         welcome: WelcomeState | None = None,
+        hub: ConnectionHub | None = None,
+        scheduler: ProactiveScheduler | None = None,
     ) -> None:
         self.config = config
         self.orchestrator = orchestrator
         self.conversations = conversations
         self.welcome = welcome or WelcomeState()
+        self.hub = hub or ConnectionHub()
+        self.scheduler = scheduler
 
 
 async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
@@ -115,6 +119,9 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         await websocket.send_text(json.dumps(payload, ensure_ascii=False))
 
     await send(msg_connected(session_id))
+    state.hub.register(session_id, send)
+    if state.scheduler is not None:
+        state.scheduler.note_user_activity()
 
     chat_task: asyncio.Task[None] | None = None
 
@@ -122,6 +129,9 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         content: str,
         options: dict[str, Any],
     ) -> None:
+        state.hub.set_busy(session_id, True)
+        if state.scheduler is not None:
+            state.scheduler.note_user_activity()
         try:
             await state.orchestrator.handle_chat(
                 session_id=session_id,
@@ -138,8 +148,11 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                 await send(msg_error(CODE_INTERNAL, str(exc)))
             except Exception:
                 pass
+        finally:
+            state.hub.set_busy(session_id, False)
 
     async def _run_welcome() -> None:
+        state.hub.set_busy(session_id, True)
         try:
             slot, first = resolve_welcome_context(state.welcome)
             logger.info(
@@ -163,6 +176,8 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                     slot.date_key,
                     slot.slot_id,
                 )
+            if ok and state.scheduler is not None:
+                state.scheduler.note_proactive()
             elif not ok:
                 logger.warning("welcome failed session=%s (period not marked)", session_id)
         except asyncio.CancelledError:
@@ -170,6 +185,8 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
             raise
         except Exception:
             logger.exception("welcome error session=%s", session_id)
+        finally:
+            state.hub.set_busy(session_id, False)
 
     if state.config.proactive.welcome.enabled:
         chat_task = asyncio.create_task(_run_welcome())
@@ -216,7 +233,9 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                         )
                     )
                 elif msg_type == TYPE_CHAT:
-                    if chat_task is not None and not chat_task.done():
+                    if (chat_task is not None and not chat_task.done()) or state.hub.is_busy(
+                        session_id
+                    ):
                         logger.warning(
                             "WS chat rejected session=%s reason=in_progress",
                             session_id,
@@ -285,4 +304,5 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                 pass
             except Exception:
                 logger.exception("Error while cancelling chat task session=%s", session_id)
+        state.hub.unregister(session_id)
         state.conversations.drop(session_id)

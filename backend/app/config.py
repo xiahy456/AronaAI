@@ -111,6 +111,22 @@ class WelcomeConfig(BaseModel):
     enabled: bool = True
 
 
+class IdleConfig(BaseModel):
+    enabled: bool = True
+    after_sec: float = 900
+    cooldown_sec: float = 1800
+    max_per_day: int = 3
+
+
+class CareConfig(BaseModel):
+    enabled: bool = True
+    persist_path: str = "data/memory/proactive.json"
+    lunch_start: str = "12:00"
+    lunch_end: str = "12:30"
+    sleep_start: str = "23:00"
+    sleep_end: str = "23:20"
+
+
 class RelationshipConfig(BaseModel):
     enabled: bool = True
     persist_path: str = "data/memory/relationship.json"
@@ -130,6 +146,8 @@ class RelationshipConfig(BaseModel):
 class ProactiveConfig(BaseModel):
     welcome: WelcomeConfig = Field(default_factory=WelcomeConfig)
     relationship: RelationshipConfig = Field(default_factory=RelationshipConfig)
+    idle: IdleConfig = Field(default_factory=IdleConfig)
+    care: CareConfig = Field(default_factory=CareConfig)
 
 
 class AppConfig(BaseModel):
@@ -177,6 +195,10 @@ class AppConfig(BaseModel):
     @property
     def relationship_abs_path(self) -> Path:
         return self.resolve_path(self.proactive.relationship.persist_path)
+
+    @property
+    def proactive_abs_path(self) -> Path:
+        return self.resolve_path(self.proactive.care.persist_path)
 
     @property
     def logging_dir_abs_path(self) -> Path:

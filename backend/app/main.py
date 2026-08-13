@@ -21,6 +21,7 @@ from .memory.store import MemoryStore
 from .model_loader import get_model_loader
 from .orchestrator import Orchestrator
 from .planner import PlannerClient
+from .proactive import ConnectionHub, ProactiveScheduler, WelcomeState, run_proactive_loop
 from .relationship import RelationshipEngine, RelationshipSettings
 from .ws_handler import AppState, websocket_endpoint
 
@@ -77,7 +78,20 @@ def create_app() -> FastAPI:
         planner=planner,
         relationship=relationship,
     )
-    state = AppState(config, orchestrator, conversations)
+    hub = ConnectionHub()
+    scheduler = ProactiveScheduler(
+        config.proactive_abs_path,
+        idle_cfg=config.proactive.idle,
+        care_cfg=config.proactive.care,
+    )
+    state = AppState(
+        config,
+        orchestrator,
+        conversations,
+        welcome=WelcomeState(),
+        hub=hub,
+        scheduler=scheduler,
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -93,8 +107,18 @@ def create_app() -> FastAPI:
             except Exception:
                 logger.exception("Knowledge warmup failed; RAG will retry on first use")
         await extractor.start()
+        loop_task = None
+        if config.proactive.idle.enabled or config.proactive.care.enabled:
+            loop_task = asyncio.create_task(run_proactive_loop(state))
+            logger.info("proactive loop started")
         app.state.arona = state  # type: ignore[attr-defined]
         yield
+        if loop_task is not None:
+            loop_task.cancel()
+            try:
+                await loop_task
+            except asyncio.CancelledError:
+                pass
         await extractor.stop()
         logger.info("AronaAI backend stopped")
 

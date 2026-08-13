@@ -395,7 +395,7 @@ void StartWidget::onTypewriterTick()
 			startLoadingDots();
 			return;
 		}
-		m_typeTimer->setInterval(40);
+		m_typeTimer->setInterval(50);
 	}
 
 	if (m_typeLine >= m_startupLines.size()) {
@@ -413,7 +413,7 @@ void StartWidget::onTypewriterTick()
 
 	// 当前行打完：行间停顿 500ms；若已是最后一行，停顿后进入加载点循环
 	m_waitingLineGap = true;
-	m_typeTimer->setInterval(500);
+	m_typeTimer->setInterval(1000);
 	++m_typeLine;
 	m_typeCol = 0;
 }

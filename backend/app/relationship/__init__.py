@@ -6,6 +6,7 @@ from .events import USER_DELTAS, UserAct
 from .policy import (
     CLIMATE_LABELS,
     Decision,
+    decide_proactive,
     local_system_hint,
     planner_climate_block,
     resolve_climate,
@@ -23,6 +24,7 @@ __all__ = [
     "USER_DELTAS",
     "UserAct",
     "classify_user_act",
+    "decide_proactive",
     "local_system_hint",
     "planner_climate_block",
     "resolve_climate",
