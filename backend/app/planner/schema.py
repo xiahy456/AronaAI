@@ -85,6 +85,22 @@ class IntentCard:
             )
             self.must_say = self.must_say[:_MAX_MUST_SAY]
 
+    def drop_conflicting_must_say(self) -> None:
+        """Drop must_say items that ask the teacher a question when must_not forbids it."""
+        not_text = "".join(self.must_not)
+        if not any(
+            key in not_text
+            for key in ("抛回", "反问", "想聊什么", "用提问收尾")
+        ):
+            return
+        kept: list[str] = []
+        for item in self.must_say:
+            if any(key in item for key in ("反问", "想聊什么", "还是")):
+                logger.info("planner gate dropped conflicting must_say %r", item)
+                continue
+            kept.append(item)
+        self.must_say = kept
+
     def to_renderer_dict(self) -> dict[str, Any]:
         """Intent fields for AronaLM — emotion stripped."""
         return {
@@ -129,6 +145,7 @@ def parse_and_gate_intent(raw_text: str) -> IntentCard | None:
     card = IntentCard.from_dict(data)
     card.merge_fixed_must_not()
     card.normalize_length_and_must_say()
+    card.drop_conflicting_must_say()
     # Soft gate: empty planning is weak but still usable if emotion is valid.
     if not card.topic and not card.must_say and not card.stance:
         # Still allow if we at least got emotion; otherwise fail.

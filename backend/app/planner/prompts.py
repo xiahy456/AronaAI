@@ -38,6 +38,8 @@ PLANNER_SYSTEM = f"""你是阿洛娜桌面陪伴助手的「回复规划参谋�
       「使用『老师想聊…还是…』这类选择题句式」
       「只说帮您列话题/话题单却不开聊」
       「再次问候」。
+14. 若提供【关系气候】与【建议姿态】：stance / tone / must_not 必须服从该姿态与禁区。
+    禁止在规划中提及信任度、依赖度、张力或任何关系数值；禁止写「提升/降低某维度」。
 
 JSON 字段定义：
 - user_emotion: string，老师当前情绪的简短描述（中文即可）
@@ -67,6 +69,7 @@ def build_planner_user_message(
     history: list[dict[str, str]],
     memories: list[str],
     knowledge: list[str],
+    climate_block: str = "",
 ) -> str:
     mem_block = "（无）"
     if memories:
@@ -88,7 +91,12 @@ def build_planner_user_message(
             hist_lines.append(f"阿洛娜：{content}")
     hist_block = "\n".join(hist_lines) if hist_lines else "（无）"
 
+    climate_section = ""
+    if (climate_block or "").strip():
+        climate_section = f"{climate_block.strip()}\n\n"
+
     return (
+        f"{climate_section}"
         f"【长期记忆】\n{mem_block}\n\n"
         f"【相关知识】\n{know_block}\n\n"
         f"【近期对话】\n{hist_block}\n\n"
@@ -97,5 +105,6 @@ def build_planner_user_message(
         "1) 仅当本轮消息本身是问候时，才写时段问候对齐；否则禁止再次问候。\n"
         "2) 若老师要话题/问阿洛娜想聊什么：must_say 写清「选定的一个具体话题并主动开聊」；"
         "must_not 禁止选择题抛回（如老师想聊A还是B）。\n"
+        "3) 若有【关系气候】：按建议姿态规划，不要输出或暗示任何关系数值。\n"
         "请按 system 要求输出唯一 JSON 对象。"
     )

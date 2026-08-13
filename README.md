@@ -22,11 +22,11 @@
 
 **阿洛娜AI** 是一个以游戏《蔚蓝档案》（Blue Archive）中角色"阿洛娜"为原型打造的桌面AI助手项目。在设定上，她是“什亭之匣”的操作系统管理员，性格开朗、热情，乐于帮助老师（用户）解决问题。
 
-本项目集成了Arona语言模型（AronaLM）、语音合成（TTS）、语音识别（ASR）、Spine 2D 角色动画等技术，旨在提供一个可爱、有趣且功能完整的桌面交互体验。
+本项目集成了Arona语言模型（AronaLM）、语音合成（TTS）、语音识别（ASR）、Spine 2D 角色动画等技术，旨在提供一个可爱、有趣且功能完整的桌面交互体验。对话不再是每轮必答：后端先根据关系气候决定开口或沉默，并在老师上线时主动问候。
 
 **AronaAI** is a desktop AI assistant project based on the character "Arona" from the game "Blue Archive". She serves as the operating system administrator of the Shittim Chest, and has a cheerful, warm personality who loves helping Sensei (user) solve problems.
 
-This project integrates Arona Language Model (AronaLM), Text-to-Speech (TTS), Automatic Speech Recognition (ASR), Spine 2D character animation, and other technologies to provide a cute, lively, and fully-featured desktop interaction experience.
+This project integrates Arona Language Model (AronaLM), Text-to-Speech (TTS), Automatic Speech Recognition (ASR), Spine 2D character animation, and other technologies to provide a cute, lively, and fully-featured desktop interaction experience. Replies are no longer mandatory every turn: the backend first decides from relationship climate whether to speak or stay silent, and greets Sensei when they come online.
 
 <p align="center">
   <img src="assets/running_example_2.png" alt="Running Example" width="600"/>
@@ -49,9 +49,11 @@ arona-ai/
 ├── backend/                    # Python 后端服务（FastAPI + WebSocket）
 │   ├── app/                    # 应用核心
 │   │   ├── main.py             # 服务入口
-│   │   ├── orchestrator.py     # 对话编排（检索 → Planner/本地 → Prompt → 生成 → 记忆抽取）
+│   │   ├── orchestrator.py     # 对话编排（关系决策 → 检索 → Planner/本地 → 生成 → 记忆抽取）
 │   │   ├── model_loader.py     # GGUF 模型加载（llama-cpp-python）
 │   │   ├── planner/            # 双模型 Planner（DeepSeek 意图卡 → Renderer）
+│   │   ├── proactive/          # 主动事件（上线欢迎、时段）
+│   │   ├── relationship/       # 关系气候（信任/依赖/张力、决策）
 │   │   ├── knowledge.py        # 世界观知识 RAG
 │   │   ├── conversation.py     # 多轮对话历史
 │   │   ├── cache.py            # 响应缓存
@@ -65,7 +67,7 @@ arona-ai/
 │   │   └── memory/             # 长期记忆（SQLite + FTS5 + Chroma + DeepSeek 抽取）
 │   ├── scripts/                # 联调 / 灌库 / 测试脚本
 │   ├── data/                   # 记忆库、知识语料与向量库
-│   │   ├── memory/             # memory.db + chroma
+│   │   ├── memory/             # memory.db + chroma + relationship.json
 │   │   └── knowledge/          # 语料 corpus + chroma
 │   ├── logs/                   # 后端运行日志
 │   ├── config.example.yaml     # 配置模板
@@ -123,8 +125,10 @@ arona-ai/
 ## ✨ 核心功能 / Core Features
 
 ### 🤖 AI 对话引擎
-- **双模型链路**：**Planner（DeepSeek）→ 结构化意图卡 → Renderer（AronaLM-Renderer-V2.1）**；简单轮次可由路由走本地单模型，Planner 关闭或失败时回落本地路径
-- **AronaLM-Renderer-V2.1（GGUF）**：`llama-cpp-python` 加载 Qwen3-1.7B 微调 GGUF（默认 Q4_K_M），过滤 `<think>` 推理块；默认双模型路径非流式，本地回落路径可流式
+- **双模型链路**：**Planner（DeepSeek）→ 结构化意图卡 → Renderer（AronaLM-Renderer-V2.2）**；简单轮次可由路由走本地单模型，Planner 关闭或失败时回落本地路径
+- **关系气候**：信任 / 依赖 / 张力三标量构建张量；规则分类用户行动后查表更新，气候分区决定开口、姿态或沉默（数字不进台词）
+- **上线欢迎**：WebSocket 连接后按时段主动问候；同槽首次说「早上好」等，再次上线改为「欢迎回来」；深夜/凌晨提醒休息
+- **AronaLM-Renderer-V2.2（GGUF）**：`llama-cpp-python` 加载 Qwen3-1.7B 微调 GGUF（默认 Q4_K_M），过滤 `<think>` 推理块；默认双模型路径非流式，本地回落路径可流式
 - **记忆与知识分离**：用户长期事实进 SQLite + FTS5 + Chroma（jieba / BGE）；世界观设定进 Markdown 语料 → 本地 BGE + Chroma RAG，互不混写、按需注入 Prompt
 - **异步记忆抽取**：对话主路径不阻塞；DeepSeek JSON 抽取（含日配额与缓冲批量），失败或无 Key 时自动正则降级
 - **ASR 脏文本过滤**：入口丢弃空串 / 腾讯云 ASR 错误模板，避免误触发 Planner
@@ -218,6 +222,7 @@ cp config.example.yaml config.yaml   # Linux / macOS
 - `planner.enabled` / `planner.api_key`：默认开启双模型；填写 DeepSeek API Key。不填 Key 或关闭 `enabled` 则回落本地单模型
 - `memory.extractor.api_key`：DeepSeek API Key（可选；不填则记忆抽取走正则降级）
 - `knowledge.enabled`：是否启用世界观 RAG（默认 `false`，启用前请先灌库）
+- `proactive.welcome.enabled` / `proactive.relationship.enabled`：上线欢迎与关系气候（默认开启；关系状态落 `data/memory/relationship.json`）
 
 > **注意**：`config.yaml` 已在 `.gitignore` 中，不会被提交到版本控制。
 
@@ -244,6 +249,10 @@ uvicorn app.main:app --host 127.0.0.1 --port 20456
 ```bash
 # WebSocket 冒烟测试（服务需已启动）
 python scripts/smoke_ws.py
+
+# 关系气候 / 上线欢迎单测（不加载 GGUF）
+python scripts/test_relationship_unit.py
+python scripts/test_welcome_unit.py
 
 # 按 data/knowledge/WRITING.md 编写语料后灌库
 python scripts/ingest_knowledge.py

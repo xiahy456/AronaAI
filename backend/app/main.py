@@ -21,6 +21,7 @@ from .memory.store import MemoryStore
 from .model_loader import get_model_loader
 from .orchestrator import Orchestrator
 from .planner import PlannerClient
+from .relationship import RelationshipEngine, RelationshipSettings
 from .ws_handler import AppState, websocket_endpoint
 
 
@@ -61,6 +62,10 @@ def create_app() -> FastAPI:
     knowledge = KnowledgeRetriever(config, encoder=shared_encoder)
     cache = ResponseCache(max_size=config.cache.max_size)
     planner = PlannerClient(config.planner)
+    relationship = RelationshipEngine.from_path(
+        config.relationship_abs_path,
+        RelationshipSettings.from_config(config.proactive.relationship),
+    )
     orchestrator = Orchestrator(
         config,
         model=model,
@@ -70,6 +75,7 @@ def create_app() -> FastAPI:
         knowledge=knowledge,
         cache=cache,
         planner=planner,
+        relationship=relationship,
     )
     state = AppState(config, orchestrator, conversations)
 

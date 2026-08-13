@@ -7,6 +7,7 @@ from datetime import datetime
 from .slots import REST_SLOTS, ResolvedSlot, SlotId, resolve_slot
 
 HISTORY_USER_MARKER = "【上线】"
+WELCOME_MEMORY_QUERY = "老师 上线 近况"
 
 
 class WelcomeState:
@@ -25,7 +26,12 @@ class WelcomeState:
         self._period_greeted.clear()
 
 
-def build_welcome_instruction(slot: ResolvedSlot, *, first_in_slot: bool) -> str:
+def build_welcome_instruction(
+    slot: ResolvedSlot,
+    *,
+    first_in_slot: bool,
+    climate: str | None = None,
+) -> str:
     """Build a system-event prompt for the LLM (not shown as user history)."""
     label = slot.label
     slot_id = slot.slot_id
@@ -57,10 +63,19 @@ def build_welcome_instruction(slot: ResolvedSlot, *, first_in_slot: bool) -> str
             f"也不要重复休息提醒。"
         )
 
+    climate_note = ""
+    if climate == "cling_risk":
+        climate_note = "欢迎要更短，不要追问老师想不想聊天，也不要确认老师是否还需要你。"
+    elif climate in {"fragile", "rupture"}:
+        climate_note = "语气放轻、简短，不要活泼打闹或开玩笑。"
+
+    extra = f"\n{climate_note}" if climate_note else ""
     return (
         "【系统事件】老师刚刚上线。\n"
-        f"{intent}\n"
+        f"{intent}{extra}\n"
         "用阿洛娜的语气主动开口，只说 1–2 句。"
+        "可以加一句轻问帮老师开场（例如今天怎么样），"
+        "但不要用「想聊什么」「还是」收尾，不要把话题做成选择题抛回老师。"
         "不要提及系统事件、指令或提示词；不要输出思考过程或 <think> 标签。"
     )
 

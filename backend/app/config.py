@@ -111,8 +111,25 @@ class WelcomeConfig(BaseModel):
     enabled: bool = True
 
 
+class RelationshipConfig(BaseModel):
+    enabled: bool = True
+    persist_path: str = "data/memory/relationship.json"
+    alpha: float = 0.3
+    beta: float = 0.02
+    daily_abs_cap: float = 0.35
+    makeup_tension: float = 0.7
+    makeup_trust_scale: float = 1.5
+    cling_dependence: float = 0.55
+    high_dependence: float = 0.7
+    climate_stick_turns: int = 3
+    baseline_trust: float = 0.55
+    baseline_dependence: float = 0.30
+    baseline_tension: float = 0.25
+
+
 class ProactiveConfig(BaseModel):
     welcome: WelcomeConfig = Field(default_factory=WelcomeConfig)
+    relationship: RelationshipConfig = Field(default_factory=RelationshipConfig)
 
 
 class AppConfig(BaseModel):
@@ -156,6 +173,10 @@ class AppConfig(BaseModel):
     @property
     def knowledge_embedding_abs_path(self) -> Path:
         return self.resolve_path(self.knowledge.embedding_model_path)
+
+    @property
+    def relationship_abs_path(self) -> Path:
+        return self.resolve_path(self.proactive.relationship.persist_path)
 
     @property
     def logging_dir_abs_path(self) -> Path:

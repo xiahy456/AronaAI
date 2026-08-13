@@ -61,8 +61,11 @@ def build_messages(
     history: list[dict[str, str]],
     memories: list[str],
     knowledge: list[str],
+    extra_system: str | None = None,
 ) -> list[dict[str, str]]:
     system_parts = [config.model.system_prompt.strip()]
+    if extra_system and extra_system.strip():
+        system_parts.append(extra_system.strip())
 
     if memories:
         budget = _approx_chars_for_tokens(config.token_budget.memory)

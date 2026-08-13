@@ -74,6 +74,20 @@ planner:
 proactive:
   welcome:
     enabled: true
+  relationship:
+    enabled: true
+    persist_path: "data/memory/relationship.json"
+    alpha: 0.3
+    beta: 0.02
+    daily_abs_cap: 0.35
+    makeup_tension: 0.7
+    makeup_trust_scale: 1.5
+    cling_dependence: 0.55
+    high_dependence: 0.7
+    climate_stick_turns: 3
+    baseline_trust: 0.55
+    baseline_dependence: 0.30
+    baseline_tension: 0.25
 
 token_budget:
   memory: 250

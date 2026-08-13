@@ -110,3 +110,6 @@ docs/unused/
 
 # Local start-all orchestrator logs
 .start-logs/
+
+# cursor files
+.cursor/**

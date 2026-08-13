@@ -34,6 +34,7 @@ class PlannerClient:
         history: list[dict[str, str]],
         memories: list[str],
         knowledge: list[str],
+        climate_block: str = "",
     ) -> IntentCard | None:
         if not self.enabled:
             logger.info("planner skipped reason=disabled_or_no_key")
@@ -45,6 +46,7 @@ class PlannerClient:
             history=history,
             memories=memories,
             knowledge=knowledge,
+            climate_block=climate_block,
         )
         payload: dict[str, Any] = {
             "model": self.config.model,

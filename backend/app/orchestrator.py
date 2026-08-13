@@ -18,9 +18,19 @@ from .memory.store import MemoryStore
 from .memory.trigger import should_extract
 from .model_loader import ModelLoader
 from .planner import DEFAULT_EMOTION, IntentCard, PlannerClient, route_mode
-from .proactive import HISTORY_USER_MARKER, ResolvedSlot, build_welcome_instruction
+from .proactive import (
+    HISTORY_USER_MARKER,
+    ResolvedSlot,
+    build_welcome_instruction,
+)
 from .prompt import build_messages, build_renderer_messages
 from .protocol import msg_chat_response
+from .relationship import (
+    Decision,
+    RelationshipEngine,
+    local_system_hint,
+    planner_climate_block,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +49,7 @@ class Orchestrator:
         knowledge: KnowledgeRetriever,
         cache: ResponseCache,
         planner: PlannerClient | None = None,
+        relationship: RelationshipEngine | None = None,
     ) -> None:
         self.config = config
         self.model = model
@@ -48,9 +59,12 @@ class Orchestrator:
         self.knowledge = knowledge
         self.cache = cache
         self.planner = planner or PlannerClient(config.planner)
+        self.relationship = relationship
         self.stats: dict[str, Any] = {
             "chat_count": 0,
             "welcome_count": 0,
+            "silence_count": 0,
+            "refuse_count": 0,
             "cache_hits": 0,
             "planner_hits": 0,
             "planner_fallbacks": 0,
@@ -85,6 +99,16 @@ class Orchestrator:
 
         start = time.perf_counter()
         context_parts: list[str] = []
+        decision = self._note_user_relationship(user_text)
+        if decision is not None:
+            context_parts.append("climate")
+        if decision is not None and decision.action in {"silence", "refuse"}:
+            await self._skip_generation(
+                session_id=session_id,
+                user_text=user_text,
+                decision=decision,
+            )
+            return
 
         logger.info(
             "chat start session=%s use_cache=%s use_rag=%s use_memory=%s request=%r",
@@ -120,6 +144,7 @@ class Orchestrator:
                     )
                 )
                 await self._maybe_extract(session_id, user_text)
+                self._note_arona_relationship(decision, "speak")
                 self.stats["chat_count"] += 1
                 logger.info(
                     "chat done session=%s context=cache latency=%.3fs "
@@ -203,6 +228,7 @@ class Orchestrator:
                 history=history,
                 memories=memories,
                 knowledge=knowledge_chunks,
+                climate_block=self._climate_block(decision),
             )
             logger.info(
                 "planner session=%s ok=%s latency=%.3fs",
@@ -216,6 +242,7 @@ class Orchestrator:
             else:
                 self.stats["planner_hits"] += 1
                 emotion = intent.arona_emotion
+                self._merge_decision_into_intent(intent, decision)
 
         if intent is not None:
             messages = build_renderer_messages(
@@ -233,6 +260,7 @@ class Orchestrator:
                 history=history,
                 memories=memories,
                 knowledge=knowledge_chunks,
+                extra_system=self._local_hint(decision),
             )
 
         context_used = "+".join(context_parts) if context_parts else "none"
@@ -276,6 +304,7 @@ class Orchestrator:
             logger.info("cache put session=%s emotion=%s", session_id, emotion)
 
         await self._maybe_extract(session_id, user_text)
+        self._note_arona_relationship(decision, "speak")
         self.stats["chat_count"] += 1
         total_latency = time.perf_counter() - start
         logger.info(
@@ -298,9 +327,16 @@ class Orchestrator:
         send: SendFn,
     ) -> bool:
         """Generate and push an online welcome greeting. Returns True on success."""
-        user_text = build_welcome_instruction(slot, first_in_slot=first_in_slot)
+        climate = None
+        if self.relationship is not None and self.config.proactive.relationship.enabled:
+            climate = self.relationship.peek_climate()
+        user_text = build_welcome_instruction(
+            slot, first_in_slot=first_in_slot, climate=climate
+        )
         start = time.perf_counter()
         context_parts: list[str] = ["welcome"]
+        if climate:
+            context_parts.append("climate")
 
         logger.info(
             "welcome start session=%s slot=%s first=%s date=%s instruction=%r",
@@ -312,21 +348,7 @@ class Orchestrator:
         )
 
         memories: list[str] = []
-        t0 = time.perf_counter()
-        memories = await asyncio.to_thread(
-            self.memory_store.retrieve,
-            user_text,
-            self.config.memory.retrieve_top_k,
-        )
-        logger.info(
-            "welcome memory retrieve session=%s hits=%d latency=%.3fs items=%s",
-            session_id,
-            len(memories),
-            time.perf_counter() - t0,
-            preview_list(memories),
-        )
-        if memories:
-            context_parts.append("memory")
+        logger.info("welcome memory retrieve skipped session=%s", session_id)
 
         history = self.conversations.get_history(session_id)
         if history:
@@ -354,6 +376,7 @@ class Orchestrator:
                 history=history,
                 memories=memories,
                 knowledge=[],
+                climate_block=self._welcome_climate_block(climate),
             )
             logger.info(
                 "welcome planner session=%s ok=%s latency=%.3fs",
@@ -369,6 +392,14 @@ class Orchestrator:
             else:
                 self.stats["planner_hits"] += 1
                 emotion = intent.arona_emotion
+                for item in (
+                    "想聊什么",
+                    "把问题抛回老师",
+                    "用『还是』列选择题",
+                ):
+                    if item not in intent.must_not:
+                        intent.must_not.append(item)
+                intent.drop_conflicting_must_say()
 
         if intent is not None:
             messages = build_renderer_messages(
@@ -426,6 +457,8 @@ class Orchestrator:
         self.conversations.append(session_id, "user", HISTORY_USER_MARKER)
         self.conversations.append(session_id, "assistant", full)
 
+        if self.relationship is not None and self.config.proactive.relationship.enabled:
+            self.relationship.on_arona_action("initiate", climate or "steady")
         self.stats["welcome_count"] += 1
         self.stats["chat_count"] += 1
         logger.info(
@@ -437,6 +470,80 @@ class Orchestrator:
             full,
         )
         return True
+
+    def _note_user_relationship(self, user_text: str) -> Decision | None:
+        if self.relationship is None or not self.config.proactive.relationship.enabled:
+            return None
+        _act, decision = self.relationship.on_user_text(user_text)
+        return decision
+
+    def _note_arona_relationship(
+        self, decision: Decision | None, action: str
+    ) -> None:
+        if self.relationship is None or not self.config.proactive.relationship.enabled:
+            return
+        climate = decision.climate if decision is not None else "steady"
+        user_act = decision.user_act if decision is not None else "other"
+        self.relationship.on_arona_action(action, climate, user_act)  # type: ignore[arg-type]
+
+    def _climate_block(self, decision: Decision | None) -> str:
+        if decision is None:
+            return ""
+        return planner_climate_block(decision)
+
+    def _local_hint(self, decision: Decision | None) -> str | None:
+        if decision is None:
+            return None
+        return local_system_hint(decision)
+
+    def _welcome_climate_block(self, climate: str | None) -> str:
+        if not climate:
+            return ""
+        from .relationship.policy import CLIMATE_LABELS
+
+        label = CLIMATE_LABELS.get(climate, climate)
+        return (
+            f"【关系气候】{label}\n"
+            "【建议姿态】简短迎接；可以加一句轻问帮老师开场。\n"
+            "【本轮禁区】想聊什么；把问题抛回老师；用『还是』列选择题。\n"
+            "must_say 以问候为主，允许一句轻问。不要提及关系数值、信任度、依赖度或张力。"
+        )
+
+    def _merge_decision_into_intent(
+        self, intent: IntentCard, decision: Decision | None
+    ) -> None:
+        if decision is None:
+            return
+        if decision.stance:
+            intent.stance = decision.stance
+        if decision.tone_hint:
+            intent.tone = decision.tone_hint
+        seen = set(intent.must_not)
+        for item in decision.must_not:
+            if item not in seen:
+                intent.must_not.append(item)
+                seen.add(item)
+        intent.drop_conflicting_must_say()
+
+    async def _skip_generation(
+        self,
+        *,
+        session_id: str,
+        user_text: str,
+        decision: Decision,
+    ) -> None:
+        key = "silence_count" if decision.action == "silence" else "refuse_count"
+        self.stats[key] = int(self.stats.get(key, 0)) + 1
+        self.conversations.append(session_id, "user", user_text)
+        self._note_arona_relationship(decision, decision.action)
+        logger.info(
+            "chat skipped session=%s action=%s climate=%s user_act=%s request=%r",
+            session_id,
+            decision.action,
+            decision.climate,
+            decision.user_act,
+            user_text,
+        )
 
     async def _maybe_extract(self, session_id: str, user_text: str) -> None:
         # Buffer this completed turn (history was already appended by caller).
