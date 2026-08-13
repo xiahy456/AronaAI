@@ -22,6 +22,7 @@
 #include "Defines.h"
 #include "GlobalVariables.h"
 
+#include <QByteArray>
 #include <QObject>
 #include <QString>
 #include <QEventLoop>
@@ -55,6 +56,11 @@ public:
 	void toggleMouseTransparent();
 	// 呼出用户文本输入界面
 	void showUserInput();
+	// 启动遮罩已关闭，冲刷待播欢迎语
+	void onSplashClosed();
+
+signals:
+	void welcomePlaybackReady();
 
 private slots:
 	// TTS工作完毕
@@ -87,8 +93,18 @@ private:
 	bool m_measuringUserTurn = false;	// 是否正在测量用户回合端到端耗时
 	QElapsedTimer m_backendTimer;	// 后端 WebSocket RTT
 	QElapsedTimer m_userTurnTimer;	// 用户发送到字幕上屏
+	bool m_splashActive = true;	// 启动遮罩是否仍在
+	bool m_awaitingStartupWelcome = true;	// 是否仍在等待启动欢迎语
+	bool m_hasPendingOutput = false;	// 是否有待遮罩关闭后呈现的输出
+	bool m_pendingIsError = false;	// 待呈现输出是否为 TTS 失败兜底
+	QByteArray m_pendingAudio;	// 待播放的欢迎语音频
+	QString m_pendingMediaType;	// 待播放音频的媒体类型
 
 	// 处理用户输入的文本（语音识别或文本输入）
 	void processInputText(const QString& text);
+	void presentOutput(const QByteArray& audioData, const QString& mediaType);
+	void presentOutputError();
+	void holdOrPresentOutput(const QByteArray& audioData, const QString& mediaType, bool isError);
+	void dismissSplashOnUnrecoverableError();
 
 };

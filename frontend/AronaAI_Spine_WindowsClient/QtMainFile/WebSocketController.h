@@ -7,6 +7,7 @@
 
 #include <QObject>
 #include <QWebSocket>
+#include <QAbstractSocket>
 #include <QTimer>
 #include <QJsonObject>
 #include <QJsonDocument>
@@ -152,6 +153,7 @@ private slots:
     void onHeartbeatCheckTimer();
     void onReconnectTimer();
     void onPongReceived();
+    void onConnectTimeout();
 
 private:
     // 发送JSON消息
@@ -196,11 +198,21 @@ private:
     // 设置连接状态
     void setState(ConnectionState newState);
 
+    // 开始/停止本次连接超时
+    void startConnectTimeout();
+    void stopConnectTimeout();
+
+    // 首次连接失败后进入可重连的断开状态
+    void handleConnectAttemptFailed();
+
+    static ErrorCode mapSocketError(QAbstractSocket::SocketError error);
+
 private:
     QWebSocket* m_webSocket;
     QTimer* m_heartbeatTimer;
     QTimer* m_heartbeatCheckTimer;
     QTimer* m_reconnectTimer;
+    QTimer* m_connectTimeoutTimer;
 
     QString m_serverUrl;
     ConnectionState m_currentState;

@@ -107,6 +107,14 @@ class LoggingConfig(BaseModel):
     backup_count: int = 5
 
 
+class WelcomeConfig(BaseModel):
+    enabled: bool = True
+
+
+class ProactiveConfig(BaseModel):
+    welcome: WelcomeConfig = Field(default_factory=WelcomeConfig)
+
+
 class AppConfig(BaseModel):
     server: ServerConfig = Field(default_factory=ServerConfig)
     model: ModelConfig = Field(default_factory=ModelConfig)
@@ -115,6 +123,7 @@ class AppConfig(BaseModel):
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
     planner: PlannerConfig = Field(default_factory=PlannerConfig)
+    proactive: ProactiveConfig = Field(default_factory=ProactiveConfig)
     token_budget: TokenBudgetConfig = Field(default_factory=TokenBudgetConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 

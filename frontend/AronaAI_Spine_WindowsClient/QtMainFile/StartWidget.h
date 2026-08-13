@@ -47,9 +47,13 @@ public:
 	// 阻塞直到预解码+回放结束（内部跑事件循环）
 	void waitUntilVideoEnded();
 
+signals:
+	void closeFinished();
+
 public slots:
 	void onSpineReady();
 	void onAppReady();
+	void onWelcomeReady();
 	void onEscapePressed();
 
 protected:
@@ -102,7 +106,9 @@ private:
 	bool m_videoEnded = false;
 	bool m_spineReady = false;
 	bool m_appReady = false;
+	bool m_welcomeReady = false;
 	bool m_closing = false;
+	bool m_closeFinishedEmitted = false;
 	bool m_waitingLineGap = false;
 	bool m_showingDots = false;
 };

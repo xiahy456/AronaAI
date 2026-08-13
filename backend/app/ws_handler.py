@@ -20,6 +20,7 @@ from .input_filter import (
 )
 from .logging_utils import preview
 from .orchestrator import Orchestrator
+from .proactive import WelcomeState, resolve_welcome_context
 from .protocol import (
     CODE_BAD_REQUEST,
     CODE_INTERNAL,
@@ -48,10 +49,12 @@ class AppState:
         config: AppConfig,
         orchestrator: Orchestrator,
         conversations: ConversationManager,
+        welcome: WelcomeState | None = None,
     ) -> None:
         self.config = config
         self.orchestrator = orchestrator
         self.conversations = conversations
+        self.welcome = welcome or WelcomeState()
 
 
 async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
@@ -135,6 +138,43 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                 await send(msg_error(CODE_INTERNAL, str(exc)))
             except Exception:
                 pass
+
+    async def _run_welcome() -> None:
+        try:
+            slot, first = resolve_welcome_context(state.welcome)
+            logger.info(
+                "welcome trigger session=%s slot=%s first=%s date=%s",
+                session_id,
+                slot.slot_id,
+                first,
+                slot.date_key,
+            )
+            ok = await state.orchestrator.handle_welcome(
+                session_id=session_id,
+                slot=slot,
+                first_in_slot=first,
+                send=send,
+            )
+            if ok and first:
+                state.welcome.mark_period_greeted(slot.date_key, slot.slot_id)
+                logger.info(
+                    "welcome period marked session=%s date=%s slot=%s",
+                    session_id,
+                    slot.date_key,
+                    slot.slot_id,
+                )
+            elif not ok:
+                logger.warning("welcome failed session=%s (period not marked)", session_id)
+        except asyncio.CancelledError:
+            logger.info("welcome cancelled session=%s", session_id)
+            raise
+        except Exception:
+            logger.exception("welcome error session=%s", session_id)
+
+    if state.config.proactive.welcome.enabled:
+        chat_task = asyncio.create_task(_run_welcome())
+    else:
+        logger.info("welcome skipped session=%s reason=disabled", session_id)
 
     try:
         while True:

@@ -71,6 +71,10 @@ planner:
   max_tokens: 512
   router_enabled: true
 
+proactive:
+  welcome:
+    enabled: true
+
 token_budget:
   memory: 250
   knowledge: 250

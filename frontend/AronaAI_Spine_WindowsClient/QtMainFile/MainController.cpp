@@ -129,9 +129,6 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
             this, &MainController::processInputText);
     }
 
-    // 输出一段文本，验证TTS功能是否正常
-    executeOutput(GET_STRING_FROM_JSON(_global_dict, "formed_text", "connected_to_os_operator"));
-
 }
 
 MainController::~MainController()
@@ -152,6 +149,12 @@ void MainController::executeOutput(const QString& text)
 
 void MainController::onTTSFinished(const QByteArray& audioData, const QString& mediaType)
 {
+    holdOrPresentOutput(audioData, mediaType, false);
+}
+
+void MainController::presentOutput(const QByteArray& audioData, const QString& mediaType)
+{
+    Q_UNUSED(mediaType);
     // 播放音频
     m_ttsManager->playAudio(audioData);
     // 显示文字
@@ -182,9 +185,20 @@ void MainController::onTTSError(const QString& errorString)
 
     if (m_currentText.isEmpty()) {
         m_measuringUserTurn = false;
+        if (m_awaitingStartupWelcome) {
+            m_awaitingStartupWelcome = false;
+            if (m_splashActive) {
+                emit welcomePlaybackReady();
+            }
+        }
         return;
     }
 
+    holdOrPresentOutput(QByteArray(), QString(), true);
+}
+
+void MainController::presentOutputError()
+{
     // 语音失败时仍展示字幕与表情，避免交互卡住
     m_mainWidget->showOutputText(m_currentText);
     if (m_measuringUserTurn) {
@@ -199,6 +213,59 @@ void MainController::onTTSError(const QString& errorString)
         m_mainWidget->hideOutputText();
         m_mainWidget->clearAnimation(1, 0.2f);
         });
+}
+
+void MainController::holdOrPresentOutput(const QByteArray& audioData, const QString& mediaType, bool isError)
+{
+    if (m_awaitingStartupWelcome) {
+        m_awaitingStartupWelcome = false;
+        if (m_splashActive) {
+            m_hasPendingOutput = true;
+            m_pendingIsError = isError;
+            m_pendingAudio = audioData;
+            m_pendingMediaType = mediaType;
+            FINE_DEBUG_OUTPUT(QString("[Main Controller] Welcome TTS %1, waiting for splash close")
+                .arg(isError ? "error" : "ready"));
+            emit welcomePlaybackReady();
+            return;
+        }
+    }
+
+    if (isError) {
+        presentOutputError();
+    } else {
+        presentOutput(audioData, mediaType);
+    }
+}
+
+void MainController::onSplashClosed()
+{
+    if (!m_splashActive) {
+        return;
+    }
+    m_splashActive = false;
+    FINE_DEBUG_OUTPUT("[Main Controller] Splash closed");
+    if (!m_hasPendingOutput) {
+        return;
+    }
+    m_hasPendingOutput = false;
+    if (m_pendingIsError) {
+        presentOutputError();
+    } else {
+        presentOutput(m_pendingAudio, m_pendingMediaType);
+    }
+    m_pendingAudio.clear();
+    m_pendingMediaType.clear();
+}
+
+void MainController::dismissSplashOnUnrecoverableError()
+{
+    if (!m_splashActive || !m_awaitingStartupWelcome) {
+        return;
+    }
+    m_awaitingStartupWelcome = false;
+    FINE_DEBUG_OUTPUT("[Main Controller] Unrecoverable WS error, dismissing splash");
+    emit welcomePlaybackReady();
 }
 
 void MainController::startAudioProcessing()
@@ -337,6 +404,9 @@ void MainController::onWebSocketChatResponse(const QString& content, bool fromCa
         .arg(contextUsed)
         .arg(latency)
         .arg(emotion));
+    if (m_awaitingStartupWelcome && contextUsed.contains(QStringLiteral("welcome"))) {
+        FINE_DEBUG_OUTPUT("[WebSocket] Startup welcome chat_response received");
+    }
 
     // 重置等待状态
     m_waitingForAIResponse = false;
@@ -374,9 +444,23 @@ void MainController::onWebSocketError(WebSocketController::ErrorCode code, const
     case WebSocketController::ErrorCode::ReconnectFailed:
         userMessage = "无法重新连接到AI服务";
         break;
+    case WebSocketController::ErrorCode::NetworkError:
+        userMessage = "无法连接到AI服务，请检查服务是否启动";
+        break;
     default:
         userMessage = "AI服务出现错误: " + message;
         break;
+    }
+
+    if (m_splashActive) {
+        if (m_awaitingStartupWelcome) {
+            m_currentText = userMessage;
+            m_currentEmotion = QStringLiteral("normal");
+            m_hasPendingOutput = true;
+            m_pendingIsError = true;
+            dismissSplashOnUnrecoverableError();
+        }
+        return;
     }
 
     // 显示文字

@@ -129,6 +129,15 @@ int main(int argc, char *argv[])
     // 创建主控制对象
 	MainController* mainController = new MainController(mainWidget, ttsManager, audioRecorder, tencentSpeechRecognizer, webSocketController, userInputWidget);
 
+    if (startWidget) {
+        QObject::connect(mainController, &MainController::welcomePlaybackReady,
+            startWidget, &StartWidget::onWelcomeReady);
+        QObject::connect(startWidget, &StartWidget::closeFinished,
+            mainController, &MainController::onSplashClosed);
+    } else {
+        mainController->onSplashClosed();
+    }
+
 	// 创建快捷键对象
 	ShortCutKey* shortCutKey = new ShortCutKey(mainController);
 

@@ -172,6 +172,18 @@ arona-ai/
 
 > **注意**：如果您还没有配置好所有服务，请遵循下文的指示进行配置。  
 
+启动完成后，控制台窗口会保持运行，可单独停止 / 启动 / 重启某一服务：
+
+```text
+status                         查看状态
+stop backend|gpt|frontend      停止单个服务
+start backend|gpt|frontend     启动已停止的服务
+restart backend|gpt|frontend   重启单个服务
+stop all  /  0  /  q  /  exit  全部停止并退出
+```
+
+数字快捷键：`1/2/3` 重启后端 / GPT-SoVITS / 前端，`4/5/6` 停止对应服务。`Ctrl+C` 同样会停止全部已跟踪进程。
+
 > `start-all.ps1` 会通过 `gpt-sovits/watch-apiv2.ps1` 启动 TTS（含卡死自动重启）。若 GPT-SoVITS 部署在**另一台机器**，请在该机器上单独运行 `go-apiv2.bat` / `go-apiv2.sh`，不必使用 `start-all`。
 
 ### 后端启动 / Backend Setup

@@ -18,6 +18,7 @@ from .memory.store import MemoryStore
 from .memory.trigger import should_extract
 from .model_loader import ModelLoader
 from .planner import DEFAULT_EMOTION, IntentCard, PlannerClient, route_mode
+from .proactive import HISTORY_USER_MARKER, ResolvedSlot, build_welcome_instruction
 from .prompt import build_messages, build_renderer_messages
 from .protocol import msg_chat_response
 
@@ -49,6 +50,7 @@ class Orchestrator:
         self.planner = planner or PlannerClient(config.planner)
         self.stats: dict[str, Any] = {
             "chat_count": 0,
+            "welcome_count": 0,
             "cache_hits": 0,
             "planner_hits": 0,
             "planner_fallbacks": 0,
@@ -286,6 +288,155 @@ class Orchestrator:
             user_text,
             full,
         )
+
+    async def handle_welcome(
+        self,
+        *,
+        session_id: str,
+        slot: ResolvedSlot,
+        first_in_slot: bool,
+        send: SendFn,
+    ) -> bool:
+        """Generate and push an online welcome greeting. Returns True on success."""
+        user_text = build_welcome_instruction(slot, first_in_slot=first_in_slot)
+        start = time.perf_counter()
+        context_parts: list[str] = ["welcome"]
+
+        logger.info(
+            "welcome start session=%s slot=%s first=%s date=%s instruction=%r",
+            session_id,
+            slot.slot_id,
+            first_in_slot,
+            slot.date_key,
+            user_text,
+        )
+
+        memories: list[str] = []
+        t0 = time.perf_counter()
+        memories = await asyncio.to_thread(
+            self.memory_store.retrieve,
+            user_text,
+            self.config.memory.retrieve_top_k,
+        )
+        logger.info(
+            "welcome memory retrieve session=%s hits=%d latency=%.3fs items=%s",
+            session_id,
+            len(memories),
+            time.perf_counter() - t0,
+            preview_list(memories),
+        )
+        if memories:
+            context_parts.append("memory")
+
+        history = self.conversations.get_history(session_id)
+        if history:
+            context_parts.append("history")
+
+        mode = "local"
+        if self.config.planner.router_enabled:
+            mode = route_mode(user_text)
+        elif self.planner.enabled:
+            mode = "dual"
+
+        use_dual = mode == "dual" and self.planner.enabled
+        if use_dual:
+            self.stats["dual_route_count"] += 1
+        else:
+            self.stats["local_route_count"] += 1
+
+        emotion = DEFAULT_EMOTION
+        intent: IntentCard | None = None
+        if use_dual:
+            context_parts.append("planner")
+            t0 = time.perf_counter()
+            intent = await self.planner.plan(
+                user_text=user_text,
+                history=history,
+                memories=memories,
+                knowledge=[],
+            )
+            logger.info(
+                "welcome planner session=%s ok=%s latency=%.3fs",
+                session_id,
+                intent is not None,
+                time.perf_counter() - t0,
+            )
+            if intent is None:
+                self.stats["planner_fallbacks"] += 1
+                logger.info(
+                    "welcome planner fallback to local path session=%s", session_id
+                )
+            else:
+                self.stats["planner_hits"] += 1
+                emotion = intent.arona_emotion
+
+        if intent is not None:
+            messages = build_renderer_messages(
+                self.config,
+                user_text=user_text,
+                intent_card=intent.to_renderer_dict(),
+                history=history,
+                max_history_turns=2,
+            )
+            context_parts.append("renderer")
+        else:
+            messages = build_messages(
+                self.config,
+                user_text=user_text,
+                history=history,
+                memories=memories,
+                knowledge=[],
+            )
+
+        context_used = "+".join(context_parts)
+        logger.info(
+            "welcome prompt built session=%s mode=%s context=%s emotion=%s",
+            session_id,
+            "renderer" if intent is not None else "local",
+            context_used,
+            emotion,
+        )
+
+        t0 = time.perf_counter()
+        full = await asyncio.to_thread(self.model.generate, messages, self.config)
+        latency = time.perf_counter() - start
+        logger.info(
+            "welcome llm done session=%s latency=%.3fs chars=%d response=%r",
+            session_id,
+            time.perf_counter() - t0,
+            len(full),
+            full,
+        )
+
+        if not (full or "").strip():
+            logger.warning("welcome empty response session=%s", session_id)
+            return False
+
+        await send(
+            msg_chat_response(
+                full,
+                from_cache=False,
+                context_used=context_used,
+                latency=round(latency, 4),
+                emotion=emotion,
+            )
+        )
+
+        # Keep history clean: short marker instead of system instruction.
+        self.conversations.append(session_id, "user", HISTORY_USER_MARKER)
+        self.conversations.append(session_id, "assistant", full)
+
+        self.stats["welcome_count"] += 1
+        self.stats["chat_count"] += 1
+        logger.info(
+            "welcome done session=%s context=%s emotion=%s latency=%.3fs response=%r",
+            session_id,
+            context_used,
+            emotion,
+            time.perf_counter() - start,
+            full,
+        )
+        return True
 
     async def _maybe_extract(self, session_id: str, user_text: str) -> None:
         # Buffer this completed turn (history was already appended by caller).

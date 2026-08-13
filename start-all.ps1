@@ -7,8 +7,8 @@
   1) Start backend and GPT-SoVITS at the same time
   2) Wait until both logs show a ready signal
   3) Start the frontend client
-  4) Keep this script alive; press Enter (or type q / exit) to stop all services
-     and exit. Ctrl+C also stops all tracked process trees.
+  4) Keep this script alive and accept commands to stop/start/restart one
+     service, or stop all and exit. Ctrl+C also stops all tracked process trees.
 
   Ready signals (case-insensitive substring match):
     - "启动完毕"
@@ -32,6 +32,12 @@
 .EXAMPLE
   .\start-all.ps1
   .\start-all.ps1 -CondaEnv arona -TimeoutSec 900
+
+  After launch, in the control window:
+    restart backend
+    stop gpt
+    start frontend
+    stop all
 #>
 [CmdletBinding()]
 param(
@@ -50,6 +56,14 @@ $script:BackendProc = $null
 $script:GptProc = $null
 $script:FrontendProc = $null
 $script:ServicesStopped = $false
+$script:BackendDir = $null
+$script:GptDir = $null
+$script:GptWatch = $null
+$script:Conda = $null
+$script:FrontendInfo = $null
+$script:BackendLog = $null
+$script:GptLog = $null
+$script:GptWatchdogLog = $null
 
 function Write-Step {
     param([string]$Message, [ConsoleColor]$Color = [ConsoleColor]::Cyan)
@@ -360,107 +374,365 @@ pause
         -WindowStyle Normal
 }
 
+function Test-ProcAlive {
+    param([System.Diagnostics.Process]$Process)
+    if ($null -eq $Process) { return $false }
+    try {
+        $Process.Refresh()
+        return -not $Process.HasExited
+    } catch {
+        return $false
+    }
+}
+
+function Get-TrackedProcess {
+    param([ValidateSet("backend", "gpt", "frontend")][string]$Name)
+    switch ($Name) {
+        "backend" { return $script:BackendProc }
+        "gpt" { return $script:GptProc }
+        "frontend" { return $script:FrontendProc }
+    }
+}
+
+function Get-ServiceDisplayName {
+    param([string]$Name)
+    switch ($Name) {
+        "backend" { "Backend" }
+        "gpt" { "GPT-SoVITS" }
+        "frontend" { "Frontend" }
+        default { $Name }
+    }
+}
+
+function Resolve-ServiceToken {
+    param([string]$Token)
+    if ([string]::IsNullOrWhiteSpace($Token)) { return $null }
+    switch -Regex ($Token.Trim()) {
+        '^(?i)(backend|be|back|后端)$' { "backend"; break }
+        '^(?i)(gpt|gpt-sovits|sovits|tts|语音)$' { "gpt"; break }
+        '^(?i)(frontend|fe|client|桌面|前端)$' { "frontend"; break }
+        '^(?i)(all|全部)$' { "all"; break }
+        default { $null }
+    }
+}
+
+function Show-ServiceStatus {
+    $rows = @(
+        @{ Key = "backend"; Label = "Backend" },
+        @{ Key = "gpt"; Label = "GPT-SoVITS" },
+        @{ Key = "frontend"; Label = "Frontend" }
+    )
+    Write-Host ""
+    foreach ($row in $rows) {
+        $p = Get-TrackedProcess -Name $row.Key
+        if (Test-ProcAlive $p) {
+            Write-Host ("  {0,-12} running  PID {1}" -f $row.Label, $p.Id) -ForegroundColor Green
+        } elseif ($null -eq $p) {
+            Write-Host ("  {0,-12} stopped" -f $row.Label) -ForegroundColor DarkGray
+        } else {
+            $code = $null
+            try { $code = $p.ExitCode } catch {}
+            Write-Host ("  {0,-12} exited   (code {1})" -f $row.Label, $code) -ForegroundColor Yellow
+        }
+    }
+}
+
+function Show-ControlHelp {
+    Write-Host @"
+
+Commands:
+  status                         Show running state and PIDs
+  stop backend|gpt|frontend      Stop one service
+  start backend|gpt|frontend     Start a stopped service
+  restart backend|gpt|frontend   Restart one service
+  stop all  |  0  |  q  |  exit  Stop everything and close
+  help                           Show this help
+
+Shortcuts:  1/2/3 = restart backend/gpt/frontend
+            4/5/6 = stop backend/gpt/frontend
+            s = status
+Aliases:    be=backend, tts/gpt=GPT-SoVITS, fe=frontend
+            后端 / 语音 / 前端  (e.g. 重启 后端)
+"@
+}
+
+function Start-BackendService {
+    if (Test-ProcAlive $script:BackendProc) {
+        Write-Host ("  Backend is already running (PID {0})." -f ($script:BackendProc).Id) -ForegroundColor Yellow
+        return $false
+    }
+    Write-Step "Starting backend ..."
+    $script:BackendProc = Start-ServiceWindow `
+        -Title "AronaAI Backend" `
+        -WorkDir $script:BackendDir `
+        -ExePath $script:Conda `
+        -Arguments @("run", "-n", $CondaEnv, "--no-capture-output", "python", "-m", "app.main") `
+        -LogPath $script:BackendLog
+    return $true
+}
+
+function Start-GptService {
+    if (Test-ProcAlive $script:GptProc) {
+        Write-Host ("  GPT-SoVITS is already running (PID {0})." -f ($script:GptProc).Id) -ForegroundColor Yellow
+        return $false
+    }
+    Write-Step "Starting GPT-SoVITS ..."
+    # Clear API log so Wait-ServicesReady does not see a stale ready signal.
+    if (Test-Path -LiteralPath $script:GptLog) {
+        Remove-Item -LiteralPath $script:GptLog -Force -ErrorAction SilentlyContinue
+    }
+    $script:GptProc = Start-ServiceWindow `
+        -Title "GPT-SoVITS API (watchdog)" `
+        -WorkDir $script:GptDir `
+        -ExePath "powershell.exe" `
+        -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $script:GptWatch,
+            "-LogPath", $script:GptLog,
+            "-StallSec", "$TtsStallSec",
+            "-RestartCooldownSec", "$TtsRestartCooldownSec"
+        ) `
+        -LogPath $script:GptWatchdogLog
+    return $true
+}
+
+function Start-FrontendService {
+    if (Test-ProcAlive $script:FrontendProc) {
+        Write-Host ("  Frontend is already running (PID {0})." -f ($script:FrontendProc).Id) -ForegroundColor Yellow
+        return $false
+    }
+    Write-Step "Starting frontend ..."
+    $script:FrontendProc = Start-Process -FilePath ($script:FrontendInfo).Exe `
+        -WorkingDirectory ($script:FrontendInfo).WorkDir `
+        -PassThru
+    Write-Step ("Frontend launched (PID {0})." -f ($script:FrontendProc).Id) Green
+    return $true
+}
+
+function Stop-NamedService {
+    param([string]$Name)
+    $label = Get-ServiceDisplayName $Name
+    $p = Get-TrackedProcess -Name $Name
+    if (-not (Test-ProcAlive $p)) {
+        Write-Host "  $label is not running." -ForegroundColor DarkGray
+        return
+    }
+    Write-Step "Stopping $label ..." Yellow
+    Stop-TrackedProcessTree -Process $p -Label $label
+    Write-Step "$label stopped." Green
+}
+
+function Wait-NamedServiceReady {
+    param([string]$Name)
+    switch ($Name) {
+        "backend" {
+            Wait-ServicesReady -TimeoutSeconds $TimeoutSec -Services @(
+                @{ Name = "Backend"; LogPath = $script:BackendLog; Process = $script:BackendProc }
+            )
+        }
+        "gpt" {
+            Wait-ServicesReady -TimeoutSeconds $TimeoutSec -Services @(
+                @{ Name = "GPT-SoVITS"; LogPath = $script:GptLog; Process = $script:GptProc }
+            )
+        }
+    }
+}
+
+function Start-NamedService {
+    param(
+        [string]$Name,
+        [switch]$WaitReady
+    )
+    $started = $false
+    switch ($Name) {
+        "backend" { $started = Start-BackendService }
+        "gpt" { $started = Start-GptService }
+        "frontend" { $started = Start-FrontendService }
+    }
+    if ($started -and $WaitReady -and $Name -ne "frontend") {
+        try {
+            Wait-NamedServiceReady -Name $Name
+        } catch {
+            Write-Host ("  {0} failed to become ready: {1}" -f (Get-ServiceDisplayName $Name), $_) -ForegroundColor Red
+        }
+    }
+}
+
+function Restart-NamedService {
+    param([string]$Name)
+    $label = Get-ServiceDisplayName $Name
+    Write-Step "Restarting $label ..."
+    Stop-NamedService -Name $Name
+    Start-Sleep -Milliseconds 400
+    Start-NamedService -Name $Name -WaitReady
+}
+
+function Invoke-ControlCommand {
+    param([string]$Raw)
+    $trimmed = if ($null -eq $Raw) { "" } else { $Raw.Trim() }
+    if ($trimmed -eq "") {
+        Write-Host "Empty input ignored. Type help, or 0 / q / exit to stop all." -ForegroundColor Yellow
+        return "continue"
+    }
+
+    switch ($trimmed) {
+        "0" { return "exit" }
+        "1" { try { Restart-NamedService "backend" } catch { Write-Host "  $_" -ForegroundColor Red }; Show-ServiceStatus; return "continue" }
+        "2" { try { Restart-NamedService "gpt" } catch { Write-Host "  $_" -ForegroundColor Red }; Show-ServiceStatus; return "continue" }
+        "3" { try { Restart-NamedService "frontend" } catch { Write-Host "  $_" -ForegroundColor Red }; Show-ServiceStatus; return "continue" }
+        "4" { Stop-NamedService "backend"; Show-ServiceStatus; return "continue" }
+        "5" { Stop-NamedService "gpt"; Show-ServiceStatus; return "continue" }
+        "6" { Stop-NamedService "frontend"; Show-ServiceStatus; return "continue" }
+        "s" { Show-ServiceStatus; return "continue" }
+        "h" { Show-ControlHelp; return "continue" }
+        "?" { Show-ControlHelp; return "continue" }
+    }
+
+    if ($trimmed -match '^(?i)(q|quit|exit|全部退出)$') {
+        return "exit"
+    }
+
+    $normalized = $trimmed
+    $normalized = $normalized -replace '^(停止|退出|重启|启动)(后端|语音|前端)$', '$1 $2'
+    $normalized = $normalized -replace '^(?i)(stop|restart|start|rst)[-_]', '$1 '
+
+    $parts = @($normalized -split '\s+', 2)
+    $verb = $parts[0]
+    $target = if ($parts.Count -gt 1) { $parts[1].Trim() } else { "" }
+
+    switch -Regex ($verb) {
+        '^(?i)(help|帮助)$' {
+            Show-ControlHelp
+            return "continue"
+        }
+        '^(?i)(status|stat|状态)$' {
+            Show-ServiceStatus
+            return "continue"
+        }
+        '^(?i)(q|quit|exit|退出)$' {
+            if ([string]::IsNullOrWhiteSpace($target)) { return "exit" }
+            $svc = Resolve-ServiceToken $target
+            if (-not $svc -or $svc -eq "all") { return "exit" }
+            Stop-NamedService $svc
+            Show-ServiceStatus
+            return "continue"
+        }
+        '^(?i)(stop|停止)$' {
+            $svc = Resolve-ServiceToken $target
+            if (-not $svc) {
+                Write-Host "Usage: stop backend|gpt|frontend|all" -ForegroundColor Yellow
+                return "continue"
+            }
+            if ($svc -eq "all") { return "exit" }
+            Stop-NamedService $svc
+            Show-ServiceStatus
+            return "continue"
+        }
+        '^(?i)(start|启动)$' {
+            $svc = Resolve-ServiceToken $target
+            if (-not $svc -or $svc -eq "all") {
+                Write-Host "Usage: start backend|gpt|frontend" -ForegroundColor Yellow
+                return "continue"
+            }
+            try {
+                Start-NamedService -Name $svc -WaitReady
+            } catch {
+                Write-Host ("  Failed to start {0}: {1}" -f (Get-ServiceDisplayName $svc), $_) -ForegroundColor Red
+            }
+            Show-ServiceStatus
+            return "continue"
+        }
+        '^(?i)(restart|rst|重启)$' {
+            $svc = Resolve-ServiceToken $target
+            if (-not $svc -or $svc -eq "all") {
+                Write-Host "Usage: restart backend|gpt|frontend" -ForegroundColor Yellow
+                return "continue"
+            }
+            try {
+                Restart-NamedService $svc
+            } catch {
+                Write-Host ("  Failed to restart {0}: {1}" -f (Get-ServiceDisplayName $svc), $_) -ForegroundColor Red
+            }
+            Show-ServiceStatus
+            return "continue"
+        }
+        default {
+            Write-Host "Unrecognized command: $trimmed  (type help)" -ForegroundColor Yellow
+            return "continue"
+        }
+    }
+}
+
 # ---- prep ----
 New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
 
-$BackendDir = Join-Path $Root "backend"
-$GptDir = Join-Path $Root "gpt-sovits"
-$GptApi = Join-Path $GptDir "api_v2.py"
-$GptWatch = Join-Path $GptDir "watch-apiv2.ps1"
-$GptRuntimePy = Join-Path $GptDir "runtime\python.exe"
+$script:BackendDir = Join-Path $Root "backend"
+$script:GptDir = Join-Path $Root "gpt-sovits"
+$GptApi = Join-Path $script:GptDir "api_v2.py"
+$script:GptWatch = Join-Path $script:GptDir "watch-apiv2.ps1"
+$GptRuntimePy = Join-Path $script:GptDir "runtime\python.exe"
 
-Assert-Path $BackendDir "backend directory"
-Assert-Path (Join-Path $BackendDir "app\main.py") "backend entry"
-Assert-Path $GptDir "gpt-sovits directory"
+Assert-Path $script:BackendDir "backend directory"
+Assert-Path (Join-Path $script:BackendDir "app\main.py") "backend entry"
+Assert-Path $script:GptDir "gpt-sovits directory"
 Assert-Path $GptApi "GPT-SoVITS api_v2.py"
-Assert-Path $GptWatch "GPT-SoVITS watch-apiv2.ps1"
+Assert-Path $script:GptWatch "GPT-SoVITS watch-apiv2.ps1"
 
-$Conda = Resolve-CondaCmd
-$Frontend = Resolve-Frontend -Explicit $FrontendExe
+$script:Conda = Resolve-CondaCmd
+$script:FrontendInfo = Resolve-Frontend -Explicit $FrontendExe
 
-$backendLog = Join-Path $LogDir "backend.log"
-$gptLog = Join-Path $LogDir "gpt-sovits.log"
+$script:BackendLog = Join-Path $LogDir "backend.log"
+$script:GptLog = Join-Path $LogDir "gpt-sovits.log"
+$script:GptWatchdogLog = Join-Path $LogDir "gpt-sovits-watchdog.log"
 
 Write-Step "AronaAI start-all"
 Write-Host "  Root:        $Root"
-Write-Host "  Conda:       $Conda"
+Write-Host "  Conda:       $($script:Conda)"
 Write-Host "  CondaEnv:    $CondaEnv"
-Write-Host "  Frontend:    $($Frontend.Exe)"
-Write-Host "  FrontendCwd: $($Frontend.WorkDir)"
+Write-Host ("  Frontend:    {0}" -f ($script:FrontendInfo).Exe)
+Write-Host ("  FrontendCwd: {0}" -f ($script:FrontendInfo).WorkDir)
 Write-Host "  Logs:        $LogDir"
 Write-Host "  Timeout:     ${TimeoutSec}s for backend + GPT-SoVITS"
 
-if (Test-Path -LiteralPath $GptRuntimePy) {
-    $gptExe = $GptRuntimePy
-} else {
+if (-not (Test-Path -LiteralPath $GptRuntimePy)) {
     Write-Host "  runtime\python.exe not found; falling back to python on PATH" -ForegroundColor Yellow
     $py = Get-Command python -ErrorAction SilentlyContinue
     if (-not $py) { throw "Neither gpt-sovits\runtime\python.exe nor python on PATH was found." }
-    $gptExe = $py.Source
 }
 
 # ---- 1) Backend + GPT-SoVITS in parallel ----
 try {
     Write-Step "Starting backend and GPT-SoVITS in parallel ..."
-    $script:BackendProc = Start-ServiceWindow `
-        -Title "AronaAI Backend" `
-        -WorkDir $BackendDir `
-        -ExePath $Conda `
-        -Arguments @("run", "-n", $CondaEnv, "--no-capture-output", "python", "-m", "app.main") `
-        -LogPath $backendLog
-    $script:GptProc = Start-ServiceWindow `
-        -Title "GPT-SoVITS API (watchdog)" `
-        -WorkDir $GptDir `
-        -ExePath "powershell.exe" `
-        -Arguments @(
-            "-NoProfile",
-            "-ExecutionPolicy", "Bypass",
-            "-File", $GptWatch,
-            "-LogPath", $gptLog,
-            "-StallSec", "$TtsStallSec",
-            "-RestartCooldownSec", "$TtsRestartCooldownSec"
-        ) `
-        -LogPath (Join-Path $LogDir "gpt-sovits-watchdog.log")
+    [void](Start-BackendService)
+    [void](Start-GptService)
 
     Wait-ServicesReady -TimeoutSeconds $TimeoutSec -Services @(
-        @{ Name = "Backend"; LogPath = $backendLog; Process = $script:BackendProc },
-        @{ Name = "GPT-SoVITS"; LogPath = $gptLog; Process = $script:GptProc }
+        @{ Name = "Backend"; LogPath = $script:BackendLog; Process = $script:BackendProc },
+        @{ Name = "GPT-SoVITS"; LogPath = $script:GptLog; Process = $script:GptProc }
     )
 
     # ---- 2) Frontend ----
-    Write-Step "Starting frontend ..."
-    $script:FrontendProc = Start-Process -FilePath $Frontend.Exe `
-        -WorkingDirectory $Frontend.WorkDir `
-        -PassThru
+    [void](Start-FrontendService)
     Write-Step "All services launched." Green
 
-    $backendPid = if ($script:BackendProc) { $script:BackendProc.Id } else { "n/a" }
-    $gptPid = if ($script:GptProc) { $script:GptProc.Id } else { "n/a" }
-    $frontendPid = if ($script:FrontendProc) { $script:FrontendProc.Id } else { "n/a" }
+    Show-ServiceStatus
     Write-Host @"
 
-Backend / GPT-SoVITS keep running in their own windows.
-  Backend PID:    $backendPid
-  GPT-SoVITS PID: $gptPid
-  Frontend PID:   $frontendPid
-  Frontend:       $($Frontend.Exe)
-
 Logs:
-  $backendLog
-  $gptLog
+  $($script:BackendLog)
+  $($script:GptLog)
 
-This window stays open. Press Enter to stop all services
-(or type q / exit then Enter). Ctrl+C also stops everything.
+This window stays open as a control console.
+Type help for commands. Ctrl+C also stops everything.
 "@
+    Show-ControlHelp
 
-    # ---- 3) Stay alive until user requests stop ----
+    # ---- 3) Stay alive until user requests stop-all ----
     while ($true) {
-        $answer = Read-Host "Stop all"
-        $trimmed = if ($null -eq $answer) { "" } else { $answer.Trim() }
-        if ($trimmed -eq "" -or $trimmed -match '^(?i)(q|quit|exit)$') {
-            break
-        }
-        Write-Host "Unrecognized input. Press Enter (or type q / exit) to stop all services." -ForegroundColor Yellow
+        $answer = Read-Host "Command"
+        $action = Invoke-ControlCommand $answer
+        if ($action -eq "exit") { break }
     }
 } finally {
     Stop-AllTrackedServices

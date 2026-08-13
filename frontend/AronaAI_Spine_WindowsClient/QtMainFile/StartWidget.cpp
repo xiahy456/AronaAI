@@ -137,6 +137,13 @@ void StartWidget::onAppReady()
 	tryClose();
 }
 
+void StartWidget::onWelcomeReady()
+{
+	FINE_DEBUG_OUTPUT("[StartWidget] welcome ready");
+	m_welcomeReady = true;
+	tryClose();
+}
+
 void StartWidget::onEscapePressed()
 {
 	if (m_closing) {
@@ -448,7 +455,7 @@ void StartWidget::markVideoEnded()
 
 void StartWidget::tryClose()
 {
-	if (!(m_spineReady && m_appReady) || m_closing) {
+	if (!(m_spineReady && m_appReady && m_welcomeReady) || m_closing) {
 		return;
 	}
 	startCloseScaleAnimation();
@@ -480,12 +487,17 @@ void StartWidget::startCloseScaleAnimation()
 
 void StartWidget::finishClose()
 {
+	if (m_closeFinishedEmitted) {
+		return;
+	}
+	m_closeFinishedEmitted = true;
 	FINE_DEBUG_OUTPUT("[StartWidget] closing splash");
 	stopStartupText();
 	m_frames.clear();
 	m_holdImage = QImage();
 	m_frame = QImage();
 	m_visibleLines.clear();
+	emit closeFinished();
 	close();
 	deleteLater();
 }

@@ -3,6 +3,7 @@
 #include <QDebug>
 #include <QJsonArray>
 #include <QDateTime>
+#include <QAbstractSocket>
 
 WebSocketController::WebSocketController(QObject* parent)
     : QObject(parent)
@@ -10,6 +11,7 @@ WebSocketController::WebSocketController(QObject* parent)
     , m_heartbeatTimer(new QTimer(this))
     , m_heartbeatCheckTimer(new QTimer(this))
     , m_reconnectTimer(new QTimer(this))
+    , m_connectTimeoutTimer(new QTimer(this))
     , m_currentState(ConnectionState::Disconnected)
     , m_serverUrl(GET_STRING_FROM_JSON(_global_config, "aronalm", "websocket_url")) // websocket地址
     , m_heartbeatInterval(GET_INT_FROM_JSON(_global_config, "aronalm", "heartbeat_interval"))   // 心跳间隔
@@ -53,12 +55,17 @@ WebSocketController::WebSocketController(QObject* parent)
     // 重连计时器
     connect(m_reconnectTimer, &QTimer::timeout,
         this, &WebSocketController::onReconnectTimer);
+
+    m_connectTimeoutTimer->setSingleShot(true);
+    connect(m_connectTimeoutTimer, &QTimer::timeout,
+        this, &WebSocketController::onConnectTimeout);
 }
 
 WebSocketController::~WebSocketController()
 {
     stopHeartbeat();
     stopReconnect();
+    stopConnectTimeout();
 
     if (m_webSocket->state() == QAbstractSocket::ConnectedState) {
         m_webSocket->close();
@@ -86,6 +93,7 @@ void WebSocketController::connectToServer()
     setState(ConnectionState::Connecting);
 
     FINE_DEBUG_OUTPUT("[WebSocketController]Connecting to: " + m_serverUrl);
+    startConnectTimeout();
     m_webSocket->open(QUrl(m_serverUrl));
 }
 
@@ -94,6 +102,7 @@ void WebSocketController::disconnectFromServer()
     m_autoReconnect = false;  // 手动断开时不自动重连
     stopHeartbeat();
     stopReconnect();
+    stopConnectTimeout();
 
     if (m_webSocket->state() == QAbstractSocket::ConnectedState) {
         m_webSocket->close();
@@ -263,6 +272,7 @@ void WebSocketController::onErrorOccurred(ErrorCallback callback)
 void WebSocketController::onConnected()
 {
     FINE_DEBUG_OUTPUT("[WebSocketController]Connected to server");
+    stopConnectTimeout();
     setState(ConnectionState::Connected);
     m_currentReconnectCount = 0;
     m_pongReceived = true;
@@ -281,15 +291,25 @@ void WebSocketController::onDisconnected()
 {
     FINE_DEBUG_OUTPUT("[WebSocketController]Disconnected from server");
     stopHeartbeat();
+    stopConnectTimeout();
 
     if (m_currentState == ConnectionState::Connected) {
         setState(ConnectionState::Disconnected);
         emit disconnected();
 
-        // 自动重连
         if (m_autoReconnect) {
             startReconnect();
         }
+        return;
+    }
+
+    if (m_currentState == ConnectionState::Connecting
+        || m_currentState == ConnectionState::Reconnecting) {
+        emit errorOccurred(ErrorCode::ConnectionRefused, QStringLiteral("无法连接到AI服务"));
+        if (m_onErrorOccurredCallback) {
+            m_onErrorOccurredCallback(ErrorCode::ConnectionRefused, QStringLiteral("无法连接到AI服务"));
+        }
+        handleConnectAttemptFailed();
     }
 }
 
@@ -327,14 +347,38 @@ void WebSocketController::onTextMessageReceived(const QString& message)
 
 void WebSocketController::onError(QAbstractSocket::SocketError error)
 {
-    Q_UNUSED(error)
-        QString errorMsg = m_webSocket->errorString();
-    ERROR_DEBUG_OUTPUT("[WebSocketController]WebSocket error: " + errorMsg);
+    QString errorMsg = m_webSocket->errorString();
+    ErrorCode code = mapSocketError(error);
+    ERROR_DEBUG_OUTPUT(QString("[WebSocketController]WebSocket error: %1 (socket=%2 code=%3)")
+        .arg(errorMsg)
+        .arg(static_cast<int>(error))
+        .arg(static_cast<int>(code)));
 
-    emit errorOccurred(ErrorCode::NetworkError, errorMsg);
+    emit errorOccurred(code, errorMsg);
 
     if (m_onErrorOccurredCallback) {
-        m_onErrorOccurredCallback(ErrorCode::NetworkError, errorMsg);
+        m_onErrorOccurredCallback(code, errorMsg);
+    }
+
+    stopConnectTimeout();
+    if (m_currentState == ConnectionState::Connecting
+        || m_currentState == ConnectionState::Reconnecting) {
+        handleConnectAttemptFailed();
+    }
+}
+
+WebSocketController::ErrorCode WebSocketController::mapSocketError(QAbstractSocket::SocketError error)
+{
+    switch (error) {
+    case QAbstractSocket::ConnectionRefusedError:
+    case QAbstractSocket::HostNotFoundError:
+    case QAbstractSocket::ProxyConnectionRefusedError:
+        return ErrorCode::ConnectionRefused;
+    case QAbstractSocket::SocketTimeoutError:
+    case QAbstractSocket::ProxyConnectionTimeoutError:
+        return ErrorCode::ConnectionTimeout;
+    default:
+        return ErrorCode::NetworkError;
     }
 }
 
@@ -397,6 +441,7 @@ void WebSocketController::onReconnectTimer()
         + (m_maxReconnectAttempts == -1 ? "∞" : QString::number(m_maxReconnectAttempts)) + ")");
 
     setState(ConnectionState::Reconnecting);
+    startConnectTimeout();
     m_webSocket->open(QUrl(m_serverUrl));
 }
 
@@ -404,6 +449,48 @@ void WebSocketController::onPongReceived()
 {
     m_pongReceived = true;
     m_heartbeatCheckTimer->stop();
+}
+
+void WebSocketController::onConnectTimeout()
+{
+    if (m_currentState != ConnectionState::Connecting
+        && m_currentState != ConnectionState::Reconnecting) {
+        return;
+    }
+
+    ERROR_DEBUG_OUTPUT("[WebSocketController]Connect timeout");
+    emit errorOccurred(ErrorCode::ConnectionTimeout, QStringLiteral("连接AI服务超时"));
+    if (m_onErrorOccurredCallback) {
+        m_onErrorOccurredCallback(ErrorCode::ConnectionTimeout, QStringLiteral("连接AI服务超时"));
+    }
+
+    m_webSocket->abort();
+    handleConnectAttemptFailed();
+}
+
+void WebSocketController::startConnectTimeout()
+{
+    const int timeoutMs = m_heartbeatTimeout > 0 ? m_heartbeatTimeout : 10000;
+    m_connectTimeoutTimer->start(timeoutMs);
+}
+
+void WebSocketController::stopConnectTimeout()
+{
+    m_connectTimeoutTimer->stop();
+}
+
+void WebSocketController::handleConnectAttemptFailed()
+{
+    if (m_currentState != ConnectionState::Connecting
+        && m_currentState != ConnectionState::Reconnecting) {
+        return;
+    }
+
+    stopConnectTimeout();
+    setState(ConnectionState::Disconnected);
+    if (m_autoReconnect) {
+        startReconnect();
+    }
 }
 
 // ========== 消息处理实现 ==========
