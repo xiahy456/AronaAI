@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <em>基于《蔚蓝档案》角色「阿洛娜」的非交互式桌面 AI</em>
+  <em>基于《蔚蓝档案》角色"阿洛娜"的非交互式桌面AI</em>
 </p>
 
 <p align="center">
@@ -16,20 +16,17 @@
   <em>项目地址：https://github.com/xiahy456/AronaAI</em>
 </p>
 
-<p align="center">
-  <em>版本 / Version: v2.0.0-preview</em>
-</p>
 ---
 
 ## 📖 项目简介 / Introduction
 
-**阿洛娜AI** 是一个以游戏《蔚蓝档案》（Blue Archive）中角色「阿洛娜」为原型打造的**非交互式桌面 AI**。她不是一问一答的聊天助手：老师可以开口，她也可以先开口、可以沉默、可以在夜深时轻轻照料。在设定上，她是「什亭之匣」的操作系统管理员，性格开朗、热情，和老师一起过日子，而不只是等人来提问。
+**阿洛娜AI** 是一个以游戏《蔚蓝档案》（Blue Archive）中角色"阿洛娜"为原型打造的非交互式桌面AI。在设定上，她是“什亭之匣”的操作系统管理员，性格开朗、热情，乐于帮助老师（用户）解决问题。
 
-本项目集成了 Arona 语言模型（AronaLM）、语音合成（TTS）、语音识别（ASR）、Spine 2D 角色动画等技术。后端先根据关系气候决定开口或沉默，并在上线、空闲与照料窗口主动行动。
+本项目集成了Arona语言模型（AronaLM）、语音合成（TTS）、语音识别（ASR）、Spine 2D 角色动画等技术，旨在提供一个可爱、有趣且功能完整的桌面体验。
 
-**AronaAI** is a **non-interactive desktop AI** based on "Arona" from *Blue Archive*. She is not a turn-taking chatbot: Sensei may speak, and she may speak first, stay silent, or look after daily rhythms. She is the OS administrator of the Shittim Chest—cheerful, warm, and present on the desktop rather than waiting for the next prompt.
+**AronaAI** is a non-interactive desktop AI based on the character "Arona" from the game "Blue Archive". She serves as the operating system administrator of the Shittim Chest, and has a cheerful, warm personality who loves helping Sensei (user) solve problems.
 
-This project integrates Arona Language Model (AronaLM), TTS, ASR, and Spine 2D animation. The backend decides from relationship climate whether to speak or stay silent, and can greet, check in after a quiet spell, or remind Sensei to eat or rest.
+This project integrates Arona Language Model (AronaLM), Text-to-Speech (TTS), Automatic Speech Recognition (ASR), Spine 2D character animation, and other technologies to provide a cute, lively, and fully-featured desktop experience.
 
 <p align="center">
   <img src="assets/running_example_2.png" alt="Running Example" width="600"/>
@@ -131,7 +128,7 @@ arona-ai/
 - **双模型链路**：**Planner（DeepSeek）→ 结构化意图卡 → Renderer（AronaLM-Renderer-V2.2）**；简单轮次可由路由走本地单模型，Planner 关闭或失败时回落本地路径
 - **关系气候**：信任 / 依赖 / 张力三标量构建张量；规则分类用户行动后查表更新，气候分区决定开口、姿态或沉默（数字不进台词）
 - **上线欢迎**：WebSocket 连接后按时段主动问候；同槽首次说「早上好」等，再次上线改为「欢迎回来」；深夜/凌晨提醒休息
-- **空闲搭话与照料**：安静若干时间（默认 15 分钟）后轻在场（两次搭话间隔默认 30 分钟；欢迎只占 `after_sec`，不吃掉整段冷却）；午饭/睡觉窗口各提醒一次；先过关系政策再开口
+- **空闲搭话与照料**：安静若干时间后轻在场（两次搭话之间另有冷却；休息时段不闲聊）；根据时段提醒用户吃饭、休息等，先过关系政策再开口
 - **AronaLM-Renderer-V2.2（GGUF）**：`llama-cpp-python` 加载 Qwen3-1.7B 微调 GGUF（默认 Q4_K_M），过滤 `<think>` 推理块；默认双模型路径非流式，本地回落路径可流式
 - **记忆与知识分离**：用户长期事实进 SQLite + FTS5 + Chroma（jieba / BGE）；世界观设定进 Markdown 语料 → 本地 BGE + Chroma RAG，互不混写、按需注入 Prompt
 - **异步记忆抽取**：对话主路径不阻塞；DeepSeek JSON 抽取（含日配额与缓冲批量），失败或无 Key 时自动正则降级

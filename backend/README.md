@@ -1,8 +1,8 @@
 # AronaAI Backend
 
-非交互式桌面 AI 的本地后端：FastAPI WebSocket + AronaLM（llama-cpp）+ 关系气候决策 + 主动触发 + SQLite 记忆 + DeepSeek 异步抽取 + 向量知识 RAG。
+非交互式桌面AI 的本地后端：FastAPI WebSocket + AronaLM（llama-cpp）+ 关系气候决策 + SQLite 记忆 + DeepSeek 异步抽取 + 向量知识 RAG。
 
-她不是每轮必答的问答机。链路是 **关系决策 →（可选）Planner → Renderer**；决策层可以沉默，也可以在上线、空闲、午饭/睡觉窗口主动开口。Planner 关闭或失败时回落本地单模型。
+对话默认走 **关系决策 → Planner（DeepSeek）→ 意图卡 → Renderer（AronaLM）**；Planner 关闭或失败时回落本地单模型路径。决策层可以选择沉默，不调用 LLM。
 
 ## 模块详解
 
@@ -135,11 +135,11 @@ WebSocket 连接并发送 `connected` 后，若 `proactive.welcome.enabled` 为�
 
 | 触发 | 默认 | 要点 |
 |------|------|------|
-| 空闲轻搭话 | 老师安静 15 分钟（`after_sec`）；两次搭话间隔 30 分钟（`cooldown_sec`）；每天最多 3 次 | 欢迎/照料之后只需再等 `after_sec`，不占用 `cooldown_sec`；深夜/凌晨不闲聊；上一轮 `depart` 不闲聊；仅 `secure_play` / `steady` 可开口；历史 `【搭话】`；不检索记忆 |
+| 空闲轻搭话 | 老师安静 15 分钟；两次搭话间隔默认 30 分钟；每天最多 3 次 | 欢迎/照料之后只需再等 `after_sec`，不占用搭话冷却；深夜/凌晨不闲聊；上一轮是 `depart` 不闲聊；仅 `secure_play` / `steady` 可开口；历史 `【搭话】`；不检索记忆 |
 | 午饭照料 | 12:00–12:30，每天一次 | 短提醒吃饭，不催；`cling_risk` 更短；可检索作息记忆 |
 | 睡觉照料 | 23:00–23:20，每天一次 | 提醒休息；允许在休息时段触发；历史 `【提醒】` |
 
-调度状态落 `data/memory/proactive.json`（`last_user_at` / `last_proactive_at` / `last_idle_at` / 当日次数与已做照料）。`cooldown_sec` 只约束两次空闲搭话；欢迎与照料写入 `last_proactive_at`。生成失败不标记。满足安静时长却仍被冷却/政策挡住时，日志会写 `proactive idle skipped reason=...`。关闭：`proactive.idle.enabled` / `proactive.care.enabled`。
+调度状态落 `data/memory/proactive.json`（`last_user_at` / `last_proactive_at` / `last_idle_at` / 当日次数与已做照料）。`last_proactive_at` 记录欢迎与照料；只有空闲搭话成功才写 `last_idle_at` 并累加当日次数。生成失败不标记。被冷却或政策挡住时日志会写 `proactive idle skipped reason=...`。关闭：`proactive.idle.enabled` / `proactive.care.enabled`。
 
 ## ASR 脏文本过滤
 
