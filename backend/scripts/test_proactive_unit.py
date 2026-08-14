@@ -16,11 +16,20 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND_DIR))
 
 from app.config import load_config  # noqa: E402
+from app.memory.store import MemoryStore  # noqa: E402
+from app.planner.prompts import FIXED_MUST_NOT  # noqa: E402
+from app.planner.schema import parse_and_gate_intent  # noqa: E402
 from app.proactive.care import (  # noqa: E402
     HISTORY_CARE_MARKER,
     build_care_instruction,
     in_window,
     should_fire_care,
+)
+from app.proactive.goal import (  # noqa: E402
+    HISTORY_GOAL_MARKER,
+    can_attempt_goal,
+    select_goal,
+    wants_goal_mute,
 )
 from app.proactive.hub import ConnectionHub  # noqa: E402
 from app.proactive.idle import (  # noqa: E402
@@ -151,6 +160,14 @@ def test_decide_proactive_policy() -> None:
         _fail("idle initiate should be checked_in")
     if map_arona_act("initiate", "secure_play", motive_kind="lunch") != "cared":
         _fail("care initiate should be cared")
+    goal_ok = decide_proactive(play, "goal")
+    if goal_ok.action != "initiate":
+        _fail(f"secure_play goal should initiate, got {goal_ok.action}")
+    goal_cling = decide_proactive(cling, "goal")
+    if goal_cling.action != "silence":
+        _fail(f"cling goal should silence, got {goal_cling.action}")
+    if map_arona_act("initiate", "secure_play", motive_kind="goal") != "checked_in":
+        _fail("goal initiate should be checked_in")
     if ARONA_DELTAS["checked_in"][1] != 0.0:
         _fail("checked_in must not raise dependence")
     if ARONA_DELTAS["cared"][1] != 0.0:
@@ -175,9 +192,14 @@ def test_scheduler_persist_and_priority(tmp: Path) -> None:
     noon = datetime(2026, 8, 13, 12, 10, 0)
     sched.note_user_activity(noon - timedelta(seconds=2000))
     sched.note_proactive(noon - timedelta(seconds=2000))
-    picked = sched.pick_motive(noon, last_user_act="other", climate="secure_play")
+    picked = sched.pick_motive(
+        noon,
+        last_user_act="other",
+        climate="secure_play",
+        goals=_sample_goals(),
+    )
     if picked is None or picked.kind != "lunch":
-        _fail(f"expected lunch over idle, got {picked}")
+        _fail(f"expected lunch over goal/idle, got {picked}")
     sched.mark_fired("lunch", noon)
     again = sched.pick_motive(noon, last_user_act="other")
     if again is not None and again.kind == "lunch":
@@ -253,7 +275,7 @@ def test_hub_busy() -> None:
 
 
 def test_config_loads() -> None:
-    print("== config idle / care ==")
+    print("== config idle / care / goal / continue ==")
     cfg = load_config()
     if not cfg.proactive.idle.enabled:
         _fail("idle should default enabled")
@@ -263,6 +285,289 @@ def test_config_loads() -> None:
         _fail(f"persist_path {cfg.proactive.care.persist_path}")
     if cfg.proactive.care.lunch_start != "12:00":
         _fail("lunch_start")
+    if not cfg.proactive.goal.enabled:
+        _fail("goal should default enabled")
+    if cfg.proactive.goal.min_after_user_sec != 300:
+        _fail(f"min_after_user_sec {cfg.proactive.goal.min_after_user_sec}")
+    if cfg.proactive.goal.cooldown_sec != 21600:
+        _fail(f"goal cooldown {cfg.proactive.goal.cooldown_sec}")
+    if cfg.proactive.goal.mute_sec != 604800:
+        _fail(f"mute_sec {cfg.proactive.goal.mute_sec}")
+    if cfg.proactive.goal.max_per_day != 1:
+        _fail(f"goal max_per_day {cfg.proactive.goal.max_per_day}")
+    if not cfg.proactive.continue_line.enabled:
+        _fail("continue should default enabled")
+    print("  ok")
+
+
+def _goal_cfg(**overrides: object) -> SimpleNamespace:
+    base: dict[str, object] = {
+        "enabled": True,
+        "min_after_user_sec": 300,
+        "cooldown_sec": 21600,
+        "mute_sec": 604800,
+        "max_per_day": 1,
+    }
+    base.update(overrides)
+    return SimpleNamespace(**base)
+
+
+def _sample_goals() -> list[dict[str, object]]:
+    return [
+        {"key": "old_trip", "content": "老师想去海边", "updated_at": 100.0},
+        {"key": "new_exam", "content": "老师要准备考试", "updated_at": 200.0},
+    ]
+
+
+def test_list_by_category() -> None:
+    print("== list_by_category ==")
+    cfg = load_config()
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        store = MemoryStore(cfg, db_path=Path(tmp) / "memory.db")
+        with store._connect() as conn:
+            conn.execute(
+                "INSERT INTO memories(key, content, category, updated_at, source) "
+                "VALUES (?, ?, ?, ?, ?)",
+                ("old_trip", "老师想去海边", "goal", 100.0, "test"),
+            )
+            conn.execute(
+                "INSERT INTO memories(key, content, category, updated_at, source) "
+                "VALUES (?, ?, ?, ?, ?)",
+                ("drink", "老师喜欢草莓牛奶", "preference", 200.0, "test"),
+            )
+            conn.commit()
+        goals = store.list_by_category("goal")
+        if len(goals) != 1 or goals[0]["key"] != "old_trip":
+            _fail(f"expected one goal, got {goals}")
+        prefs = store.list_by_category("preference")
+        if len(prefs) != 1 or prefs[0]["key"] != "drink":
+            _fail(f"expected preference, got {prefs}")
+        if store.list_by_category("missing"):
+            _fail("missing category should be empty")
+    print("  ok")
+
+
+def test_goal_fire_rules() -> None:
+    print("== goal cooldown / daily / mute / select ==")
+    now = datetime(2026, 8, 13, 15, 0, 0)
+    if not can_attempt_goal(
+        now,
+        last_user_at=now - timedelta(seconds=400),
+        last_user_act="other",
+        goal_count=0,
+        min_after_user_sec=300,
+        max_per_day=1,
+    ):
+        _fail("goal should be attemptable after quiet afternoon")
+    if can_attempt_goal(
+        now,
+        last_user_at=now - timedelta(seconds=60),
+        last_user_act="other",
+        goal_count=0,
+        min_after_user_sec=300,
+        max_per_day=1,
+    ):
+        _fail("too soon after user should not goal")
+    if can_attempt_goal(
+        now,
+        last_user_at=now - timedelta(seconds=400),
+        last_user_act="other",
+        goal_count=1,
+        min_after_user_sec=300,
+        max_per_day=1,
+    ):
+        _fail("daily cap should block goal")
+    if can_attempt_goal(
+        now,
+        last_user_at=now - timedelta(seconds=400),
+        last_user_act="depart",
+        goal_count=0,
+        min_after_user_sec=300,
+        max_per_day=1,
+    ):
+        _fail("depart should block goal")
+    night = datetime(2026, 8, 13, 23, 10, 0)
+    if can_attempt_goal(
+        night,
+        last_user_at=night - timedelta(seconds=400),
+        last_user_act="other",
+        goal_count=0,
+        min_after_user_sec=300,
+        max_per_day=1,
+    ):
+        _fail("rest slot should not goal")
+
+    picked = select_goal(
+        _sample_goals(), now, goal_last={}, goal_mute={}, cooldown_sec=21600
+    )
+    if picked is None or picked["key"] != "old_trip":
+        _fail(f"never-visited should pick oldest updated_at, got {picked}")
+
+    recent = (now - timedelta(hours=1)).isoformat(timespec="seconds")
+    picked = select_goal(
+        _sample_goals(),
+        now,
+        goal_last={"old_trip": recent},
+        goal_mute={},
+        cooldown_sec=21600,
+    )
+    if picked is None or picked["key"] != "new_exam":
+        _fail(f"cooling old_trip should pick new_exam, got {picked}")
+
+    mute_until = (now + timedelta(days=7)).isoformat(timespec="seconds")
+    picked = select_goal(
+        _sample_goals(),
+        now,
+        goal_last={},
+        goal_mute={"old_trip": mute_until},
+        cooldown_sec=21600,
+    )
+    if picked is None or picked["key"] != "new_exam":
+        _fail(f"muted old_trip should pick new_exam, got {picked}")
+
+    cooling = now.isoformat(timespec="seconds")
+    if (
+        select_goal(
+            _sample_goals(),
+            now,
+            goal_last={"old_trip": cooling, "new_exam": cooling},
+            goal_mute={},
+            cooldown_sec=21600,
+        )
+        is not None
+    ):
+        _fail("both cooling should pick none")
+    if HISTORY_GOAL_MARKER != "【回访】":
+        _fail("goal history marker")
+    print("  ok")
+
+
+def test_mute_last_goal_phrase(tmp: Path) -> None:
+    print("== 先别提 mutes last goal key ==")
+    if not wants_goal_mute("先别提这个了"):
+        _fail("先别提 should mute")
+    if not wants_goal_mute("别再问了"):
+        _fail("别再问 should mute")
+    if not wants_goal_mute("不用提了"):
+        _fail("不用提了 should mute")
+    if wants_goal_mute("今天天气不错"):
+        _fail("plain chat should not mute")
+
+    idle_cfg = SimpleNamespace(
+        enabled=True, after_sec=900, cooldown_sec=1800, max_per_day=3
+    )
+    care_cfg = SimpleNamespace(
+        enabled=True,
+        lunch_start="12:00",
+        lunch_end="12:30",
+        sleep_start="23:00",
+        sleep_end="23:20",
+    )
+    sched = ProactiveScheduler(
+        tmp / "proactive_mute.json",
+        idle_cfg=idle_cfg,
+        care_cfg=care_cfg,
+        goal_cfg=_goal_cfg(max_per_day=2),
+    )
+    now = datetime(2026, 8, 13, 15, 0, 0)
+    sched.mark_fired("goal", now, goal_key="old_trip")
+    if sched.state.last_goal_key != "old_trip":
+        _fail(f"last_goal_key {sched.state.last_goal_key}")
+    muted = sched.mute_last_goal(now)
+    if muted != "old_trip" or "old_trip" not in sched.state.goal_mute:
+        _fail(f"mute should record old_trip, got {muted} {sched.state.goal_mute}")
+    picked = select_goal(
+        _sample_goals(),
+        now,
+        goal_last=sched.state.goal_last,
+        goal_mute=sched.state.goal_mute,
+        cooldown_sec=21600,
+    )
+    if picked is None or picked["key"] != "new_exam":
+        _fail(f"muted last key should skip old_trip, got {picked}")
+    print("  ok")
+
+
+def test_goal_after_welcome_not_blocked_by_idle(tmp: Path) -> None:
+    print("== welcome after_sec ok; goal ignores idle cooldown ==")
+    idle_cfg = SimpleNamespace(
+        enabled=True, after_sec=30, cooldown_sec=1800, max_per_day=10
+    )
+    care_cfg = SimpleNamespace(
+        enabled=True,
+        lunch_start="12:00",
+        lunch_end="12:30",
+        sleep_start="23:00",
+        sleep_end="23:20",
+    )
+    sched = ProactiveScheduler(
+        tmp / "proactive_goal_welcome.json",
+        idle_cfg=idle_cfg,
+        care_cfg=care_cfg,
+        goal_cfg=_goal_cfg(),
+    )
+    now = datetime(2026, 8, 13, 15, 10, 0)
+    sched.note_user_activity(now - timedelta(seconds=400))
+    sched.note_proactive(now - timedelta(seconds=60))
+    picked = sched.pick_motive(
+        now,
+        last_user_act="other",
+        climate="secure_play",
+        goals=_sample_goals(),
+    )
+    if picked is None or picked.kind != "goal":
+        _fail(f"welcome 1min ago should still allow goal, got {picked}")
+
+    sched.mark_fired("idle", now - timedelta(seconds=60))
+    later = now
+    blocked_idle = sched.pick_motive(
+        later,
+        last_user_act="other",
+        climate="secure_play",
+        goals=[],
+    )
+    if blocked_idle is not None and blocked_idle.kind == "idle":
+        _fail("idle cooldown should still hold without goals")
+    still_goal = sched.pick_motive(
+        later,
+        last_user_act="other",
+        climate="secure_play",
+        goals=_sample_goals(),
+    )
+    if still_goal is None or still_goal.kind != "goal":
+        _fail(f"idle cooldown must not block goal, got {still_goal}")
+    print("  ok")
+
+
+def test_followup_ok_default_and_gate() -> None:
+    print("== followup_ok default false; gate keeps bans ==")
+    raw = (
+        '{"user_emotion":"平静","topic":"问候","stance":"回应",'
+        '"must_say":["问好"],"must_not":[],"facts_to_use":[],'
+        '"tone":"温柔","length":"1-2句","arona_emotion":"smile"}'
+    )
+    card = parse_and_gate_intent(raw)
+    if card is None:
+        _fail("card should parse")
+    if card.followup_ok:
+        _fail("followup_ok should default false")
+    if "followup_ok" in card.to_renderer_dict():
+        _fail("followup_ok must not go to renderer")
+
+    raw_ok = (
+        '{"user_emotion":"好奇","topic":"光环","stance":"解释",'
+        '"must_say":["说明光环"],"must_not":["把问题抛回老师"],'
+        '"facts_to_use":[],"tone":"温柔","length":"1-2句",'
+        '"arona_emotion":"smile","followup_ok":true}'
+    )
+    gated = parse_and_gate_intent(raw_ok)
+    if gated is None or not gated.followup_ok:
+        _fail("followup_ok true should survive parse")
+    for item in FIXED_MUST_NOT:
+        if item not in gated.must_not:
+            _fail(f"continue must not drop fixed ban {item!r}: {gated.must_not}")
+    if not any("抛回" in item for item in gated.must_not):
+        _fail(f"climate/planner ban should remain: {gated.must_not}")
     print("  ok")
 
 
@@ -270,9 +575,14 @@ def main() -> None:
     test_idle_fire_rules()
     test_care_window_once_per_day()
     test_decide_proactive_policy()
+    test_list_by_category()
+    test_goal_fire_rules()
+    test_followup_ok_default_and_gate()
     with tempfile.TemporaryDirectory() as tmp:
         test_scheduler_persist_and_priority(Path(tmp))
         test_welcome_does_not_eat_idle_cooldown(Path(tmp))
+        test_mute_last_goal_phrase(Path(tmp))
+        test_goal_after_welcome_not_blocked_by_idle(Path(tmp))
     test_hub_busy()
     test_config_loads()
     print("ALL PASS")

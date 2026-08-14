@@ -28,7 +28,9 @@ def main() -> None:
     card = parse_and_gate_intent(raw)
     assert card is not None
     assert card.arona_emotion == "smile"
+    assert card.followup_ok is False
     assert "arona_emotion" not in card.to_renderer_dict()
+    assert "followup_ok" not in card.to_renderer_dict()
 
     cfg = load_config()
     msgs = build_renderer_messages(

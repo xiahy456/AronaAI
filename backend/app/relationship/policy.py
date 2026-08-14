@@ -18,7 +18,7 @@ Climate = Literal[
 ]
 
 Action = Literal["speak", "continue", "initiate", "refuse", "silence"]
-ProactiveKind = Literal["idle", "lunch", "sleep"]
+ProactiveKind = Literal["idle", "lunch", "sleep", "goal"]
 
 _IDLE_OK_CLIMATES: frozenset[str] = frozenset({"secure_play", "steady"})
 
@@ -184,7 +184,7 @@ def decide_proactive(
         state.tension,
         cling_dependence=cling_dependence,
     )
-    if kind == "idle":
+    if kind in {"idle", "goal"}:
         action: Action = "initiate" if climate in _IDLE_OK_CLIMATES else "silence"
         stance = "轻在场，不追问老师还在不在"
         must_not = ["还在吗", "需不需要我", "编造未发生的事", "把问题抛回老师"]
@@ -248,7 +248,7 @@ def map_arona_act(
     if action in {"silence", "refuse"}:
         return "gave_space"
     if action == "initiate":
-        if motive_kind == "idle":
+        if motive_kind in {"idle", "goal"}:
             return "checked_in"
         if motive_kind in {"lunch", "sleep", "care"}:
             return "cared"

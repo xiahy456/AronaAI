@@ -1,4 +1,4 @@
-"""Proactive companion actions (welcome, idle check-in, time-of-day care)."""
+"""Proactive companion actions (welcome, idle, care, goal follow-up)."""
 
 from .care import (
     CARE_MEMORY_QUERY,
@@ -6,6 +6,14 @@ from .care import (
     build_care_instruction,
     in_window,
     should_fire_care,
+)
+from .followup import HISTORY_CONTINUE_MARKER, build_continue_instruction
+from .goal import (
+    HISTORY_GOAL_MARKER,
+    build_goal_instruction,
+    can_attempt_goal,
+    select_goal,
+    wants_goal_mute,
 )
 from .hub import ConnectionHub
 from .idle import HISTORY_IDLE_MARKER, build_idle_instruction, should_fire_idle
@@ -24,6 +32,8 @@ __all__ = [
     "CARE_MEMORY_QUERY",
     "ConnectionHub",
     "HISTORY_CARE_MARKER",
+    "HISTORY_CONTINUE_MARKER",
+    "HISTORY_GOAL_MARKER",
     "HISTORY_IDLE_MARKER",
     "HISTORY_USER_MARKER",
     "Motive",
@@ -37,13 +47,18 @@ __all__ = [
     "WELCOME_MEMORY_QUERY",
     "WelcomeState",
     "build_care_instruction",
+    "build_continue_instruction",
+    "build_goal_instruction",
     "build_idle_instruction",
     "build_welcome_instruction",
+    "can_attempt_goal",
     "in_window",
     "resolve_slot",
     "resolve_welcome_context",
     "run_proactive_loop",
+    "select_goal",
     "should_fire_care",
     "should_fire_idle",
     "tick_once",
+    "wants_goal_mute",
 ]

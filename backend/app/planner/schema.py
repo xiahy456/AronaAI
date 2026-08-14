@@ -34,6 +34,14 @@ def _as_str(value: object | None, default: str = "") -> str:
     return default
 
 
+def _as_bool(value: object | None, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "1", "yes"}
+    return default
+
+
 @dataclass
 class IntentCard:
     user_emotion: str = ""
@@ -45,6 +53,7 @@ class IntentCard:
     tone: str = "温柔短句"
     length: str = "1-2句"
     arona_emotion: str = DEFAULT_EMOTION
+    followup_ok: bool = False
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> IntentCard:
@@ -58,6 +67,7 @@ class IntentCard:
             tone=_as_str(data.get("tone"), "温柔短句"),
             length=_as_str(data.get("length"), "1-2句"),
             arona_emotion=normalize_emotion(data.get("arona_emotion")),
+            followup_ok=_as_bool(data.get("followup_ok"), False),
         )
 
     def merge_fixed_must_not(self) -> None:

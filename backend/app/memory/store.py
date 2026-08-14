@@ -628,3 +628,30 @@ class MemoryStore:
         with self._connect() as conn:
             row = conn.execute("SELECT COUNT(*) AS c FROM memories").fetchone()
             return int(row["c"] if row else 0)
+
+    def list_by_category(self, category: str) -> list[dict[str, Any]]:
+        """Return stored memories in a category (SQLite is source of truth)."""
+        cat = (category or "").strip()
+        if not cat:
+            return []
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT key, content, category, updated_at FROM memories "
+                "WHERE category = ?",
+                (cat,),
+            ).fetchall()
+        out: list[dict[str, Any]] = []
+        for row in rows:
+            key = str(row["key"] or "").strip()
+            content = str(row["content"] or "").strip()
+            if not key or not content:
+                continue
+            out.append(
+                {
+                    "key": key,
+                    "content": content,
+                    "category": str(row["category"] or "").strip() or "other",
+                    "updated_at": float(row["updated_at"] or 0.0),
+                }
+            )
+        return out

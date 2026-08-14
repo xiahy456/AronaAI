@@ -40,8 +40,14 @@ async def tick_once(state: "AppState", now: datetime | None = None) -> bool:
         last_user_act = relationship.state.last_user_act or "other"
         climate = relationship.peek_climate()
 
+    goals: list[dict] = []
+    if getattr(state.scheduler.goal_cfg, "enabled", False):
+        goals = await asyncio.to_thread(
+            state.orchestrator.memory_store.list_by_category, "goal"
+        )
+
     motive = state.scheduler.pick_motive(
-        dt, last_user_act=last_user_act, climate=climate
+        dt, last_user_act=last_user_act, climate=climate, goals=goals
     )
     if motive is None:
         reason = state.scheduler.idle_block_reason(dt, last_user_act=last_user_act)
@@ -64,6 +70,14 @@ async def tick_once(state: "AppState", now: datetime | None = None) -> bool:
     session_id, send = targets[0]
     state.hub.set_busy(session_id, True)
     try:
+        extra_must_not = None
+        if motive.kind == "goal":
+            extra_must_not = [
+                "催促",
+                "盘问进展",
+                "编造老师已经做了什么",
+                "把问题抛回老师",
+            ]
         ok = await state.orchestrator.handle_initiate(
             session_id=session_id,
             kind=motive.kind,
@@ -72,6 +86,8 @@ async def tick_once(state: "AppState", now: datetime | None = None) -> bool:
             send=send,
             retrieve_memory=motive.retrieve_memory,
             memory_query=motive.memory_query,
+            extra_memories=list(motive.extra_memories),
+            extra_must_not=extra_must_not,
             climate=climate,
             decision=decision,
         )
@@ -79,7 +95,7 @@ async def tick_once(state: "AppState", now: datetime | None = None) -> bool:
         state.hub.set_busy(session_id, False)
 
     if ok:
-        state.scheduler.mark_fired(motive.kind, dt)
+        state.scheduler.mark_fired(motive.kind, dt, goal_key=motive.goal_key)
         logger.info(
             "proactive fired session=%s kind=%s", session_id, motive.kind
         )

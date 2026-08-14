@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -127,6 +127,18 @@ class CareConfig(BaseModel):
     sleep_end: str = "23:20"
 
 
+class GoalConfig(BaseModel):
+    enabled: bool = True
+    min_after_user_sec: float = 300
+    cooldown_sec: float = 21600
+    mute_sec: float = 604800
+    max_per_day: int = 1
+
+
+class ContinueConfig(BaseModel):
+    enabled: bool = True
+
+
 class RelationshipConfig(BaseModel):
     enabled: bool = True
     persist_path: str = "data/memory/relationship.json"
@@ -144,10 +156,17 @@ class RelationshipConfig(BaseModel):
 
 
 class ProactiveConfig(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     welcome: WelcomeConfig = Field(default_factory=WelcomeConfig)
     relationship: RelationshipConfig = Field(default_factory=RelationshipConfig)
     idle: IdleConfig = Field(default_factory=IdleConfig)
     care: CareConfig = Field(default_factory=CareConfig)
+    goal: GoalConfig = Field(default_factory=GoalConfig)
+    continue_line: ContinueConfig = Field(
+        default_factory=ContinueConfig,
+        alias="continue",
+    )
 
 
 class AppConfig(BaseModel):

@@ -23,6 +23,7 @@ from .proactive import (
     ResolvedSlot,
     build_welcome_instruction,
 )
+from .proactive.followup import HISTORY_CONTINUE_MARKER, build_continue_instruction
 from .prompt import build_messages, build_renderer_messages
 from .protocol import msg_chat_response
 from .relationship import (
@@ -65,6 +66,8 @@ class Orchestrator:
             "welcome_count": 0,
             "idle_count": 0,
             "care_count": 0,
+            "goal_count": 0,
+            "continue_count": 0,
             "silence_count": 0,
             "refuse_count": 0,
             "cache_hits": 0,
@@ -319,6 +322,14 @@ class Orchestrator:
             user_text,
             full,
         )
+        await self._maybe_continue(
+            session_id=session_id,
+            intent=intent,
+            previous=full,
+            send=send,
+            climate=decision.climate if decision is not None else None,
+            decision=decision,
+        )
 
     async def handle_welcome(
         self,
@@ -356,12 +367,13 @@ class Orchestrator:
         send: SendFn,
         retrieve_memory: bool = False,
         memory_query: str = "",
+        extra_memories: list[str] | tuple[str, ...] | None = None,
         climate_block: str = "",
         extra_must_not: list[str] | None = None,
         climate: str | None = None,
         decision: Decision | None = None,
     ) -> bool:
-        """Generate a system-event line (welcome / idle / care). Returns True on success."""
+        """Generate a system-event line (welcome / idle / care / goal / continue). Returns True on success."""
         user_text = instruction
         start = time.perf_counter()
         context_parts: list[str] = [kind]
@@ -376,7 +388,21 @@ class Orchestrator:
         )
 
         memories: list[str] = []
-        if retrieve_memory and memory_query:
+        injected = [
+            item.strip()
+            for item in (extra_memories or ())
+            if (item or "").strip()
+        ]
+        if injected:
+            memories = injected
+            context_parts.append("memory")
+            logger.info(
+                "initiate memory injected session=%s kind=%s hits=%d",
+                session_id,
+                kind,
+                len(memories),
+            )
+        elif retrieve_memory and memory_query:
             t0 = time.perf_counter()
             memories = await asyncio.to_thread(
                 self.memory_store.retrieve,
@@ -513,13 +539,19 @@ class Orchestrator:
             used_climate = (
                 decision.climate if decision is not None else climate
             ) or "steady"
-            motive = None if kind == "welcome" else kind
-            self.relationship.on_arona_action(
-                "initiate", used_climate, motive_kind=motive
-            )
-        stat_key = {"welcome": "welcome_count", "idle": "idle_count"}.get(
-            kind, "care_count"
-        )
+            if kind == "continue":
+                self.relationship.on_arona_action("continue", used_climate)
+            else:
+                motive = None if kind == "welcome" else kind
+                self.relationship.on_arona_action(
+                    "initiate", used_climate, motive_kind=motive
+                )
+        stat_key = {
+            "welcome": "welcome_count",
+            "idle": "idle_count",
+            "goal": "goal_count",
+            "continue": "continue_count",
+        }.get(kind, "care_count")
         self.stats[stat_key] = int(self.stats.get(stat_key, 0)) + 1
         self.stats["chat_count"] += 1
         logger.info(
@@ -547,6 +579,35 @@ class Orchestrator:
         climate = decision.climate if decision is not None else "steady"
         user_act = decision.user_act if decision is not None else "other"
         self.relationship.on_arona_action(action, climate, user_act)  # type: ignore[arg-type]
+
+    async def _maybe_continue(
+        self,
+        *,
+        session_id: str,
+        intent: IntentCard | None,
+        previous: str,
+        send: SendFn,
+        climate: str | None,
+        decision: Decision | None,
+    ) -> None:
+        if intent is None or not intent.followup_ok:
+            return
+        if not self.config.proactive.continue_line.enabled:
+            return
+        if not (previous or "").strip():
+            return
+        logger.info("continue start session=%s", session_id)
+        await self.handle_initiate(
+            session_id=session_id,
+            kind="continue",
+            instruction=build_continue_instruction(previous),
+            history_marker=HISTORY_CONTINUE_MARKER,
+            send=send,
+            retrieve_memory=False,
+            climate=climate,
+            decision=decision,
+            extra_must_not=["卖关子", "编造未发生的事", "把问题抛回老师"],
+        )
 
     def _climate_block(self, decision: Decision | None) -> str:
         if decision is None:

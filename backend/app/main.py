@@ -83,6 +83,7 @@ def create_app() -> FastAPI:
         config.proactive_abs_path,
         idle_cfg=config.proactive.idle,
         care_cfg=config.proactive.care,
+        goal_cfg=config.proactive.goal,
     )
     state = AppState(
         config,
@@ -108,7 +109,11 @@ def create_app() -> FastAPI:
                 logger.exception("Knowledge warmup failed; RAG will retry on first use")
         await extractor.start()
         loop_task = None
-        if config.proactive.idle.enabled or config.proactive.care.enabled:
+        if (
+            config.proactive.idle.enabled
+            or config.proactive.care.enabled
+            or config.proactive.goal.enabled
+        ):
             loop_task = asyncio.create_task(run_proactive_loop(state))
             logger.info("proactive loop started")
         app.state.arona = state  # type: ignore[attr-defined]

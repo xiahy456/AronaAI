@@ -5,15 +5,22 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
+from ..config import GoalConfig
 from .care import (
     CARE_MEMORY_QUERY,
     HISTORY_CARE_MARKER,
     build_care_instruction,
     should_fire_care,
+)
+from .goal import (
+    HISTORY_GOAL_MARKER,
+    build_goal_instruction,
+    can_attempt_goal,
+    select_goal,
 )
 from .idle import (
     HISTORY_IDLE_MARKER,
@@ -24,7 +31,7 @@ from .idle import (
 
 logger = logging.getLogger(__name__)
 
-MotiveKind = Literal["idle", "lunch", "sleep"]
+MotiveKind = Literal["idle", "lunch", "sleep", "goal"]
 
 
 @dataclass(frozen=True)
@@ -34,6 +41,8 @@ class Motive:
     history_marker: str
     retrieve_memory: bool = False
     memory_query: str = ""
+    goal_key: str = ""
+    extra_memories: tuple[str, ...] = ()
 
 
 @dataclass
@@ -44,6 +53,10 @@ class ProactiveState:
     day: str = ""
     idle_count: int = 0
     care_done: list[str] = field(default_factory=list)
+    goal_last: dict[str, str] = field(default_factory=dict)
+    goal_mute: dict[str, str] = field(default_factory=dict)
+    goal_count: int = 0
+    last_goal_key: str = ""
 
     def roll_day(self, now: datetime) -> None:
         today = now.date().isoformat()
@@ -51,6 +64,7 @@ class ProactiveState:
             self.day = today
             self.idle_count = 0
             self.care_done = []
+            self.goal_count = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -60,6 +74,10 @@ class ProactiveState:
             "day": self.day,
             "idle_count": self.idle_count,
             "care_done": list(self.care_done),
+            "goal_last": dict(self.goal_last),
+            "goal_mute": dict(self.goal_mute),
+            "goal_count": self.goal_count,
+            "last_goal_key": self.last_goal_key,
         }
 
     @classmethod
@@ -76,7 +94,23 @@ class ProactiveState:
             day=str(data.get("day") or ""),
             idle_count=int(data.get("idle_count") or 0),
             care_done=[str(item) for item in done if item],
+            goal_last=_as_str_dict(data.get("goal_last")),
+            goal_mute=_as_str_dict(data.get("goal_mute")),
+            goal_count=int(data.get("goal_count") or 0),
+            last_goal_key=str(data.get("last_goal_key") or ""),
         )
+
+
+def _as_str_dict(value: object) -> dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+    out: dict[str, str] = {}
+    for key, item in value.items():
+        k = str(key or "").strip()
+        v = str(item or "").strip()
+        if k and v:
+            out[k] = v
+    return out
 
 
 def _parse_iso(value: str) -> datetime | None:
@@ -90,10 +124,18 @@ def _parse_iso(value: str) -> datetime | None:
 
 
 class ProactiveScheduler:
-    def __init__(self, path: Path, *, idle_cfg: Any, care_cfg: Any) -> None:
+    def __init__(
+        self,
+        path: Path,
+        *,
+        idle_cfg: Any,
+        care_cfg: Any,
+        goal_cfg: Any | None = None,
+    ) -> None:
         self.path = path
         self.idle_cfg = idle_cfg
         self.care_cfg = care_cfg
+        self.goal_cfg = goal_cfg if goal_cfg is not None else GoalConfig()
         self.state = self._load()
 
     def _load(self) -> ProactiveState:
@@ -132,7 +174,13 @@ class ProactiveScheduler:
         self.state.last_proactive_at = dt.isoformat(timespec="seconds")
         self.save()
 
-    def mark_fired(self, kind: MotiveKind, now: datetime | None = None) -> None:
+    def mark_fired(
+        self,
+        kind: MotiveKind,
+        now: datetime | None = None,
+        *,
+        goal_key: str = "",
+    ) -> None:
         dt = now or datetime.now()
         self.state.roll_day(dt)
         stamp = dt.isoformat(timespec="seconds")
@@ -140,9 +188,27 @@ class ProactiveScheduler:
         if kind == "idle":
             self.state.last_idle_at = stamp
             self.state.idle_count += 1
+        elif kind == "goal":
+            self.state.goal_count += 1
+            key = (goal_key or "").strip()
+            if key:
+                self.state.last_goal_key = key
+                self.state.goal_last[key] = stamp
         elif kind not in self.state.care_done:
             self.state.care_done.append(kind)
         self.save()
+
+    def mute_last_goal(self, now: datetime | None = None) -> str | None:
+        key = (self.state.last_goal_key or "").strip()
+        if not key:
+            return None
+        dt = now or datetime.now()
+        mute_sec = float(getattr(self.goal_cfg, "mute_sec", 604800))
+        until = dt + timedelta(seconds=mute_sec)
+        self.state.goal_mute[key] = until.isoformat(timespec="seconds")
+        self.save()
+        logger.info("goal muted key=%s until=%s", key, self.state.goal_mute[key])
+        return key
 
     def pick_motive(
         self,
@@ -150,6 +216,7 @@ class ProactiveScheduler:
         *,
         last_user_act: str = "other",
         climate: str | None = None,
+        goals: list[dict[str, object]] | None = None,
     ) -> Motive | None:
         dt = now or datetime.now()
         self.state.roll_day(dt)
@@ -172,6 +239,33 @@ class ProactiveScheduler:
                         history_marker=HISTORY_CARE_MARKER,
                         retrieve_memory=True,
                         memory_query=CARE_MEMORY_QUERY,
+                    )
+
+        if getattr(self.goal_cfg, "enabled", True) and can_attempt_goal(
+            dt,
+            last_user_at=_parse_iso(self.state.last_user_at),
+            last_user_act=last_user_act,
+            goal_count=self.state.goal_count,
+            min_after_user_sec=float(self.goal_cfg.min_after_user_sec),
+            max_per_day=int(self.goal_cfg.max_per_day),
+        ):
+            selected = select_goal(
+                goals or [],
+                dt,
+                goal_last=self.state.goal_last,
+                goal_mute=self.state.goal_mute,
+                cooldown_sec=float(self.goal_cfg.cooldown_sec),
+            )
+            if selected is not None:
+                key = str(selected.get("key") or "").strip()
+                content = str(selected.get("content") or "").strip()
+                if key and content:
+                    return Motive(
+                        kind="goal",
+                        instruction=build_goal_instruction(content, climate),
+                        history_marker=HISTORY_GOAL_MARKER,
+                        goal_key=key,
+                        extra_memories=(content,),
                     )
 
         if getattr(self.idle_cfg, "enabled", True) and should_fire_idle(

@@ -271,6 +271,10 @@ def test_welcome_not_teased_and_speak_not_ratchet() -> None:
         _fail("idle initiate should be checked_in")
     if map_arona_act("initiate", "secure_play", motive_kind="sleep") != "cared":
         _fail("care initiate should be cared")
+    if map_arona_act("initiate", "secure_play", motive_kind="goal") != "checked_in":
+        _fail("goal initiate should be checked_in")
+    if map_arona_act("continue", "secure_play") != "followed_up":
+        _fail("continue should be followed_up")
     if ARONA_DELTAS["checked_in"][1] != 0.0 or ARONA_DELTAS["cared"][1] != 0.0:
         _fail("checked_in/cared must not raise dependence")
     if map_arona_act("speak", "secure_play", "other") != "followed_up":

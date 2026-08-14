@@ -100,6 +100,14 @@ proactive:
     lunch_end: "12:30"
     sleep_start: "23:00"
     sleep_end: "23:20"
+  goal:
+    enabled: true
+    min_after_user_sec: 300
+    cooldown_sec: 21600
+    mute_sec: 604800
+    max_per_day: 1
+  continue:
+    enabled: true
 
 token_budget:
   memory: 250

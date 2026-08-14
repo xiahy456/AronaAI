@@ -21,6 +21,7 @@ from .input_filter import (
 from .logging_utils import preview
 from .orchestrator import Orchestrator
 from .proactive import ConnectionHub, ProactiveScheduler, WelcomeState, resolve_welcome_context
+from .proactive.goal import wants_goal_mute
 from .protocol import (
     CODE_BAD_REQUEST,
     CODE_INTERNAL,
@@ -132,6 +133,10 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         state.hub.set_busy(session_id, True)
         if state.scheduler is not None:
             state.scheduler.note_user_activity()
+            if wants_goal_mute(content):
+                muted = state.scheduler.mute_last_goal()
+                if muted:
+                    logger.info("goal muted by user key=%s", muted)
         try:
             await state.orchestrator.handle_chat(
                 session_id=session_id,

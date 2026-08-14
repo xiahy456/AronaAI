@@ -13,7 +13,11 @@
 </p>
 
 <p align="center">
-  <em>项目地址：https://github.com/xiahy456/AronaAI</em>
+  <em>项目地址: https://github.com/xiahy456/AronaAI</em>
+</p>
+
+<p align="center">
+  <em>版本: 2.0.0-preview</em>
 </p>
 
 ---
@@ -52,7 +56,7 @@ arona-ai/
 │   │   ├── orchestrator.py     # 对话编排（关系决策 → 检索 → Planner/本地 → 生成 → 记忆抽取）
 │   │   ├── model_loader.py     # GGUF 模型加载（llama-cpp-python）
 │   │   ├── planner/            # 双模型 Planner（DeepSeek 意图卡 → Renderer）
-│   │   ├── proactive/          # 主动事件（上线欢迎、空闲搭话、时刻照料）
+│   │   ├── proactive/          # 主动事件（上线欢迎、空闲搭话、时刻照料、goal 回访）
 │   │   ├── relationship/       # 关系气候（信任/依赖/张力、决策）
 │   │   ├── knowledge.py        # 世界观知识 RAG
 │   │   ├── conversation.py     # 多轮对话历史
@@ -128,7 +132,7 @@ arona-ai/
 - **双模型链路**：**Planner（DeepSeek）→ 结构化意图卡 → Renderer（AronaLM-Renderer-V2.2）**；简单轮次可由路由走本地单模型，Planner 关闭或失败时回落本地路径
 - **关系气候**：信任 / 依赖 / 张力三标量构建张量；规则分类用户行动后查表更新，气候分区决定开口、姿态或沉默（数字不进台词）
 - **上线欢迎**：WebSocket 连接后按时段主动问候；同槽首次说「早上好」等，再次上线改为「欢迎回来」；深夜/凌晨提醒休息
-- **空闲搭话与照料**：安静若干时间后轻在场（两次搭话之间另有冷却；休息时段不闲聊）；根据时段提醒用户吃饭、休息等，先过关系政策再开口
+- **空闲搭话、照料与回访**：安静若干时间后轻在场（两次搭话之间另有冷却；休息时段不闲聊）；根据时段提醒吃饭、休息；稀疏回访记忆里的未完成计划（老师说「先别提」则冷却）；Planner 允许时同轮最多再补一句；先过关系政策再开口
 - **AronaLM-Renderer-V2.2（GGUF）**：`llama-cpp-python` 加载 Qwen3-1.7B 微调 GGUF（默认 Q4_K_M），过滤 `<think>` 推理块；默认双模型路径非流式，本地回落路径可流式
 - **记忆与知识分离**：用户长期事实进 SQLite + FTS5 + Chroma（jieba / BGE）；世界观设定进 Markdown 语料 → 本地 BGE + Chroma RAG，互不混写、按需注入 Prompt
 - **异步记忆抽取**：对话主路径不阻塞；DeepSeek JSON 抽取（含日配额与缓冲批量），失败或无 Key 时自动正则降级
@@ -224,7 +228,7 @@ cp config.example.yaml config.yaml   # Linux / macOS
 - `memory.extractor.api_key`：DeepSeek API Key（可选；不填则记忆抽取走正则降级）
 - `knowledge.enabled`：是否启用世界观 RAG（默认 `false`，启用前请先灌库）
 - `proactive.welcome.enabled` / `proactive.relationship.enabled`：上线欢迎与关系气候（默认开启；关系状态落 `data/memory/relationship.json`）
-- `proactive.idle` / `proactive.care`：空闲搭话与午饭/睡觉照料（调度落 `data/memory/proactive.json`）
+- `proactive.idle` / `proactive.care` / `proactive.goal` / `proactive.continue`：空闲搭话、午饭/睡觉照料、goal 回访与同轮补充（调度落 `data/memory/proactive.json`）
 
 > **注意**：`config.yaml` 已在 `.gitignore` 中，不会被提交到版本控制。
 
