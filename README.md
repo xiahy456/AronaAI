@@ -5,19 +5,23 @@
 </p>
 
 <p align="center">
-  <em>基于《蔚蓝档案》角色「阿洛娜」的非交互式桌面AI</em>
+  <strong>基于《蔚蓝档案》角色「阿洛娜」的非交互式桌面AI</strong>
 </p>
 
 <p align="center">
-  <em>A non-interactive desktop AI based on "Arona" from "Blue Archive"</em>
+  <em>云端负责规划与抽取，本地负责人设与沉浸场景；关系张量与主动事件构建规则控制面，不是又一个会聊天的大模型。</em>
 </p>
 
 <p align="center">
-  <em>项目地址: https://github.com/xiahy456/AronaAI</em>
+  <strong>中文</strong> · <a href="README_EN.md">English</a>
 </p>
 
 <p align="center">
-  <em>版本: 2.0.0-preview</em>
+  项目地址: https://github.com/xiahy456/AronaAI
+</p>
+
+<p align="center">
+  <em>版本: 2.0.0</em>
 </p>
 
 ---
@@ -28,20 +32,12 @@
 
 本项目集成了Arona语言模型（AronaLM）、非交互式设计、意图驱动、语音合成（TTS）、语音识别（ASR）、Spine 2D 角色动画等技术，旨在提供一个可爱、有趣且功能完整的桌面体验。
 
-**AronaAI** is a non-interactive desktop AI based on the character "Arona" from the game "Blue Archive". She serves as the operating system administrator of the Shittim Chest, and has a cheerful, warm personality who loves helping Sensei (user) solve problems.
-
-This project integrates Arona Language Model (AronaLM), Non-interactive Design, Intent-driven, Text-to-Speech (TTS), Automatic Speech Recognition (ASR), Spine 2D character animation, and other technologies to provide a cute, lively, and fully-featured desktop experience.
-
 <p align="center">
   <img src="assets/running_example_2.png" alt="Running Example" width="600"/>
 </p>
 
 <p align="center">
   <em>前端运行截图 - 阿洛娜 & 设置界面</em>
-</p>
-
-<p align="center">
-  <em>Frontend running screenshot - Arona & Setting Widget</em>
 </p>
 
 ---
@@ -426,7 +422,7 @@ limitations under the License.
 
 - **《蔚蓝档案》(Blue Archive)** - 一切奇迹的起点（https://bluearchive-cn.com/）
 - **Spine** - 2D 动画引擎（https://esotericsoftware.com/）
-- **基沃托斯古书馆** - Spine 动画资源（https://kivo.wiki/）
+- **基沃托斯古书馆** - Spine 动画资源与 Blueaka 字体（https://kivo.wiki/）
 - **Qt** - 跨平台 GUI 框架（https://www.qt.io/）
 - **llama.cpp / llama-cpp-python** - 本地 GGUF 推理（https://github.com/ggml-org/llama.cpp）
 - **Qwen3-1.7B** - 微调训练基底模型（https://huggingface.co/Qwen/Qwen3-1.7B）
