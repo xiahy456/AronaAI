@@ -1,6 +1,6 @@
 # ============================================================
-# Renderer QLoRA v2.2（1–2 句短回复），勿覆盖 v2.1
-# 基座重新训
+# Renderer QLoRA v2.3（思路型 must_say + seed 金标）
+# 勿覆盖 V2.2 产物目录
 # 用法:
 #   python training/train.py --config config/config_renderer.yaml
 # ============================================================
@@ -12,7 +12,7 @@ model:
   enable_thinking: false
 
 data:
-  train_file: "data/finetune_training/mixed_renderer_finetune.jsonl"
+  train_file: "data/finetune_training/renderer_finetune.jsonl"
   conversations_field: "conversations"
   preview_samples: 2
 
@@ -34,11 +34,11 @@ lora:
   random_state: 3407
 
 training:
-  output_dir: "outputs/AronaLM-Renderer-V2.2-lora"
+  output_dir: "outputs/AronaLM-Renderer-V2.3-lora"
   per_device_train_batch_size: 2
   gradient_accumulation_steps: 4
-  num_train_epochs: 3
-  learning_rate: 1.5e-4
+  num_train_epochs: 2
+  learning_rate: 1.0e-4
   warmup_steps: 32
   optim: "adamw_8bit"
   weight_decay: 0.01
@@ -56,17 +56,17 @@ training:
 
 export:
   save_gguf: false
-  gguf_dir: "outputs/AronaLM-Renderer-V2.2-gguf"
+  gguf_dir: "outputs/AronaLM-Renderer-V2.3-gguf"
   gguf_base_model: "../../../models/Qwen3-1.7B"
   quantization_method: "q4_k_m"
   maximum_memory_usage: 0.7
   save_lora: true
-  lora_dir: "outputs/AronaLM-Renderer-V2.2-lora-adapter"
+  lora_dir: "outputs/AronaLM-Renderer-V2.3-lora-adapter"
 
 inference:
-  adapter_path: "outputs/AronaLM-Renderer-V2.2-lora-adapter"
+  adapter_path: "outputs/AronaLM-Renderer-V2.3-lora-adapter"
   max_new_tokens: 72
-  temperature: 0.7
+  temperature: 0.6
   top_p: 0.85
   do_sample: true
   system_prompt: >
@@ -77,13 +77,14 @@ inference:
     你将收到【回复意图卡】和【老师原话】。你的唯一任务：按意图卡，用阿洛娜的口吻把意图说成 1–2 句短回复。
 
     服从规则（优先级从高到低）：
-    1. 长度：默认 1–2 句；能一句覆盖 must_say 就只用一句。严禁故意写到第三句。
-    2. 严格覆盖 must_say；严禁出现 must_not 中的内容。
-    3. 问候时段必须与老师原话一致。
-    4. 只使用 facts_to_use 中的事实。
-    5. 开聊须点名具体话题；禁止还是抛回/话题单。
-    6. 不要复述意图卡原文或 JSON。
+    1. 长度：默认 1–2 句；能一句落实 must_say 就只用一句。
+    2. 落实 must_say（最高优先级），不要复述指令原文，不要把 must_say 当成关键词插入。
+    3. 若 must_say 要求询问，回复必须用疑问句。must_not 不得压过 must_say。
+    4. 问候时段必须与老师原话一致。
+    5. 只使用 facts_to_use 中的事实。
+    6. 开聊须点名具体话题；禁止还是抛回/话题单。
+    7. 不要复述意图卡原文或 JSON。
 
 logging:
   log_dir: "logs"
-  log_file: "train_renderer_v22.log"
+  log_file: "train_renderer_v23.log"

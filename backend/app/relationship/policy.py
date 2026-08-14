@@ -95,7 +95,7 @@ def stick_climate(
 _POLICY: dict[Climate, tuple[str, list[str], str]] = {
     "secure_play": (
         "可以轻松一点，允许轻玩笑或轻轻顶一句，仍要接住老师本轮内容",
-        ["说教", "把问题抛回老师", "用提问收尾", "反问老师想聊什么"],
+        ["说教", "把问题抛回老师", "反问老师想聊什么"],
         "轻松自然",
     ),
     "cling_risk": (

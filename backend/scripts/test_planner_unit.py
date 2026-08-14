@@ -33,11 +33,35 @@ def main() -> None:
     assert "followup_ok" not in card.to_renderer_dict()
 
     cfg = load_config()
+    hist = [
+        {"role": "user", "content": "上一轮老师"},
+        {"role": "assistant", "content": "上一轮阿洛娜"},
+    ]
     msgs = build_renderer_messages(
-        cfg, user_text="嗨", intent_card=card.to_renderer_dict()
+        cfg,
+        user_text="嗨",
+        intent_card=card.to_renderer_dict(),
+        history=hist,
+        max_history_turns=2,
     )
+    assert len(msgs) == 2
+    assert msgs[0]["role"] == "system"
+    assert msgs[1]["role"] == "user"
+    assert "上一轮老师" not in msgs[1]["content"]
     assert "【回复意图卡】" in msgs[-1]["content"]
     assert '"arona_emotion"' not in msgs[-1]["content"]
+    assert "落实 must_say" in msgs[-1]["content"]
+
+    conflict = parse_and_gate_intent(
+        '{"user_emotion":"感激","topic":"道谢","stance":"轻松",'
+        '"must_say":["回应老师的感谢，表示随时愿意陪伴","可自然询问老师接下来想做什么或想聊什么"],'
+        '"must_not":["用提问收尾","把问题抛回老师","反问老师想聊什么"],'
+        '"facts_to_use":[],"tone":"轻松","length":"1-2句","arona_emotion":"smile"}'
+    )
+    assert conflict is not None
+    assert any("询问" in x for x in conflict.must_say)
+    assert any("想聊什么" in x for x in conflict.must_say)
+    assert not any("用提问收尾" in x for x in conflict.must_not)
 
     m = msg_chat_response("ok", emotion="shy")
     assert m["emotion"] == "shy"

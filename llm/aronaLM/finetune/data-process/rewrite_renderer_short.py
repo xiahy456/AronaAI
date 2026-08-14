@@ -560,6 +560,10 @@ def main() -> None:
         help="Force LLM even when already short (still normalizes length locally otherwise)",
     )
     args = parser.parse_args()
+    raise SystemExit(
+        "Stopped: Renderer V2.3 does not LLM-rewrite gold replies. "
+        "Cards are drafted by draft_renderer_cards_from_seed.py; gold stays seed."
+    )
 
     files = [
         CHOSEN_DIR / "renderer_curated.json",

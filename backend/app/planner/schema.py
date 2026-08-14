@@ -18,6 +18,22 @@ _MAX_MUST_SAY = 2
 _ALLOWED_LENGTH = "1-2句"
 
 
+def _is_choice_bounce_must_say(item: str) -> bool:
+    """True if the instruction throws topic choice back at the teacher.
+
+    Keep light-ask instructions such as「可自然询问老师接下来想做什么或想聊什么」.
+    """
+    if "还是" in item:
+        return True
+    if "反问" in item:
+        return True
+    if "想聊什么" in item and not any(
+        key in item for key in ("询问", "接下来", "选定", "开聊")
+    ):
+        return True
+    return False
+
+
 def _as_str_list(value: object | None) -> list[str]:
     if not isinstance(value, list):
         return []
@@ -96,17 +112,35 @@ class IntentCard:
             self.must_say = self.must_say[:_MAX_MUST_SAY]
 
     def drop_conflicting_must_say(self) -> None:
-        """Drop must_say items that ask the teacher a question when must_not forbids it."""
+        """Keep must_say; strip question-ending bans that fight it. Still drop bounce."""
+        say_text = "".join(self.must_say)
+        asks = any(
+            key in say_text
+            for key in ("轻问", "询问", "提问", "问老师", "问一句", "问问")
+        )
+        if asks:
+            question_bans = ("用提问收尾", "不要以疑问结尾", "不要反问")
+            kept_not: list[str] = []
+            dropped = False
+            for item in self.must_not:
+                if any(ban in item for ban in question_bans):
+                    dropped = True
+                    continue
+                kept_not.append(item)
+            if dropped:
+                logger.info(
+                    "planner gate dropped question-ending must_not; must_say wins topic=%r",
+                    self.topic,
+                )
+                self.must_not = kept_not
+
         not_text = "".join(self.must_not)
-        if not any(
-            key in not_text
-            for key in ("抛回", "反问", "想聊什么", "用提问收尾")
-        ):
+        if not any(key in not_text for key in ("抛回", "想聊什么")):
             return
         kept: list[str] = []
         for item in self.must_say:
-            if any(key in item for key in ("反问", "想聊什么", "还是")):
-                logger.info("planner gate dropped conflicting must_say %r", item)
+            if _is_choice_bounce_must_say(item):
+                logger.info("planner gate dropped bounce must_say %r", item)
                 continue
             kept.append(item)
         self.must_say = kept

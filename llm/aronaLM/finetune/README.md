@@ -9,7 +9,7 @@
 | 产物 | 配置 | 用途 |
 |------|------|------|
 | **AronaLM-Generator-V2.0** | `config/config.yaml` | 自由对话 / Planner 关闭或失败时的本地回落 |
-| **AronaLM-Renderer-V2.1** | `config/config_renderer.yaml` | 双模型主路径：按 Planner **意图卡**渲染 1–2 句短回复 |
+| **AronaLM-Renderer-V2.3** | `config/config_renderer.yaml` | 双模型主路径：按 Planner **意图卡**渲染 1–2 句短回复 |
 
 后端默认加载 Renderer GGUF，见仓库 [`models/README.md`](../../../models/README.md)。
 
@@ -34,7 +34,7 @@
 finetune/
 ├── config/
 │   ├── config.yaml              # AronaLM-Generator-V2.0：模型 / 数据 / LoRA / 训练 / 导出 / 推理
-│   └── config_renderer.yaml     # AronaLM-Renderer-V2.1（勿覆盖 v2.0 产物目录）
+│   └── config_renderer.yaml     # AronaLM-Renderer-V2.3（勿覆盖 v2.2 产物目录）
 ├── training/
 │   └── train.py                 # 微调主脚本
 ├── inference/
@@ -132,33 +132,44 @@ python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_
 | 文件 | 约条数 | 用途 |
 |------|--------|------|
 | `data/finetune_training/normal_finetune.jsonl` | ~500 | AronaLM-Generator-V2.0（`config.yaml`） |
-| `data/finetune_training/mixed_renderer_finetune.jsonl` | ~476 | AronaLM-Renderer-V2.1（`config_renderer.yaml`，renderer + 少量 persona） |
-| `data/finetune_training/renderer_finetune.jsonl` | ~326 | 仅 Renderer 样本（合并脚本副产物） |
+| `data/finetune_training/renderer_finetune.jsonl` | 过审后约 180–280 | AronaLM-Renderer-V2.3（仅有卡样本，不混 persona） |
+| `data/finetune_training/mixed_renderer_finetune.jsonl` | ~476 | 旧 V2.1/V2.2 混合集（勿再作为 V2.3 主库） |
 
-### 重新合并
+### Renderer V2.3 语料（seed 金标 + LLM 写卡 + 人工把关）
+
+对白只用 `data/raw/normal/seed/*.json` 的手写 `gpt`，LLM **不改写**对白。卡由 DeepSeek（`backend/config.yaml` 的 `planner`）按线上思路型 `must_say` 起草。训练与线上同一形态：`system + 一条 user（意图卡 + 老师原话）`，**无**对话前文。
+
+```bat
+cd llm\aronaLM\finetune
+python data-process\draft_renderer_cards_from_seed.py --resume
+python data-process\judge_renderer_gold.py --only-empty --rejudge-repaired
+```
+
+人工审 `data/raw/normal/review/queue.jsonl`：只处理 `status=pending`，改成 `accepted` / `edited` / `rejected`。不要让模型重写 `gold`；不要把 `must_say` 改成金标词碎片。手写对比对放 `review/contrast.jsonl`。
+
+确认完后再 merge（不要提前开训）：
+
+```bat
+python data-process\merge_renderer_finetune.py
+```
+
+只收 `accepted`/`edited`。默认不混 persona、不收旧 curated/synth。`--include-legacy` 才并入旧文件。
+
+| 脚本 | 说明 |
+|------|------|
+| `draft_renderer_cards_from_seed.py` | 切 seed、DeepSeek 起草思路卡 → `review/queue.jsonl` |
+| `judge_renderer_gold.py` | DeepSeek 判定「gpt 是否落实 must_say」（非子串） |
+| `summarize_renderer_queue.py` | 打印 verdict / 抛回金标 / 疑似工具幻觉，方便人审 |
+| `merge_renderer_finetune.py` | 人审通过后写成 `renderer_finetune.jsonl` |
+| `build_renderer_synth_v2.py` / `rewrite_renderer_short.py` | **已停用**（V2.3 不用合成对白 / 不改写 gold） |
+
+`data/raw/normal/disabled/` 中的文件不参与任何合并。
 
 **Normal**（从 `data/raw/normal/chosen/*.json`，自动跳过 renderer 专用文件）：
 
 ```bat
 python data-process\merge_expand_to_jsonl.py
 ```
-
-**Renderer**（`renderer_curated` + `renderer_synth_v2` 等，并可混入 persona）：
-
-```bat
-python data-process\merge_renderer_finetune.py
-python data-process\merge_renderer_finetune.py --persona-max 150
-```
-
-### Renderer 语料构建（可选）
-
-| 脚本 | 说明 |
-|------|------|
-| `build_renderer_curated.py` | 手写金标 → `chosen/renderer_curated.json` |
-| `build_renderer_synth_v2.py` | 模板 / LLM 合成（禁止虚卡 `must_say`）→ `chosen/renderer_synth_v2.json` |
-| `build_renderer_pairs.py` | **已废弃**；弱虚卡不得进入 `chosen/` |
-
-`data/raw/normal/disabled/` 中的文件不参与任何合并。
 
 ---
 
@@ -187,7 +198,9 @@ python training\train.py --config config\config.yaml
 
 默认日志：`logs/train.log`。配置中 `export.save_gguf: true` 时，训练结束会尝试导出 GGUF；若因 4bit 基座失败，请改用下方 `export/export_gguf.py`。
 
-### B. AronaLM-Renderer-V2.1（意图卡 → 短回复，推荐主路径）
+### B. AronaLM-Renderer-V2.3（意图卡 → 短回复，推荐主路径）
+
+人审 + merge 完成前不要开训。配置：`config/config_renderer.yaml`（2 epoch、`learning_rate: 1e-4`、`train_file: renderer_finetune.jsonl`）。
 
 ```bat
 cd llm\aronaLM\finetune
@@ -304,11 +317,11 @@ python eval\eval.py --no-judge --no-multi
 ### Renderer（意图卡硬例，生产向 GGUF）
 
 ```bat
-python eval\eval_renderer.py --gguf ..\..\..\models\AronaLM-Generator-V2.0\AronaLM-Generator-V2.0.Q4_K_M.gguf --tag v20
-python eval\eval_renderer.py --gguf ..\..\..\models\AronaLM-Renderer-V2.1\AronaLM-Renderer-V2.1.Q4_K_M.gguf --tag v21
+python eval\eval_renderer.py --gguf ..\..\..\models\AronaLM-Renderer-V2.2\AronaLM-Renderer-V2.2.Q4_K_M.gguf --tag v22 --llm-judge
+python eval\eval_renderer.py --gguf ..\..\..\models\AronaLM-Renderer-V2.3\AronaLM-Renderer-V2.3.Q4_K_M.gguf --tag v23 --llm-judge
 ```
 
-用例见 `eval/renderer_cases.json`（问候时段、must_say / must_not、禁止话题反弹等）。
+`--llm-judge` 用 DeepSeek 判定回复是否**落实** `must_say` 指令（主指标）；子串命中只作诊断。用例见 `eval/renderer_cases.json`。
 
 ---
 
@@ -319,8 +332,8 @@ python eval\eval_renderer.py --gguf ..\..\..\models\AronaLM-Renderer-V2.1\AronaL
 | CUDA OOM | `per_device_train_batch_size: 1`；或 `max_seq_length: 1024`；确认 `load_in_4bit: true`、`use_gradient_checkpointing: "unsloth"` |
 | 显存仍紧张 | `gradient_accumulation_steps` 提到 8，保持有效 batch≈8 |
 | Normal 欠拟合 / 不像阿洛娜 | `num_train_epochs: 4~5`，或 `lora.r / lora_alpha: 32` |
-| Renderer 不听话 / 漏 must_say | 检查语料卡质量；略增 epoch 或 curated 占比；勿用虚卡合成 |
-| 过拟合 / 复读 | 降 epoch，或略降 `learning_rate`（Normal 默认 `2e-4`，Renderer 默认 `1.5e-4`） |
+| Renderer 不听话 / 未落实 must_say | 检查 queue 卡是否像线上思路句；评测用 `--llm-judge`；勿用虚卡/金标子串 |
+| 过拟合 / 复读 | 降 epoch，或略降 `learning_rate`（Normal 默认 `2e-4`，Renderer V2.3 默认 `1e-4`） |
 | 回复太短/太长 | 调推理 `max_new_tokens`、`temperature`（0.6~0.9） |
 | GGUF 转换 OOM | `export.maximum_memory_usage: 0.3`，或改 `q8_0` / 先 merged_16bit 再 CPU 量化 |
 | 想要更高质量 GGUF | `quantization_method: q5_k_m`（体积更大） |

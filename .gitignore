@@ -114,3 +114,7 @@ docs/unused/
 
 # cursor files
 .cursor/**
+
+# docs
+/docs/**
+!/docs/architecture.md

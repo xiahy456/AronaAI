@@ -469,7 +469,18 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=OUTPUT_FILE)
     parser.add_argument("--disable-old-synth", action="store_true", default=True)
     parser.add_argument("--keep-old-synth", action="store_true")
+    parser.add_argument(
+        "--force-legacy",
+        action="store_true",
+        help="Override V2.3 stop; default is to refuse writing synth into Renderer",
+    )
     args = parser.parse_args()
+    if not args.force_legacy:
+        raise SystemExit(
+            "Stopped: Renderer V2.3 uses seed gold + LLM cards "
+            "(data-process/draft_renderer_cards_from_seed.py). "
+            "Pass --force-legacy only if you really need the old synth path."
+        )
 
     if args.disable_old_synth and not args.keep_old_synth:
         disable_old_synth()

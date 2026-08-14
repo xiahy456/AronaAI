@@ -129,6 +129,17 @@ def test_climate_zones() -> None:
     print("  ok")
 
 
+def test_secure_play_allows_questions() -> None:
+    print("== secure_play does not ban question endings ==")
+    state = RelationshipState(trust=0.6, dependence=0.3, tension=0.3)
+    decision = decide(state, "other")
+    if "用提问收尾" in " ".join(decision.must_not):
+        _fail(f"secure_play should allow questions: {decision.must_not}")
+    if "把问题抛回老师" not in " ".join(decision.must_not):
+        _fail(f"bounce ban should remain: {decision.must_not}")
+    print("  ok")
+
+
 def test_climate_stickiness() -> None:
     print("== climate stickiness ==")
     state = RelationshipState(trust=0.6, dependence=0.3, tension=0.3)
@@ -294,18 +305,32 @@ def test_welcome_not_teased_and_speak_not_ratchet() -> None:
 
 def test_intent_drop_throwback_must_say() -> None:
     print("== must_say vs throwback must_not ==")
-    raw = (
-        '{"user_emotion":"好奇","topic":"光环","stance":"轻松",'
-        '"must_say":["解释光环","用俏皮语气反问老师是否喜欢"],'
+    bounce = parse_and_gate_intent(
+        '{"user_emotion":"开放","topic":"开聊","stance":"轻松",'
+        '"must_say":["选定草莓牛奶开聊","反问老师想聊什么"],'
         '"must_not":["把问题抛回老师"],"facts_to_use":[],'
         '"tone":"轻松","length":"1-2句","arona_emotion":"smile"}'
     )
-    card = parse_and_gate_intent(raw)
-    if card is None:
+    if bounce is None:
         _fail("card should parse")
-    joined = " ".join(card.must_say)
-    if "反问" in joined:
-        _fail(f"conflicting 反问 should be dropped: {card.must_say}")
+    joined = " ".join(bounce.must_say)
+    if "想聊什么" in joined:
+        _fail(f"bounce 想聊什么 should be dropped: {bounce.must_say}")
+    if "草莓牛奶" not in joined:
+        _fail(f"open-chat must_say should remain: {bounce.must_say}")
+
+    ask = parse_and_gate_intent(
+        '{"user_emotion":"感激","topic":"道谢","stance":"轻松",'
+        '"must_say":["回应老师的感谢，表示随时愿意陪伴","可自然询问老师接下来想做什么或想聊什么"],'
+        '"must_not":["用提问收尾","把问题抛回老师","反问老师想聊什么"],'
+        '"facts_to_use":[],"tone":"轻松","length":"1-2句","arona_emotion":"smile"}'
+    )
+    if ask is None:
+        _fail("ask card should parse")
+    if not any("询问" in x for x in ask.must_say):
+        _fail(f"must_say ask should win: {ask.must_say}")
+    if any("用提问收尾" in x for x in ask.must_not):
+        _fail(f"question ban should be stripped: {ask.must_not}")
     print("  ok")
 
 
@@ -370,6 +395,7 @@ def main() -> None:
     test_makeup_amplifies_positive_trust()
     test_daily_cap_and_cross_day()
     test_climate_zones()
+    test_secure_play_allows_questions()
     test_climate_stickiness()
     test_high_b_forbids_cling_stance()
     test_classify_and_events()

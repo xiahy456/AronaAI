@@ -8,17 +8,19 @@ from typing import Any
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 RENDERER_SYSTEM_FILE = PROMPTS_DIR / "renderer_system.txt"
+RENDERER_USER_TAIL_FILE = PROMPTS_DIR / "renderer_user_tail.txt"
 
-USER_TAIL = (
-    "请严格按意图卡回复老师（1–2句）。若需开聊，请选定话题直接说，"
-    "不要用「还是」把选择抛回老师。"
-)
-
+# Keep in sync with backend/app/planner/prompts.py FIXED_MUST_NOT
+# plus bounce bans (not "用提问收尾" — questions are allowed).
 BASE_MUST_NOT = [
     "说教",
     "自称其他AI",
+    "自称ChatGPT",
     "长篇列表",
-    "复述意图卡",
+    "承认自己不是阿洛娜",
+    "宣称可以离开屏幕或实体化",
+    "把问题抛回老师",
+    "反问老师想聊什么",
 ]
 
 
@@ -26,9 +28,26 @@ def load_renderer_system() -> str:
     return RENDERER_SYSTEM_FILE.read_text(encoding="utf-8").strip()
 
 
+def load_renderer_user_tail() -> str:
+    if RENDERER_USER_TAIL_FILE.is_file():
+        text = RENDERER_USER_TAIL_FILE.read_text(encoding="utf-8").strip()
+        if text:
+            return text
+    return (
+        "请严格按意图卡回复老师（1–2句）。必须落实 must_say 中的意图（优先级最高），"
+        "不要复述指令原文，不要把 must_say 当成要插入的关键词。"
+        "若 must_say 要求询问，回复必须用疑问句。must_not 不得压过 must_say。"
+        "若需开聊，请选定话题直接说，不要用「还是」把选择抛回老师。"
+    )
+
+
+USER_TAIL = load_renderer_user_tail()
+
+
 def strip_emotion(card: dict[str, Any]) -> dict[str, Any]:
     out = dict(card)
     out.pop("arona_emotion", None)
+    out.pop("followup_ok", None)
     return out
 
 
@@ -42,7 +61,7 @@ def format_human(user_text: str, card: dict[str, Any]) -> str:
 
 
 def make_sample(user_text: str, card: dict[str, Any], reply: str) -> dict[str, Any]:
-    """ShareGPT sample with system + human + gpt."""
+    """ShareGPT sample with system + human + gpt. No conversation history."""
     return {
         "conversations": [
             {"from": "system", "value": load_renderer_system()},

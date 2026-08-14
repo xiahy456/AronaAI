@@ -26,6 +26,33 @@ CASES_PATH = Path(__file__).resolve().parent / "renderer_cases.json"
 REPORTS_DIR = Path(__file__).resolve().parent / "reports"
 
 
+def llm_fulfill(user_text: str, card: dict, reply: str) -> tuple[bool, list[str]]:
+    """Judge whether reply fulfills must_say instructions (not substring match)."""
+    from llm_client import chat_json
+
+    parsed = chat_json(
+        system=(
+            "判定 Renderer 回复是否落实了 must_say 思路指令。"
+            "落实=完成意图，不是指令原文出现在回复里。"
+            "只输出 JSON：{\"ok\": true/false, \"reasons\": [\"...\"]}"
+        ),
+        user=json.dumps(
+            {"user_text": user_text, "card": card, "reply": reply},
+            ensure_ascii=False,
+        ),
+        temperature=0.1,
+        max_tokens=400,
+    )
+    if not isinstance(parsed, dict):
+        return False, ["llm_judge_bad_shape"]
+    ok = bool(parsed.get("ok"))
+    reasons = parsed.get("reasons") or []
+    if not isinstance(reasons, list):
+        reasons = [str(reasons)]
+    fails = [] if ok else [f"llm_unfulfilled:{';'.join(str(x) for x in reasons)}"]
+    return ok, fails
+
+
 def _choice_bounce(text: str) -> bool:
     if "话题单" in text:
         return True
@@ -104,6 +131,11 @@ def main() -> None:
     parser.add_argument("--gguf", type=Path, required=True)
     parser.add_argument("--tag", type=str, default="")
     parser.add_argument("--max-tokens", type=int, default=72)
+    parser.add_argument(
+        "--llm-judge",
+        action="store_true",
+        help="Also judge must_say fulfillment with DeepSeek (primary metric)",
+    )
     args = parser.parse_args()
 
     cases = json.loads(args.cases.read_text(encoding="utf-8"))
@@ -124,7 +156,30 @@ def main() -> None:
     for case in cases:
         human = format_human(case["user_text"], case["intent_card"])
         reply = generate(llm, human, max_tokens=args.max_tokens)
-        ok, fails = score_reply(reply, case.get("expect") or {})
+        lexical_ok, lexical_fails = score_reply(reply, case.get("expect") or {})
+        use_llm = args.llm_judge or (case.get("expect") or {}).get("llm_fulfill")
+        llm_ok = None
+        fails = list(lexical_fails)
+        if use_llm:
+            try:
+                llm_ok, ffails = llm_fulfill(
+                    case["user_text"], case["intent_card"], reply
+                )
+                fails.extend(ffails)
+            except Exception as exc:
+                llm_ok = False
+                fails.append(f"llm_judge_error:{exc}")
+            # Primary metric is fulfillment, not substring hit-rate.
+            hard_fails = [
+                f
+                for f in lexical_fails
+                if f.startswith("banned:")
+                or f in {"choice_bounce", "empty_reply"}
+                or f.startswith("too_many_sentences:")
+            ]
+            ok = bool(llm_ok) and not hard_fails
+        else:
+            ok = lexical_ok
         passed += int(ok)
         rows.append(
             {
@@ -133,6 +188,8 @@ def main() -> None:
                 "user_text": case["user_text"],
                 "reply": reply,
                 "pass": ok,
+                "lexical_ok": lexical_ok,
+                "llm_ok": llm_ok,
                 "fails": fails,
             }
         )
@@ -146,12 +203,19 @@ def main() -> None:
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     tag = args.tag or gguf.stem
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    llm_n = sum(1 for r in rows if r.get("llm_ok") is not None)
+    llm_pass = sum(1 for r in rows if r.get("llm_ok") is True)
+    lexical_pass = sum(1 for r in rows if r.get("lexical_ok"))
     report = {
         "tag": tag,
         "gguf": str(gguf),
+        "llm_judge": bool(args.llm_judge),
         "passed": passed,
         "total": total,
         "pass_rate": rate,
+        "llm_fulfill_passed": llm_pass,
+        "llm_fulfill_total": llm_n,
+        "lexical_passed": lexical_pass,
         "cases": rows,
     }
     out_json = REPORTS_DIR / f"renderer_eval_{tag}_{stamp}.json"
@@ -160,7 +224,9 @@ def main() -> None:
         f"# Renderer eval `{tag}`",
         "",
         f"- GGUF: `{gguf}`",
-        f"- Pass: **{passed}/{total}** ({rate:.0%})",
+        f"- Primary pass (fulfillment when `--llm-judge`): **{passed}/{total}** ({rate:.0%})",
+        f"- LLM fulfill: **{llm_pass}/{llm_n}**" if llm_n else "- LLM fulfill: (off)",
+        f"- Lexical (diagnostic): **{lexical_pass}/{total}**",
         "",
         "| id | pass | reply | fails |",
         "|---|---|---|---|",
