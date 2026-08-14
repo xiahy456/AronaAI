@@ -7,6 +7,7 @@ import json
 import logging
 import time
 import uuid
+from datetime import datetime
 from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -22,6 +23,7 @@ from .logging_utils import preview
 from .orchestrator import Orchestrator
 from .proactive import ConnectionHub, ProactiveScheduler, WelcomeState, resolve_welcome_context
 from .proactive.goal import wants_goal_mute
+from .proactive.loop import deliver_festival, load_birthday_content
 from .protocol import (
     CODE_BAD_REQUEST,
     CODE_INTERNAL,
@@ -167,6 +169,59 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                 first,
                 slot.date_key,
             )
+            climate = None
+            relationship = state.orchestrator.relationship
+            if (
+                relationship is not None
+                and state.config.proactive.relationship.enabled
+            ):
+                climate = relationship.peek_climate()
+
+            hit = None
+            if state.scheduler is not None:
+                birthday = await load_birthday_content(state)
+                hit = state.scheduler.pending_festival(birthday_content=birthday)
+            if hit is not None:
+                decision = None
+                if (
+                    relationship is not None
+                    and state.config.proactive.relationship.enabled
+                ):
+                    decision = relationship.decide_proactive("festival")
+                    if decision.action != "initiate":
+                        logger.info(
+                            "festival welcome skipped by policy climate=%s action=%s",
+                            decision.climate,
+                            decision.action,
+                        )
+                        hit = None
+                if hit is not None:
+                    ok = await deliver_festival(
+                        state,
+                        session_id=session_id,
+                        send=send,
+                        hit=hit,
+                        now=datetime.now(),
+                        climate=climate,
+                        decision=decision,
+                    )
+                    if ok and first:
+                        state.welcome.mark_period_greeted(
+                            slot.date_key, slot.slot_id
+                        )
+                        logger.info(
+                            "welcome period marked session=%s date=%s slot=%s via=festival",
+                            session_id,
+                            slot.date_key,
+                            slot.slot_id,
+                        )
+                    elif not ok:
+                        logger.warning(
+                            "festival welcome failed session=%s (not marked)",
+                            session_id,
+                        )
+                    return
+
             ok = await state.orchestrator.handle_welcome(
                 session_id=session_id,
                 slot=slot,

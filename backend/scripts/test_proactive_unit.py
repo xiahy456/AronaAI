@@ -25,6 +25,12 @@ from app.proactive.care import (  # noqa: E402
     in_window,
     should_fire_care,
 )
+from app.proactive.festival import (  # noqa: E402
+    HISTORY_FESTIVAL_MARKER,
+    match_festival,
+    needs_rest_followup,
+    parse_birthday_md,
+)
 from app.proactive.goal import (  # noqa: E402
     HISTORY_GOAL_MARKER,
     can_attempt_goal,
@@ -168,6 +174,11 @@ def test_decide_proactive_policy() -> None:
         _fail(f"cling goal should silence, got {goal_cling.action}")
     if map_arona_act("initiate", "secure_play", motive_kind="goal") != "checked_in":
         _fail("goal initiate should be checked_in")
+    fest = decide_proactive(cling, "festival")
+    if fest.action != "initiate":
+        _fail(f"cling festival should still initiate, got {fest.action}")
+    if map_arona_act("initiate", "secure_play", motive_kind="festival") != "greeted":
+        _fail("festival initiate should be greeted")
     if ARONA_DELTAS["checked_in"][1] != 0.0:
         _fail("checked_in must not raise dependence")
     if ARONA_DELTAS["cared"][1] != 0.0:
@@ -297,6 +308,8 @@ def test_config_loads() -> None:
         _fail(f"goal max_per_day {cfg.proactive.goal.max_per_day}")
     if not cfg.proactive.continue_line.enabled:
         _fail("continue should default enabled")
+    if not cfg.proactive.festival.enabled:
+        _fail("festival should default enabled")
     print("  ok")
 
 
@@ -539,6 +552,105 @@ def test_goal_after_welcome_not_blocked_by_idle(tmp: Path) -> None:
     print("  ok")
 
 
+def test_festival_calendar_and_once(tmp: Path) -> None:
+    print("== festival calendar / welcome swap / rest followup ==")
+    if parse_birthday_md("老师的生日是3月15日") != (3, 15):
+        _fail("cn birthday parse")
+    if parse_birthday_md("1990-03-15") != (3, 15):
+        _fail("iso birthday parse")
+    if parse_birthday_md("03-15") != (3, 15):
+        _fail("md birthday parse")
+    if parse_birthday_md("今天天气不错") is not None:
+        _fail("plain text should not parse as birthday")
+
+    national = match_festival(datetime(2026, 10, 1, 10, 0, 0))
+    if national is None or national.id != "national" or national.name != "国庆节":
+        _fail(f"expected national day, got {national}")
+    lantern = match_festival(datetime(2026, 3, 3, 8, 0, 0))
+    if lantern is None or lantern.id != "lantern":
+        _fail(f"expected lantern, got {lantern}")
+    bday = match_festival(
+        datetime(2026, 10, 1, 10, 0, 0),
+        birthday_content="老师的生日是10月1日",
+    )
+    if bday is None or bday.id != "birthday":
+        _fail(f"birthday should win over national, got {bday}")
+    if match_festival(datetime(2026, 8, 13, 15, 0, 0)) is not None:
+        _fail("Aug 13 2026 is not a festival")
+    if HISTORY_FESTIVAL_MARKER != "【节日】":
+        _fail("festival history marker")
+
+    if not needs_rest_followup(datetime(2026, 10, 1, 23, 10, 0)):
+        _fail("night should allow rest followup")
+    if not needs_rest_followup(datetime(2026, 10, 1, 2, 0, 0)):
+        _fail("late_night should allow rest followup")
+    if needs_rest_followup(datetime(2026, 10, 1, 15, 0, 0)):
+        _fail("afternoon festival should be a single line")
+
+    idle_cfg = SimpleNamespace(
+        enabled=True, after_sec=900, cooldown_sec=1800, max_per_day=3
+    )
+    care_cfg = SimpleNamespace(
+        enabled=True,
+        lunch_start="12:00",
+        lunch_end="12:30",
+        sleep_start="23:00",
+        sleep_end="23:20",
+    )
+    sched = ProactiveScheduler(
+        tmp / "proactive_festival.json",
+        idle_cfg=idle_cfg,
+        care_cfg=care_cfg,
+        festival_cfg=SimpleNamespace(enabled=True),
+    )
+    noon = datetime(2026, 10, 1, 12, 10, 0)
+    sched.note_user_activity(noon - timedelta(seconds=2000))
+    first = sched.pending_festival(noon)
+    if first is None or first.id != "national":
+        _fail(f"first login should pending national, got {first}")
+    picked = sched.pick_motive(noon, last_user_act="other", climate="secure_play")
+    if picked is None or picked.kind != "festival":
+        _fail(f"festival should beat lunch, got {picked}")
+    sched.mark_fired("festival", noon, festival_id="national")
+    if sched.pending_festival(noon) is not None:
+        _fail("second welcome same day should not swap to festival")
+    again = sched.pick_motive(noon, last_user_act="other", climate="secure_play")
+    if again is None or again.kind != "lunch":
+        _fail(f"after festival, lunch should fire, got {again}")
+
+    night = datetime(2026, 10, 1, 23, 10, 0)
+    night_sched = ProactiveScheduler(
+        tmp / "proactive_festival_night.json",
+        idle_cfg=idle_cfg,
+        care_cfg=care_cfg,
+        festival_cfg=SimpleNamespace(enabled=True),
+    )
+    night_picked = night_sched.pick_motive(night, last_user_act="other")
+    if night_picked is None or night_picked.kind != "festival":
+        _fail(f"REST_SLOTS should still festival, got {night_picked}")
+    night_sched.mark_fired("festival", night, festival_id="national")
+    night_sched.mark_fired("sleep", night)
+    blocked_sleep = night_sched.pick_motive(night, last_user_act="other")
+    if blocked_sleep is not None and blocked_sleep.kind in {"festival", "sleep"}:
+        _fail(f"after rest followup, sleep/festival should be done, got {blocked_sleep}")
+
+    depart_sched = ProactiveScheduler(
+        tmp / "proactive_festival_depart.json",
+        idle_cfg=idle_cfg,
+        care_cfg=care_cfg,
+        festival_cfg=SimpleNamespace(enabled=True),
+    )
+    departed = depart_sched.pick_motive(
+        datetime(2026, 10, 1, 16, 0, 0),
+        last_user_act="depart",
+    )
+    if departed is not None and departed.kind == "festival":
+        _fail("tick should skip festival after depart")
+    if depart_sched.pending_festival(datetime(2026, 10, 1, 16, 0, 0)) is None:
+        _fail("welcome swap should still see pending festival after depart")
+    print("  ok")
+
+
 def test_followup_ok_default_and_gate() -> None:
     print("== followup_ok default false; gate keeps bans ==")
     raw = (
@@ -583,6 +695,7 @@ def main() -> None:
         test_welcome_does_not_eat_idle_cooldown(Path(tmp))
         test_mute_last_goal_phrase(Path(tmp))
         test_goal_after_welcome_not_blocked_by_idle(Path(tmp))
+        test_festival_calendar_and_once(Path(tmp))
     test_hub_busy()
     test_config_loads()
     print("ALL PASS")

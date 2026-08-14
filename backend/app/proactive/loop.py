@@ -5,7 +5,16 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from .care import CARE_MEMORY_QUERY, HISTORY_CARE_MARKER, build_care_instruction
+from .festival import (
+    HISTORY_FESTIVAL_MARKER,
+    FestivalHit,
+    birthday_from_profiles,
+    build_festival_instruction,
+    needs_rest_followup,
+)
 
 if TYPE_CHECKING:
     from ..ws_handler import AppState
@@ -13,6 +22,81 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 TICK_SEC = 30.0
+
+_FESTIVAL_MUST_NOT = [
+    "盘问过节安排",
+    "编造老师已经做了什么",
+    "把问题抛回老师",
+]
+
+
+async def load_birthday_content(state: "AppState") -> str:
+    if not getattr(state.scheduler.festival_cfg, "enabled", False):
+        return ""
+    rows = await asyncio.to_thread(
+        state.orchestrator.memory_store.list_by_category, "profile"
+    )
+    return birthday_from_profiles(rows)
+
+
+async def deliver_festival(
+    state: "AppState",
+    *,
+    session_id: str,
+    send: Any,
+    hit: FestivalHit,
+    now: datetime,
+    climate: str | None,
+    decision: Any,
+) -> bool:
+    """Send festival line; in REST_SLOTS follow with a rest reminder. Marks on success."""
+    extra = [hit.extra_memory] if hit.extra_memory else []
+    ok = await state.orchestrator.handle_initiate(
+        session_id=session_id,
+        kind="festival",
+        instruction=build_festival_instruction(hit, climate),
+        history_marker=HISTORY_FESTIVAL_MARKER,
+        send=send,
+        extra_memories=extra,
+        extra_must_not=list(_FESTIVAL_MUST_NOT),
+        climate=climate,
+        decision=decision,
+    )
+    if not ok:
+        logger.warning(
+            "festival generate failed session=%s id=%s (not marked)",
+            session_id,
+            hit.id,
+        )
+        return False
+    state.scheduler.mark_fired("festival", now, festival_id=hit.id)
+    logger.info("festival fired session=%s id=%s", session_id, hit.id)
+
+    if (
+        needs_rest_followup(now)
+        and "sleep" not in state.scheduler.state.care_done
+    ):
+        rest_ok = await state.orchestrator.handle_initiate(
+            session_id=session_id,
+            kind="sleep",
+            instruction=build_care_instruction("sleep", climate),
+            history_marker=HISTORY_CARE_MARKER,
+            send=send,
+            retrieve_memory=True,
+            memory_query=CARE_MEMORY_QUERY,
+            extra_must_not=["早上好", "把问题抛回老师"],
+            climate=climate,
+            decision=decision,
+        )
+        if rest_ok:
+            state.scheduler.mark_fired("sleep", now)
+            logger.info("festival rest followup session=%s", session_id)
+        else:
+            logger.warning(
+                "festival rest followup failed session=%s (festival kept)",
+                session_id,
+            )
+    return True
 
 
 async def run_proactive_loop(state: "AppState") -> None:
@@ -40,6 +124,7 @@ async def tick_once(state: "AppState", now: datetime | None = None) -> bool:
         last_user_act = relationship.state.last_user_act or "other"
         climate = relationship.peek_climate()
 
+    birthday = await load_birthday_content(state)
     goals: list[dict] = []
     if getattr(state.scheduler.goal_cfg, "enabled", False):
         goals = await asyncio.to_thread(
@@ -47,7 +132,11 @@ async def tick_once(state: "AppState", now: datetime | None = None) -> bool:
         )
 
     motive = state.scheduler.pick_motive(
-        dt, last_user_act=last_user_act, climate=climate, goals=goals
+        dt,
+        last_user_act=last_user_act,
+        climate=climate,
+        goals=goals,
+        birthday_content=birthday,
     )
     if motive is None:
         reason = state.scheduler.idle_block_reason(dt, last_user_act=last_user_act)
@@ -70,6 +159,20 @@ async def tick_once(state: "AppState", now: datetime | None = None) -> bool:
     session_id, send = targets[0]
     state.hub.set_busy(session_id, True)
     try:
+        if motive.kind == "festival":
+            hit = state.scheduler.pending_festival(dt, birthday_content=birthday)
+            if hit is None:
+                return False
+            return await deliver_festival(
+                state,
+                session_id=session_id,
+                send=send,
+                hit=hit,
+                now=dt,
+                climate=climate,
+                decision=decision,
+            )
+
         extra_must_not = None
         if motive.kind == "goal":
             extra_must_not = [

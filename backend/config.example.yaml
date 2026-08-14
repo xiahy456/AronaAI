@@ -108,6 +108,8 @@ proactive:
     max_per_day: 1
   continue:
     enabled: true
+  festival:
+    enabled: true
 
 token_budget:
   memory: 250

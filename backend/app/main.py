@@ -84,6 +84,7 @@ def create_app() -> FastAPI:
         idle_cfg=config.proactive.idle,
         care_cfg=config.proactive.care,
         goal_cfg=config.proactive.goal,
+        festival_cfg=config.proactive.festival,
     )
     state = AppState(
         config,
@@ -113,6 +114,7 @@ def create_app() -> FastAPI:
             config.proactive.idle.enabled
             or config.proactive.care.enabled
             or config.proactive.goal.enabled
+            or config.proactive.festival.enabled
         ):
             loop_task = asyncio.create_task(run_proactive_loop(state))
             logger.info("proactive loop started")

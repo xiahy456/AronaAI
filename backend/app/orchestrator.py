@@ -68,6 +68,7 @@ class Orchestrator:
             "care_count": 0,
             "goal_count": 0,
             "continue_count": 0,
+            "festival_count": 0,
             "silence_count": 0,
             "refuse_count": 0,
             "cache_hits": 0,
@@ -551,6 +552,7 @@ class Orchestrator:
             "idle": "idle_count",
             "goal": "goal_count",
             "continue": "continue_count",
+            "festival": "festival_count",
         }.get(kind, "care_count")
         self.stats[stat_key] = int(self.stats.get(stat_key, 0)) + 1
         self.stats["chat_count"] += 1

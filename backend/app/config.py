@@ -135,6 +135,10 @@ class GoalConfig(BaseModel):
     max_per_day: int = 1
 
 
+class FestivalConfig(BaseModel):
+    enabled: bool = True
+
+
 class ContinueConfig(BaseModel):
     enabled: bool = True
 
@@ -163,6 +167,7 @@ class ProactiveConfig(BaseModel):
     idle: IdleConfig = Field(default_factory=IdleConfig)
     care: CareConfig = Field(default_factory=CareConfig)
     goal: GoalConfig = Field(default_factory=GoalConfig)
+    festival: FestivalConfig = Field(default_factory=FestivalConfig)
     continue_line: ContinueConfig = Field(
         default_factory=ContinueConfig,
         alias="continue",

@@ -9,12 +9,18 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
-from ..config import GoalConfig
+from ..config import FestivalConfig, GoalConfig
 from .care import (
     CARE_MEMORY_QUERY,
     HISTORY_CARE_MARKER,
     build_care_instruction,
     should_fire_care,
+)
+from .festival import (
+    HISTORY_FESTIVAL_MARKER,
+    FestivalHit,
+    build_festival_instruction,
+    match_festival,
 )
 from .goal import (
     HISTORY_GOAL_MARKER,
@@ -31,7 +37,7 @@ from .idle import (
 
 logger = logging.getLogger(__name__)
 
-MotiveKind = Literal["idle", "lunch", "sleep", "goal"]
+MotiveKind = Literal["idle", "lunch", "sleep", "goal", "festival"]
 
 
 @dataclass(frozen=True)
@@ -42,6 +48,7 @@ class Motive:
     retrieve_memory: bool = False
     memory_query: str = ""
     goal_key: str = ""
+    festival_id: str = ""
     extra_memories: tuple[str, ...] = ()
 
 
@@ -57,6 +64,7 @@ class ProactiveState:
     goal_mute: dict[str, str] = field(default_factory=dict)
     goal_count: int = 0
     last_goal_key: str = ""
+    festival_done: list[str] = field(default_factory=list)
 
     def roll_day(self, now: datetime) -> None:
         today = now.date().isoformat()
@@ -65,6 +73,7 @@ class ProactiveState:
             self.idle_count = 0
             self.care_done = []
             self.goal_count = 0
+            self.festival_done = []
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -78,6 +87,7 @@ class ProactiveState:
             "goal_mute": dict(self.goal_mute),
             "goal_count": self.goal_count,
             "last_goal_key": self.last_goal_key,
+            "festival_done": list(self.festival_done),
         }
 
     @classmethod
@@ -87,6 +97,9 @@ class ProactiveState:
         done = data.get("care_done") or []
         if not isinstance(done, list):
             done = []
+        festivals = data.get("festival_done") or []
+        if not isinstance(festivals, list):
+            festivals = []
         return cls(
             last_user_at=str(data.get("last_user_at") or ""),
             last_proactive_at=str(data.get("last_proactive_at") or ""),
@@ -98,6 +111,7 @@ class ProactiveState:
             goal_mute=_as_str_dict(data.get("goal_mute")),
             goal_count=int(data.get("goal_count") or 0),
             last_goal_key=str(data.get("last_goal_key") or ""),
+            festival_done=[str(item) for item in festivals if item],
         )
 
 
@@ -131,11 +145,15 @@ class ProactiveScheduler:
         idle_cfg: Any,
         care_cfg: Any,
         goal_cfg: Any | None = None,
+        festival_cfg: Any | None = None,
     ) -> None:
         self.path = path
         self.idle_cfg = idle_cfg
         self.care_cfg = care_cfg
         self.goal_cfg = goal_cfg if goal_cfg is not None else GoalConfig()
+        self.festival_cfg = (
+            festival_cfg if festival_cfg is not None else FestivalConfig()
+        )
         self.state = self._load()
 
     def _load(self) -> ProactiveState:
@@ -180,6 +198,7 @@ class ProactiveScheduler:
         now: datetime | None = None,
         *,
         goal_key: str = "",
+        festival_id: str = "",
     ) -> None:
         dt = now or datetime.now()
         self.state.roll_day(dt)
@@ -194,6 +213,10 @@ class ProactiveScheduler:
             if key:
                 self.state.last_goal_key = key
                 self.state.goal_last[key] = stamp
+        elif kind == "festival":
+            fid = (festival_id or "").strip()
+            if fid and fid not in self.state.festival_done:
+                self.state.festival_done.append(fid)
         elif kind not in self.state.care_done:
             self.state.care_done.append(kind)
         self.save()
@@ -210,6 +233,21 @@ class ProactiveScheduler:
         logger.info("goal muted key=%s until=%s", key, self.state.goal_mute[key])
         return key
 
+    def pending_festival(
+        self,
+        now: datetime | None = None,
+        *,
+        birthday_content: str = "",
+    ) -> FestivalHit | None:
+        if not getattr(self.festival_cfg, "enabled", True):
+            return None
+        dt = now or datetime.now()
+        self.state.roll_day(dt)
+        hit = match_festival(dt, birthday_content)
+        if hit is None or hit.id in self.state.festival_done:
+            return None
+        return hit
+
     def pick_motive(
         self,
         now: datetime | None = None,
@@ -217,9 +255,22 @@ class ProactiveScheduler:
         last_user_act: str = "other",
         climate: str | None = None,
         goals: list[dict[str, object]] | None = None,
+        birthday_content: str = "",
     ) -> Motive | None:
         dt = now or datetime.now()
         self.state.roll_day(dt)
+
+        if last_user_act != "depart":
+            hit = self.pending_festival(dt, birthday_content=birthday_content)
+            if hit is not None:
+                extra = (hit.extra_memory,) if hit.extra_memory else ()
+                return Motive(
+                    kind="festival",
+                    instruction=build_festival_instruction(hit, climate),
+                    history_marker=HISTORY_FESTIVAL_MARKER,
+                    festival_id=hit.id,
+                    extra_memories=extra,
+                )
 
         if getattr(self.care_cfg, "enabled", True):
             for kind, start, end in (
