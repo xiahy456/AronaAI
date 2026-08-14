@@ -10,10 +10,10 @@ This directory holds local model weights for AronaAI runtime and finetuning (git
 
 ```
 models/
-├── AronaLM-Renderer-V2.1/              # 后端默认：Renderer GGUF（双模型链路）
-│   └── AronaLM-Renderer-V2.1.Q4_K_M.gguf
-├── AronaLM-Generator-V2.0/                # 可选：本地单模型 / Planner 回落
-│   └── AronaLM-Generator-V2.0.Q4_K_M.gguf
+├── AronaLM-Renderer-V2.x/              # 后端默认：Renderer GGUF（双模型链路）
+│   └── AronaLM-Renderer-V2.x.Q4_K_M.gguf
+├── AronaLM-Generator-V2.x/                # 可选：本地单模型 / Planner 回落
+│   └── AronaLM-Generator-V2.x.Q4_K_M.gguf
 ├── bge-small-zh-v1.5/                  # 知识 / 记忆嵌入（按需）
 ├── Qwen3-1.7B-unsloth-bnb-4bit/        # 微调基座（仅训练时需要）
 └── Qwen3-1.7B/                         # 导出 GGUF 用 16bit 基座（仅导出时需要）
@@ -25,16 +25,16 @@ models/
 
 ## 后端推理（必需） / Backend Inference (Required)
 
-对话默认走 **Planner（DeepSeek）→ 意图卡 → Renderer（AronaLM-Renderer-V2.1）**；`llama-cpp-python` 加载本目录下的 GGUF。
+对话默认走 **Planner（DeepSeek）→ 意图卡 → Renderer（AronaLM-Renderer-V2.x）**；`llama-cpp-python` 加载本目录下的 GGUF。
 
 | 模型 | 路径 | 用途 | 配置项 |
 |------|------|------|--------|
-| **AronaLM-Renderer-V2.1** | `AronaLM-Renderer-V2.1/AronaLM-Renderer-V2.1.Q4_K_M.gguf` | 按意图卡渲染回复（默认双模型链路） | `backend/config.yaml` → `model.gguf_path` |
-| **AronaLM-Generator-V2.0** | `AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf` | 本地单模型 / Planner 关闭或失败时回落 | 同上（注释中的备用路径） |
+| **AronaLM-Renderer-V2.x** | `AronaLM-Renderer-V2.x/AronaLM-Renderer-V2.x.Q4_K_M.gguf` | 按意图卡渲染回复（默认双模型链路） | `backend/config.yaml` → `model.gguf_path` |
+| **AronaLM-Generator-V2.x** | `AronaLM-Generator-V2.x/AronaLM-Generator-V2.x.Q4_K_M.gguf` | 本地单模型 / Planner 关闭或失败时回落 | 同上（注释中的备用路径） |
 
-- Renderer 下载：[xiahy456/AronaLM-Renderer-V2.1](https://www.modelscope.cn/models/xiahy456/AronaLM-Renderer-V2.1)（ModelScope）
+- Renderer 下载：[xiahy456/AronaLM-Renderer-V2.2](https://www.modelscope.cn/models/xiahy456/AronaLM-Renderer-V2.1)（ModelScope）
 - Generator 下载（可选）：[xiahy456/AronaLM-Generator-V2.0](https://www.modelscope.cn/models/xiahy456/AronaLM-Generator-V2.1)
-- 示例默认路径：`../models/AronaLM-Renderer-V2.1/AronaLM-Renderer-V2.1.Q4_K_M.gguf`（相对 `backend/`）
+- 示例默认路径：`../models/AronaLM-Renderer-V2.2/AronaLM-Renderer-V2.2.Q4_K_M.gguf`（相对 `backend/`）
 - 仅跑单模型时：将 `model.gguf_path` 改为 ../models/AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf，并设 `planner.enabled: false`（或不填 Planner API Key）
 
 ---

@@ -1,4 +1,4 @@
-# 阿洛娜AI / AronaAI
+# 阿洛娜AI
 
 <p align="center">
   <img src="assets/logo.png" alt="AronaAI Logo" width="200"/>
@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  项目地址: https://github.com/xiahy456/AronaAI
+  <em>项目地址: https://github.com/xiahy456/AronaAI</em>
 </p>
 
 <p align="center">
@@ -26,7 +26,7 @@
 
 ---
 
-## 📖 项目简介 / Introduction
+## 📖 项目简介
 
 **阿洛娜AI** 是一个以游戏《蔚蓝档案》（Blue Archive）中角色"阿洛娜"为原型打造的非交互式桌面AI。在设定上，她是“什亭之匣”的操作系统管理员，性格开朗、热情，乐于帮助老师（用户）解决问题。
 
@@ -42,93 +42,46 @@
 
 ---
 
-## 🏗️ 项目架构 / Project Architecture
+## 🏗️ 项目架构
 
 ```
 arona-ai/
-├── backend/                    # Python 后端服务（FastAPI + WebSocket）
-│   ├── app/                    # 应用核心
-│   │   ├── main.py             # 服务入口
-│   │   ├── orchestrator.py     # 对话编排（关系决策 → 检索 → Planner/本地 → 生成 → 记忆抽取）
-│   │   ├── model_loader.py     # GGUF 模型加载（llama-cpp-python）
-│   │   ├── planner/            # 双模型 Planner（DeepSeek 意图卡 → Renderer）
-│   │   ├── proactive/          # 主动事件（上线欢迎、空闲搭话、时刻照料、goal 回访、节日）
-│   │   ├── relationship/       # 关系气候（信任/依赖/张力、决策）
-│   │   ├── knowledge.py        # 世界观知识 RAG
-│   │   ├── conversation.py     # 多轮对话历史
-│   │   ├── cache.py            # 响应缓存
-│   │   ├── prompt.py           # Prompt / Renderer 消息组装
-│   │   ├── input_filter.py     # ASR 脏文本过滤（入口兜底）
-│   │   ├── embeddings.py       # 本地 BGE 嵌入（记忆 / 知识共用）
-│   │   ├── protocol.py         # WebSocket 协议消息
-│   │   ├── ws_handler.py       # WebSocket 处理
-│   │   ├── config.py           # 配置加载
-│   │   ├── logging_utils.py    # 日志工具
-│   │   └── memory/             # 长期记忆（SQLite + FTS5 + Chroma + DeepSeek 抽取）
-│   ├── scripts/                # 联调 / 灌库 / 测试脚本
-│   ├── data/                   # 记忆库、知识语料与向量库
-│   │   ├── memory/             # memory.db + chroma + relationship.json + proactive.json
-│   │   └── knowledge/          # 语料 corpus + chroma
-│   ├── logs/                   # 后端运行日志
-│   ├── config.example.yaml     # 配置模板
-│   └── requirements.txt
-│
-├── frontend/                   # 桌面客户端
-│   └── AronaAI_Spine_WindowsClient/  # Windows 桌面客户端（Qt/C++）
-│       ├── QtMainFile/         # 主界面、控制器、WebSocket 通信
-│       ├── QtUtils/            # 工具类（录音、语音识别、动画等）
-│       ├── QHotkey/            # 全局快捷键支持
-│       ├── spine-cpp/          # Spine 2D 动画运行时
-│       ├── Assets/             # 资源文件（Spine 动画、UI 图片、字体）
-│       ├── Config/             # 配置文件（配置文件中资源路径为相对路径）
-│       ├── dist/               # 编译后的可执行目录
-│       │   └── AronaAI_Client/  # 客户端可执行目录（不处理秘钥）
-│       │   └── AronaAI_Client_Release/  # 发布版本可执行目录（处理秘钥）
-│       └── Dict/               # 词典文件
-│
-├── llm/                        # 语言模型（其实不是大语言模型啦……只是一开始建项目的时候写错了）
-│   └── aronaLM/
-│       └── finetune/           # Qwen3-1.7B QLoRA 微调（Unsloth）
-│           ├── config/         # 训练 / 导出 / 推理配置
-│           ├── training/       # 微调主脚本
-│           ├── inference/      # 交互式推理测试
-│           ├── export/         # GGUF 导出
-│           ├── data-process/   # 数据预处理
-│           └── start.bat       # Windows 一键训练
-│
-├── gpt-sovits/                 # GPT-SoVITS 语音合成（需用户手动部署，或使用外部服务）
-│   ├── GPT_SoVITS/             # 核心模型
-│   ├── GPT_weights_v2/         # GPT权重
-│   │   └── ALuoNa_cn-e15.ckpt  # 阿洛娜GPT权重
-│   ├── SoVITS_weights_v2/      # SoVITS权重
-│   │   └── ALuoNa_cn_e16_s256.pth    # 阿洛娜SoVITS权重
-│   ├── api_v2.py               # API 服务
-│   ├── watch-apiv2.ps1         # Windows：API 卡死/崩溃自动重启
-│   ├── watch-apiv2.sh          # Linux：API 卡死/崩溃自动重启
-│   ├── go-apiv2.bat            # Windows 一键启动 API（经 watchdog）
-│   ├── go-apiv2.sh             # Linux 一键启动 API（经 watchdog）
-│   └── ref_audio/              # 参考音频
-│       └── Arona/              # 阿洛娜参考音频目录
-│            └── arona_academy_in_2.ogg   # 推荐的参考音频
-│
-├── docs/                       # 相关文档
-├── models/                     # 相关模型存放目录
-│   ├── AronaLM-Renderer-V2.1/  # Renderer GGUF（默认双模型链路）
-│   ├── AronaLM-Generator-V2.0/    # AronaLM GGUF（回落 / 本地单模型）
-│   ├── bge-small-zh-v1.5/      # 知识 / 记忆嵌入模型
-│   └── Qwen3-1.7B-unsloth-bnb-4bit/  # 微调基座（仅训练时需要）
-└── assets/                     # 项目资源
+├── backend/                              # Python 后端（FastAPI + WebSocket）
+│   ├── app/main.py                       # 服务入口
+│   ├── config.example.yaml               # 配置模板
+│   └── README.md
+├── frontend/                             # Windows 桌面客户端（Qt/C++ + Spine）
+│   └── AronaAI_Spine_WindowsClient/
+│       ├── AronaAI_Spine_WindowsClient.sln  # 工程入口
+│       ├── Config/config.example.json    # 客户端配置模板
+│       ├── dist/                         # 可执行目录（打包后自动生成）
+│       └── README.md
+├── gpt-sovits/                           # GPT-SoVITS 语音合成
+│   ├── go-apiv2.bat                      # Windows 启动入口
+│   └── go-apiv2.sh                       # Linux 启动入口
+├── llm/                                  # AronaLM 微调
+│   └── aronaLM/finetune/
+│       ├── start.bat                     # Windows 一键训练
+│       └── README.md
+├── models/                               # 本地模型权重（需自行下载）
+│   └── README.md                         # 下载与放置说明
+├── docs/
+│   └── architecture.md                   # 完整目录树
+├── assets/                               # 项目资源
+├── pack-client.ps1                       # 打包桌面客户端
+└── start-all.ps1                         # Windows 一键启动所有服务
 ```
+
+完整目录树见 [`docs/architecture.md`](docs/architecture.md)。
 
 ---
 
-## ✨ 核心功能 / Core Features
+## ✨ 核心功能
 
 ### 🤖 AI 对话引擎
 - **双模型链路**：**Planner（DeepSeek）→ 结构化意图卡 → Renderer（AronaLM-Renderer-V2.2）**；简单轮次可由路由走本地单模型，Planner 关闭或失败时回落本地路径
 - **关系气候**：信任 / 依赖 / 张力三标量构建张量；规则分类用户行动后查表更新，气候分区决定开口、姿态或沉默
-- **上线欢迎**：WebSocket 连接后按时段主动问候；同槽首次说「早上好」等，再次上线改为「欢迎回来」；深夜/凌晨提醒休息；节日当天第一次登录改为节日祝福（深夜则祝福后再补一句休息提醒）
-- **空闲搭话、照料与回访**：安静若干时间后轻在场（两次搭话之间另有冷却；休息时段不闲聊）；根据时段提醒吃饭、休息；稀疏回访记忆里的未完成计划（老师说「先别提」则冷却）；Planner 允许时同轮最多再补一句；先过关系政策再开口
+- **上线欢迎、空闲搭话、照料与回访**：WebSocket 连接后按时段主动问候，安静若干时间后轻在场；根据时段提醒吃饭、休息；稀疏回访记忆里的未完成计划；Planner 允许时同轮补充
 - **AronaLM-Renderer-V2.2（GGUF）**：`llama-cpp-python` 加载 Qwen3-1.7B 微调 GGUF（默认 Q4_K_M），过滤 `<think>` 推理块；默认双模型路径非流式，本地回落路径可流式
 - **记忆与知识分离**：用户长期事实进 SQLite + FTS5 + Chroma（jieba / BGE）；世界观设定进 Markdown 语料 → 本地 BGE + Chroma RAG，互不混写、按需注入 Prompt
 - **异步记忆抽取**：对话主路径不阻塞；DeepSeek JSON 抽取（含日配额与缓冲批量），失败或无 Key 时自动正则降级
@@ -136,32 +89,25 @@ arona-ai/
 - **上下文可控**：多轮历史截断 + memory/knowledge/history token budget + 精确匹配响应缓存，控制延迟与重复推理
 - **完整微调链路**：Unsloth QLoRA（面向约 6–8GB 显存）→ LoRA 适配器 → 合并导出 GGUF，可直接给后端加载
 
-### 🎤 语音交互
-- **语音合成（TTS）**：基于 GPT-SoVITS 的高质量语音合成，还原阿洛娜的声音
-- **语音识别（ASR）**：基于腾讯云语音识别（SentenceRecognition）提供在线 ASR
-
-### 🖥️ 桌面客户端
-- **Spine 2D 动画**：使用 Spine 实现阿洛娜的 Live2D 角色动画
-- **Qt 界面**：基于 Qt/C++ 的 Windows 桌面应用，经 WebSocket 对接后端，可接 GPT-SoVITS TTS 与腾讯云 ASR
-- **WebSocket 通信**：与后端服务实时通信，支持流式输出
+### 🖥️ 桌面客户端与语音服务
+- **Spine 2D 动画**：使用 Spine 实现阿洛娜的 2D 角色动画
+- **Qt 界面**：基于 Qt/C++ 的 Windows 桌面应用，经 WebSocket 对接后端、 GPT-SoVITS TTS 与腾讯云 ASR
 - **全局快捷键**：支持自定义快捷键操作
-- **系统托盘**：最小化到系统托盘运行
 
 ---
 
-## 🚀 快速开始 / Quick Start
+## 🚀 快速开始
 
-### 环境要求 / Prerequisites
+### 环境要求
 
 | 组件 | 要求 |
 |------|------|
 | Python | 3.10+ |
 | CUDA | 11.8（可选，llama.cpp GPU 层 / 微调训练） |
-| 操作系统 | Windows 10/11 (客户端) / Linux 及其衍生系统 (服务端) |
+| 操作系统 | Windows 10/11 (客户端/服务端) / Linux 及其衍生系统 (服务端) |
 | 后端依赖 | `backend/requirements.txt` |
-| 微调依赖 | `llm/aronaLM/finetune/requirements.txt`（仅训练时需要） |
 
-### 一键启动所有服务 / Start All Services
+### 本地一键启动所有服务
 
 ```bash
 .\start-all.ps1
@@ -169,13 +115,11 @@ arona-ai/
 
 | 参数 | 说明 |
 |------|------|
-| -CondaEnv | 后端使用的 Conda 环境名称，默认为 `shittim-chest`|
+| -CondaEnv | 后端使用的 Conda 环境名称，默认为 `shittim-chest` |
 | -TimeoutSec | 每个服务的等待超时时间，默认为 `600` 秒 |
 | -FrontendExe | 可选的桌面客户端可执行文件路径，如果未提供，则自动检测 |
-| -TtsStallSec | GPT-SoVITS 卡死判定秒数（传给 watchdog），默认 `60` |
-| -TtsRestartCooldownSec | GPT-SoVITS 自动重启冷却秒数，默认 `90` |
 
-> **注意**：如果您还没有配置好所有服务，请遵循下文的指示进行配置。  
+> **注意**：如果您还没有配置好所有服务，或希望分主机部署各个服务，请遵循下文的指示进行配置。
 
 启动完成后，控制台窗口会保持运行，可单独停止 / 启动 / 重启某一服务：
 
@@ -189,26 +133,22 @@ stop all  /  0  /  q  /  exit  全部停止并退出
 
 数字快捷键：`1/2/3` 重启后端 / GPT-SoVITS / 前端，`4/5/6` 停止对应服务。`Ctrl+C` 同样会停止全部已跟踪进程。
 
-> `start-all.ps1` 会通过 `gpt-sovits/watch-apiv2.ps1` 启动 TTS（含卡死自动重启）。若 GPT-SoVITS 部署在**另一台机器**，请在该机器上单独运行 `go-apiv2.bat` / `go-apiv2.sh`，不必使用 `start-all`。
-
-### 后端启动 / Backend Setup
-
-#### 启动前准备 / Pre-startup Preparation
+### 后端启动
 
 **1. 放置后端模型文件**
 
 ```
 models/
-├── AronaLM-Renderer-V2.1/        # Renderer GGUF（双模型链路）
-│   └── AronaLM-Renderer-V2.1.Q4_K_M.gguf
-├── AronaLM-Generator-V2.0/          # 可选：本地单模型 / Planner 回落
-│   └── AronaLM-Generator-V2.0.Q4_K_M.gguf
+├── AronaLM-Renderer-V2.x/        # Renderer GGUF（双模型链路）
+│   └── AronaLM-Renderer-V2.x.Q4_K_M.gguf
+├── AronaLM-Generator-V2.x/          # 可选：本地单模型 / Planner 回落
+│   └── AronaLM-Generator-V2.x.Q4_K_M.gguf
 └── bge-small-zh-v1.5/            # 知识 / 记忆嵌入模型（启用 knowledge 或记忆向量检索时需要）
 ```
 
-> **AronaLM-Renderer-V2.1**：请使用 [xiahy456/AronaLM-Renderer-V2.1](https://www.modelscope.cn/models/xiahy456/AronaLM-Renderer-V2.1)。
+> **AronaLM-Renderer-V2.x**：请使用 [xiahy456/AronaLM-Renderer-V2.2](https://www.modelscope.cn/models/xiahy456/AronaLM-Renderer-V2.2)。
 
-> **AronaLM-Generator-V2.0**：可选，见 [xiahy456/AronaLM-Generator-V2.0](https://www.modelscope.cn/models/xiahy456/AronaLM-Generator-V2.1)。仅在关闭 Planner 或需要回落单模型时使用。
+> **AronaLM-Generator-V2.x**：可选，见 [xiahy456/AronaLM-Generator-V2.0](https://www.modelscope.cn/models/xiahy456/AronaLM-Generator-V2.0)。仅在关闭 Planner 或需要回落单模型时使用。
 
 **2. 配置 `config.yaml`**
 
@@ -219,7 +159,7 @@ cp config.example.yaml config.yaml   # Linux / macOS
 ```
 
 按需填写：
-- `model.gguf_path`：默认 `AronaLM-Renderer-V2.1`；仅使用单模型时改为注释中的 v2.0 路径
+- `model.gguf_path`：默认 `AronaLM-Renderer-V2.2`；仅使用单模型时改为注释中的 Generator 路径
 - `planner.enabled` / `planner.api_key`：默认开启双模型；填写 DeepSeek API Key。不填 Key 或关闭 `enabled` 则回落本地单模型
 - `memory.extractor.api_key`：DeepSeek API Key（可选；不填则记忆抽取走正则降级）
 - `knowledge.enabled`：是否启用世界观 RAG（默认 `false`，启用前请先灌库）
@@ -230,46 +170,20 @@ cp config.example.yaml config.yaml   # Linux / macOS
 
 **3. 启动服务**
 
-工作目录必须是 `backend/`：
-
 ```bash
 conda activate shittim-chest   # 环境配置见 backend README
 cd backend
 pip install -r requirements.txt
-
 python -m app.main
-# 或
-uvicorn app.main:app --host 127.0.0.1 --port 20456
 ```
 
 默认 WebSocket：`ws://127.0.0.1:20456/ws`（与 Qt 客户端一致）。
 
 健康检查：`GET http://127.0.0.1:20456/health`
 
-**4. （可选）联调与知识库**
+启用知识库：在 `config.yaml` 中设 `knowledge.enabled: true` 后重启后端，请记得灌库，相关指导在 [`backend/README.md`](backend/README.md) 中。
 
-```bash
-# WebSocket 冒烟测试（服务需已启动）
-python scripts/smoke_ws.py
-
-# 关系气候 / 上线欢迎单测（不加载 GGUF）
-python scripts/test_relationship_unit.py
-python scripts/test_welcome_unit.py
-python scripts/test_proactive_unit.py
-
-# 按 data/knowledge/WRITING.md 编写语料后灌库
-python scripts/ingest_knowledge.py
-
-# 大幅改标题/结构后建议：
-python scripts/ingest_knowledge.py --rebuild
-
-# 检索冒烟
-python scripts/test_knowledge_rag.py
-```
-
-启用知识库：在 `config.yaml` 中设 `knowledge.enabled: true` 后重启后端。
-
-### 客户端构建 / Client Build
+### 客户端构建
 
 Windows 客户端使用 Visual Studio 2026 和 Qt 构建：
 
@@ -280,7 +194,7 @@ Windows 客户端使用 Visual Studio 2026 和 Qt 构建：
 5. 配置 Qt 版本和编译选项
 6. 编译运行
 
-#### 启动前准备 / Pre-startup Preparation
+#### 启动前准备
 
 在启动客户端之前，请完成以下准备工作：
 
@@ -314,111 +228,61 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
  - 资源路径相对**程序工作目录**解析；在 Visual Studio 中调试时默认为项目根目录，请勿直接双击 `x64/Debug` 或 `x64/Release` 下的 exe（工作目录会不对）。
  - 请将 AronaLM 后端服务、GPT-SoVITS 服务的地址、端口按实际情况填写。
  - `tts.request_timeout_ms` 仅改配置即可生效（dist 客户端同理）；`TTSManager` / `MainController` 源码改动需重新编译客户端后才有超时与字幕兜底逻辑。
- - 使用 `pack_keep_secrects.ps1` 打包便携版时，脚本会自动写入与包内布局一致的相对路径，并保留配置文件中的腾讯云 SecretId 和 SecretKey。
- - 使用`pack_sanitize_secrets.ps1` 打包便携版时，脚本会自动写入与包内布局一致的相对路径，并删除配置文件中的腾讯云 SecretId 和 SecretKey。
+ - 使用根目录 `pack-client.ps1` 打包客户端，会自动写入与包内布局一致的相对路径，并输出两份文件：一份保留配置文件中的腾讯云 SecretId 和 SecretKey，另一份删除。
  - 本项目使用**腾讯云语音识别**（ASR），腾讯云 ASR 的 SecretId 和 SecretKey 可以在腾讯云控制台的 API 密钥管理中获取。
 
 > **注意**：`config.json` 已在 `.gitignore` 中，不会被提交到版本控制，请放心修改。
 
-### 语音合成服务 / TTS Service
+### 语音合成服务
 
-#### 放置 GPT-SoVITS 模型文件 / Place GPT-SoVITS Model Files
+#### 放置 GPT-SoVITS 模型文件与参考音频
 
 ```
-models/
+gpt-sovits/
 ├── GPT_weights_v2/            # GPT 模型权重
 │   └── ALuoNa_cn-e15.ckpt
-└── SoVITS_weights_v2/         # SoVITS 模型权重
+├── SoVITS_weights_v2/         # SoVITS 模型权重
 │   └── ALuoNa_cn_e16_s256.pth
+└── ref_audio/Arona/              # 参考音频
+   └── arona_academy_in_2.ogg   # 推荐的参考音频
 ```
 
-#### 放置参考音频文件 / Place Reference Audio Files
-
-```
-gpt-sovits/ref_audio/Arona/arona_academy_in_2.ogg
-```
-
-#### 启动 GPT-SoVITS API 服务 / Start GPT-SoVITS API Service
+#### 启动 GPT-SoVITS API 服务
 
 ```bash
-# 在 GPT-SoVITS 所在机器上启动（推荐：带卡死自动重启的 watchdog）
 cd gpt-sovits
 # Windows: go-apiv2.bat
 # Linux:   chmod +x go-apiv2.sh && ./go-apiv2.sh
 ```
 
-`go-apiv2` 会调用 `watch-apiv2`：当推理日志长时间停在「提取文本Bert特征」或「预测语义Token」时，自动结束进程并重启 API。
+`go-apiv2` 会在推理卡住时自动重启 API。异机部署时，在 TTS 机运行上述命令，并在客户端 `config.json` 将 `tts.host` 设为 TTS 机 IP。
 
-可选参数（PowerShell）：
+> 仅调试、不要自动重启时，可直接运行 `python api_v2.py`。
 
-```powershell
-.\watch-apiv2.ps1 -StallSec 60 -RestartCooldownSec 90 -LogPath D:\logs\gpt-sovits.log
-```
+### 模型微调（可选）
 
-Linux：
-
-```bash
-./watch-apiv2.sh --stall-sec 60 --restart-cooldown 90 --log-path /var/log/gpt-sovits.log
-```
-
-**异机部署**：TTS 与客户端不在同一台机器时——在 TTS 机运行上述 `go-apiv2`；在客户端 `config.json` 将 `tts.host` 设为 TTS 机 IP，并配置 `request_timeout_ms`（建议 `45000`）。客户端超时只负责不堵 UI；**自动重启必须在 TTS 机上的 watchdog 完成**。
-
-> 仅调试、不要自动重启时，仍可直接运行 `python api_v2.py`（或 `runtime\python.exe -X utf8 -I api_v2.py`）。
-
-### 模型微调 / Finetune（可选）
-
-若需自行微调阿洛娜风格模型，使用 `llm/aronaLM/finetune`（基于 Unsloth 对 Qwen3-1.7B 做 QLoRA，面向约 6–8GB 显存）：
-
-```bat
-cd llm\aronaLM\finetune
-python -m venv .venv
-.venv\Scripts\activate
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
-pip install -r requirements.txt
-
-REM 放置基座模型到 models/Qwen3-1.7B-unsloth-bnb-4bit 后：
-start.bat
-```
-
-训练结束后可导出 GGUF，供后端 `model.gguf_path` 加载。详细说明见 [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md)。
+见 [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md)。
 
 ---
 
-## 📚 模块与配置 / Modules & Configuration
-
-各模块说明、协议与配置见对应 README：
+## 📚 模块与配置
 
 | 模块 | 文档 |
 |------|------|
 | **Backend**（含 `config.yaml`） | [`backend/README.md`](backend/README.md) |
 | **桌面客户端**（含 `config.json`） | [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md) |
+| **模型权重**（`models/`） | [`models/README.md`](models/README.md) |
 | **LLM 微调**（`llm/aronaLM/finetune`） | [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md) |
 
 ---
 
-## 📄 许可证 / License
+## 📄 许可证
 
-本项目基于 Apache License 2.0 开源协议。
-
-```
-Copyright 2026 xia_hy456. All rights reserved.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-```
+本项目基于 [Apache License 2.0](LICENSE) 开源。
 
 ---
 
-## 🙏 致谢 / Acknowledgements
+## 🙏 致谢
 
 - **《蔚蓝档案》(Blue Archive)** - 一切奇迹的起点（https://bluearchive-cn.com/）
 - **Spine** - 2D 动画引擎（https://esotericsoftware.com/）
@@ -436,7 +300,7 @@ limitations under the License.
 
 ---
 
-## ⭐ 关于开发者 / About Developer
+## ⭐ 关于开发者
 
 - **项目发起者**: xia_hy456
 - **发起者个人博客**: https://xia-hy456.top/
