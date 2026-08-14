@@ -59,10 +59,9 @@ arona-ai/
 ├── gpt-sovits/                           # GPT-SoVITS 语音合成
 │   ├── go-apiv2.bat                      # Windows 启动入口
 │   └── go-apiv2.sh                       # Linux 启动入口
-├── llm/                                  # AronaLM 微调
-│   └── aronaLM/finetune/
-│       ├── start.bat                     # Windows 一键训练
-│       └── README.md
+├── llm/aronaLM/finetune/                 # AronaLM 微调
+│   ├── start.bat                         # Windows 一键训练
+│   └── README.md
 ├── models/                               # 本地模型权重（需自行下载）
 │   └── README.md                         # 下载与放置说明
 ├── docs/
