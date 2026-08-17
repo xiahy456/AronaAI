@@ -23,7 +23,14 @@ from .proactive import (
     ResolvedSlot,
     build_welcome_instruction,
 )
-from .proactive.followup import HISTORY_CONTINUE_MARKER, build_continue_instruction
+from .proactive.followup import (
+    HISTORY_CONTINUE_MARKER,
+    build_continue_instruction,
+    continue_renderer_user_text,
+    inject_continue_into_card,
+    should_skip_continue,
+    too_similar,
+)
 from .prompt import build_messages, build_renderer_messages
 from .protocol import msg_chat_response
 from .relationship import (
@@ -373,6 +380,8 @@ class Orchestrator:
         extra_must_not: list[str] | None = None,
         climate: str | None = None,
         decision: Decision | None = None,
+        renderer_user_text: str | None = None,
+        continue_previous: str | None = None,
     ) -> bool:
         """Generate a system-event line (welcome / idle / care / goal / continue). Returns True on success."""
         user_text = instruction
@@ -474,12 +483,25 @@ class Orchestrator:
                 for item in extra_must_not or ():
                     if item not in intent.must_not:
                         intent.must_not.append(item)
+                if kind == "continue":
+                    inject_continue_into_card(intent, continue_previous or "")
                 intent.drop_conflicting_must_say()
 
         if intent is not None:
+            if kind == "continue":
+                render_text = (renderer_user_text or "").strip() or continue_renderer_user_text(
+                    continue_previous or ""
+                )
+                logger.info(
+                    "initiate continue renderer user session=%s text=%r",
+                    session_id,
+                    render_text,
+                )
+            else:
+                render_text = user_text
             messages = build_renderer_messages(
                 self.config,
-                user_text=user_text,
+                user_text=render_text,
                 intent_card=intent.to_renderer_dict(),
                 history=history,
                 max_history_turns=2,
@@ -520,6 +542,15 @@ class Orchestrator:
         if not (full or "").strip():
             logger.warning(
                 "initiate empty response session=%s kind=%s", session_id, kind
+            )
+            return False
+
+        if kind == "continue" and too_similar(continue_previous or "", full):
+            logger.info(
+                "continue discarded session=%s reason=too_similar previous=%r cont=%r",
+                session_id,
+                continue_previous,
+                full,
             )
             return False
 
@@ -598,6 +629,16 @@ class Orchestrator:
             return
         if not (previous or "").strip():
             return
+        if should_skip_continue(previous):
+            logger.info(
+                "continue skipped session=%s reason=already_two_sentences",
+                session_id,
+            )
+            return
+        delay = float(self.config.proactive.continue_line.delay_sec or 0)
+        if delay > 0:
+            logger.info("continue delay session=%s sec=%s", session_id, delay)
+            await asyncio.sleep(delay)
         logger.info("continue start session=%s", session_id)
         await self.handle_initiate(
             session_id=session_id,
@@ -609,6 +650,8 @@ class Orchestrator:
             climate=climate,
             decision=decision,
             extra_must_not=["卖关子", "编造未发生的事", "把问题抛回老师"],
+            renderer_user_text=continue_renderer_user_text(previous),
+            continue_previous=previous.strip(),
         )
 
     def _climate_block(self, decision: Decision | None) -> str:

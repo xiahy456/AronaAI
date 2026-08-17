@@ -45,7 +45,7 @@ public:
 	MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer, WebSocketController* webSocketController, UserInputWidget* userInputWidget);
 	~MainController();
 
-	// 执行输出
+	// 执行输出（排队 TTS；字幕与表情在本条合成完成后再上屏）
 	void executeOutput(const QString& text);
 	// 开始录音、识别
 	void startAudioProcessing();
@@ -65,9 +65,9 @@ signals:
 
 private slots:
 	// TTS工作完毕
-	void onTTSFinished(const QByteArray& audioData, const QString& mediaType);
+	void onTTSFinished(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion);
 	// TTS失败（超时等）：仍显示字幕
-	void onTTSError(const QString& errorString);
+	void onTTSError(const QString& errorString, const QString& text, const QString& emotion);
 	// 音频输入出错
 	void onAudioError(const QString& error);
 	// 音频识别出错
@@ -100,14 +100,17 @@ private:
 	bool m_pendingIsError = false;	// 待呈现输出是否为 TTS 失败兜底
 	QByteArray m_pendingAudio;	// 待播放的欢迎语音频
 	QString m_pendingMediaType;	// 待播放音频的媒体类型
+	QString m_pendingText;	// 待呈现的本条文本
+	QString m_pendingEmotion;	// 待呈现的本条表情
+	int m_outputGeneration = 0;	// 字幕/口型定时器世代，避免上一条清掉下一条
 	int m_ttsModelsLoaded = 0;	// 已切完的 TTS 权重数
 	QElapsedTimer m_ttsWeightTimer;	// TTS 切权重耗时
 
 	// 处理用户输入的文本（语音识别或文本输入）
 	void processInputText(const QString& text);
-	void presentOutput(const QByteArray& audioData, const QString& mediaType);
-	void presentOutputError();
-	void holdOrPresentOutput(const QByteArray& audioData, const QString& mediaType, bool isError);
+	void presentOutput(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion);
+	void presentOutputError(const QString& text, const QString& emotion);
+	void holdOrPresentOutput(const QByteArray& audioData, const QString& mediaType, bool isError, const QString& text, const QString& emotion);
 	void dismissSplashOnUnrecoverableError();
 
 };

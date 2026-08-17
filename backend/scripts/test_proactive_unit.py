@@ -308,6 +308,8 @@ def test_config_loads() -> None:
         _fail(f"goal max_per_day {cfg.proactive.goal.max_per_day}")
     if not cfg.proactive.continue_line.enabled:
         _fail("continue should default enabled")
+    if cfg.proactive.continue_line.delay_sec != 2:
+        _fail(f"delay_sec {cfg.proactive.continue_line.delay_sec}")
     if not cfg.proactive.festival.enabled:
         _fail("festival should default enabled")
     print("  ok")
@@ -683,6 +685,106 @@ def test_followup_ok_default_and_gate() -> None:
     print("  ok")
 
 
+def test_continue_renderer_split_and_skip() -> None:
+    print("== continue: renderer instruction; skip 2-sentence; too_similar ==")
+    from app.planner.schema import IntentCard
+    from app.prompt import build_renderer_messages
+    from app.proactive.followup import (
+        CONTINUE_RENDERER_PLACEHOLDER,
+        build_continue_instruction,
+        continue_renderer_user_text,
+        inject_continue_into_card,
+        last_teacher_utterance,
+        should_skip_continue,
+        too_similar,
+    )
+
+    previous = "老师今天过得真好！"
+    history = [
+        {"role": "user", "content": "我今天过得很好"},
+        {"role": "assistant", "content": previous},
+    ]
+    if last_teacher_utterance(history) != "我今天过得很好":
+        _fail("last teacher should skip Arona's previous line")
+    render_user = continue_renderer_user_text(previous)
+    if "我今天过得很好" in render_user:
+        _fail("continue renderer must not reuse teacher original")
+    if "老师今天过得真好" not in render_user:
+        _fail("continue renderer should mention previous Arona line")
+    if "不要复述" not in render_user or "不要再回答老师刚才那句" not in render_user:
+        _fail("continue renderer must forbid restating / re-answering")
+    if continue_renderer_user_text("") != CONTINUE_RENDERER_PLACEHOLDER:
+        _fail("empty previous should use placeholder")
+    if continue_renderer_user_text(None) != CONTINUE_RENDERER_PLACEHOLDER:
+        _fail("None previous should use placeholder")
+
+    instruction = build_continue_instruction(previous)
+    if "【系统事件】" not in instruction or "上一句是：" not in instruction:
+        _fail("Planner continue instruction still needs system event + previous line")
+    if "与上一句不同的新信息" not in instruction:
+        _fail("continue instruction must require new information")
+    if "已经回答过的问题" not in instruction:
+        _fail("continue instruction must forbid re-asking answered questions")
+
+    card = IntentCard(
+        must_say=["接住老师的开心"],
+        must_not=[],
+        facts_to_use=[],
+    )
+    inject_continue_into_card(card, previous)
+    if not any(item.startswith("上一句已经说过：") for item in card.facts_to_use):
+        _fail(f"facts_to_use should record previous line: {card.facts_to_use}")
+    if "复述上一句" not in card.must_not:
+        _fail(f"must_not should ban repeating previous: {card.must_not}")
+    if previous not in card.must_not:
+        _fail(f"must_not should include previous clip: {card.must_not}")
+    if "把问题抛回老师" not in card.must_not:
+        _fail(f"must_not should include bounce ban: {card.must_not}")
+    inject_continue_into_card(card, previous)
+    if card.facts_to_use.count(f"上一句已经说过：{previous}") != 1:
+        _fail("inject should be idempotent")
+
+    cfg = load_config()
+    msgs = build_renderer_messages(
+        cfg,
+        user_text=render_user,
+        intent_card=card.to_renderer_dict(),
+        history=history,
+        max_history_turns=2,
+    )
+    payload = msgs[-1]["content"]
+    if "【系统事件】" in payload:
+        _fail("Renderer payload must not contain 【系统事件】")
+    if "上一句是：" in payload:
+        _fail("Renderer payload must not contain 上一句是：")
+    if "【老师原话】" not in payload:
+        _fail("Renderer payload needs 【老师原话】")
+    teacher_block = payload.split("【老师原话】", 1)[1].strip().split("\n\n", 1)[0]
+    if "我今天过得很好" in teacher_block:
+        _fail(f"【老师原话】 must not be last teacher: {teacher_block!r}")
+    if "请只补一句" not in teacher_block:
+        _fail(f"【老师原话】 should be continue instruction: {teacher_block!r}")
+    if "老师今天过得真好" not in teacher_block:
+        _fail(f"【老师原话】 should include previous clip: {teacher_block!r}")
+
+    if not should_skip_continue("老师今天过得真好！还去了哪里呢？"):
+        _fail("two-sentence first reply should skip continue")
+    if should_skip_continue("老师今天过得真好！"):
+        _fail("one-sentence first reply should still allow continue")
+    if should_skip_continue(""):
+        _fail("empty previous is not a two-sentence skip")
+
+    if not too_similar("老师今天过得真好！", "老师今天过得真好"):
+        _fail("punctuation-only difference is similar")
+    if not too_similar("老师今天过得真好！", "老师今天过得真好呀~"):
+        _fail("near restatement should be similar")
+    if too_similar("老师今天过得真好！", "那明天要不要一起去买草莓牛奶？"):
+        _fail("new information should not be similar")
+    if too_similar("", "补一句"):
+        _fail("empty previous is not similar")
+    print("  ok")
+
+
 def main() -> None:
     test_idle_fire_rules()
     test_care_window_once_per_day()
@@ -690,6 +792,7 @@ def main() -> None:
     test_list_by_category()
     test_goal_fire_rules()
     test_followup_ok_default_and_gate()
+    test_continue_renderer_split_and_skip()
     with tempfile.TemporaryDirectory() as tmp:
         test_scheduler_persist_and_priority(Path(tmp))
         test_welcome_does_not_eat_idle_cooldown(Path(tmp))

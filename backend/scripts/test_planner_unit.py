@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.cache import ResponseCache
 from app.config import load_config
 from app.planner import EMOTION_WHITELIST, normalize_emotion, parse_and_gate_intent, route_mode
+from app.planner.prompts import PLANNER_SYSTEM, build_planner_user_message
 from app.prompt import build_renderer_messages
 from app.protocol import msg_chat_response
 
@@ -70,7 +71,20 @@ def main() -> None:
     c.put("a", "b", "curious")
     assert c.get("a") == ("b", "curious")
 
-    print("unit ok", len(EMOTION_WHITELIST), "emotions")
+    assert "【阿洛娜主要人设】" in PLANNER_SYSTEM
+    assert "什亭之匣" in PLANNER_SYSTEM
+    assert "温柔活泼" in PLANNER_SYSTEM
+    assert "规划参谋" in PLANNER_SYSTEM
+    assert "不要写成阿洛娜的台词" in PLANNER_SYSTEM
+    assert "老师短应" in PLANNER_SYSTEM
+    assert "已问过且老师已答的问题" in PLANNER_SYSTEM
+    user_msg = build_planner_user_message(
+        user_text="谢谢你，阿洛娜。",
+        history=[],
+        memories=[],
+        knowledge=[],
+    )
+    assert "【阿洛娜主要人设】" in user_msg
 
 
 if __name__ == "__main__":

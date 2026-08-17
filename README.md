@@ -59,7 +59,7 @@ arona-ai/
 ├── gpt-sovits/                           # GPT-SoVITS 语音合成
 │   ├── go-apiv2.bat                      # Windows 启动入口
 │   └── go-apiv2.sh                       # Linux 启动入口
-├── llm/aronaLM/finetune/                 # AronaLM 微调
+├── llm/aronaLM/finetune/                 # AronaLM 微调（其实不是大模型啦……之前写错了还没有改过来呢）
 │   ├── start.bat                         # Windows 一键训练
 │   └── README.md
 ├── models/                               # 本地模型权重（需自行下载）
@@ -78,10 +78,10 @@ arona-ai/
 ## ✨ 核心功能
 
 ### 🤖 AI 对话引擎
-- **双模型链路**：**Planner（DeepSeek）→ 结构化意图卡 → Renderer（AronaLM-Renderer-V2.2）**；简单轮次可由路由走本地单模型，Planner 关闭或失败时回落本地路径
+- **双模型链路**：**Planner（DeepSeek）→ 结构化意图卡 → Renderer（AronaLM-Renderer-V2.3）**；简单轮次可由路由走本地单模型，Planner 关闭或失败时回落本地路径
 - **关系气候**：信任 / 依赖 / 张力三标量构建张量；规则分类用户行动后查表更新，气候分区决定开口、姿态或沉默
 - **上线欢迎、空闲搭话、照料与回访**：WebSocket 连接后按时段主动问候，安静若干时间后轻在场；根据时段提醒吃饭、休息；稀疏回访记忆里的未完成计划；Planner 允许时同轮补充
-- **AronaLM-Renderer-V2.2（GGUF）**：`llama-cpp-python` 加载 Qwen3-1.7B 微调 GGUF（默认 Q4_K_M），过滤 `<think>` 推理块；默认双模型路径非流式，本地回落路径可流式
+- **AronaLM-Renderer-V2.3（GGUF）**：`llama-cpp-python` 加载 Qwen3-1.7B 微调 GGUF（默认 Q4_K_M），过滤 `<think>` 推理块；默认双模型路径非流式，本地回落路径可流式
 - **记忆与知识分离**：用户长期事实进 SQLite + FTS5 + Chroma（jieba / BGE）；世界观设定进 Markdown 语料 → 本地 BGE + Chroma RAG，互不混写、按需注入 Prompt
 - **异步记忆抽取**：对话主路径不阻塞；DeepSeek JSON 抽取（含日配额与缓冲批量），失败或无 Key 时自动正则降级
 - **ASR 脏文本过滤**：入口丢弃空串 / 腾讯云 ASR 错误模板，避免误触发 Planner
@@ -158,7 +158,7 @@ cp config.example.yaml config.yaml   # Linux / macOS
 ```
 
 按需填写：
-- `model.gguf_path`：默认 `AronaLM-Renderer-V2.2`；仅使用单模型时改为注释中的 Generator 路径
+- `model.gguf_path`：默认 `AronaLM-Renderer-V2.3`；仅使用单模型时改为注释中的 Generator 路径
 - `planner.enabled` / `planner.api_key`：默认开启双模型；填写 DeepSeek API Key。不填 Key 或关闭 `enabled` 则回落本地单模型
 - `memory.extractor.api_key`：DeepSeek API Key（可选；不填则记忆抽取走正则降级）
 - `knowledge.enabled`：是否启用世界观 RAG（默认 `false`，启用前请先灌库）
@@ -292,7 +292,7 @@ cd gpt-sovits
 - **Unsloth** - QLoRA 高效微调 (https://unsloth.ai/)
 - **ChromaDB** - 向量数据库 (https://www.trychroma.com/products/chromadb)
 - **DeepSeek** - Planner 意图规划与记忆抽取 API (https://www.deepseek.com/)
-- **GPT-SoVITS** - 语音合成模型 (https://github.com/RVC-Boss/GPT-SoVITS)
+- **GPT-SoVITS** - 语音合成服务 (https://github.com/RVC-Boss/GPT-SoVITS)
 - **腾讯云语音识别** - 在线语音识别 (https://cloud.tencent.com/product/asr)
 - **bge-small-zh-v1.5** - 文本嵌入模型 (https://huggingface.co/BAAI/bge-small-zh-v1.5)
 - **感谢所有协助开发的贡献者们**

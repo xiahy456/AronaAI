@@ -75,6 +75,7 @@ public:
         int sampleSteps = 32;   // 采样步数
         bool superSampling = false; // 超采样
         QString mediaType = "wav";  // 媒体类型
+        QString emotion = "normal";  // 本条表情（随请求传递，不读全局）
     };
 
     // 发送TTS请求（GET方式）
@@ -92,8 +93,11 @@ public:
     // 设置Sovits模型
     void setSovitsWeights(const QString& weightsPath);
 
-    // 播放音频
+    // 播放音频（仅在队列播下一条时调用；上一条未结束时不要打断）
     void playAudio(const QByteArray& audioData);
+
+    // 本条已呈现完毕（播完 / TTS 失败字幕 / 跳过播放），允许合成下一条
+    void notifyPlaybackFinished();
 
     // 保存音频到文件
     bool saveAudioToFile(const QByteArray& audioData, const QString& filePath);
@@ -102,10 +106,10 @@ public:
     double getWavDuration(const QByteArray& audioData);
 
 signals:
-    // TTS完成信号
-    void ttsFinished(const QByteArray& audioData, const QString& mediaType);
+    // TTS完成信号（带本条文本与表情，不要再用全局 m_currentText）
+    void ttsFinished(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion);
     // TTS错误信号
-    void ttsError(const QString& errorString);
+    void ttsError(const QString& errorString, const QString& text, const QString& emotion);
     // 命令执行完成信号
     void commandFinished(bool success, const QString& message);
     // 模型切换完成信号
@@ -154,6 +158,12 @@ private:
     QBuffer* audioBuffer;
 
     bool isProcessingRequest;
+    bool m_awaitingPlayback;
+    bool m_playingAudio;
+    bool m_ignoreAudioIdle;
+    int m_playbackGeneration;
+    QString currentTtsText;
+    QString currentTtsEmotion;
     int requestTimeoutMs;  // HTTP 请求超时（毫秒），0 表示不限制
     QElapsedTimer m_ttsRequestTimer;  // TTS HTTP RTT
 

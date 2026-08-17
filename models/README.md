@@ -34,7 +34,7 @@ models/
 
 - Renderer 下载：[xiahy456/AronaLM-Renderer-V2.2](https://www.modelscope.cn/models/xiahy456/AronaLM-Renderer-V2.1)（ModelScope）
 - Generator 下载（可选）：[xiahy456/AronaLM-Generator-V2.0](https://www.modelscope.cn/models/xiahy456/AronaLM-Generator-V2.1)
-- 示例默认路径：`../models/AronaLM-Renderer-V2.2/AronaLM-Renderer-V2.2.Q4_K_M.gguf`（相对 `backend/`）
+- 示例默认路径：`../models/AronaLM-Renderer-V2.3/AronaLM-Renderer-V2.3.Q4_K_M.gguf`（相对 `backend/`）
 - 仅跑单模型时：将 `model.gguf_path` 改为 ../models/AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf，并设 `planner.enabled: false`（或不填 Planner API Key）
 
 ---

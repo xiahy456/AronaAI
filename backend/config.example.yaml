@@ -4,13 +4,13 @@ server:
   ws_path: "/ws"
 
 model:
-  # v2.0 current / rollback. After Renderer train+deploy, switch to:
-  gguf_path: "../models/AronaLM-Renderer-V2.2/AronaLM-Renderer-V2.2.Q4_K_M.gguf"
+  # AronaLM-Renderer-V2.3 (rollback: ../models/AronaLM-Renderer-V2.2/AronaLM-Renderer-V2.2.Q4_K_M.gguf)
+  gguf_path: "../models/AronaLM-Renderer-V2.3/AronaLM-Renderer-V2.3.Q4_K_M.gguf"
   # gguf_path: "../models/AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf"
   n_ctx: 2048
   n_gpu_layers: -1
   max_new_tokens: 72
-  temperature: 0.6
+  temperature: 0.7
   top_p: 0.85
   repeat_penalty: 1.1
   system_prompt: |
@@ -108,6 +108,7 @@ proactive:
     max_per_day: 1
   continue:
     enabled: true
+    delay_sec: 2
   festival:
     enabled: true
 

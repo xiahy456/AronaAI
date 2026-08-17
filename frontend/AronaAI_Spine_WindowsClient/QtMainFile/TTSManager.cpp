@@ -20,8 +20,10 @@
 #include "TTSManager.h"
 #include <QDebug>
 #include <QHttpMultiPart>
+#include <QAudio>
 #include <QAudioFormat>
 #include <QAudioSink>
+#include <QTimer>
 
 TTSManager::TTSManager(QObject* parent)
     : QObject(parent)
@@ -30,6 +32,10 @@ TTSManager::TTSManager(QObject* parent)
     , audioSink(nullptr)
     , audioBuffer(nullptr)
     , isProcessingRequest(false)
+    , m_awaitingPlayback(false)
+    , m_playingAudio(false)
+    , m_ignoreAudioIdle(false)
+    , m_playbackGeneration(0)
     , requestTimeoutMs(45000)
 {
     // 设置服务器地址
@@ -221,6 +227,10 @@ void TTSManager::onNetworkReplyFinished()
         }
     }
 
+    if (isTts) {
+        m_awaitingPlayback = true;
+    }
+
     if (reply->error() != QNetworkReply::NoError) {
         if (isTts) {
             QString errorMsg = reply->errorString();
@@ -228,15 +238,18 @@ void TTSManager::onNetworkReplyFinished()
                 || reply->error() == QNetworkReply::OperationCanceledError) {
                 errorMsg = QString("TTS request timed out after %1 ms").arg(requestTimeoutMs);
             }
-            emit ttsError(errorMsg);
+            emit ttsError(errorMsg, currentTtsText, currentTtsEmotion);
         }
     }
     else if (isTts) {
         handleTTSResponse(reply);
     }
 
-    // 清理当前回复并处理下一个请求
     cleanupCurrentReply();
+    if (isTts) {
+        // 等本条播完（或 notifyPlaybackFinished）再合成下一条
+        return;
+    }
     isProcessingRequest = false;
     processNextRequest();
 }
@@ -251,12 +264,12 @@ void TTSManager::handleTTSResponse(QNetworkReply* reply)
             QJsonDocument doc = QJsonDocument::fromJson(audioData);
             if (doc.isObject()) {
                 QString errorMsg = doc.object()["message"].toString();
-                emit ttsError(errorMsg);
+                emit ttsError(errorMsg, currentTtsText, currentTtsEmotion);
                 return;
             }
         }
 
-        emit ttsFinished(audioData, currentMediaType);
+        emit ttsFinished(audioData, currentMediaType, currentTtsText, currentTtsEmotion);
     }
     else {
         QByteArray errorData = reply->readAll();
@@ -267,33 +280,46 @@ void TTSManager::handleTTSResponse(QNetworkReply* reply)
                 errorMsg = doc.object()["message"].toString();
             }
         }
-        emit ttsError(errorMsg);
+        emit ttsError(errorMsg, currentTtsText, currentTtsEmotion);
     }
+}
+
+void TTSManager::notifyPlaybackFinished()
+{
+    if (!m_awaitingPlayback) {
+        return;
+    }
+    m_awaitingPlayback = false;
+    m_playingAudio = false;
+    m_playbackGeneration++;
+    isProcessingRequest = false;
+    processNextRequest();
 }
 
 void TTSManager::playAudio(const QByteArray& audioData)
 {
-    if (audioData.isEmpty()) return;
+    if (audioData.isEmpty()) {
+        notifyPlaybackFinished();
+        return;
+    }
 
-    // 停止当前播放
-    if (audioSink && audioSink->state() == QAudio::ActiveState) {
+    // 队列播下一条时才 stop；此时上一条应已结束
+    m_ignoreAudioIdle = true;
+    if (audioSink) {
         audioSink->stop();
     }
 
-    // 创建音频格式
     QAudioFormat format;
-    format.setSampleRate(32000); // 根据实际音频采样率调整
+    format.setSampleRate(32000);
     format.setChannelCount(1);
     format.setSampleFormat(QAudioFormat::Int16);
 
-    // 检查设备是否支持该格式
     QAudioDevice audioDevice = QMediaDevices::defaultAudioOutput();
     if (!audioDevice.isFormatSupported(format)) {
         ERROR_DEBUG_OUTPUT("[TTS Operation]Default format not supported, trying to use preferred format");
         format = audioDevice.preferredFormat();
     }
 
-    // 创建音频缓冲区
     if (audioBuffer) {
         delete audioBuffer;
     }
@@ -301,12 +327,31 @@ void TTSManager::playAudio(const QByteArray& audioData)
     audioBuffer->setData(audioData);
     audioBuffer->open(QIODevice::ReadOnly);
 
-    // 创建音频输出
     if (!audioSink) {
         audioSink = new QAudioSink(audioDevice, format, this);
+        connect(audioSink, &QAudioSink::stateChanged, this, [this](QAudio::State state) {
+            if (m_ignoreAudioIdle || !m_playingAudio) {
+                return;
+            }
+            if (state == QAudio::IdleState || state == QAudio::StoppedState) {
+                notifyPlaybackFinished();
+            }
+        });
     }
 
+    m_playingAudio = true;
     audioSink->start(audioBuffer);
+    m_ignoreAudioIdle = false;
+
+    const double dur = getWavDuration(audioData);
+    const int fallbackMs = dur > 0 ? static_cast<int>(dur * 1000.0) + 500 : 10000;
+    const int gen = ++m_playbackGeneration;
+    QTimer::singleShot(fallbackMs, this, [this, gen]() {
+        if (gen != m_playbackGeneration) {
+            return;
+        }
+        notifyPlaybackFinished();
+    });
 }
 
 bool TTSManager::saveAudioToFile(const QByteArray& audioData, const QString& filePath)
@@ -429,6 +474,8 @@ void TTSManager::executeTTSGet(const TTSRequestParams& params)
     QNetworkRequest request(url);
     applyRequestTimeout(request);
     currentMediaType = params.mediaType;
+    currentTtsText = params.text;
+    currentTtsEmotion = params.emotion;
 
     cleanupCurrentReply();
     currentReply = networkManager->get(request);
@@ -451,6 +498,8 @@ void TTSManager::executeTTSPost(const TTSRequestParams& params)
     QByteArray data = doc.toJson();
 
     currentMediaType = params.mediaType;
+    currentTtsText = params.text;
+    currentTtsEmotion = params.emotion;
 
     cleanupCurrentReply();
     m_ttsRequestTimer.restart();

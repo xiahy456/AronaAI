@@ -122,52 +122,56 @@ void MainController::startSession()
 
 void MainController::executeOutput(const QString& text)
 {
-    // 将文本添加进TTS请求参数中
     ttsRequestParams.text = text;
-    // 保存该文本
-    m_currentText = text;
-    // 调用TTSManager进行文本到语音的转换
+    ttsRequestParams.emotion = m_currentEmotion;
     m_ttsManager->requestTTSPost(ttsRequestParams);
-
 }
 
-void MainController::onTTSFinished(const QByteArray& audioData, const QString& mediaType)
+void MainController::onTTSFinished(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion)
 {
-    holdOrPresentOutput(audioData, mediaType, false);
+    holdOrPresentOutput(audioData, mediaType, false, text, emotion);
 }
 
-void MainController::presentOutput(const QByteArray& audioData, const QString& mediaType)
+void MainController::presentOutput(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion)
 {
     Q_UNUSED(mediaType);
-    // 播放音频
+    const QString line = text;
+    const QString face = emotion.isEmpty() ? QStringLiteral("normal") : emotion;
+    m_currentText = line;
+    m_currentEmotion = face;
+    ++m_outputGeneration;
+    const int gen = m_outputGeneration;
+
     m_ttsManager->playAudio(audioData);
-    // 显示文字
-    m_mainWidget->showOutputText(m_currentText);
+    m_mainWidget->showOutputText(line);
     if (m_measuringUserTurn) {
         FINE_DEBUG_OUTPUT(QString("[Latency] User send to text on screen: %1 ms")
             .arg(m_userTurnTimer.elapsed()));
         m_measuringUserTurn = false;
     }
-    // 计算播放时长
-    int duration = m_currentText.size() * 100; // 每个字符100ms
-    duration = (int)(1000 * (m_ttsManager->getWavDuration(audioData)));   // 按照实际音频时长设置，单位为毫秒
-    // 启动动画：表情层(1) + 语言口型层(2)
-    const QString expressionAnim = AronaEmotion::toAnimationName(m_currentEmotion);
-    m_mainWidget->setAnimation(expressionAnim, 1, true);   // 表情层
-    m_mainWidget->setAnimation("Arona_Work_In_1_CN", 2, true);   // 语言口型层
-    // 在duration之后清除显示的文字，停止动画
-    QTimer::singleShot(duration, this, [this]() {
+    int duration = qMax(500, line.size() * 100);
+    const double wavSec = m_ttsManager->getWavDuration(audioData);
+    if (wavSec > 0) {
+        duration = static_cast<int>(1000 * wavSec);
+    }
+    const QString expressionAnim = AronaEmotion::toAnimationName(face);
+    m_mainWidget->setAnimation(expressionAnim, 1, true);
+    m_mainWidget->setAnimation("Arona_Work_In_1_CN", 2, true);
+    QTimer::singleShot(duration, this, [this, gen]() {
+        if (gen != m_outputGeneration) {
+            return;
+        }
         m_mainWidget->hideOutputText();
-		m_mainWidget->clearAnimation(2, 0.2f);   // 停止语言口型层
-		m_mainWidget->clearAnimation(1, 0.2f);   // 停止表情层
+        m_mainWidget->clearAnimation(2, 0.2f);
+        m_mainWidget->clearAnimation(1, 0.2f);
         });
 }
 
-void MainController::onTTSError(const QString& errorString)
+void MainController::onTTSError(const QString& errorString, const QString& text, const QString& emotion)
 {
     ERROR_DEBUG_OUTPUT("[TTS Operation]TTS error: " + errorString);
 
-    if (m_currentText.isEmpty()) {
+    if (text.isEmpty()) {
         m_measuringUserTurn = false;
         if (m_awaitingStartupWelcome) {
             m_awaitingStartupWelcome = false;
@@ -175,31 +179,42 @@ void MainController::onTTSError(const QString& errorString)
                 emit welcomePlaybackReady();
             }
         }
+        m_ttsManager->notifyPlaybackFinished();
         return;
     }
 
-    holdOrPresentOutput(QByteArray(), QString(), true);
+    holdOrPresentOutput(QByteArray(), QString(), true, text, emotion);
 }
 
-void MainController::presentOutputError()
+void MainController::presentOutputError(const QString& text, const QString& emotion)
 {
-    // 语音失败时仍展示字幕与表情，避免交互卡住
-    m_mainWidget->showOutputText(m_currentText);
+    const QString line = text;
+    const QString face = emotion.isEmpty() ? QStringLiteral("normal") : emotion;
+    m_currentText = line;
+    m_currentEmotion = face;
+    ++m_outputGeneration;
+    const int gen = m_outputGeneration;
+
+    m_mainWidget->showOutputText(line);
     if (m_measuringUserTurn) {
         FINE_DEBUG_OUTPUT(QString("[Latency] User send to text on screen: %1 ms")
             .arg(m_userTurnTimer.elapsed()));
         m_measuringUserTurn = false;
     }
-    const QString expressionAnim = AronaEmotion::toAnimationName(m_currentEmotion);
+    const QString expressionAnim = AronaEmotion::toAnimationName(face);
     m_mainWidget->setAnimation(expressionAnim, 1, true);
-    int duration = qMax(1500, m_currentText.size() * 100);
-    QTimer::singleShot(duration, this, [this]() {
+    int duration = qMax(1500, line.size() * 100);
+    QTimer::singleShot(duration, this, [this, gen]() {
+        if (gen != m_outputGeneration) {
+            return;
+        }
         m_mainWidget->hideOutputText();
         m_mainWidget->clearAnimation(1, 0.2f);
         });
+    m_ttsManager->notifyPlaybackFinished();
 }
 
-void MainController::holdOrPresentOutput(const QByteArray& audioData, const QString& mediaType, bool isError)
+void MainController::holdOrPresentOutput(const QByteArray& audioData, const QString& mediaType, bool isError, const QString& text, const QString& emotion)
 {
     if (m_awaitingStartupWelcome) {
         m_awaitingStartupWelcome = false;
@@ -208,6 +223,8 @@ void MainController::holdOrPresentOutput(const QByteArray& audioData, const QStr
             m_pendingIsError = isError;
             m_pendingAudio = audioData;
             m_pendingMediaType = mediaType;
+            m_pendingText = text;
+            m_pendingEmotion = emotion;
             FINE_DEBUG_OUTPUT(QString("[Main Controller] Welcome TTS %1, waiting for splash close")
                 .arg(isError ? "error" : "ready"));
             emit welcomePlaybackReady();
@@ -216,9 +233,9 @@ void MainController::holdOrPresentOutput(const QByteArray& audioData, const QStr
     }
 
     if (isError) {
-        presentOutputError();
+        presentOutputError(text, emotion);
     } else {
-        presentOutput(audioData, mediaType);
+        presentOutput(audioData, mediaType, text, emotion);
     }
 }
 
@@ -234,12 +251,14 @@ void MainController::onSplashClosed()
     }
     m_hasPendingOutput = false;
     if (m_pendingIsError) {
-        presentOutputError();
+        presentOutputError(m_pendingText, m_pendingEmotion);
     } else {
-        presentOutput(m_pendingAudio, m_pendingMediaType);
+        presentOutput(m_pendingAudio, m_pendingMediaType, m_pendingText, m_pendingEmotion);
     }
     m_pendingAudio.clear();
     m_pendingMediaType.clear();
+    m_pendingText.clear();
+    m_pendingEmotion.clear();
 }
 
 void MainController::dismissSplashOnUnrecoverableError()

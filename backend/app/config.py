@@ -141,6 +141,7 @@ class FestivalConfig(BaseModel):
 
 class ContinueConfig(BaseModel):
     enabled: bool = True
+    delay_sec: float = 2
 
 
 class RelationshipConfig(BaseModel):
