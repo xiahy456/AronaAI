@@ -299,7 +299,10 @@ This project is licensed under [Apache License 2.0](LICENSE).
 - **bge-small-zh-v1.5** — text embedding model (https://huggingface.co/BAAI/bge-small-zh-v1.5)
 
 <p align="center">
-  <strong>Thanks to everyone who helped with development, and to the Blue Archive community — thank you for the amazing works and energy you bring to this community</strong>
+  <strong>Thanks to everyone who helped with development, and to the Blue Archive community</strong>
+</p>
+<p align="center">
+  <strong>Thank you for the amazing works and energy you bring to this community</strong>
 </p>
 
 ---
