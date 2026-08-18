@@ -186,6 +186,9 @@ def test_classify_and_events() -> None:
     assert classify_user_act("我今天心情很好哦，阿洛娜呢？") == "affection"
     assert classify_user_act("今天我过得很好哦") == "affection"
     assert classify_user_act("抱歉，我得失陪一下，有个任务需要完成") == "depart"
+    assert classify_user_act("啊，阿洛娜，抱歉，刚刚我去做别的事情了") == "depart"
+    assert classify_user_act("嗯，稍等一下哦，我马上就回来") == "depart"
+    assert classify_user_act("好") == "short_ack"
     if USER_DELTAS["seek_validation"][1] <= 0:
         _fail("seek_validation should raise dependence")
     if USER_DELTAS["depart"][1] >= 0:
@@ -303,34 +306,27 @@ def test_welcome_not_teased_and_speak_not_ratchet() -> None:
     print("  ok")
 
 
-def test_intent_drop_throwback_must_say() -> None:
-    print("== must_say vs throwback must_not ==")
-    bounce = parse_and_gate_intent(
+def test_intent_draft_gate() -> None:
+    print("== V2.4 draft gate (no must_say) ==")
+    legacy = parse_and_gate_intent(
         '{"user_emotion":"开放","topic":"开聊","stance":"轻松",'
-        '"must_say":["选定草莓牛奶开聊","反问老师想聊什么"],'
+        '"must_say":["选定草莓牛奶开聊"],'
         '"must_not":["把问题抛回老师"],"facts_to_use":[],'
         '"tone":"轻松","length":"1-2句","arona_emotion":"smile"}'
     )
-    if bounce is None:
-        _fail("card should parse")
-    joined = " ".join(bounce.must_say)
-    if "想聊什么" in joined:
-        _fail(f"bounce 想聊什么 should be dropped: {bounce.must_say}")
-    if "草莓牛奶" not in joined:
-        _fail(f"open-chat must_say should remain: {bounce.must_say}")
+    if legacy is not None:
+        _fail("legacy must_say card without draft must fail")
 
-    ask = parse_and_gate_intent(
-        '{"user_emotion":"感激","topic":"道谢","stance":"轻松",'
-        '"must_say":["回应老师的感谢，表示随时愿意陪伴","可自然询问老师接下来想做什么或想聊什么"],'
-        '"must_not":["用提问收尾","把问题抛回老师","反问老师想聊什么"],'
-        '"facts_to_use":[],"tone":"轻松","length":"1-2句","arona_emotion":"smile"}'
+    draft = parse_and_gate_intent(
+        '{"draft":"我想先跟老师聊聊草莓牛奶，说说为什么喜欢它。",'
+        '"arona_emotion":"smile","followup_ok":false}'
     )
-    if ask is None:
-        _fail("ask card should parse")
-    if not any("询问" in x for x in ask.must_say):
-        _fail(f"must_say ask should win: {ask.must_say}")
-    if any("用提问收尾" in x for x in ask.must_not):
-        _fail(f"question ban should be stripped: {ask.must_not}")
+    if draft is None:
+        _fail("draft card should parse")
+    if "草莓牛奶" not in draft.to_renderer_draft():
+        _fail(f"draft missing topic: {draft.draft!r}")
+    if draft.to_renderer_dict() != {"draft": draft.draft}:
+        _fail(f"renderer dict should be draft-only: {draft.to_renderer_dict()}")
     print("  ok")
 
 
@@ -361,6 +357,9 @@ def test_depart_then_short_ack_silence() -> None:
     spoken = decide(everyday, "short_ack")
     if spoken.action != "speak":
         _fail(f"everyday 嗯 should still speak, got {spoken.action}")
+    everyday_hao = decide(everyday, "short_ack")
+    if everyday_hao.action != "speak":
+        _fail(f"everyday 好 should still speak, got {everyday_hao.action}")
     print("  ok")
 
 
@@ -374,6 +373,29 @@ def test_engine_depart_then_ack(tmp: Path) -> None:
     _ack, second = engine.on_user_text("嗯")
     if _ack != "short_ack" or second.action != "silence":
         _fail(f"expected silence, act={_ack} action={second.action}")
+    print("  ok")
+
+
+def test_engine_wait_then_hao(tmp: Path) -> None:
+    print("== wait/leave then 好 => silence; everyday 好 still speaks ==")
+    path = tmp / "rel_wait.json"
+    engine = RelationshipEngine.from_path(path, RelationshipSettings(beta=0.0))
+    _act, first = engine.on_user_text("啊，阿洛娜，抱歉，刚刚我去做别的事情了")
+    if _act != "depart" or first.action != "speak":
+        _fail(f"leave line should be depart/speak, got {_act} {first.action}")
+    _wait, mid = engine.on_user_text("嗯，稍等一下哦，我马上就回来")
+    if _wait != "depart" or mid.action != "speak":
+        _fail(f"wait line should be depart/speak, got {_wait} {mid.action}")
+    _ack, last = engine.on_user_text("好")
+    if _ack != "short_ack" or last.action != "silence":
+        _fail(f"expected silence after wait, act={_ack} action={last.action}")
+
+    everyday = RelationshipEngine.from_path(
+        tmp / "rel_everyday.json", RelationshipSettings(beta=0.0)
+    )
+    _hao, spoken = everyday.on_user_text("好")
+    if _hao != "short_ack" or spoken.action != "speak":
+        _fail(f"everyday 好 should still speak, got {_hao} {spoken.action}")
     print("  ok")
 
 
@@ -406,11 +428,12 @@ def main() -> None:
         test_store_roundtrip(Path(tmp))
     test_welcome_climate_notes()
     test_welcome_not_teased_and_speak_not_ratchet()
-    test_intent_drop_throwback_must_say()
+    test_intent_draft_gate()
     test_welcome_forbids_ask()
     test_depart_then_short_ack_silence()
     with tempfile.TemporaryDirectory() as tmp:
         test_engine_depart_then_ack(Path(tmp))
+        test_engine_wait_then_hao(Path(tmp))
     test_config_loads()
     print("ALL PASS")
 

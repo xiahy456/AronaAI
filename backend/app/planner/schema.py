@@ -1,4 +1,4 @@
-"""Intent card parsing, gating, and renderer-facing serialization."""
+"""Intent draft parsing, gating, and renderer-facing serialization (V2.4)."""
 
 from __future__ import annotations
 
@@ -9,39 +9,10 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .emotions import DEFAULT_EMOTION, normalize_emotion
-from .prompts import FIXED_MUST_NOT
 
 logger = logging.getLogger(__name__)
 
 _JSON_OBJECT_RE = re.compile(r"\{[\s\S]*\}")
-_MAX_MUST_SAY = 2
-_ALLOWED_LENGTH = "1-2句"
-
-
-def _is_choice_bounce_must_say(item: str) -> bool:
-    """True if the instruction throws topic choice back at the teacher.
-
-    Keep light-ask instructions such as「可自然询问老师接下来想做什么或想聊什么」.
-    """
-    if "还是" in item:
-        return True
-    if "反问" in item:
-        return True
-    if "想聊什么" in item and not any(
-        key in item for key in ("询问", "接下来", "选定", "开聊")
-    ):
-        return True
-    return False
-
-
-def _as_str_list(value: object | None) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    out: list[str] = []
-    for item in value:
-        if isinstance(item, str) and item.strip():
-            out.append(item.strip())
-    return out
 
 
 def _as_str(value: object | None, default: str = "") -> str:
@@ -58,109 +29,65 @@ def _as_bool(value: object | None, default: bool = False) -> bool:
     return default
 
 
+def _as_str_list(value: object | None) -> list[str]:
+    """Legacy helper for old card fields ignored after parse."""
+    if not isinstance(value, list):
+        return []
+    out: list[str] = []
+    for item in value:
+        if isinstance(item, str) and item.strip():
+            out.append(item.strip())
+    return out
+
+
 @dataclass
 class IntentCard:
+    """V2.4 intent: draft + emotion + followup_ok.
+
+    Legacy card fields may still appear in raw JSON; they are parsed then ignored
+    for rendering (to_renderer only exposes draft).
+    """
+
+    draft: str = ""
+    arona_emotion: str = DEFAULT_EMOTION
+    followup_ok: bool = False
+    # Legacy (ignored by Renderer; kept so old payloads / tests don't explode)
     user_emotion: str = ""
     topic: str = ""
     stance: str = ""
     must_say: list[str] = field(default_factory=list)
     must_not: list[str] = field(default_factory=list)
     facts_to_use: list[str] = field(default_factory=list)
-    tone: str = "温柔短句"
-    length: str = "1-2句"
-    arona_emotion: str = DEFAULT_EMOTION
-    followup_ok: bool = False
+    tone: str = ""
+    length: str = ""
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> IntentCard:
+        draft = _as_str(data.get("draft"))
+        # Soft migrate: if only old card fields exist, leave draft empty (gate fails).
         return cls(
+            draft=draft,
+            arona_emotion=normalize_emotion(data.get("arona_emotion")),
+            followup_ok=_as_bool(data.get("followup_ok"), False),
             user_emotion=_as_str(data.get("user_emotion")),
             topic=_as_str(data.get("topic")),
             stance=_as_str(data.get("stance")),
             must_say=_as_str_list(data.get("must_say")),
             must_not=_as_str_list(data.get("must_not")),
             facts_to_use=_as_str_list(data.get("facts_to_use")),
-            tone=_as_str(data.get("tone"), "温柔短句"),
-            length=_as_str(data.get("length"), "1-2句"),
-            arona_emotion=normalize_emotion(data.get("arona_emotion")),
-            followup_ok=_as_bool(data.get("followup_ok"), False),
+            tone=_as_str(data.get("tone")),
+            length=_as_str(data.get("length")),
         )
-
-    def merge_fixed_must_not(self) -> None:
-        seen = set(self.must_not)
-        for item in FIXED_MUST_NOT:
-            if item not in seen:
-                self.must_not.append(item)
-                seen.add(item)
-
-    def normalize_length_and_must_say(self) -> None:
-        """Clamp length/must_say so Renderer is not forced into 3+ sentences."""
-        if self.length != _ALLOWED_LENGTH:
-            logger.info(
-                "planner gate length normalized from %r to %r",
-                self.length,
-                _ALLOWED_LENGTH,
-            )
-            self.length = _ALLOWED_LENGTH
-        if len(self.must_say) > _MAX_MUST_SAY:
-            logger.info(
-                "planner gate must_say truncated %d -> %d topic=%r",
-                len(self.must_say),
-                _MAX_MUST_SAY,
-                self.topic,
-            )
-            self.must_say = self.must_say[:_MAX_MUST_SAY]
-
-    def drop_conflicting_must_say(self) -> None:
-        """Keep must_say; strip question-ending bans that fight it. Still drop bounce."""
-        say_text = "".join(self.must_say)
-        asks = any(
-            key in say_text
-            for key in ("轻问", "询问", "提问", "问老师", "问一句", "问问")
-        )
-        if asks:
-            question_bans = ("用提问收尾", "不要以疑问结尾", "不要反问")
-            kept_not: list[str] = []
-            dropped = False
-            for item in self.must_not:
-                if any(ban in item for ban in question_bans):
-                    dropped = True
-                    continue
-                kept_not.append(item)
-            if dropped:
-                logger.info(
-                    "planner gate dropped question-ending must_not; must_say wins topic=%r",
-                    self.topic,
-                )
-                self.must_not = kept_not
-
-        not_text = "".join(self.must_not)
-        if not any(key in not_text for key in ("抛回", "想聊什么")):
-            return
-        kept: list[str] = []
-        for item in self.must_say:
-            if _is_choice_bounce_must_say(item):
-                logger.info("planner gate dropped bounce must_say %r", item)
-                continue
-            kept.append(item)
-        self.must_say = kept
 
     def to_renderer_dict(self) -> dict[str, Any]:
-        """Intent fields for AronaLM — emotion stripped."""
-        return {
-            "user_emotion": self.user_emotion,
-            "topic": self.topic,
-            "stance": self.stance,
-            "must_say": self.must_say,
-            "must_not": self.must_not,
-            "facts_to_use": self.facts_to_use,
-            "tone": self.tone,
-            "length": self.length,
-        }
+        """Deprecated for V2.4; prefer to_renderer_draft()."""
+        return {"draft": self.draft}
+
+    def to_renderer_draft(self) -> str:
+        return self.draft.strip()
 
     def to_renderer_text(self) -> str:
-        payload = self.to_renderer_dict()
-        return json.dumps(payload, ensure_ascii=False)
+        return self.to_renderer_draft()
 
 
 def extract_json_object(text: str) -> dict[str, Any] | None:
@@ -187,12 +114,7 @@ def parse_and_gate_intent(raw_text: str) -> IntentCard | None:
     if data is None:
         return None
     card = IntentCard.from_dict(data)
-    card.merge_fixed_must_not()
-    card.normalize_length_and_must_say()
-    card.drop_conflicting_must_say()
-    # Soft gate: empty planning is weak but still usable if emotion is valid.
-    if not card.topic and not card.must_say and not card.stance:
-        # Still allow if we at least got emotion; otherwise fail.
-        if card.arona_emotion == DEFAULT_EMOTION and not data.get("arona_emotion"):
-            return None
+    if not card.draft.strip():
+        logger.info("planner gate failed: empty draft")
+        return None
     return card

@@ -3,12 +3,8 @@
 from __future__ import annotations
 
 import re
-from typing import Any
 
 HISTORY_CONTINUE_MARKER = "【补充】"
-CONTINUE_RENDERER_PLACEHOLDER = (
-    "请只补一句与上一句不同的新信息。不要复述、不要再回答老师刚才那句。"
-)
 _SIMILAR_PUNCT = re.compile(r"[\s。！？!?~～、，,.\-…「」『』\"'“”‘’（）()]")
 _OVERLAP_THRESHOLD = 0.72
 _PREV_CLIP = 80
@@ -47,16 +43,6 @@ def last_teacher_utterance(history: list[dict[str, str]] | None) -> str:
     return ""
 
 
-def continue_renderer_user_text(previous: str | None) -> str:
-    clip = clip_previous(previous or "")
-    if not clip:
-        return CONTINUE_RENDERER_PLACEHOLDER
-    return (
-        f"请只补一句与上一句不同的新信息。上一句已经说过：「{clip}」。"
-        "不要复述、不要再回答老师刚才那句。"
-    )
-
-
 def _normalize_for_similarity(text: str) -> str:
     t = _THINK_RE.sub("", text or "")
     return _SIMILAR_PUNCT.sub("", t).lower()
@@ -81,26 +67,6 @@ def too_similar(previous: str, cont: str, overlap_threshold: float = _OVERLAP_TH
         return False
     ratio = len(ba & bb) / min(len(ba), len(bb))
     return ratio >= overlap_threshold
-
-
-def inject_continue_into_card(card: Any, previous: str) -> None:
-    """Make the continue card a sufficient statistic for a no-history Renderer."""
-    clip = clip_previous(previous)
-    if not clip:
-        return
-    fact = f"上一句已经说过：{clip}"
-    facts = getattr(card, "facts_to_use", None)
-    if isinstance(facts, list) and fact not in facts:
-        facts.append(fact)
-    bans = ["复述上一句", clip, "把问题抛回老师"]
-    must_not = getattr(card, "must_not", None)
-    if not isinstance(must_not, list):
-        return
-    seen = set(must_not)
-    for ban in bans:
-        if ban not in seen:
-            must_not.append(ban)
-            seen.add(ban)
 
 
 def build_continue_instruction(previous: str) -> str:

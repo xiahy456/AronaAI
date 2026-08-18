@@ -17,7 +17,6 @@ sys.path.insert(0, str(BACKEND_DIR))
 
 from app.config import load_config  # noqa: E402
 from app.memory.store import MemoryStore  # noqa: E402
-from app.planner.prompts import FIXED_MUST_NOT  # noqa: E402
 from app.planner.schema import parse_and_gate_intent  # noqa: E402
 from app.proactive.care import (  # noqa: E402
     HISTORY_CARE_MARKER,
@@ -654,12 +653,16 @@ def test_festival_calendar_and_once(tmp: Path) -> None:
 
 
 def test_followup_ok_default_and_gate() -> None:
-    print("== followup_ok default false; gate keeps bans ==")
-    raw = (
+    print("== followup_ok default false; draft gate ==")
+    legacy = parse_and_gate_intent(
         '{"user_emotion":"平静","topic":"问候","stance":"回应",'
         '"must_say":["问好"],"must_not":[],"facts_to_use":[],'
         '"tone":"温柔","length":"1-2句","arona_emotion":"smile"}'
     )
+    if legacy is not None:
+        _fail("legacy card without draft must fail gate")
+
+    raw = '{"draft":"老师好，今天也请多指教。","arona_emotion":"smile"}'
     card = parse_and_gate_intent(raw)
     if card is None:
         _fail("card should parse")
@@ -667,33 +670,25 @@ def test_followup_ok_default_and_gate() -> None:
         _fail("followup_ok should default false")
     if "followup_ok" in card.to_renderer_dict():
         _fail("followup_ok must not go to renderer")
+    if card.to_renderer_draft() != "老师好，今天也请多指教。":
+        _fail(f"unexpected draft: {card.to_renderer_draft()!r}")
 
     raw_ok = (
-        '{"user_emotion":"好奇","topic":"光环","stance":"解释",'
-        '"must_say":["说明光环"],"must_not":["把问题抛回老师"],'
-        '"facts_to_use":[],"tone":"温柔","length":"1-2句",'
+        '{"draft":"光环是阿洛娜身份的一部分，我可以慢慢讲给老师听。",'
         '"arona_emotion":"smile","followup_ok":true}'
     )
     gated = parse_and_gate_intent(raw_ok)
     if gated is None or not gated.followup_ok:
         _fail("followup_ok true should survive parse")
-    for item in FIXED_MUST_NOT:
-        if item not in gated.must_not:
-            _fail(f"continue must not drop fixed ban {item!r}: {gated.must_not}")
-    if not any("抛回" in item for item in gated.must_not):
-        _fail(f"climate/planner ban should remain: {gated.must_not}")
     print("  ok")
 
 
 def test_continue_renderer_split_and_skip() -> None:
-    print("== continue: renderer instruction; skip 2-sentence; too_similar ==")
+    print("== continue: planner system event; renderer draft only; too_similar ==")
     from app.planner.schema import IntentCard
     from app.prompt import build_renderer_messages
     from app.proactive.followup import (
-        CONTINUE_RENDERER_PLACEHOLDER,
         build_continue_instruction,
-        continue_renderer_user_text,
-        inject_continue_into_card,
         last_teacher_utterance,
         should_skip_continue,
         too_similar,
@@ -706,17 +701,6 @@ def test_continue_renderer_split_and_skip() -> None:
     ]
     if last_teacher_utterance(history) != "我今天过得很好":
         _fail("last teacher should skip Arona's previous line")
-    render_user = continue_renderer_user_text(previous)
-    if "我今天过得很好" in render_user:
-        _fail("continue renderer must not reuse teacher original")
-    if "老师今天过得真好" not in render_user:
-        _fail("continue renderer should mention previous Arona line")
-    if "不要复述" not in render_user or "不要再回答老师刚才那句" not in render_user:
-        _fail("continue renderer must forbid restating / re-answering")
-    if continue_renderer_user_text("") != CONTINUE_RENDERER_PLACEHOLDER:
-        _fail("empty previous should use placeholder")
-    if continue_renderer_user_text(None) != CONTINUE_RENDERER_PLACEHOLDER:
-        _fail("None previous should use placeholder")
 
     instruction = build_continue_instruction(previous)
     if "【系统事件】" not in instruction or "上一句是：" not in instruction:
@@ -726,46 +710,30 @@ def test_continue_renderer_split_and_skip() -> None:
     if "已经回答过的问题" not in instruction:
         _fail("continue instruction must forbid re-asking answered questions")
 
-    card = IntentCard(
-        must_say=["接住老师的开心"],
-        must_not=[],
-        facts_to_use=[],
-    )
-    inject_continue_into_card(card, previous)
-    if not any(item.startswith("上一句已经说过：") for item in card.facts_to_use):
-        _fail(f"facts_to_use should record previous line: {card.facts_to_use}")
-    if "复述上一句" not in card.must_not:
-        _fail(f"must_not should ban repeating previous: {card.must_not}")
-    if previous not in card.must_not:
-        _fail(f"must_not should include previous clip: {card.must_not}")
-    if "把问题抛回老师" not in card.must_not:
-        _fail(f"must_not should include bounce ban: {card.must_not}")
-    inject_continue_into_card(card, previous)
-    if card.facts_to_use.count(f"上一句已经说过：{previous}") != 1:
-        _fail("inject should be idempotent")
-
+    draft = "那明天要不要一起去买草莓牛奶？"
+    card = IntentCard(draft=draft, arona_emotion="smile", followup_ok=False)
     cfg = load_config()
     msgs = build_renderer_messages(
         cfg,
-        user_text=render_user,
-        intent_card=card.to_renderer_dict(),
+        draft=card.to_renderer_draft(),
         history=history,
         max_history_turns=2,
     )
     payload = msgs[-1]["content"]
+    if "【意图草稿】" not in payload:
+        _fail("Renderer payload needs 【意图草稿】")
+    if draft not in payload:
+        _fail("Renderer payload should contain draft")
     if "【系统事件】" in payload:
         _fail("Renderer payload must not contain 【系统事件】")
     if "上一句是：" in payload:
         _fail("Renderer payload must not contain 上一句是：")
-    if "【老师原话】" not in payload:
-        _fail("Renderer payload needs 【老师原话】")
-    teacher_block = payload.split("【老师原话】", 1)[1].strip().split("\n\n", 1)[0]
-    if "我今天过得很好" in teacher_block:
-        _fail(f"【老师原话】 must not be last teacher: {teacher_block!r}")
-    if "请只补一句" not in teacher_block:
-        _fail(f"【老师原话】 should be continue instruction: {teacher_block!r}")
-    if "老师今天过得真好" not in teacher_block:
-        _fail(f"【老师原话】 should include previous clip: {teacher_block!r}")
+    if "【老师原话】" in payload:
+        _fail("Renderer payload must not contain 【老师原话】")
+    if "【回复意图卡】" in payload:
+        _fail("Renderer payload must not contain JSON intent card header")
+    if "我今天过得很好" in payload or previous in payload:
+        _fail("Renderer must not see teacher utterance or previous Arona line")
 
     if not should_skip_continue("老师今天过得真好！还去了哪里呢？"):
         _fail("two-sentence first reply should skip continue")

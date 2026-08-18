@@ -26,8 +26,6 @@ from .proactive import (
 from .proactive.followup import (
     HISTORY_CONTINUE_MARKER,
     build_continue_instruction,
-    continue_renderer_user_text,
-    inject_continue_into_card,
     should_skip_continue,
     too_similar,
 )
@@ -260,10 +258,7 @@ class Orchestrator:
         if intent is not None:
             messages = build_renderer_messages(
                 self.config,
-                user_text=user_text,
-                intent_card=intent.to_renderer_dict(),
-                history=history,
-                max_history_turns=2,
+                draft=intent.to_renderer_draft(),
             )
             context_parts.append("renderer")
         else:
@@ -361,7 +356,6 @@ class Orchestrator:
             send=send,
             retrieve_memory=False,
             climate_block=self._welcome_climate_block(climate),
-            extra_must_not=["想聊什么", "把问题抛回老师", "用『还是』列选择题"],
             climate=climate,
         )
 
@@ -377,10 +371,8 @@ class Orchestrator:
         memory_query: str = "",
         extra_memories: list[str] | tuple[str, ...] | None = None,
         climate_block: str = "",
-        extra_must_not: list[str] | None = None,
         climate: str | None = None,
         decision: Decision | None = None,
-        renderer_user_text: str | None = None,
         continue_previous: str | None = None,
     ) -> bool:
         """Generate a system-event line (welcome / idle / care / goal / continue). Returns True on success."""
@@ -480,31 +472,11 @@ class Orchestrator:
                 self.stats["planner_hits"] += 1
                 emotion = intent.arona_emotion
                 self._merge_decision_into_intent(intent, decision)
-                for item in extra_must_not or ():
-                    if item not in intent.must_not:
-                        intent.must_not.append(item)
-                if kind == "continue":
-                    inject_continue_into_card(intent, continue_previous or "")
-                intent.drop_conflicting_must_say()
 
         if intent is not None:
-            if kind == "continue":
-                render_text = (renderer_user_text or "").strip() or continue_renderer_user_text(
-                    continue_previous or ""
-                )
-                logger.info(
-                    "initiate continue renderer user session=%s text=%r",
-                    session_id,
-                    render_text,
-                )
-            else:
-                render_text = user_text
             messages = build_renderer_messages(
                 self.config,
-                user_text=render_text,
-                intent_card=intent.to_renderer_dict(),
-                history=history,
-                max_history_turns=2,
+                draft=intent.to_renderer_draft(),
             )
             context_parts.append("renderer")
         else:
@@ -649,8 +621,6 @@ class Orchestrator:
             retrieve_memory=False,
             climate=climate,
             decision=decision,
-            extra_must_not=["卖关子", "编造未发生的事", "把问题抛回老师"],
-            renderer_user_text=continue_renderer_user_text(previous),
             continue_previous=previous.strip(),
         )
 
@@ -674,24 +644,18 @@ class Orchestrator:
             f"【关系气候】{label}\n"
             "【建议姿态】简短迎接；可以加一句轻问帮老师开场。\n"
             "【本轮禁区】想聊什么；把问题抛回老师；用『还是』列选择题。\n"
-            "must_say 以问候为主，允许一句轻问。不要提及关系数值、信任度、依赖度或张力。"
+            "draft 以问候为主，允许一句轻问。不要提及关系数值、信任度、依赖度或张力。"
         )
 
     def _merge_decision_into_intent(
         self, intent: IntentCard, decision: Decision | None
     ) -> None:
-        if decision is None:
-            return
-        if decision.stance:
-            intent.stance = decision.stance
-        if decision.tone_hint:
-            intent.tone = decision.tone_hint
-        seen = set(intent.must_not)
-        for item in decision.must_not:
-            if item not in seen:
-                intent.must_not.append(item)
-                seen.add(item)
-        intent.drop_conflicting_must_say()
+        """Relationship climate already reaches Planner via climate_block.
+
+        V2.4: do not mutate draft from Decision card fields (must_not/stance/tone).
+        """
+        _ = intent, decision
+        return
 
     async def _skip_generation(
         self,

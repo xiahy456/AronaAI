@@ -23,12 +23,6 @@ logger = logging.getLogger(__name__)
 
 TICK_SEC = 30.0
 
-_FESTIVAL_MUST_NOT = [
-    "盘问过节安排",
-    "编造老师已经做了什么",
-    "把问题抛回老师",
-]
-
 
 async def load_birthday_content(state: "AppState") -> str:
     if not getattr(state.scheduler.festival_cfg, "enabled", False):
@@ -58,7 +52,6 @@ async def deliver_festival(
         history_marker=HISTORY_FESTIVAL_MARKER,
         send=send,
         extra_memories=extra,
-        extra_must_not=list(_FESTIVAL_MUST_NOT),
         climate=climate,
         decision=decision,
     )
@@ -84,7 +77,6 @@ async def deliver_festival(
             send=send,
             retrieve_memory=True,
             memory_query=CARE_MEMORY_QUERY,
-            extra_must_not=["早上好", "把问题抛回老师"],
             climate=climate,
             decision=decision,
         )
@@ -173,14 +165,6 @@ async def tick_once(state: "AppState", now: datetime | None = None) -> bool:
                 decision=decision,
             )
 
-        extra_must_not = None
-        if motive.kind == "goal":
-            extra_must_not = [
-                "催促",
-                "盘问进展",
-                "编造老师已经做了什么",
-                "把问题抛回老师",
-            ]
         ok = await state.orchestrator.handle_initiate(
             session_id=session_id,
             kind=motive.kind,
@@ -190,7 +174,6 @@ async def tick_once(state: "AppState", now: datetime | None = None) -> bool:
             retrieve_memory=motive.retrieve_memory,
             memory_query=motive.memory_query,
             extra_memories=list(motive.extra_memories),
-            extra_must_not=extra_must_not,
             climate=climate,
             decision=decision,
         )

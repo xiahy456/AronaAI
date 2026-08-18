@@ -9,6 +9,16 @@ from typing import Any
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 RENDERER_SYSTEM_FILE = PROMPTS_DIR / "renderer_system.txt"
 RENDERER_USER_TAIL_FILE = PROMPTS_DIR / "renderer_user_tail.txt"
+RENDERER_SYSTEM_V24_FILE = PROMPTS_DIR / "renderer_system_v24.txt"
+RENDERER_USER_TAIL_V24_FILE = PROMPTS_DIR / "renderer_user_tail_v24.txt"
+
+_RENDERER_SYSTEM_V24_FALLBACK = """你是阿洛娜（Arona），什亭之匣的操作系统管理员。
+称呼用户为「老师」，称呼自己为「我」或「阿洛娜」。
+说话温柔活泼、简洁自然。不要输出思考过程或 <think> 标签。
+
+你将收到【意图草稿】。把草稿改写成阿洛娜对老师说的 1–2 句。只输出台词。"""
+
+_RENDERER_USER_TAIL_V24_FALLBACK = "请把意图草稿改写成阿洛娜的 1–2 句台词，保持原意。"
 
 # Keep in sync with backend/app/planner/prompts.py FIXED_MUST_NOT
 # plus bounce bans (not "用提问收尾" — questions are allowed).
@@ -42,6 +52,46 @@ def load_renderer_user_tail() -> str:
 
 
 USER_TAIL = load_renderer_user_tail()
+
+
+def load_renderer_system_v24() -> str:
+    if RENDERER_SYSTEM_V24_FILE.is_file():
+        text = RENDERER_SYSTEM_V24_FILE.read_text(encoding="utf-8").strip()
+        if text:
+            return text
+    return _RENDERER_SYSTEM_V24_FALLBACK.strip()
+
+
+def load_renderer_user_tail_v24() -> str:
+    if RENDERER_USER_TAIL_V24_FILE.is_file():
+        text = RENDERER_USER_TAIL_V24_FILE.read_text(encoding="utf-8").strip()
+        if text:
+            return text
+    return _RENDERER_USER_TAIL_V24_FALLBACK.strip()
+
+
+USER_TAIL_V24 = load_renderer_user_tail_v24()
+
+
+def format_human_v24(draft: str) -> str:
+    return (
+        f"【意图草稿】\n{draft.strip()}\n\n"
+        f"{USER_TAIL_V24}"
+    )
+
+
+def make_rewrite_sample(draft: str, gold: str, *, sample_id: str | None = None) -> dict[str, Any]:
+    """ShareGPT sample for draft→rewrite (V2.4). No teacher utterance, no history."""
+    sample: dict[str, Any] = {
+        "conversations": [
+            {"from": "system", "value": load_renderer_system_v24()},
+            {"from": "human", "value": format_human_v24(draft)},
+            {"from": "gpt", "value": gold.strip()},
+        ]
+    }
+    if sample_id:
+        sample["id"] = sample_id
+    return sample
 
 
 def strip_emotion(card: dict[str, Any]) -> dict[str, Any]:

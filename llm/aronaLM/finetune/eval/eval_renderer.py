@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Rule-based Renderer hard-case eval (intent card -> reply).
+"""Rule-based Renderer hard-case eval.
 
-Supports llama-cpp GGUF (production-like) or printing dry-run cards.
+V2.3 cases: intent_card + user_text (card format).
+V2.4 cases: draft only (rewrite format) — use --cases eval/renderer_cases_v24.json.
 
 Examples:
-  python eval/eval_renderer.py --gguf ../../../models/AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf
-  python eval/eval_renderer.py --gguf ../../../models/AronaLM-Renderer-V2.1/AronaLM-Renderer-V2.1.Q4_K_M.gguf
-  python eval/eval_renderer.py --gguf ../../../models/AronaLM-Renderer-V2.2/AronaLM-Renderer-V2.2.Q4_K_M.gguf --tag v22 --max-tokens 72
+  python eval/eval_renderer.py --gguf ../../../models/AronaLM-Renderer-V2.3/AronaLM-Renderer-V2.3.Q4_K_M.gguf --tag v23
+  python eval/eval_renderer.py --cases eval/renderer_cases_v24.json --gguf ../../../models/AronaLM-Renderer-V2.4/AronaLM-Renderer-V2.4.Q4_K_M.gguf --tag v24 --llm-judge
 """
 
 from __future__ import annotations
@@ -20,13 +20,18 @@ from pathlib import Path
 
 FINETUNE_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(FINETUNE_ROOT / "data-process"))
-from renderer_format import format_human, load_renderer_system  # noqa: E402
+from renderer_format import (  # noqa: E402
+    format_human,
+    format_human_v24,
+    load_renderer_system,
+    load_renderer_system_v24,
+)
 
 CASES_PATH = Path(__file__).resolve().parent / "renderer_cases.json"
 REPORTS_DIR = Path(__file__).resolve().parent / "reports"
 
 
-def llm_fulfill(user_text: str, card: dict, reply: str) -> tuple[bool, list[str]]:
+def llm_fulfill_card(user_text: str, card: dict, reply: str) -> tuple[bool, list[str]]:
     """Judge whether reply fulfills must_say instructions (not substring match)."""
     from llm_client import chat_json
 
@@ -34,7 +39,7 @@ def llm_fulfill(user_text: str, card: dict, reply: str) -> tuple[bool, list[str]
         system=(
             "判定 Renderer 回复是否落实了 must_say 思路指令。"
             "落实=完成意图，不是指令原文出现在回复里。"
-            "只输出 JSON：{\"ok\": true/false, \"reasons\": [\"...\"]}"
+            '只输出 JSON：{"ok": true/false, "reasons": ["..."]}'
         ),
         user=json.dumps(
             {"user_text": user_text, "card": card, "reply": reply},
@@ -53,11 +58,34 @@ def llm_fulfill(user_text: str, card: dict, reply: str) -> tuple[bool, list[str]
     return ok, fails
 
 
+def llm_fulfill_draft(draft: str, reply: str) -> tuple[bool, list[str]]:
+    """Judge whether rewrite keeps draft meaning and sounds like Arona."""
+    from llm_client import chat_json
+
+    parsed = chat_json(
+        system=(
+            "判定 Renderer 是否把【意图草稿】改写成阿洛娜对老师说的 1–2 句台词。"
+            "要求：意思与草稿一致；口吻像阿洛娜（可称老师）；不要自称 ChatGPT；不要解释规则。"
+            '只输出 JSON：{"ok": true/false, "reasons": ["..."]}'
+        ),
+        user=json.dumps({"draft": draft, "reply": reply}, ensure_ascii=False),
+        temperature=0.1,
+        max_tokens=400,
+    )
+    if not isinstance(parsed, dict):
+        return False, ["llm_judge_bad_shape"]
+    ok = bool(parsed.get("ok"))
+    reasons = parsed.get("reasons") or []
+    if not isinstance(reasons, list):
+        reasons = [str(reasons)]
+    fails = [] if ok else [f"llm_unfulfilled:{';'.join(str(x) for x in reasons)}"]
+    return ok, fails
+
+
 def _choice_bounce(text: str) -> bool:
     if "话题单" in text:
         return True
     if "还是" in text and ("想聊" in text or "还是" in text and ("？" in text or "?" in text)):
-        # heuristic: choice questions bouncing to teacher
         if any(x in text for x in ("想聊", "要不要", "还是选", "A、B", "还是C")):
             return True
     if "老师想聊" in text and ("还是" in text or "还是" in text):
@@ -100,6 +128,16 @@ def score_reply(reply: str, expect: dict) -> tuple[bool, list[str]]:
     return len(fails) == 0, fails
 
 
+def case_is_v24(case: dict) -> bool:
+    return bool(str(case.get("draft") or "").strip()) and not case.get("intent_card")
+
+
+def build_user_payload(case: dict) -> tuple[str, bool]:
+    if case_is_v24(case):
+        return format_human_v24(str(case["draft"])), True
+    return format_human(case["user_text"], case["intent_card"]), False
+
+
 def load_llm(gguf: Path, n_ctx: int = 2048):
     from llama_cpp import Llama
 
@@ -111,8 +149,7 @@ def load_llm(gguf: Path, n_ctx: int = 2048):
     )
 
 
-def generate(llm, user_payload: str, max_tokens: int = 72) -> str:
-    system = load_renderer_system()
+def generate(llm, system: str, user_payload: str, max_tokens: int = 72) -> str:
     out = llm.create_chat_completion(
         messages=[
             {"role": "system", "content": system},
@@ -134,42 +171,46 @@ def main() -> None:
     parser.add_argument(
         "--llm-judge",
         action="store_true",
-        help="Also judge must_say fulfillment with DeepSeek (primary metric)",
+        help="Also judge meaning fulfillment with DeepSeek (primary metric)",
     )
     args = parser.parse_args()
 
     cases = json.loads(args.cases.read_text(encoding="utf-8"))
     gguf = args.gguf
     if not gguf.is_file():
-        # allow relative to finetune/
         alt = (FINETUNE_ROOT / gguf).resolve()
         if alt.is_file():
             gguf = alt
         else:
             raise FileNotFoundError(gguf)
 
-    print(f"Loading {gguf} ...")
+    v24_mode = any(case_is_v24(c) for c in cases)
+    system = load_renderer_system_v24() if v24_mode else load_renderer_system()
+
+    print(f"Loading {gguf} ... (v24={v24_mode})")
     llm = load_llm(gguf)
 
     rows = []
     passed = 0
     for case in cases:
-        human = format_human(case["user_text"], case["intent_card"])
-        reply = generate(llm, human, max_tokens=args.max_tokens)
+        human, is_v24 = build_user_payload(case)
+        reply = generate(llm, system, human, max_tokens=args.max_tokens)
         lexical_ok, lexical_fails = score_reply(reply, case.get("expect") or {})
         use_llm = args.llm_judge or (case.get("expect") or {}).get("llm_fulfill")
         llm_ok = None
         fails = list(lexical_fails)
         if use_llm:
             try:
-                llm_ok, ffails = llm_fulfill(
-                    case["user_text"], case["intent_card"], reply
-                )
+                if is_v24:
+                    llm_ok, ffails = llm_fulfill_draft(str(case["draft"]), reply)
+                else:
+                    llm_ok, ffails = llm_fulfill_card(
+                        case["user_text"], case["intent_card"], reply
+                    )
                 fails.extend(ffails)
             except Exception as exc:
                 llm_ok = False
                 fails.append(f"llm_judge_error:{exc}")
-            # Primary metric is fulfillment, not substring hit-rate.
             hard_fails = [
                 f
                 for f in lexical_fails
@@ -185,7 +226,8 @@ def main() -> None:
             {
                 "id": case["id"],
                 "category": case.get("category"),
-                "user_text": case["user_text"],
+                "draft": case.get("draft"),
+                "user_text": case.get("user_text"),
                 "reply": reply,
                 "pass": ok,
                 "lexical_ok": lexical_ok,
@@ -209,6 +251,7 @@ def main() -> None:
     report = {
         "tag": tag,
         "gguf": str(gguf),
+        "v24": v24_mode,
         "llm_judge": bool(args.llm_judge),
         "passed": passed,
         "total": total,
@@ -224,6 +267,7 @@ def main() -> None:
         f"# Renderer eval `{tag}`",
         "",
         f"- GGUF: `{gguf}`",
+        f"- Format: {'V2.4 draft→rewrite' if v24_mode else 'V2.3 intent card'}",
         f"- Primary pass (fulfillment when `--llm-judge`): **{passed}/{total}** ({rate:.0%})",
         f"- LLM fulfill: **{llm_pass}/{llm_n}**" if llm_n else "- LLM fulfill: (off)",
         f"- Lexical (diagnostic): **{lexical_pass}/{total}**",
@@ -241,8 +285,8 @@ def main() -> None:
     print(f"\nPass {passed}/{total} ({rate:.0%})")
     print(f"Wrote {out_json}")
     print(f"Wrote {out_md}")
-    if rate < 0.7:
-        raise SystemExit(1)
+    if passed < total:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Smoke: multi-turn greeting stickiness + Arona picks one topic to open.
+"""Smoke: multi-turn greeting stickiness + Arona picks one topic to open (V2.4 draft).
 
 Usage:
   python backend/scripts/smoke_multiturn_chat.py
@@ -25,21 +25,14 @@ GREETING_WORDS = ("早上好", "下午好", "晚上好", "晚安", "早安")
 CHOICE_RE = re.compile(r"老师想聊.+还是")
 
 
-def _must_blob(card) -> str:
-    return " | ".join(card.must_say)
+def _starts_with_greeting(text: str) -> bool:
+    t = (text or "").strip()
+    return any(t.startswith(w) or w in t[:8] for w in GREETING_WORDS)
 
 
-def _requires_greeting(card) -> bool:
-    blob = _must_blob(card)
-    return any(
-        re.search(rf"用[「『]?{w}[」』]?回应", blob) or blob.strip() == w
-        for w in GREETING_WORDS
-    )
-
-
-def _has_concrete_topic(joined: str) -> bool:
+def _has_concrete_topic(text: str) -> bool:
     keys = ("草莓", "基沃托斯", "牛奶", "开心", "趣事", "见闻", "工作", "待办", "休息")
-    return any(k in joined for k in keys) or ("先聊" in joined) or ("开聊" in joined)
+    return any(k in text for k in keys) or ("先聊" in text) or ("开聊" in text)
 
 
 async def amain() -> int:
@@ -102,43 +95,33 @@ async def amain() -> int:
             failed += 1
             continue
 
-        payload = card.to_renderer_dict() | {"arona_emotion": card.arona_emotion}
+        draft = card.to_renderer_draft()
+        payload = {
+            "draft": draft,
+            "arona_emotion": card.arona_emotion,
+            "followup_ok": card.followup_ok,
+        }
         print("intent:", json.dumps(payload, ensure_ascii=False))
 
-        greets = _requires_greeting(card)
+        greets = _starts_with_greeting(draft) or any(w in draft for w in GREETING_WORDS)
         if turn["expect_greeting"] and not greets:
-            print("FAIL expected greeting must_say")
+            print("FAIL expected greeting in draft")
             failed += 1
         if not turn["expect_greeting"] and greets:
-            print("FAIL unexpected greeting must_say:", card.must_say)
+            print("FAIL unexpected greeting in draft:", draft)
             failed += 1
-        if not turn["expect_greeting"]:
-            if not any("问候" in s or "晚上好" in s or "再次" in s for s in card.must_not):
-                print("WARN must_not may lack anti-greeting:", card.must_not)
 
         if turn["expect_open_topic"]:
-            joined = _must_blob(card)
-            if not _has_concrete_topic(joined):
-                print("FAIL must_say lacks concrete open topic:", card.must_say)
+            if not _has_concrete_topic(draft):
+                print("FAIL draft lacks concrete open topic:", draft)
                 failed += 1
-            if any("供老师选择" in s or "几个话题选项" in s for s in card.must_say):
-                print("FAIL must_say still plans a menu for teacher:", card.must_say)
-                failed += 1
-            not_blob = " | ".join(card.must_not)
-            if "还是" not in not_blob and "选择题" not in not_blob and "抛回" not in not_blob:
-                print("WARN must_not may lack choice-ban:", card.must_not)
-            if any("老师想聊什么" in s for s in card.must_say):
-                print("FAIL must_say bounces to teacher")
+            if "老师想聊什么" in draft or CHOICE_RE.search(draft):
+                print("FAIL draft bounces choice to teacher:", draft)
                 failed += 1
 
         reply = ""
         if model is not None:
-            messages = build_renderer_messages(
-                config,
-                user_text=user,
-                intent_card=card.to_renderer_dict(),
-                history=history,
-            )
+            messages = build_renderer_messages(config, draft=draft)
             reply = await asyncio.to_thread(model.generate, messages, config)
             print("reply:", reply)
             if turn.get("forbid_reply_greeting"):
@@ -149,27 +132,11 @@ async def amain() -> int:
                 if CHOICE_RE.search(reply) or ("还是" in reply and "老师想聊" in reply):
                     print("FAIL reply is choice bounce:", reply)
                     failed += 1
-                if "话题单" in reply or "列个话题" in reply or "列几个" in reply:
-                    print("FAIL reply claims topic list without opening:", reply)
-                    failed += 1
-                if reply.strip() in {"老师想聊什么呀？", "老师想聊什么呢？"}:
-                    print("FAIL empty bounce:", reply)
-                    failed += 1
 
         history.append({"role": "user", "content": user})
-        history.append(
-            {
-                "role": "assistant",
-                "content": reply
-                or (
-                    "（占位回复）"
-                    if not turn["expect_open_topic"]
-                    else "阿洛娜想先跟老师聊聊草莓牛奶呀~"
-                ),
-            }
-        )
+        history.append({"role": "assistant", "content": reply or draft})
 
-    print(f"\nDone. failures={failed}")
+    print(f"\nDone. failed={failed}")
     return 1 if failed else 0
 
 

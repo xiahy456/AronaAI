@@ -26,27 +26,20 @@ CASES = [
         "user": "晚上好啊，罗娜。",
         "must_contain": ["晚上好"],
         "must_not_contain": ["晚安"],
-        "facts_empty": True,
     },
     {
         "id": "morning",
         "user": "早上好，阿洛娜",
         "must_contain": ["早上好"],
         "must_not_contain": ["晚安", "晚上好"],
-        "facts_empty": True,
     },
     {
         "id": "goodnight",
         "user": "晚安",
         "must_contain": ["晚安"],
         "must_not_contain": [],
-        "facts_empty": True,
     },
 ]
-
-
-def _join_must_say(card) -> str:
-    return " ".join(card.must_say) + " " + " ".join(card.must_not)
 
 
 async def amain() -> int:
@@ -64,16 +57,11 @@ async def amain() -> int:
         print("planner disabled / no API key")
         return 1
 
-    # Sanity: renderer must not splice yaml system_prompt identity-anchor block
-    sample = build_renderer_messages(
-        config,
-        user_text="测试",
-        intent_card={"must_say": ["点头"], "must_not": [], "facts_to_use": []},
-    )
+    sample = build_renderer_messages(config, draft="测试草稿")
     sys_content = sample[0]["content"]
     assert "【身份锚定】" not in sys_content
-    assert "按意图卡" in RENDERER_SYSTEM or "意图卡" in sys_content
-    print("renderer system ok (no yaml identity block)")
+    assert "意图草稿" in RENDERER_SYSTEM or "【意图草稿】" in sample[1]["content"]
+    print("renderer system ok (draft v24)")
 
     model = None
     if args.generate:
@@ -83,7 +71,6 @@ async def amain() -> int:
         print("Loading GGUF...")
         model.load(config)
 
-    # Irrelevant memory that previously polluted greetings
     fake_memories = ["老师邀请阿洛娜一起外出"]
     failed = 0
 
@@ -100,40 +87,25 @@ async def amain() -> int:
             failed += 1
             continue
 
-        payload = card.to_renderer_dict() | {"arona_emotion": card.arona_emotion}
+        payload = {
+            "draft": card.to_renderer_draft(),
+            "arona_emotion": card.arona_emotion,
+            "followup_ok": card.followup_ok,
+        }
         print("intent:", json.dumps(payload, ensure_ascii=False))
+        draft = card.to_renderer_draft()
 
-        blob = _join_must_say(card)
         for needle in case["must_contain"]:
-            if needle not in blob and needle not in " ".join(card.must_say):
-                # allow must_say to phrase it; check must_say specifically
-                if not any(needle in s for s in card.must_say):
-                    print(f"FAIL must_say missing {needle!r}: {card.must_say}")
-                    failed += 1
+            if needle not in draft:
+                print(f"FAIL draft missing {needle!r}: {draft!r}")
+                failed += 1
         for bad in case["must_not_contain"]:
-            # planner should put wrong greeting in must_not, or at least not require it in must_say
-            if any(bad in s and "用" not in s[:2] for s in card.must_say):
-                # if must_say actively asks to use the wrong greeting
-                if any(f"用「{bad}」" in s or f"用'{bad}'" in s or bad == s for s in card.must_say):
-                    print(f"FAIL must_say wrongly requires {bad!r}")
-                    failed += 1
-            # for evening case, must_not should mention 晚安
-            if case["id"] == "evening" and bad == "晚安":
-                if not any("晚安" in s for s in card.must_not):
-                    print(f"WARN must_not missing 晚安 ban: {card.must_not}")
-
-        if case.get("facts_empty") and card.facts_to_use:
-            print(f"FAIL facts_to_use should be [] got {card.facts_to_use}")
-            failed += 1
-        else:
-            print("facts_to_use ok:", card.facts_to_use)
+            if bad in draft:
+                print(f"FAIL draft contains banned {bad!r}: {draft!r}")
+                failed += 1
 
         if model is not None:
-            messages = build_renderer_messages(
-                config,
-                user_text=case["user"],
-                intent_card=card.to_renderer_dict(),
-            )
+            messages = build_renderer_messages(config, draft=draft)
             reply = await asyncio.to_thread(model.generate, messages, config)
             print("reply:", reply)
             for needle in case["must_contain"]:
@@ -142,10 +114,10 @@ async def amain() -> int:
                     failed += 1
             for bad in case["must_not_contain"]:
                 if bad in reply:
-                    print(f"FAIL reply contains forbidden {bad!r}")
+                    print(f"FAIL reply contains {bad!r}")
                     failed += 1
 
-    print(f"\nDone. failures={failed}")
+    print(f"\nDone. failed={failed}")
     return 1 if failed else 0
 
 

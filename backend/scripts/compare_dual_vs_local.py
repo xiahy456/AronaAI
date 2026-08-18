@@ -132,10 +132,7 @@ async def run_case(
             if intent is not None:
                 render_messages = build_renderer_messages(
                     config,
-                    user_text=user,
-                    intent_card=intent.to_renderer_dict(),
-                    history=history,
-                    max_history_turns=2,
+                    draft=intent.to_renderer_draft(),
                 )
                 dual_reply = await asyncio.to_thread(
                     model.generate, render_messages, config
@@ -154,7 +151,11 @@ async def run_case(
         emotion=emotion,
         emotion_ok=normalize_emotion(emotion) in EMOTION_WHITELIST,
         planner_ok=planner_ok if route == "dual" else True,
-        intent=intent.to_renderer_dict() | {"arona_emotion": emotion} if intent else None,
+        intent=(
+            {"draft": intent.to_renderer_draft(), "arona_emotion": emotion}
+            if intent
+            else None
+        ),
         local_reply=local_reply,
         dual_reply=dual_reply,
         notes=case.get("notes", ""),
