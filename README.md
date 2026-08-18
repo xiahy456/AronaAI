@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <em>版本：2.0.1</em>
+  <em>版本：2.1.0</em>
 </p>
 
 ---
@@ -295,7 +295,10 @@ cd gpt-sovits
 - **GPT-SoVITS** - 语音合成服务 (https://github.com/RVC-Boss/GPT-SoVITS)
 - **腾讯云语音识别** - 在线语音识别 (https://cloud.tencent.com/product/asr)
 - **bge-small-zh-v1.5** - 文本嵌入模型 (https://huggingface.co/BAAI/bge-small-zh-v1.5)
-- **感谢所有协助开发的贡献者们**
+
+<p align="center">
+  <strong>感谢所有协助开发的贡献者们，与「蔚蓝档案」社区的贡献者们，感谢你们为这个社区带来的活力</strong>
+</p>
 
 ---
 
