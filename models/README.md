@@ -32,9 +32,9 @@ models/
 | **AronaLM-Renderer-V2.x** | `AronaLM-Renderer-V2.x/AronaLM-Renderer-V2.x.Q4_K_M.gguf` | 按意图卡渲染回复（默认双模型链路） | `backend/config.yaml` → `model.gguf_path` |
 | **AronaLM-Generator-V2.x** | `AronaLM-Generator-V2.x/AronaLM-Generator-V2.x.Q4_K_M.gguf` | 本地单模型 / Planner 关闭或失败时回落 | 同上（注释中的备用路径） |
 
-- Renderer 下载：[xiahy456/AronaLM-Renderer-V2.2](https://www.modelscope.cn/models/xiahy456/AronaLM-Renderer-V2.1)（ModelScope）
+- Renderer 下载：[xiahy456/AronaLM-Renderer-V2.4](https://www.modelscope.cn/models/xiahy456/AronaLM-Renderer-V2.4)（ModelScope）
 - Generator 下载（可选）：[xiahy456/AronaLM-Generator-V2.0](https://www.modelscope.cn/models/xiahy456/AronaLM-Generator-V2.1)
-- 示例默认路径：`../models/AronaLM-Renderer-V2.3/AronaLM-Renderer-V2.3.Q4_K_M.gguf`（相对 `backend/`）
+- 示例默认路径：`../models/AronaLM-Renderer-V2.4/AronaLM-Renderer-V2.4.Q4_K_M.gguf`（相对 `backend/`）
 - 仅跑单模型时：将 `model.gguf_path` 改为 ../models/AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf，并设 `planner.enabled: false`（或不填 Planner API Key）
 
 ---
@@ -73,7 +73,7 @@ models/
 
 | 服务 | 用途 | 配置位置 |
 |------|------|----------|
-| **DeepSeek** | Planner 意图卡；长期记忆异步抽取（无 Key 时抽取降级为正则） | `planner.*` / `memory.extractor.*` |
+| **DeepSeek** | Planner 意图草稿；长期记忆异步抽取（无 Key 时抽取降级为正则） | `planner.*` / `memory.extractor.*` |
 | **腾讯云 ASR** | 桌面端语音识别 | 客户端 `config.json` → `tencent_speech_recognizer` |
 
 ---
@@ -83,7 +83,7 @@ models/
 双模型链路至少需要：
 
 ```
-models/AronaLM-Renderer-V2.2/AronaLM-Renderer-V2.2.Q4_K_M.gguf
+models/AronaLM-Renderer-V2.4/AronaLM-Renderer-V2.4.Q4_K_M.gguf
 ```
 
 并配置 `planner.api_key`（DeepSeek）。不填 Key 或关闭 Planner 时，改为放置并指向 `AronaLM-Generator-V2.0` GGUF。

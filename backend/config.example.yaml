@@ -4,10 +4,9 @@ server:
   ws_path: "/ws"
 
 model:
-  # V2.4 draft→rewrite
   gguf_path: "../models/AronaLM-Renderer-V2.4/AronaLM-Renderer-V2.4.Q4_K_M.gguf"
   # rollback: ../models/AronaLM-Renderer-V2.2/AronaLM-Renderer-V2.2.Q4_K_M.gguf
-  # 如果是单模型 gguf_path: "../models/AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf"
+  # 如果要使用单模型 gguf_path: "../models/AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf"
   n_ctx: 2048
   n_gpu_layers: -1
   max_new_tokens: 72

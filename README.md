@@ -145,7 +145,7 @@ models/
 └── bge-small-zh-v1.5/            # 知识 / 记忆嵌入模型（启用 knowledge 或记忆向量检索时需要）
 ```
 
-> **AronaLM-Renderer-V2.x**：请使用 [xiahy456/AronaLM-Renderer-V2.2](https://www.modelscope.cn/models/xiahy456/AronaLM-Renderer-V2.2)。
+> **AronaLM-Renderer-V2.x**：请使用 [xiahy456/AronaLM-Renderer-V2.4](https://www.modelscope.cn/models/xiahy456/AronaLM-Renderer-V2.4)。
 
 > **AronaLM-Generator-V2.x**：可选，见 [xiahy456/AronaLM-Generator-V2.0](https://www.modelscope.cn/models/xiahy456/AronaLM-Generator-V2.0)。仅在关闭 Planner 或需要回落单模型时使用。
 
@@ -158,7 +158,7 @@ cp config.example.yaml config.yaml   # Linux / macOS
 ```
 
 按需填写：
-- `model.gguf_path`：默认 `AronaLM-Renderer-V2.2`；仅使用单模型时改为注释中的 Generator 路径
+- `model.gguf_path`：默认 `AronaLM-Renderer-V2.4`；仅使用单模型时改为注释中的 Generator 路径
 - `planner.enabled` / `planner.api_key`：默认开启双模型；填写 DeepSeek API Key。不填 Key 或关闭 `enabled` 则回落本地单模型
 - `memory.extractor.api_key`：DeepSeek API Key（可选；不填则记忆抽取走正则降级）
 - `knowledge.enabled`：是否启用世界观 RAG（默认 `false`，启用前请先灌库）
@@ -296,6 +296,14 @@ cd gpt-sovits
 - **腾讯云语音识别** - 在线语音识别 (https://cloud.tencent.com/product/asr)
 - **bge-small-zh-v1.5** - 文本嵌入模型 (https://huggingface.co/BAAI/bge-small-zh-v1.5)
 - **感谢所有协助开发的贡献者们**
+
+---
+
+## ⚖️ 版权与产权声明
+
+本项目为以《蔚蓝档案》（Blue Archive）角色「阿洛娜」为原型的**非官方同人创作**，与 NEXON、NEXON Games、悠星（Yostar）及其他相关权利方**无从属、合作或授权关系**。游戏中的角色、设定、商标及其他知识产权均归原权利方所有；本项目对其引用不代表已获授权，亦不主张任何相关权利。
+
+[Apache License 2.0](LICENSE) **仅适用于本项目原创的源代码与文档**。本项目**不以营利为目的**；若权利方希望移除相关内容，请通过下方联系方式告知，我们将尽快配合处理。
 
 ---
 

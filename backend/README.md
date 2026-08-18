@@ -275,7 +275,7 @@ python scripts/ingest_knowledge.py --rebuild
 | 配置段 | 说明 |
 |--------|------|
 | `server` | 监听地址、端口、WebSocket 路径（默认 `/ws`） |
-| `model` | GGUF 路径（默认 Renderer v2.1）、上下文长度、采样参数、本地回落用 system prompt |
+| `model` | GGUF 路径（默认 Renderer v2.4）、上下文长度、采样参数、本地回落用 system prompt |
 | `conversation` | 多轮历史保留轮数 |
 | `knowledge` | 世界观 RAG（语料目录、Chroma、嵌入模型、检索阈值） |
 | `memory` | SQLite + Chroma 路径、混合检索、DeepSeek 抽取器（`every_n_turns` / `extract_buffer_turns`）与正则降级 |
@@ -286,7 +286,7 @@ python scripts/ingest_knowledge.py --rebuild
 | `logging` | 日志目录、文件名、级别与滚动策略 |
 
 关键项速查：
-- 模型：`model.gguf_path`（示例默认 AronaLM-Renderer-V2.2；回落见注释中的 AronaLM-Generator-V2.0）
+- 模型：`model.gguf_path`（示例默认 AronaLM-Renderer-V2.4；回落见注释中的 AronaLM-Generator-V2.0）
 - 模板：`config.example.yaml` → 本地：`config.yaml`
 
 本地数据路径（均已 gitignore）：

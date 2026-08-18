@@ -302,6 +302,14 @@ This project is licensed under [Apache License 2.0](LICENSE).
 
 ---
 
+## Copyright & Intellectual Property
+
+This project is an **unofficial fan work** inspired by Arona from *Blue Archive*, and has **no affiliation, partnership, or authorization** with NEXON, NEXON Games, Yostar, or other related rights holders. All characters, settings, trademarks, and other intellectual property in the game remain with the original rights holders; references in this project do not imply a license or any claim of ownership.
+
+[Apache License 2.0](LICENSE) **applies only to this project's original source code and documentation**. This project is **not for commercial profit**. If a rights holder wishes related material removed, please contact us using the details below; we will cooperate promptly.
+
+---
+
 ## About the Developer
 
 - **Project lead**: xia_hy456
