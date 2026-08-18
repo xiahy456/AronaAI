@@ -123,6 +123,7 @@ private:
     void handlePat();
     void handlePatEnd();
     float computePatFollowT() const;
+    float stepPatFollowT(float target, float dt);
     void applyPatFollow(float t);
     void cachePatBones();
     void logPatAnimations();

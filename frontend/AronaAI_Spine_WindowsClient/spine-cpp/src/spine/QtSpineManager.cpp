@@ -51,9 +51,11 @@ namespace {
     constexpr float kPatHitRadiusY = 100.0f;
     // 脸部控制点最大水平偏移（与 RangeX 一起决定跟随灵敏度）
     constexpr float kPatFollowMaxRadius = 40.0f;
-    constexpr float kPatHeadTiltMaxDeg = 1.5f;
+    constexpr float kPatHeadTiltMaxDeg = 1.0f;
     // Head 转角与 Touch_Point_Key 共用：满偏所需世界单位，越小越灵敏
     constexpr float kPatHeadTiltRangeX = 160.0f;
+    // t∈[-1,1] 每秒最大变化量。12 ≈ 满偏约 80ms，快甩时头会稍晚跟上
+    constexpr float kPatFollowMaxSpeed = 12.0f;
     constexpr float kPatEndDuration = 0.067f;
     constexpr float kPatEndMixIn = 0.02f;
     constexpr float kPatEndMixOut = 0.08f;
@@ -305,7 +307,7 @@ void QtSpineManager::updateAnimation()
                 m_patEnding = false;
             }
         } else {
-            applyPatFollow(computePatFollowT());
+            applyPatFollow(stepPatFollowT(computePatFollowT(), deltaTime));
         }
     }
     m_skeleton->updateWorldTransform(spine::Physics_Update);
@@ -818,6 +820,18 @@ float QtSpineManager::computePatFollowT() const
     }
     const float relx = static_cast<float>(m_mouseWorld.x()) - m_touchPointBone->getWorldX();
     return qBound(-1.0f, relx / kPatHeadTiltRangeX, 1.0f);
+}
+
+float QtSpineManager::stepPatFollowT(float target, float dt)
+{
+    const float maxDelta = kPatFollowMaxSpeed * dt;
+    const float delta = target - m_patFollowT;
+    if (std::abs(delta) <= maxDelta) {
+        m_patFollowT = target;
+    } else {
+        m_patFollowT += (delta > 0.0f ? maxDelta : -maxDelta);
+    }
+    return m_patFollowT;
 }
 
 void QtSpineManager::applyPatFollow(float t)
