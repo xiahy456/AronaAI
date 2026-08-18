@@ -88,12 +88,12 @@ See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
 - **Async memory extraction**: the main dialogue path is not blocked. DeepSeek JSON extraction (with a daily quota and buffered batches) falls back to regex if the call fails or no API key is set.
 - **ASR dirty-text filter**: empty strings and Tencent Cloud ASR error templates are dropped at the entry point so Planner is not triggered by accident.
 - **Bounded context**: multi-turn history truncation, memory / knowledge / history token budgets, and an exact-match response cache keep latency and repeated inference in check.
-- **Full fine-tune pipeline**: Unsloth QLoRA (aimed at ~6–8 GB VRAM) → LoRA adapter → merged GGUF, ready for the backend to load.
 
 ### Desktop Client & Voice Services
 
 - **Spine 2D animation**: Arona character animation via Spine.
-- **Qt UI**: Windows desktop app in Qt/C++, talking to the backend over WebSocket, with GPT-SoVITS TTS and Tencent Cloud ASR.
+- **Qt UI**: Windows desktop app in Qt/C++, talking to the backend over WebSocket.
+- **Voice interaction**: voice synthesis through GPT-SoVITS and voice recognition through Tencent Cloud ASR.
 - **Global hotkeys**: customizable shortcuts.
 
 ---

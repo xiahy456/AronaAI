@@ -86,11 +86,11 @@ arona-ai/
 - **异步记忆抽取**：对话主路径不阻塞；DeepSeek JSON 抽取（含日配额与缓冲批量），失败或无 Key 时自动正则降级
 - **ASR 脏文本过滤**：入口丢弃空串 / 腾讯云 ASR 错误模板，避免误触发 Planner
 - **上下文可控**：多轮历史截断 + memory/knowledge/history token budget + 精确匹配响应缓存，控制延迟与重复推理
-- **完整微调链路**：Unsloth QLoRA（面向约 6–8GB 显存）→ LoRA 适配器 → 合并导出 GGUF，可直接给后端加载
 
 ### 🖥️ 桌面客户端与语音服务
 - **Spine 2D 动画**：使用 Spine 实现阿洛娜的 2D 角色动画
-- **Qt 界面**：基于 Qt/C++ 的 Windows 桌面应用，经 WebSocket 对接后端、 GPT-SoVITS TTS 与腾讯云 ASR
+- **Qt 界面**：基于 Qt/C++ 的 Windows 桌面应用，经 WebSocket 对接后端
+- **语音交互**：通过 GPT-SoVITS 进行语音合成，通过腾讯云 ASR 进行语音识别
 - **全局快捷键**：支持自定义快捷键操作
 
 ---
