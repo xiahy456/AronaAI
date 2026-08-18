@@ -29,7 +29,7 @@ from .proactive.followup import (
     should_skip_continue,
     too_similar,
 )
-from .prompt import build_messages, build_renderer_messages
+from .prompt import build_messages, build_renderer_messages, clip_knowledge_for_inject
 from .protocol import msg_chat_response
 from .relationship import (
     Decision,
@@ -209,6 +209,15 @@ class Orchestrator:
             )
             if knowledge_chunks:
                 context_parts.append("rag")
+            before_clip = len(knowledge_chunks)
+            knowledge_chunks = clip_knowledge_for_inject(self.config, knowledge_chunks)
+            if len(knowledge_chunks) < before_clip:
+                logger.info(
+                    "rag inject clipped session=%s before=%d after=%d",
+                    session_id,
+                    before_clip,
+                    len(knowledge_chunks),
+                )
         else:
             logger.info("rag retrieve skipped session=%s", session_id)
 

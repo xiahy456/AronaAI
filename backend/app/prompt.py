@@ -52,6 +52,30 @@ def _approx_chars_for_tokens(tokens: int) -> int:
     return max(32, int(tokens * 1.6))
 
 
+def clip_inject_chunks(chunks: list[str], max_chars: int) -> list[str]:
+    """Keep whole `- {chunk}` lines until the formatted block would exceed max_chars."""
+    budget = max(0, int(max_chars))
+    kept: list[str] = []
+    used = 0
+    for chunk in chunks:
+        text = (chunk or "").strip()
+        if not text:
+            continue
+        line = f"- {text}"
+        extra = len(line) + (1 if kept else 0)
+        if used + extra > budget:
+            break
+        kept.append(text)
+        used += extra
+    return kept
+
+
+def clip_knowledge_for_inject(config: AppConfig, knowledge: list[str]) -> list[str]:
+    budget = _approx_chars_for_tokens(config.token_budget.knowledge)
+    budget = min(budget, config.knowledge.max_inject_chars)
+    return clip_inject_chunks(knowledge, budget)
+
+
 def build_messages(
     config: AppConfig,
     *,
@@ -80,18 +104,11 @@ def build_messages(
             system_parts.append("【长期记忆】\n" + "\n".join(lines))
 
     if knowledge:
-        budget = _approx_chars_for_tokens(config.token_budget.knowledge)
-        budget = min(budget, config.knowledge.max_inject_chars)
-        lines: list[str] = []
-        used = 0
-        for chunk in knowledge:
-            line = f"- {chunk.strip()}"
-            if used + len(line) + 1 > budget:
-                break
-            lines.append(line)
-            used += len(line) + 1
-        if lines:
-            system_parts.append("【相关知识】\n" + "\n".join(lines))
+        clipped = clip_knowledge_for_inject(config, knowledge)
+        if clipped:
+            system_parts.append(
+                "【相关知识】\n" + "\n".join(f"- {chunk}" for chunk in clipped)
+            )
 
     messages: list[dict[str, str]] = [
         {"role": "system", "content": "\n\n".join(system_parts)},

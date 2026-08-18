@@ -8,12 +8,105 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import jieba
+
 from .config import AppConfig, KnowledgeConfig
 from .embeddings import LocalBgeEncoder
 
 logger = logging.getLogger(__name__)
 
 _HEADING_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
+_PUNCT_RE = re.compile(r"^[\W_]+$", re.UNICODE)
+
+# Function words plus default persona names that collapse all lore chunks.
+_LEXICAL_STOPWORDS = frozenset(
+    {
+        "的",
+        "了",
+        "是",
+        "在",
+        "有",
+        "和",
+        "与",
+        "或",
+        "也",
+        "都",
+        "就",
+        "而",
+        "及",
+        "等",
+        "被",
+        "把",
+        "让",
+        "给",
+        "对",
+        "从",
+        "向",
+        "到",
+        "为",
+        "以",
+        "于",
+        "着",
+        "过",
+        "很",
+        "更",
+        "最",
+        "还",
+        "又",
+        "再",
+        "才",
+        "已",
+        "已经",
+        "会",
+        "能",
+        "可以",
+        "要",
+        "想",
+        "我",
+        "你",
+        "他",
+        "她",
+        "它",
+        "我们",
+        "你们",
+        "他们",
+        "这",
+        "那",
+        "这个",
+        "那个",
+        "什么",
+        "哪",
+        "哪个",
+        "怎么",
+        "怎样",
+        "如何",
+        "吗",
+        "呢",
+        "啊",
+        "吧",
+        "呀",
+        "哦",
+        "嗯",
+        "嘛",
+        "哈",
+        "啦",
+        "哟",
+        "不",
+        "没",
+        "没有",
+        "不是",
+        "一个",
+        "一些",
+        "一下",
+        "一样",
+        "阿洛娜",
+        "阿罗娜",
+        "arona",
+        "アロナ",
+        "老师",
+        "您",
+    }
+)
 
 
 @dataclass
@@ -72,6 +165,54 @@ def load_corpus(corpus_dir: Path) -> list[KnowledgeChunk]:
     return chunks
 
 
+def _lexical_tokens(text: str) -> set[str]:
+    tokens: set[str] = set()
+    for raw in jieba.cut_for_search(text or ""):
+        token = raw.strip()
+        if not token:
+            continue
+        lowered = token.lower()
+        if lowered in _LEXICAL_STOPWORDS or token in _LEXICAL_STOPWORDS:
+            continue
+        if _PUNCT_RE.match(token):
+            continue
+        tokens.add(lowered)
+    return tokens
+
+
+@dataclass
+class ScoredKnowledgeHit:
+    similarity: float
+    title: str
+    text: str
+    overlap: int
+
+
+def filter_knowledge_hits(
+    hits: list[ScoredKnowledgeHit],
+    *,
+    min_score: float,
+    score_margin: float,
+    top_k: int,
+) -> list[ScoredKnowledgeHit]:
+    """Drop weak neighbors: absolute score, gap to best hit, then lexical extras."""
+    passed = [h for h in hits if h.similarity >= min_score]
+    if not passed:
+        return []
+    passed.sort(key=lambda h: (-h.similarity, -h.overlap, h.title))
+    top_score = passed[0].similarity
+    margin = max(0.0, float(score_margin))
+    passed = [h for h in passed if h.similarity >= top_score - margin]
+    if len(passed) > 1:
+        kept = [passed[0]]
+        for hit in passed[1:]:
+            if hit.overlap > 0:
+                kept.append(hit)
+        passed = kept
+    k = max(1, int(top_k))
+    return passed[:k]
+
+
 class KnowledgeRetriever:
     def __init__(
         self,
@@ -117,6 +258,7 @@ class KnowledgeRetriever:
         """Eagerly load BGE + Chroma so first RAG retrieve is not cold."""
         if not self.enabled:
             return
+        jieba.initialize()
         self._ensure_backend()
 
     def retrieve(self, query: str, top_k: int | None = None) -> list[str]:
@@ -128,6 +270,7 @@ class KnowledgeRetriever:
 
         k = top_k if top_k is not None else self.config.retrieve_top_k
         k = max(1, int(k))
+        candidate_k = max(k, int(self.config.candidate_top_k))
 
         try:
             self._ensure_backend()
@@ -137,10 +280,20 @@ class KnowledgeRetriever:
 
         assert self._collection is not None and self._encoder is not None
         try:
+            count = int(self._collection.count())
+        except Exception:
+            logger.exception("Knowledge collection count failed")
+            return []
+        if count <= 0:
+            logger.info("knowledge retrieve query=%r skipped empty chroma", query)
+            return []
+        n_results = min(candidate_k, count)
+
+        try:
             q_emb = self._encoder.encode_queries([query])[0]
             result = self._collection.query(
                 query_embeddings=[q_emb],
-                n_results=k,
+                n_results=n_results,
                 include=["documents", "metadatas", "distances"],
             )
         except Exception:
@@ -150,31 +303,47 @@ class KnowledgeRetriever:
         documents = (result.get("documents") or [[]])[0]
         distances = (result.get("distances") or [[]])[0]
         metadatas = (result.get("metadatas") or [[]])[0]
+        query_tokens = _lexical_tokens(query)
 
-        hits: list[str] = []
-        scored: list[tuple[float, str]] = []
+        raw_hits: list[ScoredKnowledgeHit] = []
         for doc, dist, meta in zip(documents, distances, metadatas):
             similarity = 1.0 - float(dist)
-            if similarity < self.config.min_score:
-                continue
-            title = (meta or {}).get("title") if isinstance(meta, dict) else None
-            display_body = (meta or {}).get("body") if isinstance(meta, dict) else None
+            meta_dict = meta if isinstance(meta, dict) else {}
+            title = str(meta_dict.get("title") or "").strip()
+            display_body = str(meta_dict.get("body") or "").strip()
             if display_body:
-                text = f"{title}：{display_body}" if title else str(display_body)
+                text = f"{title}：{display_body}" if title else display_body
             else:
                 text = (doc or "").strip()
-            if text:
-                hits.append(text)
-                scored.append((similarity, title or text[:40]))
+            if not text:
+                continue
+            overlap = len(query_tokens & _lexical_tokens(f"{title}\n{display_body or text}"))
+            raw_hits.append(
+                ScoredKnowledgeHit(
+                    similarity=similarity,
+                    title=title or text[:40],
+                    text=text,
+                    overlap=overlap,
+                )
+            )
+
+        filtered = filter_knowledge_hits(
+            raw_hits,
+            min_score=float(self.config.min_score),
+            score_margin=float(self.config.score_margin),
+            top_k=k,
+        )
         logger.info(
-            "knowledge retrieve query=%r candidates=%d hits=%d min_score=%.3f scores=%s",
+            "knowledge retrieve query=%r candidates=%d hits=%d min_score=%.3f "
+            "score_margin=%.3f scores=%s",
             query,
             len(documents),
-            len(hits),
+            len(filtered),
             self.config.min_score,
-            [(round(s, 3), t) for s, t in scored],
+            self.config.score_margin,
+            [(round(h.similarity, 3), h.title, h.overlap) for h in filtered],
         )
-        return hits
+        return [h.text for h in filtered]
 
     def ingest(self, *, rebuild: bool = False) -> int:
         """Load Markdown corpus into Chroma. Returns number of upserted chunks."""

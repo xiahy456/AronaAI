@@ -32,9 +32,11 @@ knowledge:
   chroma_path: "data/knowledge/chroma"
   collection: "arona_lore"
   embedding_model_path: "../models/bge-small-zh-v1.5"
-  retrieve_top_k: 3
+  retrieve_top_k: 2
+  candidate_top_k: 8
   max_inject_chars: 400
-  min_score: 0.3
+  min_score: 0.45
+  score_margin: 0.08
 
 memory:
   db_path: "data/memory/memory.db"

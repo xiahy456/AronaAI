@@ -43,9 +43,11 @@ class KnowledgeConfig(BaseModel):
     chroma_path: str = "data/knowledge/chroma"
     collection: str = "arona_lore"
     embedding_model_path: str = "../models/bge-small-zh-v1.5"
-    retrieve_top_k: int = 3
+    retrieve_top_k: int = 2
+    candidate_top_k: int = 8
     max_inject_chars: int = 400
-    min_score: float = 0.3
+    min_score: float = 0.45
+    score_margin: float = 0.08
 
 
 class ExtractorConfig(BaseModel):

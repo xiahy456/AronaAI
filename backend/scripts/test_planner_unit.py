@@ -11,7 +11,7 @@ from app.cache import ResponseCache
 from app.config import load_config
 from app.planner import EMOTION_WHITELIST, normalize_emotion, parse_and_gate_intent, route_mode
 from app.planner.prompts import PLANNER_SYSTEM, build_planner_user_message
-from app.prompt import build_renderer_messages
+from app.prompt import build_renderer_messages, clip_inject_chunks
 from app.protocol import msg_chat_response
 
 
@@ -91,6 +91,20 @@ def main() -> None:
     assert "【老师本轮消息】" in user_msg
     assert "【阿洛娜主要人设】" not in user_msg
     assert "must_say" not in user_msg
+
+    long_a = "设定甲" * 10
+    long_b = "设定乙" * 10
+    first_line = f"- {long_a}"
+    clipped = clip_inject_chunks([long_a, long_b], len(first_line) + 5)
+    assert clipped == [long_a]
+    clipped_msg = build_planner_user_message(
+        user_text="光环是什么颜色？",
+        history=[],
+        memories=[],
+        knowledge=clipped,
+    )
+    assert "设定甲" in clipped_msg
+    assert "设定乙" not in clipped_msg
 
     _ = EMOTION_WHITELIST
     print("ok")
