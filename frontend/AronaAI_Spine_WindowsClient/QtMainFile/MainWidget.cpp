@@ -37,6 +37,7 @@ MainWidget::MainWidget(QWidget *parent)
             GET_STRING_FROM_JSON(_global_config, "spine", "skelOrJson_path")
             );
         ui.qtSpineManagerWidget->setAnimation("Idle_01", 0, true);  // 基础层
+        //ui.qtSpineManagerWidget->setAnimation("03", 1, true); // 调试：表情层
     };
     if (ui.qtSpineManagerWidget->isGLReady()) {
         loadSpine();

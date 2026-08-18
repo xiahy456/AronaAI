@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import time
+from contextvars import ContextVar
+from dataclasses import dataclass
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import Any
 
 from .config import get_config
 
@@ -20,6 +25,95 @@ _APP_LOGGERS = (
     "app.memory.store",
     "app.memory.extractor",
 )
+
+
+_NONE = "(none)"
+
+_trace: ContextVar[InteractionTrace | None] = ContextVar(
+    "interaction_trace", default=None
+)
+
+
+@dataclass
+class InteractionTrace:
+    started_at: float = 0.0
+    request_json: str | None = None
+    planner_prompt: Any = None
+    planner_json: str | None = None
+    renderer_prompt: Any = None
+    renderer_text: str | None = None
+
+
+def begin_trace(
+    *,
+    started_at: float | None = None,
+    request_json: str | None = None,
+) -> InteractionTrace:
+    trace = InteractionTrace(
+        started_at=started_at if started_at is not None else time.perf_counter(),
+        request_json=request_json,
+    )
+    _trace.set(trace)
+    return trace
+
+
+def current_trace() -> InteractionTrace | None:
+    return _trace.get()
+
+
+def update_trace(**fields: Any) -> None:
+    trace = _trace.get()
+    if trace is None:
+        return
+    for key, value in fields.items():
+        setattr(trace, key, value)
+
+
+def reset_trace() -> None:
+    _trace.set(None)
+
+
+def pretty_json(value: Any) -> str:
+    """Pretty-print JSON-like values; fall back to original text or (none)."""
+    if value is None:
+        return _NONE
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False, indent=2)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return _NONE
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            return value
+        return json.dumps(parsed, ensure_ascii=False, indent=2)
+    return json.dumps(value, ensure_ascii=False, indent=2)
+
+
+def format_interactive_log(
+    payload: dict[str, Any],
+    *,
+    elapsed: float | None = None,
+) -> str:
+    """Multi-line interactive information block for one chat_response."""
+    trace = current_trace()
+    if elapsed is None:
+        started = trace.started_at if trace is not None else 0.0
+        elapsed = (time.perf_counter() - started) if started else 0.0
+    renderer_text = (trace.renderer_text or "").strip() if trace else ""
+    if not renderer_text:
+        renderer_text = _NONE
+    return (
+        "interactive information:\n"
+        f"request:\n{pretty_json(trace.request_json if trace else None)}\n\n"
+        f"planner_prompt:\n{pretty_json(trace.planner_prompt if trace else None)}\n\n"
+        f"planner_json:\n{pretty_json(trace.planner_json if trace else None)}\n\n"
+        f"renderer_prompt:\n{pretty_json(trace.renderer_prompt if trace else None)}\n\n"
+        f"renderer_text:\n{renderer_text}\n\n"
+        f"response:\n{pretty_json(payload)}\n\n"
+        f"elapsed: {elapsed:.3f}s"
+    )
 
 
 def preview(text: str | None, max_len: int = 200) -> str:

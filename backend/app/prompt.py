@@ -42,7 +42,7 @@ def _load_renderer_user_tail() -> str:
     )
 
 
-# Dedicated renderer system prompt (do NOT splice yaml model.system_prompt).
+# Dedicated renderer system prompt (do NOT splice yaml prompt.local_system_prompt).
 RENDERER_SYSTEM = _load_renderer_system()
 RENDERER_USER_TAIL = _load_renderer_user_tail()
 
@@ -61,7 +61,7 @@ def build_messages(
     knowledge: list[str],
     extra_system: str | None = None,
 ) -> list[dict[str, str]]:
-    system_parts = [config.model.system_prompt.strip()]
+    system_parts = [config.prompt.local_system_prompt.strip()]
     if extra_system and extra_system.strip():
         system_parts.append(extra_system.strip())
 
@@ -126,7 +126,7 @@ def build_renderer_messages(
 ) -> list[dict[str, str]]:
     """Build AronaLM messages from intent draft only (V2.4).
 
-    Uses RENDERER_SYSTEM only — does not splice config.model.system_prompt.
+    Uses RENDERER_SYSTEM only — does not splice config.prompt.local_system_prompt.
     History / teacher utterance are intentionally unused.
     """
     _ = config, history, max_history_turns, user_text

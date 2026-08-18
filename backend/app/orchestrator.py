@@ -12,7 +12,7 @@ from .cache import ResponseCache
 from .config import AppConfig
 from .conversation import ConversationManager
 from .knowledge import KnowledgeRetriever
-from .logging_utils import preview, preview_list
+from .logging_utils import begin_trace, preview, preview_list, reset_trace, update_trace
 from .memory.extractor import MemoryExtractor
 from .memory.store import MemoryStore
 from .memory.trigger import should_extract
@@ -90,7 +90,10 @@ class Orchestrator:
         content: str,
         options: dict[str, Any],
         send: SendFn,
+        request_json: str | None = None,
+        started_at: float | None = None,
     ) -> None:
+        begin_trace(started_at=started_at, request_json=request_json)
         user_text = (content or "").strip()
         if not user_text:
             logger.info("chat empty content session=%s", session_id)
@@ -114,6 +117,7 @@ class Orchestrator:
         if decision is not None:
             context_parts.append("climate")
         if decision is not None and decision.action in {"silence", "refuse"}:
+            reset_trace()
             await self._skip_generation(
                 session_id=session_id,
                 user_text=user_text,
@@ -271,6 +275,7 @@ class Orchestrator:
                 extra_system=self._local_hint(decision),
             )
 
+        update_trace(renderer_prompt=messages)
         context_used = "+".join(context_parts) if context_parts else "none"
         system_chars = len(messages[0]["content"]) if messages else 0
         logger.info(
@@ -294,6 +299,7 @@ class Orchestrator:
             len(full),
             full,
         )
+        update_trace(renderer_text=full)
         await send(
             msg_chat_response(
                 full,
@@ -378,6 +384,7 @@ class Orchestrator:
         """Generate a system-event line (welcome / idle / care / goal / continue). Returns True on success."""
         user_text = instruction
         start = time.perf_counter()
+        begin_trace(started_at=start)
         context_parts: list[str] = [kind]
         if climate or decision is not None:
             context_parts.append("climate")
@@ -489,6 +496,7 @@ class Orchestrator:
                 extra_system=self._local_hint(decision) if decision is not None else None,
             )
 
+        update_trace(renderer_prompt=messages)
         context_used = "+".join(context_parts)
         logger.info(
             "initiate prompt built session=%s kind=%s mode=%s context=%s emotion=%s",
@@ -515,6 +523,7 @@ class Orchestrator:
             logger.warning(
                 "initiate empty response session=%s kind=%s", session_id, kind
             )
+            reset_trace()
             return False
 
         if kind == "continue" and too_similar(continue_previous or "", full):
@@ -524,8 +533,10 @@ class Orchestrator:
                 continue_previous,
                 full,
             )
+            reset_trace()
             return False
 
+        update_trace(renderer_text=full)
         await send(
             msg_chat_response(
                 full,

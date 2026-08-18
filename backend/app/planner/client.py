@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 
 from ..config import PlannerConfig
+from ..logging_utils import update_trace
 from .prompts import PLANNER_SYSTEM, build_planner_user_message
 from .schema import IntentCard, parse_and_gate_intent
 
@@ -59,6 +60,7 @@ class PlannerClient:
             "response_format": {"type": "json_object"},
             "thinking": {"type": "disabled"},
         }
+        update_trace(planner_prompt=payload["messages"])
         headers = {
             "Authorization": f"Bearer {self.config.api_key}",
             "Content-Type": "application/json",
@@ -70,6 +72,7 @@ class PlannerClient:
                 resp.raise_for_status()
                 data = resp.json()
             content = data["choices"][0]["message"]["content"] or ""
+            update_trace(planner_json=content)
             logger.info("planner raw json=%s", content)
             card = parse_and_gate_intent(content)
             if card is None:

@@ -5,14 +5,14 @@ from __future__ import annotations
 from .emotions import EMOTION_WHITELIST_CSV
 
 # Kept for any residual imports; V2.4 Planner no longer injects must_not into cards.
-FIXED_MUST_NOT: list[str] = [
-    "说教",
-    "自称其他AI",
-    "自称ChatGPT",
-    "长篇列表",
-    "承认自己不是阿洛娜",
-    "宣称可以离开屏幕或实体化",
-]
+# FIXED_MUST_NOT: list[str] = [
+#     "说教",
+#     "自称其他AI",
+#     "自称ChatGPT",
+#     "长篇列表",
+#     "承认自己不是阿洛娜",
+#     "宣称可以离开屏幕或实体化",
+# ]
 
 PLANNER_SYSTEM = f"""你是桌面陪伴助手「阿洛娜」的「回复规划参谋」。
 你不直接对老师说话。

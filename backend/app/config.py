@@ -27,7 +27,10 @@ class ModelConfig(BaseModel):
     temperature: float = 0.6
     top_p: float = 0.85
     repeat_penalty: float = 1.1
-    system_prompt: str = ""
+
+
+class PromptConfig(BaseModel):
+    local_system_prompt: str = ""
 
 
 class ConversationConfig(BaseModel):
@@ -178,6 +181,7 @@ class ProactiveConfig(BaseModel):
 class AppConfig(BaseModel):
     server: ServerConfig = Field(default_factory=ServerConfig)
     model: ModelConfig = Field(default_factory=ModelConfig)
+    prompt: PromptConfig = Field(default_factory=PromptConfig)
     conversation: ConversationConfig = Field(default_factory=ConversationConfig)
     knowledge: KnowledgeConfig = Field(default_factory=KnowledgeConfig)
     memory: MemoryConfig = Field(default_factory=MemoryConfig)

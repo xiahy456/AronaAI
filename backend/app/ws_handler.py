@@ -19,7 +19,7 @@ from .input_filter import (
     ASR_FALLBACK_REPLY,
     is_unusable_user_text,
 )
-from .logging_utils import preview
+from .logging_utils import begin_trace, format_interactive_log, preview, reset_trace
 from .orchestrator import Orchestrator
 from .proactive import ConnectionHub, ProactiveScheduler, WelcomeState, resolve_welcome_context
 from .proactive.goal import wants_goal_mute
@@ -78,31 +78,12 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
     )
 
     chat_recv_at: float | None = None
-    chat_request_json: str | None = None
-    ttfb_logged = False
 
     async def send(payload: dict[str, Any]) -> None:
-        nonlocal ttfb_logged
         msg_type = payload.get("type")
-        if (
-            msg_type == TYPE_CHAT_RESPONSE
-            and not ttfb_logged
-            and chat_recv_at is not None
-            and chat_request_json is not None
-        ):
-            elapsed = time.perf_counter() - chat_recv_at
-            response_json = json.dumps(payload, ensure_ascii=False)
-            logger.info(
-                "interactive information: \n"
-                "\trequest=%s\n"
-                "\tresponse=%s\n"
-                "\telapsed=%.3fs",
-                chat_request_json,
-                response_json,
-                elapsed,
-            )
-            ttfb_logged = True
         if msg_type == TYPE_CHAT_RESPONSE:
+            logger.info("%s", format_interactive_log(payload))
+            reset_trace()
             logger.info(
                 "WS send session=%s type=%s from_cache=%s context=%s latency=%s content=%r",
                 session_id,
@@ -131,6 +112,8 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
     async def _run_chat(
         content: str,
         options: dict[str, Any],
+        request_json: str | None,
+        started_at: float | None,
     ) -> None:
         state.hub.set_busy(session_id, True)
         if state.scheduler is not None:
@@ -145,6 +128,8 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                 content=content,
                 options=options,
                 send=send,
+                request_json=request_json,
+                started_at=started_at,
             )
         except asyncio.CancelledError:
             logger.info("chat cancelled session=%s", session_id)
@@ -308,8 +293,6 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                         )
                         continue
                     chat_recv_at = time.perf_counter()
-                    chat_request_json = raw
-                    ttfb_logged = False
                     content = data.get("content", "")
                     options = data.get("options") or {}
                     if not isinstance(options, dict):
@@ -327,6 +310,10 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                             session_id,
                             content,
                         )
+                        begin_trace(
+                            started_at=chat_recv_at,
+                            request_json=raw,
+                        )
                         await send(
                             msg_chat_response(
                                 ASR_FALLBACK_REPLY,
@@ -341,6 +328,8 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                         _run_chat(
                             str(content),
                             options,
+                            raw,
+                            chat_recv_at,
                         )
                     )
                 else:

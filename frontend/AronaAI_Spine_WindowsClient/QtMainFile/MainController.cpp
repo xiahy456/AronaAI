@@ -373,7 +373,7 @@ void MainController::processInputText(const QString& text)
     m_waitingForAIResponse = true;
 
     // 给用户一个等待提示
-    FINE_DEBUG_OUTPUT("[Main Controller] 、Generating responce...");
+    FINE_DEBUG_OUTPUT("[Main Controller] Generating responce...");
 
     // 发送消息给AI服务端
     // 可以从配置中读取是否使用缓存、RAG、记忆等功能

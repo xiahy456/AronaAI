@@ -23,7 +23,7 @@
 | **记忆存储** | `app/memory/store.py` | SQLite + FTS5 + Chroma 混合长期记忆 |
 | **记忆抽取** | `app/memory/extractor.py` | DeepSeek 异步抽取（失败走正则） |
 | **响应缓存** | `app/cache.py` | 相同输入快速返回 |
-| **Prompt** | `app/prompt.py` | 默认 Renderer 意图卡消息组装；本地回落路径 Prompt |
+| **Prompt** | `app/prompt.py`、`app/planner/prompts.py` | Renderer / 本地回落消息组装；Planner system + user 模板。部件清单见下节 |
 
 ## 快速开始
 
@@ -74,6 +74,100 @@ python scripts/test_proactive_unit.py      # 空闲 / 照料 / goal / 节日 / c
 Planner 只看见【关系气候】档位与【建议姿态】，禁止下发 A/B/C 浮点或「提升信任度」。缓存命中也会先分类、后回写，避免绕过关系层。
 
 `action` 目前实际用到的是 `speak`（开口）、`silence`（沉默）、`initiate`（欢迎 / 空闲 / 照料 / goal 回访 / 节日）与 `continue`（同轮补一句）。欢迎与节日回写 `greeted`，空闲与 goal 回写 `checked_in`，照料回写 `cared`（均不抬依赖）；同轮补充回写 `followed_up`。
+
+## Prompt 部件
+
+双模型路径最终拼出两条 prompt：Planner（DeepSeek）与 Renderer（AronaLM）。组装入口：
+
+| 最终产物 | 组装函数 | 文件 |
+|----------|----------|------|
+| Planner prompt | `PlannerClient.plan()` | [`app/planner/client.py`](app/planner/client.py) |
+| Renderer prompt | `build_renderer_messages()` | [`app/prompt.py`](app/prompt.py) |
+
+调用方是 [`app/orchestrator.py`](app/orchestrator.py)：客户端用户输入走 `handle_chat()`；后端系统消息走 `handle_initiate()` / `handle_welcome()` / `_maybe_continue()`。Planner 失败或路由到 local 时走 `build_messages()`（本地单模型），不拼 Renderer prompt。
+
+```text
+用户 chat / 系统 instruction
+        │
+        ├─【关系气候】policy.py 或 orchestrator._welcome_climate_block
+        ├─ 记忆 / 知识 / 历史（运行时检索，非独立 prompt 文件）
+        └─ 本轮文本：用户原话 或 6 套 build_*_instruction
+                │
+                ▼
+     Planner prompt  (planner/prompts.py + client.py)
+                │  JSON draft
+                ▼
+     Renderer prompt (prompt.py + renderer_*_v24.txt)
+```
+
+### Planner prompt
+
+结构固定为两条 message：`system = PLANNER_SYSTEM`，`user = climate + 记忆 + 知识 + 历史 +「老师本轮消息」+ 收尾句`。
+
+| 部件 | 位置 |
+|------|------|
+| `PLANNER_SYSTEM`（人设、边界、JSON schema） | [`app/planner/prompts.py`](app/planner/prompts.py) |
+| `{EMOTION_WHITELIST_CSV}` 插值 | [`app/planner/emotions.py`](app/planner/emotions.py) |
+| user 模板 `build_planner_user_message()` | [`app/planner/prompts.py`](app/planner/prompts.py) |
+
+`FIXED_MUST_NOT` 仍在 `prompts.py`，V2.4 **不再注入**。
+
+`build_planner_user_message()` 按顺序拼：可选 `climate_block` → `【长期记忆】` → `【相关知识】` → `【近期对话】` → `【老师本轮消息】` → 收尾「若有【关系气候】，按建议姿态写草稿」。
+
+**`【老师本轮消息】` 按来源分套：**
+
+| 场景 | 构建函数 | 文件 |
+|------|----------|------|
+| 客户端用户输入 | 原样写入，无额外 instruction | `Orchestrator.handle_chat()` |
+| 上线欢迎 | `build_welcome_instruction()` | [`app/proactive/welcome.py`](app/proactive/welcome.py) |
+| 空闲搭话 | `build_idle_instruction()` | [`app/proactive/idle.py`](app/proactive/idle.py) |
+| 午饭 / 睡觉提醒 | `build_care_instruction()` + `_CARE_INTENTS` | [`app/proactive/care.py`](app/proactive/care.py) |
+| 节日 / 生日 | `build_festival_instruction()` | [`app/proactive/festival.py`](app/proactive/festival.py) |
+| goal 回访 | `build_goal_instruction()` | [`app/proactive/goal.py`](app/proactive/goal.py) |
+| 同轮补充 | `build_continue_instruction()` | [`app/proactive/followup.py`](app/proactive/followup.py) |
+
+欢迎时段文案还会用到 [`app/proactive/slots.py`](app/proactive/slots.py) 的 `SLOT_LABELS`。调度入口：[`app/proactive/scheduler.py`](app/proactive/scheduler.py)（idle / care / goal / festival）、[`app/proactive/loop.py`](app/proactive/loop.py)（festival / sleep 补发）。
+
+**`【关系气候】` 块：**
+
+| 场景 | 函数 | 文件 |
+|------|------|------|
+| 普通对话 / 主动事件（有 Decision） | `planner_climate_block()` | [`app/relationship/policy.py`](app/relationship/policy.py) |
+| 欢迎（peek climate，无完整 Decision） | `_welcome_climate_block()` | [`app/orchestrator.py`](app/orchestrator.py) |
+
+`planner_climate_block` 的文案来自同文件：`CLIMATE_LABELS`（气候中文名）、`_POLICY`（对话姿态 / 禁区 / 语气）、`decide_proactive()`（idle / care / festival / goal 另一套姿态与禁区）。
+
+### Renderer prompt
+
+结构也是两条 message，**不拼接 yaml 人设、不带历史**：`system = RENDERER_SYSTEM`，`user = 【意图草稿】 + draft + RENDERER_USER_TAIL`。
+
+| 部件 | 加载 / 组装 | 源文件（优先） |
+|------|-------------|---------------|
+| `RENDERER_SYSTEM` | `app/prompt.py` `_load_renderer_system()` | [`../llm/aronaLM/finetune/prompts/renderer_system_v24.txt`](../llm/aronaLM/finetune/prompts/renderer_system_v24.txt) |
+| `RENDERER_USER_TAIL` | `app/prompt.py` `_load_renderer_user_tail()` | [`../llm/aronaLM/finetune/prompts/renderer_user_tail_v24.txt`](../llm/aronaLM/finetune/prompts/renderer_user_tail_v24.txt) |
+| user 包装 `format_renderer_user()` | [`app/prompt.py`](app/prompt.py) | `【意图草稿】` + tail |
+| draft 内容 | `IntentCard.to_renderer_draft()` | [`app/planner/schema.py`](app/planner/schema.py) |
+
+txt 缺失时用 `app/prompt.py` 内 `_RENDERER_*_V24_FALLBACK`。同目录旧版 `renderer_system.txt` / `renderer_user_tail.txt` **当前不读**。
+
+### 本地回落（非 dual）
+
+`build_messages()`（[`app/prompt.py`](app/prompt.py)）：
+
+| 部件 | 位置 |
+|------|------|
+| 本地人设 | `config.yaml` 的 `prompt.local_system_prompt`（模板见 [`config.example.yaml`](config.example.yaml)） |
+| 关系 hint | `local_system_hint()` → [`app/relationship/policy.py`](app/relationship/policy.py) |
+| 记忆 / 知识 / 历史 / user_text | 运行时拼进 system / user |
+
+`handle_initiate` 在 planner 失败时，系统 instruction 会直接当 `user_text` 送给本地模型。
+
+### 不进这条链路
+
+- 记忆抽取：`EXTRACT_SYSTEM` 在 [`app/memory/extractor.py`](app/memory/extractor.py)（另一路 DeepSeek）
+- 路由：[`app/planner/router.py`](app/planner/router.py) 只决定 local vs dual，没有 LLM prompt
+
+改话术时：用户对话改 `PLANNER_SYSTEM`；欢迎/空闲/照料等改对应 `build_*_instruction`；关系口吻改 `policy.py`；阿洛娜最终台词风格改 `renderer_system_v24.txt`。
 
 ## 关系气候
 

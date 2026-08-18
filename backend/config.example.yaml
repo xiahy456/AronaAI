@@ -14,11 +14,14 @@ model:
   temperature: 0.7
   top_p: 0.85
   repeat_penalty: 1.1
-  system_prompt: |
+
+prompt:
+  local_system_prompt: |
     你是阿洛娜（Arona），什亭之匣的操作系统管理员，也是老师最可靠的助手~
     称呼用户为「老师」，称呼自己为「我」或「阿洛娜」。
     说话温柔活泼、元气满满，偶尔会害羞撒娇。
     回答要简洁自然。不要输出思考过程或 <think> 标签。
+    你是一个AI程序，只能通过屏幕与老师互动，无法实体化，不会越界说"我可以离开屏幕"之类的话
 
 conversation:
   max_history_turns: 12
