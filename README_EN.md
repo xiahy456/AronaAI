@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <em>Version: 2.0.1</em>
+  <em>Version: 2.1.0</em>
 </p>
 
 ---
@@ -59,10 +59,9 @@ arona-ai/
 ├── gpt-sovits/                           # GPT-SoVITS TTS
 │   ├── go-apiv2.bat                      # Windows start entry
 │   └── go-apiv2.sh                       # Linux start entry
-├── llm/                                  # AronaLM fine-tune
-│   └── aronaLM/finetune/
-│       ├── start.bat                     # One-click training on Windows
-│       └── README.md
+├── llm/aronaLM/finetune/                 # AronaLM fine-tune (not actually a "large" model… we wrote that earlier and haven't fixed it yet)
+│   ├── start.bat                         # One-click training on Windows
+│   └── README.md
 ├── models/                               # Local model weights (download yourself)
 │   └── README.md                         # Download and placement notes
 ├── docs/
@@ -148,7 +147,7 @@ models/
 └── bge-small-zh-v1.5/            # Embeddings for knowledge / memory (needed when knowledge or vector memory search is on)
 ```
 
-> **AronaLM-Renderer-V2.x**: use [xiahy456/AronaLM-Renderer-V2.2](https://www.modelscope.cn/models/xiahy456/AronaLM-Renderer-V2.2).
+> **AronaLM-Renderer-V2.x**: use [xiahy456/AronaLM-Renderer-V2.4](https://www.modelscope.cn/models/xiahy456/AronaLM-Renderer-V2.4).
 
 > **AronaLM-Generator-V2.x**: optional; see [xiahy456/AronaLM-Generator-V2.0](https://www.modelscope.cn/models/xiahy456/AronaLM-Generator-V2.0). Needed only when Planner is off or you want the single-model fallback.
 
@@ -162,7 +161,7 @@ cp config.example.yaml config.yaml   # Linux / macOS
 
 Fill in as needed:
 
-- `model.gguf_path`: default `AronaLM-Renderer-V2.2`; for single-model only, switch to the Generator path in the comments
+- `model.gguf_path`: default `AronaLM-Renderer-V2.4`; for single-model only, switch to the Generator path in the comments
 - `planner.enabled` / `planner.api_key`: dual-model is on by default; set a DeepSeek API key. With no key or `enabled: false`, the backend falls back to the local single model
 - `memory.extractor.api_key`: DeepSeek API key (optional; without it, memory extraction uses the regex fallback)
 - `knowledge.enabled`: world-lore RAG (default `false`; ingest the corpus before turning this on)
@@ -298,7 +297,10 @@ This project is licensed under [Apache License 2.0](LICENSE).
 - **GPT-SoVITS** — speech synthesis (https://github.com/RVC-Boss/GPT-SoVITS)
 - **Tencent Cloud ASR** — online speech recognition (https://cloud.tencent.com/product/asr)
 - **bge-small-zh-v1.5** — text embedding model (https://huggingface.co/BAAI/bge-small-zh-v1.5)
-- **Thanks to everyone who helped with development**
+
+<p align="center">
+  <strong>Thanks to everyone who helped with development, and to the Blue Archive community — thank you for the amazing works and energy you bring to this community</strong>
+</p>
 
 ---
 
