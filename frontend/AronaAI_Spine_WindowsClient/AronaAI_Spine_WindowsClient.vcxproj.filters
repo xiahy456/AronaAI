@@ -123,6 +123,12 @@
     <QtRcc Include="QtMainFile\MainWidget.qrc">
       <Filter>Resource Files</Filter>
     </QtRcc>
+    <ResourceCompile Include="app.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+    <Image Include="Assets\ProgramAssets\Icon.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="QtMainFile\main.cpp">

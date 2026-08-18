@@ -21,6 +21,8 @@
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="QtMainFile\MainWidget.qrc" />
+    <ResourceCompile Include="app.rc" />
+    <Image Include="Assets\ProgramAssets\Icon.ico" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="QHotkey\qhotkey.cpp" />
@@ -250,6 +252,7 @@
     <WindowsTargetPlatformVersion Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">10.0</WindowsTargetPlatformVersion>
     <WindowsTargetPlatformVersion Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">10.0</WindowsTargetPlatformVersion>
     <QtMsBuild Condition="'$(QtMsBuild)'=='' OR !Exists('$(QtMsBuild)\qt.targets')">$(MSBuildProjectDirectory)\QtMsBuild</QtMsBuild>
+    <ApplicationIcon>Assets\ProgramAssets\Icon.ico</ApplicationIcon>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">
