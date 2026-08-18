@@ -17,11 +17,11 @@
 </p>
 
 <p align="center">
-  <em>项目地址: https://github.com/xiahy456/AronaAI</em>
+  <em>项目地址：https://github.com/xiahy456/AronaAI</em>
 </p>
 
 <p align="center">
-  <em>版本: 2.0.0</em>
+  <em>版本：2.0.1</em>
 </p>
 
 ---
