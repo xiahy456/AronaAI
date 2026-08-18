@@ -283,7 +283,7 @@ cd gpt-sovits
 
 ## 🙏 致谢
 
-- **《蔚蓝档案》(Blue Archive)** - 一切奇迹的起点 (https://bluearchive-cn.com/)
+- **《蔚蓝档案》(ブルーアーカイブ)** - 一切奇迹的起点 (https://bluearchive-cn.com/)
 - **Spine** - 2D 动画引擎 (https://esotericsoftware.com/)
 - **基沃托斯古书馆** - Spine 动画资源与 Blueaka 字体 (https://kivo.wiki/)
 - **Qt** - 跨平台 GUI 框架 (https://www.qt.io/)

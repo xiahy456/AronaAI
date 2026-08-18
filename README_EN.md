@@ -308,7 +308,7 @@ This project is licensed under [Apache License 2.0](LICENSE).
 
 ## Acknowledgements
 
-- **Blue Archive** — where all miracles begin ([https://bluearchive-cn.com/](https://bluearchive-cn.com/))
+- **Blue Archive (ブルーアーカイブ)** — where all miracles begin ([https://bluearchive-cn.com/](https://bluearchive-cn.com/))
 - **Spine** — 2D animation engine ([https://esotericsoftware.com/](https://esotericsoftware.com/))
 - **Kivo Wiki** — Spine animation assets and Blueaka font ([https://kivo.wiki/](https://kivo.wiki/))
 - **Qt** — cross-platform GUI framework ([https://www.qt.io/](https://www.qt.io/))
