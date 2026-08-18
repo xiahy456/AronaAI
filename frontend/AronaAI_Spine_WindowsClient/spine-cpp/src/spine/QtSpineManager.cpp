@@ -22,6 +22,8 @@
 #include <spine/Atlas.h>
 #include <spine/SkeletonData.h>
 #include <spine/Skeleton.h>
+#include <spine/Bone.h>
+#include <spine/Animation.h>
 #include <spine/AnimationStateData.h>
 #include <spine/AnimationState.h>
 #include <spine/SkeletonBinary.h>
@@ -31,6 +33,31 @@
 #include <spine/Slot.h>
 #include <QDebug>
 #include <QMatrix4x4>
+#include <cmath>
+
+namespace {
+    constexpr float kSpineOriginX = 110.0f;
+    constexpr float kSpineOriginY = 270.0f;
+    constexpr float kSpineVisualScale = 0.2f;
+
+    constexpr int kPatTrackA = 3;
+    constexpr int kPatTrackM = 4;
+    constexpr const char* kPatAnimA = "Pat_01_A";
+    constexpr const char* kPatAnimM = "Pat_01_M";
+    constexpr const char* kPatEndAnimA = "PatEnd_01_A";
+    constexpr const char* kPatEndAnimM = "PatEnd_01_M";
+
+    constexpr float kPatHitRadiusX = 140.0f;
+    constexpr float kPatHitRadiusY = 100.0f;
+    // 脸部控制点最大水平偏移（与 RangeX 一起决定跟随灵敏度）
+    constexpr float kPatFollowMaxRadius = 40.0f;
+    constexpr float kPatHeadTiltMaxDeg = 1.5f;
+    // Head 转角与 Touch_Point_Key 共用：满偏所需世界单位，越小越灵敏
+    constexpr float kPatHeadTiltRangeX = 160.0f;
+    constexpr float kPatEndDuration = 0.067f;
+    constexpr float kPatEndMixIn = 0.02f;
+    constexpr float kPatEndMixOut = 0.08f;
+}
 
 QtSpineManager::QtSpineManager(QWidget* parent) : QOpenGLWidget(parent)
 {
@@ -43,6 +70,7 @@ QtSpineManager::QtSpineManager(QWidget* parent) : QOpenGLWidget(parent)
 	//this->setWindowOpacity(0.5);    // 设置窗口半透明（0.0完全透明，1.0完全不透明）
 	this->setAutoFillBackground(false);   // 禁用自动填充背景，确保paintGL的背景颜色生效
     this->resize(220 * WIDGET_ZOOM, 440 * WIDGET_ZOOM); // 设置窗口大小
+    refreshSpineViewTransform();
 
     // 启动事件过滤器
     this->installEventFilter(this);
@@ -50,11 +78,6 @@ QtSpineManager::QtSpineManager(QWidget* parent) : QOpenGLWidget(parent)
     // 动画计时器
     connect(&m_timer, &QTimer::timeout, this, &QtSpineManager::updateAnimation);
     m_timer.start((int)(1000 / GET_INT_FROM_JSON(_global_config, "settings", "frame_rate")));
-    // 连接长按定时器
-    connect(&m_longTouchTimer, &QTimer::timeout, this, &QtSpineManager::onLongTouchTimeout);
-    m_longTouchTimer.setSingleShot(true);
-    m_longTouchTimer.setInterval(100);
-
 }
 
 QtSpineManager::~QtSpineManager()
@@ -165,10 +188,11 @@ void QtSpineManager::paintGL()
     // 使用正交投影，Y轴向下以匹配屏幕坐标
     projection.ortho(0, w, h, 0, -1, 1);
 
-    // 创建视图矩阵，用于移动整个Spine动画
+    // 创建视图矩阵，用于移动整个Spine动画（与命中坐标共用 origin/scale）
+    refreshSpineViewTransform();
     QMatrix4x4 transform;
-    transform.translate(110.0f * WIDGET_ZOOM, 270.0f * WIDGET_ZOOM);
-    transform.scale(0.2f * WIDGET_ZOOM, -0.2f * WIDGET_ZOOM);
+    transform.translate(m_spineX, m_spineY);
+    transform.scale(m_scale, -m_scale);
 
     // 组合矩阵：最终位置 = 投影 * 视图
     QMatrix4x4 matrix = projection * transform;
@@ -214,8 +238,11 @@ void QtSpineManager::resizeGL(int w, int h)
 void QtSpineManager::mousePressEvent(QMouseEvent* event)
 {
     if (event->button() == Qt::LeftButton) {
-        // 启动长按计时器
-        m_longTouchTimer.start();
+        m_leftDown = true;
+        updateMouseWorldFromWidget(event->position());
+        if (!m_patActive && isInPatHitBox(m_mouseWorld)) {
+            handlePat();
+        }
     }
 
     QOpenGLWidget::mousePressEvent(event);
@@ -224,12 +251,9 @@ void QtSpineManager::mousePressEvent(QMouseEvent* event)
 void QtSpineManager::mouseReleaseEvent(QMouseEvent* event)
 {
     if (event->button() == Qt::LeftButton) {
-		// 停止长按计时器
-		m_longTouchTimer.stop();
-		// 如果之前确认了长按，则执行结束逻辑
-        if (m_isLongTouch) {
+        m_leftDown = false;
+        if (m_patActive) {
             handlePatEnd();
-            m_isLongTouch = false; // 重置长按状态
         }
     }
 
@@ -238,8 +262,8 @@ void QtSpineManager::mouseReleaseEvent(QMouseEvent* event)
 
 void QtSpineManager::mouseMoveEvent(QMouseEvent* event)
 {
-    if (event->buttons() & Qt::LeftButton) {
-
+    if (m_leftDown || (event->buttons() & Qt::LeftButton)) {
+        updateMouseWorldFromWidget(event->position());
     }
 
     QOpenGLWidget::mouseMoveEvent(event);
@@ -269,19 +293,25 @@ void QtSpineManager::updateAnimation()
     // 更新动画
     m_animationState->update(deltaTime);
     m_animationState->apply(*m_skeleton);
+    if (m_patActive || m_patEnding) {
+        // 先得到不含额外转头的世界矩阵，避免用上一帧倾斜去算跟随而放大
+        m_skeleton->updateWorldTransform(spine::Physics_Update);
+        if (m_patEnding) {
+            m_patEndElapsed += deltaTime;
+            const float u = qBound(0.0f, m_patEndElapsed / kPatEndDuration, 1.0f);
+            const float s = u * u * (3.0f - 2.0f * u);
+            applyPatFollow(m_patEndFromT * (1.0f - s));
+            if (u >= 1.0f) {
+                m_patEnding = false;
+            }
+        } else {
+            applyPatFollow(computePatFollowT());
+        }
+    }
     m_skeleton->updateWorldTransform(spine::Physics_Update);
 
     // 请求重绘
     update();
-}
-
-void QtSpineManager::onLongTouchTimeout()
-{
-    // 确认鼠标长按
-    m_isLongTouch = true;
-	// 启动摸头动画
-	handlePat();
-    
 }
 
 void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skelOrJsonPath)
@@ -322,6 +352,10 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
     m_animationStateData->setDefaultMix(GET_DOUBLE_FROM_JSON(_global_config, "spine", "animation_default_mix"));
     m_animationState = new spine::AnimationState(m_animationStateData);
     m_skeleton->setToSetupPose();
+    refreshSpineViewTransform();
+    cachePatBones();
+    logPatAnimations();
+    m_skeleton->updateWorldTransform(spine::Physics_Update);
 
     FINE_DEBUG_OUTPUT(QString("[Startup] Spine file loaded: %1 ms").arg(loadTimer.elapsed()));
     FINE_DEBUG_OUTPUT("[Spine Operation]Spine file loaded successfully!");
@@ -614,18 +648,202 @@ void QtSpineManager::setAttachmentRelativeTransform(const QString& slotName, flo
     //}
 }
 
+void QtSpineManager::refreshSpineViewTransform()
+{
+    const float zoom = static_cast<float>(WIDGET_ZOOM);
+    m_spineX = kSpineOriginX * zoom;
+    m_spineY = kSpineOriginY * zoom;
+    m_scale = kSpineVisualScale * zoom;
+}
+
+QPointF QtSpineManager::widgetToSpineWorld(const QPointF& widgetPos) const
+{
+    if (m_scale == 0.0f) {
+        return QPointF();
+    }
+    return QPointF(
+        (widgetPos.x() - m_spineX) / m_scale,
+        (widgetPos.y() - m_spineY) / -m_scale
+    );
+}
+
+void QtSpineManager::updateMouseWorldFromWidget(const QPointF& widgetPos)
+{
+    m_mouseWorld = widgetToSpineWorld(widgetPos);
+}
+
+bool QtSpineManager::isInPatHitBox(const QPointF& spineWorld) const
+{
+    if (!m_patHitBone) {
+        return false;
+    }
+    const float dx = static_cast<float>(spineWorld.x()) - m_patHitBone->getWorldX();
+    const float dy = static_cast<float>(spineWorld.y()) - m_patHitBone->getWorldY();
+    if (kPatHitRadiusX <= 0.0f || kPatHitRadiusY <= 0.0f) {
+        return false;
+    }
+    const float nx = dx / kPatHitRadiusX;
+    const float ny = dy / kPatHitRadiusY;
+    return (nx * nx + ny * ny) <= 1.0f;
+}
+
+void QtSpineManager::cachePatBones()
+{
+    m_touchPointBone = nullptr;
+    m_touchPointKeyBone = nullptr;
+    m_headBone = nullptr;
+    m_patHitBone = nullptr;
+
+    if (!m_skeleton) {
+        return;
+    }
+
+    m_touchPointBone = m_skeleton->findBone("Touch_Point");
+    m_touchPointKeyBone = m_skeleton->findBone("Touch_Point_Key");
+    m_headBone = m_skeleton->findBone("Head");
+    m_patHitBone = m_touchPointBone ? m_touchPointBone : m_headBone;
+
+    if (m_touchPointBone) {
+        FINE_DEBUG_OUTPUT("[Spine Operation]Pat hit bone: Touch_Point");
+    } else if (m_patHitBone) {
+        FINE_DEBUG_OUTPUT("[Spine Operation]Pat hit bone fallback: Head");
+    } else {
+        ERROR_DEBUG_OUTPUT("[Spine Operation]Pat hit bone not found (Touch_Point / Head)");
+    }
+}
+
+void QtSpineManager::logPatAnimations()
+{
+    if (!m_skeletonData) {
+        return;
+    }
+
+    const char* names[] = { kPatAnimA, kPatAnimM, kPatEndAnimA, kPatEndAnimM };
+    for (const char* name : names) {
+        spine::Animation* anim = m_skeletonData->findAnimation(name);
+        if (anim) {
+            FINE_DEBUG_OUTPUT(QString("[Spine Operation]Found animation %1 duration=%2")
+                .arg(name)
+                .arg(anim->getDuration(), 0, 'f', 4));
+        } else {
+            ERROR_DEBUG_OUTPUT(QString("[Spine Operation]Animation not found: %1").arg(name));
+        }
+    }
+}
+
+void QtSpineManager::holdPatAnimation(int track_idx, const char* name)
+{
+    if (!m_animationState || !m_skeletonData) {
+        ERROR_DEBUG_OUTPUT("[Spine Operation]Animation state not ready");
+        return;
+    }
+
+    spine::Animation* anim = m_skeletonData->findAnimation(name);
+    if (!anim) {
+        ERROR_DEBUG_OUTPUT(QString("[Spine Operation]Animation not found:") + name);
+        return;
+    }
+
+    spine::TrackEntry* entry = m_animationState->setAnimation(track_idx, anim, true);
+    if (!entry) {
+        return;
+    }
+    entry->setLoop(true);
+    entry->setTimeScale(0.0f);
+    entry->setTrackEnd(1.0e9f);
+    FINE_DEBUG_OUTPUT(QString("[Spine Operation]Hold pat animation: %1 on track %2").arg(name).arg(track_idx));
+}
+
 void QtSpineManager::handlePat()
 {
-    // 启动摸头动画
-    this->setAnimation("Pat_01_A", 3, true);    // 启动摸头动画A
-	this->setAnimation("Pat_01_M", 4, true);    // 启动摸头动画M
+    m_patEnding = false;
+    holdPatAnimation(kPatTrackA, kPatAnimA);
+    holdPatAnimation(kPatTrackM, kPatAnimM);
+    m_patActive = true;
+    if (m_animationState && m_skeleton) {
+        m_animationState->apply(*m_skeleton);
+        m_skeleton->updateWorldTransform(spine::Physics_Update);
+        applyPatFollow(computePatFollowT());
+        m_skeleton->updateWorldTransform(spine::Physics_Update);
+        update();
+    }
+}
+
+void QtSpineManager::playPatEndAnimation(int track_idx, const char* name)
+{
+    if (!m_animationState || !m_skeletonData) {
+        return;
+    }
+
+    spine::Animation* anim = m_skeletonData->findAnimation(name);
+    if (!anim) {
+        ERROR_DEBUG_OUTPUT(QString("[Spine Operation]Animation not found:") + name);
+        return;
+    }
+
+    spine::TrackEntry* entry = m_animationState->setAnimation(track_idx, anim, false);
+    if (!entry) {
+        return;
+    }
+    entry->setLoop(false);
+    entry->setMixDuration(kPatEndMixIn);
+    const float duration = anim->getDuration() > 0.0f ? anim->getDuration() : kPatEndDuration;
+    m_animationState->addEmptyAnimation(track_idx, kPatEndMixOut, duration);
 }
 
 void QtSpineManager::handlePatEnd()
 {
-    // 清除摸头动画
-    this->clearAnimation(3, 0.2f);
-    this->clearAnimation(4, 0.2f);
+    m_patActive = false;
+    m_patEnding = true;
+    m_patEndElapsed = 0.0f;
+    m_patEndFromT = m_patFollowT;
+
+    playPatEndAnimation(kPatTrackA, kPatEndAnimA);
+    playPatEndAnimation(kPatTrackM, kPatEndAnimM);
+
+    if (m_skeleton && m_animationState) {
+        m_animationState->apply(*m_skeleton);
+        m_skeleton->updateWorldTransform(spine::Physics_Update);
+        applyPatFollow(m_patEndFromT);
+        m_skeleton->updateWorldTransform(spine::Physics_Update);
+        update();
+    }
+    FINE_DEBUG_OUTPUT("[Spine Operation]Pat end");
+}
+
+float QtSpineManager::computePatFollowT() const
+{
+    if (!m_touchPointBone) {
+        return 0.0f;
+    }
+    const float relx = static_cast<float>(m_mouseWorld.x()) - m_touchPointBone->getWorldX();
+    return qBound(-1.0f, relx / kPatHeadTiltRangeX, 1.0f);
+}
+
+void QtSpineManager::applyPatFollow(float t)
+{
+    if (!m_touchPointBone || !m_touchPointKeyBone) {
+        return;
+    }
+
+    m_patFollowT = t;
+
+    // 只跟随鼠标水平位移：世界 Y 钉在额头控制点上，避免头被上下拽
+    const float boneWorldX = m_touchPointBone->getWorldX();
+    const float boneWorldY = m_touchPointBone->getWorldY();
+    const float followX = boneWorldX + t * kPatFollowMaxRadius;
+
+    float localX = 0.0f;
+    float localY = 0.0f;
+    m_touchPointBone->worldToLocal(followX, boneWorldY, localX, localY);
+
+    m_touchPointKeyBone->setX(localX);
+    m_touchPointKeyBone->setY(localY);
+
+    // 转 Head 而不是 Head_Rot：光环 / 后脑勺挂在 Head 下，才能一起跟
+    if (m_headBone) {
+        m_headBone->setRotation(m_headBone->getRotation() + t * kPatHeadTiltMaxDeg);
+    }
 }
 
 GLuint QtSpineManager::getTextureId(spine::RegionAttachment* attachment)

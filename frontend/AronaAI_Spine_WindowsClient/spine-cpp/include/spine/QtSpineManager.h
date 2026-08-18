@@ -36,6 +36,7 @@
 #include <QOpenGLExtraFunctions>
 #include <QFrame>
 #include <QPoint>
+#include <QPointF>
 #include <QMouseEvent>
 #include <QCoreApplication>
 #include <QApplication>
@@ -54,6 +55,7 @@ namespace spine {
     class MeshAttachment;
     class Slot;
     class Color;
+    class Bone;
 }
 
 class QtSpineManager : public QOpenGLWidget, protected QOpenGLFunctions
@@ -82,8 +84,6 @@ public:
     void setAnimation(const QString& name, int track_idx, bool loop = true);
 	void clearAnimation(int track_idx, float mix_duration);
 
-    // 摸头相关函数
-
 signals:
     void spineLoaded();
     void glReady();
@@ -102,8 +102,6 @@ protected:
 private slots:
     // 更新动画
     void updateAnimation();
-	// 长按事件处理函数
-    void onLongTouchTimeout();
 
 private:
     // 辅助函数
@@ -115,9 +113,19 @@ private:
     void collectMeshAttachmentVertices(spine::MeshAttachment* attachment, spine::Slot* slot, const spine::Color& slotColor);
     void flushBatches();
     void setAttachmentRelativeTransform(const QString& slotName, float offsetX, float offsetY, float rotation = 0.0f, float scaleX = 1.0f, float scaleY = 1.0f);
-    // 摸头函数
+
+    void refreshSpineViewTransform();
+    QPointF widgetToSpineWorld(const QPointF& widgetPos) const;
+    bool isInPatHitBox(const QPointF& spineWorld) const;
+    void updateMouseWorldFromWidget(const QPointF& widgetPos);
+    void holdPatAnimation(int track_idx, const char* name);
+    void playPatEndAnimation(int track_idx, const char* name);
     void handlePat();
     void handlePatEnd();
+    float computePatFollowT() const;
+    void applyPatFollow(float t);
+    void cachePatBones();
+    void logPatAnimations();
 
     // Spine 对象
     spine::Atlas* m_atlas = nullptr;
@@ -127,7 +135,7 @@ private:
     spine::AnimationStateData* m_animationStateData = nullptr;
     spine::AnimationState* m_animationState = nullptr;
 
-    // 骨骼显示位置（用于坐标转换）
+    // 骨骼显示位置（与 paintGL 矩阵一致：origin + 视觉缩放，Y 翻转）
     float m_spineX = 0.0f;
     float m_spineY = 0.0f;
     float m_scale = 1.0f;
@@ -137,9 +145,19 @@ private:
     QElapsedTimer m_elapsedTimer;
     float m_lastTime = 0.0f;
 
-    // 摸摸头
-    QTimer m_longTouchTimer;    // 长按计时器
-	bool m_isLongTouch = false; // 是否处于长按状态
+    // 摸头状态
+    bool m_leftDown = false;
+    bool m_patActive = false;
+    bool m_patEnding = false;
+    float m_patFollowT = 0.0f;
+    float m_patEndFromT = 0.0f;
+    float m_patEndElapsed = 0.0f;
+    QPointF m_mouseWorld;
+
+    spine::Bone* m_touchPointBone = nullptr;
+    spine::Bone* m_touchPointKeyBone = nullptr;
+    spine::Bone* m_headBone = nullptr;
+    spine::Bone* m_patHitBone = nullptr;
 
     // OpenGL 资源
     QOpenGLShaderProgram* m_program = nullptr;
