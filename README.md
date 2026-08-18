@@ -297,7 +297,7 @@ cd gpt-sovits
 - **bge-small-zh-v1.5** - 文本嵌入模型 (https://huggingface.co/BAAI/bge-small-zh-v1.5)
 
 <p align="center">
-  <strong>感谢所有协助开发的贡献者们，与「蔚蓝档案」社区的贡献者们</strong>
+  <strong>感谢所有协助开发的贡献者们，与所有「蔚蓝档案」社区的贡献者们</strong>
 </p>
 <p align="center">
   <strong>感谢你们为这个社区带来的精彩作品与活力</strong>
