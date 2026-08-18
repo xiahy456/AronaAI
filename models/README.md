@@ -83,7 +83,7 @@ models/
 双模型链路至少需要：
 
 ```
-models/AronaLM-Renderer-V2.1/AronaLM-Renderer-V2.1.Q4_K_M.gguf
+models/AronaLM-Renderer-V2.2/AronaLM-Renderer-V2.2.Q4_K_M.gguf
 ```
 
 并配置 `planner.api_key`（DeepSeek）。不填 Key 或关闭 Planner 时，改为放置并指向 `AronaLM-Generator-V2.0` GGUF。

@@ -80,10 +80,10 @@ See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
 
 ### AI Dialogue Engine
 
-- **Dual-model pipeline**: **Planner (DeepSeek) → structured intent card → Renderer (AronaLM-Renderer-V2.3)**. Simple turns can be routed to the local single model. If Planner is disabled or fails, the system falls back to the local path.
+- **Dual-model pipeline**: **Planner (DeepSeek) → structured intent card → Renderer (AronaLM-Renderer-V2.x)**. Simple turns can be routed to the local single model. If Planner is disabled or fails, the system falls back to the local path.
 - **Relationship climate**: three scalars — trust / dependence / tension — form a tensor. User actions are classified by rules, then a lookup table updates the climate; climate zones decide whether Arona speaks, how she speaks, or stays silent.
 - **Login greeting, idle chat, care, and follow-up**: after a WebSocket connect, Arona greets by time of day; after a stretch of silence she checks in lightly; she reminds you to eat or rest by time of day; sparse follow-ups on unfinished plans in memory; when Planner allows it, she may add a line in the same turn.
-- **AronaLM-Renderer-V2.3 (GGUF)**: `llama-cpp-python` loads a Qwen3-1.7B fine-tuned GGUF (default Q4_K_M) and strips `<think>` reasoning blocks. The default dual-model path is non-streaming; the local fallback path can stream.
+- **AronaLM-Renderer-V2.x (GGUF)**: `llama-cpp-python` loads a Qwen3-1.7B fine-tuned GGUF (default Q4_K_M) and strips `<think>` reasoning blocks. The default dual-model path is non-streaming; the local fallback path can stream.
 - **Memory and knowledge are separate**: long-term user facts go to SQLite + FTS5 + Chroma (jieba / BGE). World-lore goes Markdown corpus → local BGE + Chroma RAG. They are never mixed; each is injected into the prompt on demand.
 - **Async memory extraction**: the main dialogue path is not blocked. DeepSeek JSON extraction (with a daily quota and buffered batches) falls back to regex if the call fails or no API key is set.
 - **ASR dirty-text filter**: empty strings and Tencent Cloud ASR error templates are dropped at the entry point so Planner is not triggered by accident.
@@ -162,7 +162,7 @@ cp config.example.yaml config.yaml   # Linux / macOS
 
 Fill in as needed:
 
-- `model.gguf_path`: default `AronaLM-Renderer-V2.3`; for single-model only, switch to the Generator path in the comments
+- `model.gguf_path`: default `AronaLM-Renderer-V2.2`; for single-model only, switch to the Generator path in the comments
 - `planner.enabled` / `planner.api_key`: dual-model is on by default; set a DeepSeek API key. With no key or `enabled: false`, the backend falls back to the local single model
 - `memory.extractor.api_key`: DeepSeek API key (optional; without it, memory extraction uses the regex fallback)
 - `knowledge.enabled`: world-lore RAG (default `false`; ingest the corpus before turning this on)

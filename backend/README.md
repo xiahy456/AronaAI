@@ -192,7 +192,7 @@ python scripts/ingest_knowledge.py --rebuild
 | `logging` | 日志目录、文件名、级别与滚动策略 |
 
 关键项速查：
-- 模型：`model.gguf_path`（示例默认 AronaLM-Renderer-V2.3；回落见注释中的 AronaLM-Generator-V2.0）
+- 模型：`model.gguf_path`（示例默认 AronaLM-Renderer-V2.2；回落见注释中的 AronaLM-Generator-V2.0）
 - 模板：`config.example.yaml` → 本地：`config.yaml`
 
 本地数据路径（均已 gitignore）：
