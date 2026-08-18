@@ -21,7 +21,7 @@
   Wait timeout in seconds for both backend services to become ready. Default: 600
 
 .PARAMETER FrontendExe
-  Optional path to AronaAI_Spine_WindowsClient.exe. If omitted, auto-detect.
+  Optional path to AronaAI_WindowsClient.exe. If omitted, auto-detect.
 
 .PARAMETER TtsStallSec
   Passed to GPT-SoVITS watchdog (stall seconds). Default: 60
@@ -105,7 +105,12 @@ function Resolve-Frontend {
     }
 
     $workDir = Join-Path $Root "frontend\AronaAI_Spine_WindowsClient\dist\AronaAI_Client"
-    $exe = Join-Path $workDir "AronaAI_Spine_WindowsClient.exe"
+    $candidates = @(
+        (Join-Path $workDir "AronaAI_WindowsClient.exe"),
+        (Join-Path $workDir "AronaAI_Spine_WindowsClient.exe")
+    )
+    $exe = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+    if (-not $exe) { $exe = $candidates[0] }
     Assert-Path $exe "frontend executable"
     return @{
         Exe     = (Resolve-Path $exe).Path

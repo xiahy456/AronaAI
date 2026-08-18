@@ -20,7 +20,9 @@
     (default)     → <script_dir>\dist\AronaAI_Client_Release
 
 .PARAMETER ExePath
-  Path to Release exe. Default: <script_dir>\x64\Release\AronaAI_Spine_WindowsClient.exe
+  Path to Release exe. Default: <script_dir>\x64\Release\AronaAI_WindowsClient.exe
+  (falls back to AronaAI_Spine_WindowsClient.exe if the new name is not built yet).
+  The packaged copy is always named AronaAI_WindowsClient.exe.
 
 .PARAMETER KeepSecrets
   If set, keep tencent_speech_recognizer secrets from the source config.
@@ -55,7 +57,15 @@ if (-not $DistDir) {
         $DistDir = Join-Path $Root "dist\AronaAI_Client_Release"
     }
 }
-if (-not $ExePath) { $ExePath = Join-Path $Root "x64\Release\AronaAI_Spine_WindowsClient.exe" }
+$DistExeName = "AronaAI_WindowsClient.exe"
+if (-not $ExePath) {
+    $candidates = @(
+        (Join-Path $Root "x64\Release\AronaAI_WindowsClient.exe"),
+        (Join-Path $Root "x64\Release\AronaAI_Spine_WindowsClient.exe")
+    )
+    $ExePath = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+    if (-not $ExePath) { $ExePath = $candidates[0] }
+}
 
 function Write-Step([string]$Message) {
     Write-Host ""
@@ -129,16 +139,16 @@ if (Test-Path -LiteralPath $DistDir) {
 Cannot clean package directory (files locked):
   $DistDir
 
-Close AronaAI_Spine_WindowsClient.exe (and any explorer preview locking DLLs), then retry.
+Close AronaAI_WindowsClient.exe (and any explorer preview locking DLLs), then retry.
 Original error: $($_.Exception.Message)
 "@
     }
 }
 New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
 
-$ExeName = Split-Path $ExePath -Leaf
-Copy-Item -LiteralPath $ExePath -Destination (Join-Path $DistDir $ExeName) -Force
-Write-Host "Copied $ExeName"
+Copy-Item -LiteralPath $ExePath -Destination (Join-Path $DistDir $DistExeName) -Force
+Write-Host "Copied $(Split-Path $ExePath -Leaf) → $DistExeName"
+$ExeName = $DistExeName
 
 # --- windeployqt -------------------------------------------------------------
 Write-Step "Running windeployqt"

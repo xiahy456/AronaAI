@@ -5,9 +5,9 @@
     "icon_path": "Assets/ProgramAssets/Icon.png",
     "zoom": 1.0,
     "transparent": 1.0,
-    "offset_from_screen_bottom": -50,
+    "offset_from_screen_bottom": -180,
     "offset_from_screen_left": 0,
-    "output_text_box_offset": -50,
+    "output_text_box_offset": 50,
     "mouse_event_transparent": true,
     "qhotkey_path": "QHotkey",
     "open_setting_widget": false,
@@ -70,7 +70,8 @@
   },
   "short_cut_key": {
     "switch_audio_input": "Ctrl+Alt+V",
-    "switch_mouse_transparent": "Ctrl+Alt+C"
+    "switch_mouse_transparent": "Ctrl+Alt+C",
+    "show_user_input": "Ctrl+Alt+T"
   },
   "tencent_speech_recognizer": {
     "secret_id": "${TENCENT_SECRET_ID}",
