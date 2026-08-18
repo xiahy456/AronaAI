@@ -23,7 +23,7 @@
 /llm/chatglm3/
 
 # aronaLM training data
-/llm/aronaLM/data/
+/llm/aronaLM/base-unused/data/
 /llm/aronaLM/finetune/data/
 
 # aronaLM finetune
@@ -35,7 +35,7 @@
 /llm/aronaLM/finetune/.venv/
 
 # aronaLM checkpoints
-/llm/aronaLM/checkpoints/
+/llm/aronaLM/base-unused/checkpoints/
 
 # logs
 /logs/

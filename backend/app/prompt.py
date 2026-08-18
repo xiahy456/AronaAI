@@ -2,49 +2,17 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from .config import AppConfig
 
-# Shared with finetune: llm/aronaLM/finetune/prompts/renderer_*_v24.txt
-_PROMPTS_DIR = (
-    Path(__file__).resolve().parents[2]
-    / "llm"
-    / "aronaLM"
-    / "finetune"
-    / "prompts"
-)
-_RENDERER_SYSTEM_V24_FALLBACK = """你是阿洛娜（Arona），什亭之匣的操作系统管理员。
+# Dedicated renderer system prompt (do NOT splice yaml prompt.local_system_prompt).
+RENDERER_SYSTEM = """你是阿洛娜（Arona），什亭之匣的操作系统管理员。
 称呼用户为「老师」，称呼自己为「我」或「阿洛娜」。
 说话温柔活泼、简洁自然。不要输出思考过程或 <think> 标签。
 
 你将收到【意图草稿】。把草稿改写成阿洛娜对老师说的 1–2 句。只输出台词。"""
-_RENDERER_USER_TAIL_V24_FALLBACK = "请把意图草稿改写成阿洛娜的 1–2 句台词，保持原意。"
-
-
-def _load_prompt_file(name: str, fallback: str) -> str:
-    path = _PROMPTS_DIR / name
-    if path.is_file():
-        text = path.read_text(encoding="utf-8").strip()
-        if text:
-            return text
-    return fallback.strip()
-
-
-def _load_renderer_system() -> str:
-    return _load_prompt_file("renderer_system_v24.txt", _RENDERER_SYSTEM_V24_FALLBACK)
-
-
-def _load_renderer_user_tail() -> str:
-    return _load_prompt_file(
-        "renderer_user_tail_v24.txt", _RENDERER_USER_TAIL_V24_FALLBACK
-    )
-
-
-# Dedicated renderer system prompt (do NOT splice yaml prompt.local_system_prompt).
-RENDERER_SYSTEM = _load_renderer_system()
-RENDERER_USER_TAIL = _load_renderer_user_tail()
+RENDERER_USER_TAIL = "请把意图草稿改写成阿洛娜的 1–2 句台词，保持原意。"
 
 
 def _approx_chars_for_tokens(tokens: int) -> int:

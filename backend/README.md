@@ -141,14 +141,14 @@ Planner 只看见【关系气候】档位与【建议姿态】，禁止下发 A/
 
 结构也是两条 message，**不拼接 yaml 人设、不带历史**：`system = RENDERER_SYSTEM`，`user = 【意图草稿】 + draft + RENDERER_USER_TAIL`。
 
-| 部件 | 加载 / 组装 | 源文件（优先） |
-|------|-------------|---------------|
-| `RENDERER_SYSTEM` | `app/prompt.py` `_load_renderer_system()` | [`../llm/aronaLM/finetune/prompts/renderer_system_v24.txt`](../llm/aronaLM/finetune/prompts/renderer_system_v24.txt) |
-| `RENDERER_USER_TAIL` | `app/prompt.py` `_load_renderer_user_tail()` | [`../llm/aronaLM/finetune/prompts/renderer_user_tail_v24.txt`](../llm/aronaLM/finetune/prompts/renderer_user_tail_v24.txt) |
+| 部件 | 加载 / 组装 | 源 |
+|------|-------------|----|
+| `RENDERER_SYSTEM` | [`app/prompt.py`](app/prompt.py) 常量 | 代码内编码 |
+| `RENDERER_USER_TAIL` | [`app/prompt.py`](app/prompt.py) 常量 | 代码内编码 |
 | user 包装 `format_renderer_user()` | [`app/prompt.py`](app/prompt.py) | `【意图草稿】` + tail |
 | draft 内容 | `IntentCard.to_renderer_draft()` | [`app/planner/schema.py`](app/planner/schema.py) |
 
-txt 缺失时用 `app/prompt.py` 内 `_RENDERER_*_V24_FALLBACK`。同目录旧版 `renderer_system.txt` / `renderer_user_tail.txt` **当前不读**。
+后端不读取 `llm/aronaLM/finetune/prompts/`；该目录只给微调数据管线使用。
 
 ### 本地回落（非 dual）
 
@@ -167,7 +167,7 @@ txt 缺失时用 `app/prompt.py` 内 `_RENDERER_*_V24_FALLBACK`。同目录旧�
 - 记忆抽取：`EXTRACT_SYSTEM` 在 [`app/memory/extractor.py`](app/memory/extractor.py)（另一路 DeepSeek）
 - 路由：[`app/planner/router.py`](app/planner/router.py) 只决定 local vs dual，没有 LLM prompt
 
-改话术时：用户对话改 `PLANNER_SYSTEM`；欢迎/空闲/照料等改对应 `build_*_instruction`；关系口吻改 `policy.py`；阿洛娜最终台词风格改 `renderer_system_v24.txt`。
+改话术时：用户对话改 `PLANNER_SYSTEM`；欢迎/空闲/照料等改对应 `build_*_instruction`；关系口吻改 `policy.py`；阿洛娜最终台词风格改 `app/prompt.py` 的 `RENDERER_SYSTEM`。
 
 ## 关系气候
 
