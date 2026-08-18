@@ -7,6 +7,7 @@
   调用 pack.ps1 -KeepSecrets。
   默认输出目录：dist\AronaAI_Client
   适合本机自用包；勿将产物公开发布或提交仓库。
+  打包时不包含 Assets 下的 Photoshop 源文件（*.psd）。
 
 .EXAMPLE
   .\pack_keep_secrets.ps1

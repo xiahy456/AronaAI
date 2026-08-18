@@ -8,6 +8,7 @@
   ${TENCENT_SECRET_ID} / ${TENCENT_SECRET_KEY}。
   默认输出目录：dist\AronaAI_Client_Release
   适合对外分发。
+  打包时不包含 Assets 下的 Photoshop 源文件（*.psd）。
 
 .EXAMPLE
   .\pack_sanitize_secrets.ps1

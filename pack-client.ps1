@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  依次执行前端两种打包：保留密钥包 + 脱敏发布包。
+  依次执行前端两种打包：保留密钥包 + 脱敏发布包，再打 zip 与 Inno Setup 安装包。
 
 .DESCRIPTION
   在项目根目录调用：
@@ -9,6 +9,10 @@
        → dist\AronaAI_Client（明文密钥，本机自用）
     2) frontend\AronaAI_Spine_WindowsClient\pack_sanitize_secrets.ps1
        → dist\AronaAI_Client_Release（脱敏，对外分发）
+    3) 将 AronaAI_Client_Release 打成 zip
+       → dist\installer\AronaAI_WindowsClient_v<version>_x64.zip
+    4) Inno Setup ISCC 编译 AronaAI.iss
+       → dist\installer\AronaAI_WindowsClient_v<version>_x64_Setup.exe（基于脱敏发布包）
 
   任一脚本失败则立即退出。
 
@@ -18,6 +22,15 @@
 .PARAMETER ExePath
   可选；传给两个打包脚本的 exe 路径。省略则由各自脚本 / pack.ps1 自动检测。
 
+.PARAMETER InnoISCC
+  Inno Setup 编译器 ISCC.exe 路径。
+
+.PARAMETER SkipInstaller
+  若指定，跳过安装包编译（仍会打 zip）。
+
+.PARAMETER SkipZip
+  若指定，跳过 zip 便携包。
+
 .EXAMPLE
   .\pack-client.ps1
   .\pack-client.ps1 -QtBin "D:\Qt68\6.5.3\msvc2019_64\bin"
@@ -25,7 +38,10 @@
 [CmdletBinding()]
 param(
     [string]$QtBin = "D:\Qt68\6.5.3\msvc2019_64\bin",
-    [string]$ExePath = ""
+    [string]$ExePath = "",
+    [string]$InnoISCC = "D:\Inno\Inno Setup 7\ISCC.exe",
+    [switch]$SkipInstaller,
+    [switch]$SkipZip
 )
 
 $ErrorActionPreference = "Stop"
@@ -56,8 +72,65 @@ function Invoke-PackScript {
     }
 }
 
+function Get-ClientPackVersion {
+    param([Parameter(Mandatory = $true)][string]$IssPath)
+    if (Test-Path -LiteralPath $IssPath) {
+        $raw = Get-Content -LiteralPath $IssPath -Raw -Encoding UTF8
+        if ($raw -match '#define\s+MyAppVersion\s+"([^"]+)"') {
+            return $Matches[1]
+        }
+    }
+    return "unknown"
+}
+
 Invoke-PackScript -ScriptPath $KeepScript -Arguments $packArgs -Label "Pack KEEP secrets"
 Invoke-PackScript -ScriptPath $SanitizeScript -Arguments $packArgs -Label "Pack SANITIZE secrets"
 
+$IssPath = Join-Path $ClientRoot "AronaAI.iss"
+$ReleaseDir = Join-Path $ClientRoot "dist\AronaAI_Client_Release"
+$InstallerDir = Join-Path $ClientRoot "dist\installer"
+$PackVersion = Get-ClientPackVersion -IssPath $IssPath
+$ZipPath = Join-Path $InstallerDir "AronaAI_WindowsClient_v${PackVersion}_x64.zip"
+
+if (-not $SkipZip) {
+    if (-not (Test-Path -LiteralPath $ReleaseDir)) {
+        throw "Release package not found: $ReleaseDir"
+    }
+    New-Item -ItemType Directory -Force -Path $InstallerDir | Out-Null
+    if (Test-Path -LiteralPath $ZipPath) {
+        Remove-Item -LiteralPath $ZipPath -Force
+    }
+
+    Write-Host ""
+    Write-Host ("[{0}] Zip portable package" -f (Get-Date -Format "HH:mm:ss")) -ForegroundColor Cyan
+    Compress-Archive -Path $ReleaseDir -DestinationPath $ZipPath -CompressionLevel Optimal
+    Write-Host "Zip: $ZipPath"
+}
+
+if (-not $SkipInstaller) {
+    if (-not (Test-Path -LiteralPath $InnoISCC)) {
+        throw "ISCC.exe not found: $InnoISCC"
+    }
+    if (-not (Test-Path -LiteralPath $IssPath)) {
+        throw "Missing Inno Setup script: $IssPath"
+    }
+
+    Write-Host ""
+    Write-Host ("[{0}] Compile Inno Setup installer" -f (Get-Date -Format "HH:mm:ss")) -ForegroundColor Cyan
+    Push-Location $ClientRoot
+    try {
+        & $InnoISCC ".\AronaAI.iss"
+        if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+        }
+    }
+    finally {
+        Pop-Location
+    }
+}
+
 Write-Host ""
-Write-Host ("[{0}] Both client packs finished." -f (Get-Date -Format "HH:mm:ss")) -ForegroundColor Green
+Write-Host ("[{0}] Client packs finished." -f (Get-Date -Format "HH:mm:ss")) -ForegroundColor Green
+if ((-not $SkipZip) -or (-not $SkipInstaller)) {
+    Write-Host "Artifacts: $InstallerDir"
+}

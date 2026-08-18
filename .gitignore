@@ -96,6 +96,7 @@ bin/
 *.app
 /frontend/AronaAI_Spine_WindowsClient/Config/
 /frontend/AronaAI_Spine_WindowsClient/dist/
+/frontend/AronaAI_Spine_WindowsClient/AronaAI.iss
 
 # backend runtime data; keep knowledge corpus / WRITING.md tracked
 backend/data/**

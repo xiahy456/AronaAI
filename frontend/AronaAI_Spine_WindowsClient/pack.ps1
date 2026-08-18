@@ -6,6 +6,7 @@
 .DESCRIPTION
   Copies the Release exe, runs windeployqt for Qt runtime DLLs/plugins,
   and copies Assets / Config / Dict into a portable package folder.
+  Photoshop source files (*.psd) under Assets are omitted from the package.
   Config/config.json is taken from the project (relative paths expected);
   secrets are sanitized and machine-local program_path is dropped unless
   -KeepSecrets is set.
@@ -78,7 +79,7 @@ function Assert-Path([string]$Path, [string]$Hint) {
     }
 }
 
-function Copy-Tree([string]$Source, [string]$Destination) {
+function Copy-Tree([string]$Source, [string]$Destination, [string[]]$Exclude = @()) {
     Assert-Path $Source "Source"
     if (Test-Path -LiteralPath $Destination) {
         Remove-Item -LiteralPath $Destination -Recurse -Force
@@ -88,6 +89,11 @@ function Copy-Tree([string]$Source, [string]$Destination) {
         New-Item -ItemType Directory -Force -Path $parent | Out-Null
     }
     Copy-Item -LiteralPath $Source -Destination $Destination -Recurse -Force
+    # Copy-Item -Recurse -Exclude only filters the top level; strip leftovers after copy.
+    foreach ($pattern in $Exclude) {
+        Get-ChildItem -LiteralPath $Destination -Filter $pattern -Recurse -File -ErrorAction SilentlyContinue |
+            Remove-Item -Force
+    }
 }
 
 # --- Preconditions -----------------------------------------------------------
@@ -182,8 +188,9 @@ if ($LASTEXITCODE -ne 0) {
 
 # --- Assets / Dict -----------------------------------------------------------
 Write-Step "Copying Assets, Dict"
-Copy-Tree $AssetsSrc (Join-Path $DistDir "Assets")
+Copy-Tree $AssetsSrc (Join-Path $DistDir "Assets") -Exclude "*.psd"
 Copy-Tree $DictSrc   (Join-Path $DistDir "Dict")
+Write-Host "Assets copied (*.psd source files excluded)."
 
 # --- Config ------------------------------------------------------------------
 Write-Step "Writing Config/config.json"
