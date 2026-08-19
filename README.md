@@ -197,10 +197,10 @@ cd gpt-sovits
 
 | 模块 | 文档 |
 |------|------|
-| **Backend**（含 `config.yaml`） | [`backend/README.md`](backend/README.md) |
-| **桌面客户端**（含 `config.json`） | [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md) |
-| **模型**（`models/`） | [`models/README.md`](models/README.md) |
-| **AronaLM 微调（如果您是开发者，请参考该文档）**（`llm/aronaLM/finetune`） | [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md) |
+| **后端** | [`backend/README.md`](backend/README.md) |
+| **桌面客户端** | [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md) |
+| **模型** | [`models/README.md`](models/README.md) |
+| **AronaLM 微调**（如果您是开发者，请参考该文档） | [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md) |
 
 ---
 
