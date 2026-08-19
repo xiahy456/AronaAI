@@ -10,7 +10,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket
 
-from .cache import ResponseCache
 from .config import get_config
 from .conversation import ConversationManager
 from .embeddings import LocalBgeEncoder
@@ -61,7 +60,6 @@ def create_app() -> FastAPI:
     memory_store = MemoryStore(config, encoder=shared_encoder)
     extractor = MemoryExtractor(memory_store, config.memory.extractor)
     knowledge = KnowledgeRetriever(config, encoder=shared_encoder)
-    cache = ResponseCache(max_size=config.cache.max_size)
     planner = PlannerClient(config.planner)
     relationship = RelationshipEngine.from_path(
         config.relationship_abs_path,
@@ -74,7 +72,6 @@ def create_app() -> FastAPI:
         memory_store=memory_store,
         extractor=extractor,
         knowledge=knowledge,
-        cache=cache,
         planner=planner,
         relationship=relationship,
     )

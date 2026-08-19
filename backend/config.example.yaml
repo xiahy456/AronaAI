@@ -62,10 +62,6 @@ memory:
     extract_buffer_turns: 6
     fallback: "regex"
 
-cache:
-  enabled: true
-  max_size: 256
-
 planner:
   enabled: true
   base_url: "https://api.deepseek.com"

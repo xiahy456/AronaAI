@@ -14,7 +14,6 @@ arona-ai/
 │   │   ├── relationship/       # 关系气候（信任/依赖/张力、决策）
 │   │   ├── knowledge.py        # 世界观知识 RAG
 │   │   ├── conversation.py     # 多轮对话历史
-│   │   ├── cache.py            # 响应缓存
 │   │   ├── prompt.py           # Prompt / Renderer 消息组装
 │   │   ├── input_filter.py     # ASR 脏文本过滤（入口兜底）
 │   │   ├── embeddings.py       # 本地 BGE 嵌入（记忆 / 知识共用）

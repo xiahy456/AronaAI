@@ -79,11 +79,6 @@ class MemoryConfig(BaseModel):
     extractor: ExtractorConfig = Field(default_factory=ExtractorConfig)
 
 
-class CacheConfig(BaseModel):
-    enabled: bool = True
-    max_size: int = 256
-
-
 class PlannerConfig(BaseModel):
     """Big-LLM intent planner (separate from memory extractor)."""
 
@@ -187,7 +182,6 @@ class AppConfig(BaseModel):
     conversation: ConversationConfig = Field(default_factory=ConversationConfig)
     knowledge: KnowledgeConfig = Field(default_factory=KnowledgeConfig)
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
-    cache: CacheConfig = Field(default_factory=CacheConfig)
     planner: PlannerConfig = Field(default_factory=PlannerConfig)
     proactive: ProactiveConfig = Field(default_factory=ProactiveConfig)
     token_budget: TokenBudgetConfig = Field(default_factory=TokenBudgetConfig)

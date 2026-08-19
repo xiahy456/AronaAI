@@ -87,7 +87,6 @@ public:
 
     // 发送聊天消息
     void sendChatMessage(const QString& content,
-        bool useCache = true,
         bool useRag = true,
         bool useMemory = true);
 
@@ -127,7 +126,7 @@ signals:
     // 收到消息信号
     void messageReceived(const QJsonObject& message);
 
-    // 收到聊天响应信号（contextUsed 为后端经过的模块标识，如 "none"/"cache"/"memory+rag"）
+    // 收到聊天响应信号（contextUsed 为后端经过的模块标识，如 "none"/"memory+rag"）
     // emotion 为英文表情值（如 smile），由客户端映射到 Spine 动画值
     void chatResponseReceived(const QString& content, bool fromCache,
         const QString& contextUsed, double latency, const QString& emotion);

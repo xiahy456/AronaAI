@@ -78,7 +78,6 @@ cp Config/config.example.json Config/config.json
     "heartbeat_timeout": 10000, // 心跳超时时间（毫秒）
     "reconnect_interval": 3000, // 断线重连间隔（毫秒）
     "max_reconnect_attempts": 5, // 最大重连次数
-    "use_cache": true, // 是否启用响应缓存
     "use_rag": true, // 是否启用知识库 RAG 检索
     "use_memory": true // 是否启用长期记忆
   },

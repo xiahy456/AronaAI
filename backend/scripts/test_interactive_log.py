@@ -47,7 +47,7 @@ def test_format_interactive_log_block() -> None:
     reset_trace()
     begin_trace(
         started_at=1.0,
-        request_json='{"type":"chat","content":"好","options":{"use_cache":true}}',
+        request_json='{"type":"chat","content":"好","options":{"use_rag":true}}',
     )
     update_trace(
         planner_prompt=[

@@ -7,7 +7,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.cache import ResponseCache
 from app.config import load_config
 from app.planner import EMOTION_WHITELIST, normalize_emotion, parse_and_gate_intent, route_mode
 from app.planner.prompts import PLANNER_SYSTEM, build_planner_user_message
@@ -71,10 +70,6 @@ def main() -> None:
 
     m = msg_chat_response("ok", emotion="shy")
     assert m["emotion"] == "shy"
-
-    c = ResponseCache(8)
-    c.put("a", "b", "curious")
-    assert c.get("a") == ("b", "curious")
 
     assert "【阿洛娜主要人设】" in PLANNER_SYSTEM
     assert "什亭之匣" in PLANNER_SYSTEM

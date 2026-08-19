@@ -157,14 +157,13 @@ void WebSocketController::setAutoReconnect(bool enabled)
 // ========== 消息发送实现 ==========
 
 void WebSocketController::sendChatMessage(const QString& content,
-    bool useCache, bool useRag, bool useMemory)
+    bool useRag, bool useMemory)
 {
     QJsonObject message;
     message["type"] = "chat";
     message["content"] = content;
 
     QJsonObject options;
-    options["use_cache"] = useCache;
     options["use_rag"] = useRag;
     options["use_memory"] = useMemory;
     message["options"] = options;

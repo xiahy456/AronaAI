@@ -376,8 +376,7 @@ void MainController::processInputText(const QString& text)
     FINE_DEBUG_OUTPUT("[Main Controller] Generating responce...");
 
     // 发送消息给AI服务端
-    // 可以从配置中读取是否使用缓存、RAG、记忆等功能
-    bool useCache = GET_BOOL_FROM_JSON(_global_config, "aronalm", "use_cache");
+    // 可以从配置中读取是否使用 RAG、记忆等功能
     bool useRag = GET_BOOL_FROM_JSON(_global_config, "aronalm", "use_rag");
     bool useMemory = GET_BOOL_FROM_JSON(_global_config, "aronalm", "use_memory");
 
@@ -385,7 +384,7 @@ void MainController::processInputText(const QString& text)
     m_userTurnTimer.restart();
     m_measuringUserTurn = true;
 
-    m_webSocketController->sendChatMessage(trimmed, useCache, useRag, useMemory);
+    m_webSocketController->sendChatMessage(trimmed, useRag, useMemory);
 
     FINE_DEBUG_OUTPUT("[Main Controller] Sent to AI service: " + trimmed.left(50) + "...");
 }

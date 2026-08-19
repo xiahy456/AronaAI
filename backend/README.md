@@ -22,7 +22,6 @@
 | **嵌入** | `app/embeddings.py` | 本地 BGE 编码器（记忆 / 知识共用） |
 | **记忆存储** | `app/memory/store.py` | SQLite + FTS5 + Chroma 混合长期记忆 |
 | **记忆抽取** | `app/memory/extractor.py` | DeepSeek 异步抽取（失败走正则） |
-| **响应缓存** | `app/cache.py` | 相同输入快速返回 |
 | **Prompt** | `app/prompt.py`、`app/planner/prompts.py` | Renderer / 本地回落消息组装；Planner system + user 模板。部件清单见下节 |
 
 ## 快速开始
@@ -281,7 +280,6 @@ python scripts/ingest_knowledge.py --rebuild
 | `memory` | SQLite + Chroma 路径、混合检索、DeepSeek 抽取器（`every_n_turns` / `extract_buffer_turns`）与正则降级 |
 | `planner` | 默认开启的双模型 Planner（DeepSeek 意图卡、路由开关；无 Key / `enabled: false` 则回落本地） |
 | `proactive` | 上线欢迎；关系气候；空闲搭话；照料窗口；goal 回访；节日问候；同轮 `continue` |
-| `cache` | 响应缓存开关与容量 |
 | `token_budget` | memory / knowledge / history 注入预算 |
 | `logging` | 日志目录、文件名、级别与滚动策略 |
 
@@ -304,7 +302,7 @@ python scripts/ingest_knowledge.py --rebuild
 客户端 `chat`：
 
 ```json
-{"type":"chat","content":"你好","options":{"use_cache":true,"use_rag":true,"use_memory":true}}
+{"type":"chat","content":"你好","options":{"use_rag":true,"use_memory":true}}
 ```
 
 正常回复：`{"type":"chat_response","content":"...","emotion":"...","from_cache":false,"context_used":"...","latency":...}`。

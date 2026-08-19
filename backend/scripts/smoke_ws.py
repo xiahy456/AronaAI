@@ -28,7 +28,7 @@ async def run(url: str, message: str) -> int:
         payload = {
             "type": "chat",
             "content": message,
-            "options": {"use_cache": False, "use_rag": False, "use_memory": True},
+            "options": {"use_rag": False, "use_memory": True},
         }
         await ws.send(json.dumps(payload, ensure_ascii=False))
         print(">>", payload)
@@ -44,7 +44,7 @@ async def run(url: str, message: str) -> int:
                 {
                     "type": "chat",
                     "content": "请记住：我喜欢草莓牛奶",
-                    "options": {"use_cache": False, "use_rag": False, "use_memory": True},
+                    "options": {"use_rag": False, "use_memory": True},
                 },
                 ensure_ascii=False,
             )

@@ -8,7 +8,6 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from .cache import ResponseCache
 from .config import AppConfig
 from .conversation import ConversationManager
 from .knowledge import KnowledgeRetriever
@@ -53,7 +52,6 @@ class Orchestrator:
         memory_store: MemoryStore,
         extractor: MemoryExtractor,
         knowledge: KnowledgeRetriever,
-        cache: ResponseCache,
         planner: PlannerClient | None = None,
         relationship: RelationshipEngine | None = None,
     ) -> None:
@@ -63,7 +61,6 @@ class Orchestrator:
         self.memory_store = memory_store
         self.extractor = extractor
         self.knowledge = knowledge
-        self.cache = cache
         self.planner = planner or PlannerClient(config.planner)
         self.relationship = relationship
         self.stats: dict[str, Any] = {
@@ -76,7 +73,6 @@ class Orchestrator:
             "festival_count": 0,
             "silence_count": 0,
             "refuse_count": 0,
-            "cache_hits": 0,
             "planner_hits": 0,
             "planner_fallbacks": 0,
             "local_route_count": 0,
@@ -107,7 +103,6 @@ class Orchestrator:
             )
             return
 
-        use_cache = bool(options.get("use_cache", self.config.cache.enabled))
         use_rag = bool(options.get("use_rag", self.config.knowledge.enabled))
         use_memory = bool(options.get("use_memory", True))
 
@@ -126,51 +121,12 @@ class Orchestrator:
             return
 
         logger.info(
-            "chat start session=%s use_cache=%s use_rag=%s use_memory=%s request=%r",
+            "chat start session=%s use_rag=%s use_memory=%s request=%r",
             session_id,
-            use_cache and self.config.cache.enabled,
             use_rag,
             use_memory,
             user_text,
         )
-
-        if use_cache and self.config.cache.enabled:
-            cached = self.cache.get(user_text)
-            if cached is not None:
-                cached_text, cached_emotion = cached
-                self.stats["cache_hits"] += 1
-                self.conversations.append(session_id, "user", user_text)
-                self.conversations.append(session_id, "assistant", cached_text)
-                latency = time.perf_counter() - start
-                logger.info(
-                    "cache hit session=%s latency=%.3fs emotion=%s response=%r",
-                    session_id,
-                    latency,
-                    cached_emotion,
-                    cached_text,
-                )
-                await send(
-                    msg_chat_response(
-                        cached_text,
-                        from_cache=True,
-                        context_used="cache",
-                        latency=round(latency, 4),
-                        emotion=cached_emotion,
-                    )
-                )
-                await self._maybe_extract(session_id, user_text)
-                self._note_arona_relationship(decision, "speak")
-                self.stats["chat_count"] += 1
-                logger.info(
-                    "chat done session=%s context=cache latency=%.3fs "
-                    "request=%r response=%r",
-                    session_id,
-                    latency,
-                    user_text,
-                    cached_text,
-                )
-                return
-            logger.info("cache miss session=%s", session_id)
 
         memories: list[str] = []
         if use_memory:
@@ -321,10 +277,6 @@ class Orchestrator:
 
         self.conversations.append(session_id, "user", user_text)
         self.conversations.append(session_id, "assistant", full)
-
-        if use_cache and self.config.cache.enabled and full:
-            self.cache.put(user_text, full, emotion)
-            logger.info("cache put session=%s emotion=%s", session_id, emotion)
 
         await self._maybe_extract(session_id, user_text)
         self._note_arona_relationship(decision, "speak")
