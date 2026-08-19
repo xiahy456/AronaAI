@@ -9,19 +9,19 @@
 </p>
 
 <p align="center">
-  <em>云端负责规划与抽取，本地负责人设与沉浸场景；关系张量与主动事件构建规则控制面，不是又一个会聊天的大模型。</em>
+  <sub>云端负责规划与抽取，本地负责人设与沉浸场景，关系张量与主动事件构建规则控制面，让你与阿洛娜相处而非对话。</sub>
+</p>
+
+<p align="center">
+  <sub>项目地址：https://github.com/xiahy456/AronaAI</sub>
+</p>
+
+<p align="center">
+  <sub>版本：2.1.0</sub>
 </p>
 
 <p align="center">
   <strong>中文</strong> · <a href="README_EN.md">English</a>
-</p>
-
-<p align="center">
-  <em>项目地址：https://github.com/xiahy456/AronaAI</em>
-</p>
-
-<p align="center">
-  <em>版本：2.1.0</em>
 </p>
 
 ---
@@ -47,28 +47,12 @@
 ```
 arona-ai/
 ├── backend/                              # Python 后端（FastAPI + WebSocket）
-│   ├── app/main.py                       # 服务入口
-│   ├── config.example.yaml               # 配置模板
-│   └── README.md
-├── frontend/                             # Windows 桌面客户端（Qt/C++ + Spine）
-│   └── AronaAI_Spine_WindowsClient/
-│       ├── AronaAI_Spine_WindowsClient.sln  # 工程入口
-│       ├── Config/config.example.json    # 客户端配置模板
-│       ├── dist/                         # 可执行目录（打包后自动生成）
-│       └── README.md
+├── frontend/                             # 桌面客户端（Qt/C++ + Spine）
 ├── gpt-sovits/                           # GPT-SoVITS 语音合成
-│   ├── go-apiv2.bat                      # Windows 启动入口
-│   └── go-apiv2.sh                       # Linux 启动入口
 ├── llm/aronaLM/finetune/                 # AronaLM 微调（其实不是大模型啦……之前写错了还没有改过来呢）
-│   ├── start.bat                         # Windows 一键训练
-│   └── README.md
 ├── models/                               # 本地模型权重（需自行下载）
-│   └── README.md                         # 下载与放置说明
-├── docs/
-│   └── architecture.md                   # 完整目录树
 ├── assets/                               # 项目资源
-├── pack-client.ps1                       # 打包桌面客户端
-└── start-all.ps1                         # Windows 一键启动所有服务
+└── start-all.ps1                         # Windows 一键本机启动所有服务
 ```
 
 完整目录树见 [`docs/architecture.md`](docs/architecture.md)。
@@ -78,14 +62,13 @@ arona-ai/
 ## ✨ 核心功能
 
 ### 🤖 AI 对话引擎
-- **双模型链路**：**Planner（DeepSeek）→ 结构化意图卡 → Renderer（AronaLM-Renderer-V2.x）**；简单轮次可由路由走本地单模型，Planner 关闭或失败时回落本地路径
+- **双模型链路**：**Planner（DeepSeek）→ 意图规划 → Renderer（AronaLM-Renderer-V2.x）**；简单轮次可由路由走本地单模型，Planner 关闭或失败时回落本地路径
 - **关系气候**：信任 / 依赖 / 张力三标量构建张量；规则分类用户行动后查表更新，气候分区决定开口、姿态或沉默
-- **上线欢迎、空闲搭话、照料与回访**：WebSocket 连接后按时段主动问候，安静若干时间后轻在场；根据时段提醒吃饭、休息；稀疏回访记忆里的未完成计划；Planner 允许时同轮补充
-- **AronaLM-Renderer-V2.x（GGUF）**：`llama-cpp-python` 加载 Qwen3-1.7B 微调 GGUF（默认 Q4_K_M），过滤 `<think>` 推理块；默认双模型路径非流式，本地回落路径可流式
-- **记忆与知识分离**：用户长期事实进 SQLite + FTS5 + Chroma（jieba / BGE）；世界观设定进 Markdown 语料 → 本地 BGE + Chroma RAG，互不混写、按需注入 Prompt
+- **主动行为**：WebSocket 连接后按时段主动问候、提醒，安静若干时间后轻在场；稀疏回访记忆里的未完成计划；Planner 允许时同轮补充
+- **AronaLM**：AronaLM-Renderer 负责文字渲染；双模型链路不可用时回落本地单模型 AronaLM-Generator 完成推理全流程
+- **记忆与知识分离**：用户长期事实进 SQLite + FTS5 + Chroma；世界观设定进 Markdown 语料 → 本地 BGE + Chroma RAG；互不混写、按需注入 Prompt
 - **异步记忆抽取**：对话主路径不阻塞；DeepSeek JSON 抽取（含日配额与缓冲批量），失败或无 Key 时自动正则降级
-- **ASR 脏文本过滤**：入口丢弃空串 / 腾讯云 ASR 错误模板，避免误触发 Planner
-- **上下文可控**：多轮历史截断 + memory/knowledge/history token budget + 精确匹配响应缓存，控制延迟与重复推理
+- **上下文可控**：多轮历史截断 + memory/knowledge/history token budget，阻止上下文膨胀
 
 ### 🖥️ 桌面客户端与语音服务
 - **Spine 2D 动画**：使用 Spine 实现阿洛娜的 2D 角色动画
@@ -118,13 +101,13 @@ arona-ai/
 | -TimeoutSec | 每个服务的等待超时时间，默认为 `600` 秒 |
 | -FrontendExe | 可选的桌面客户端可执行文件路径，如果未提供，则自动检测 |
 
+启动完成后，控制台窗口会保持运行，可依照控制台输出单独停止 / 启动 / 重启某一服务。
+
 > **注意**：如果您还没有配置好所有服务，或希望分主机部署各个服务，请遵循下文的指示进行配置。
 
-启动完成后，控制台窗口会保持运行，可依照控制台输出单独停止 / 启动 / 重启某一服务：
+### 后端
 
-### 后端启动
-
-**1. 放置后端模型文件**
+**1. 放置AronaLM模型文件**
 
 ```
 models/
@@ -164,9 +147,9 @@ python -m app.main
 
 启用知识库：在 `config.yaml` 中设 `knowledge.enabled: true` 后重启后端，请记得灌库，相关指导在 [`backend/README.md`](backend/README.md) 中。
 
-### 客户端（使用 Release）
+### 客户端
 
-推荐从 GitHub [Releases](https://github.com/xiahy456/AronaAI/releases) 下载已打包的 Windows 客户端，无需自行编译。
+从 [Releases 页面](https://github.com/xiahy456/AronaAI/releases) 下载已打包的客户端。
 
 1. 打开 Releases 页面，下载最新版 **安装包**（`AronaAI_WindowsClient_v*_x64_Setup.exe`）或 **便携 zip**（`AronaAI_WindowsClient_v*_x64.zip`）
 2. 安装或解压后，编辑程序目录下的 `Config/config.json`，至少填写以下关键项：
@@ -212,10 +195,6 @@ cd gpt-sovits
 
 `go-apiv2` 会在推理卡住时自动重启 API。仅调试、不要自动重启时，可直接运行 `python api_v2.py`。
 
-### 模型微调（如果您是开发者，请参考如下内容）
-
-见 [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md)。
-
 ---
 
 ## 📚 模块与配置
@@ -224,14 +203,8 @@ cd gpt-sovits
 |------|------|
 | **Backend**（含 `config.yaml`） | [`backend/README.md`](backend/README.md) |
 | **桌面客户端**（含 `config.json`） | [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md) |
-| **模型权重**（`models/`） | [`models/README.md`](models/README.md) |
-| **LLM 微调**（`llm/aronaLM/finetune`） | [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md) |
-
----
-
-## 📄 许可证
-
-本项目基于 [Apache License 2.0](LICENSE) 开源。
+| **模型**（`models/`） | [`models/README.md`](models/README.md) |
+| **AronaLM 微调（如果您是开发者，请参考该文档）**（`llm/aronaLM/finetune`） | [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md) |
 
 ---
 
@@ -259,7 +232,9 @@ cd gpt-sovits
 
 ---
 
-## ⚖️ 版权与产权声明
+## ⚖️ 许可证与版权、产权声明
+
+本项目基于 [Apache License 2.0](LICENSE) 开源。
 
 本项目为以《蔚蓝档案》（Blue Archive）角色「阿洛娜」为原型的**非官方同人创作**，与 NEXON、NEXON Games、悠星（Yostar）及其他相关权利方**无从属、合作或授权关系**。游戏中的角色、设定、商标及其他知识产权均归原权利方所有；本项目对其引用不代表已获授权，亦不主张任何相关权利。
 

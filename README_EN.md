@@ -9,19 +9,19 @@
 </p>
 
 <p align="center">
-  <em>The cloud handles planning and extraction; the local model handles persona and the immersive scene. Relationship tensors and proactive events form a rule-based control plane — this is not just another chatting LLM.</em>
+  <sub>The cloud handles planning and extraction; the local model handles persona and the immersive scene. Relationship tensors and proactive events form a rule-based control plane, so you live with Arona rather than chat with her.</sub>
+</p>
+
+<p align="center">
+  <sub>Repository: https://github.com/xiahy456/AronaAI</sub>
+</p>
+
+<p align="center">
+  <sub>Version: 2.1.0</sub>
 </p>
 
 <p align="center">
   <a href="README.md">中文</a> · <strong>English</strong>
-</p>
-
-<p align="center">
-  <em>Repository: https://github.com/xiahy456/AronaAI</em>
-</p>
-
-<p align="center">
-  <em>Version: 2.1.0</em>
 </p>
 
 ---
@@ -47,28 +47,12 @@ The project combines AronaLM, a non-interactive design, intent-driven dialogue, 
 ```
 arona-ai/
 ├── backend/                              # Python backend (FastAPI + WebSocket)
-│   ├── app/main.py                       # Service entry
-│   ├── config.example.yaml               # Config template
-│   └── README.md
-├── frontend/                             # Windows desktop client (Qt/C++ + Spine)
-│   └── AronaAI_Spine_WindowsClient/
-│       ├── AronaAI_Spine_WindowsClient.sln  # Solution entry
-│       ├── Config/config.example.json    # Client config template
-│       ├── dist/                         # Executables (generated after packing)
-│       └── README.md
+├── frontend/                             # Desktop client (Qt/C++ + Spine)
 ├── gpt-sovits/                           # GPT-SoVITS TTS
-│   ├── go-apiv2.bat                      # Windows start entry
-│   └── go-apiv2.sh                       # Linux start entry
 ├── llm/aronaLM/finetune/                 # AronaLM fine-tune (not actually a "large" model… we wrote that earlier and haven't fixed it yet)
-│   ├── start.bat                         # One-click training on Windows
-│   └── README.md
 ├── models/                               # Local model weights (download yourself)
-│   └── README.md                         # Download and placement notes
-├── docs/
-│   └── architecture.md                   # Full directory tree
 ├── assets/                               # Project assets
-├── pack-client.ps1                       # Pack the desktop client
-└── start-all.ps1                         # Windows one-click start for all services
+└── start-all.ps1                         # Windows one-click local start for all services
 ```
 
 See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
@@ -78,14 +62,13 @@ See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
 ## ✨ Core Features
 
 ### 🤖 AI Dialogue Engine
-- **Dual-model pipeline**: **Planner (DeepSeek) → structured intent card → Renderer (AronaLM-Renderer-V2.x)**; simple turns can be routed to the local single model. If Planner is disabled or fails, the system falls back to the local path
-- **Relationship climate**: three scalars — trust / dependence / tension — form a tensor. User actions are classified by rules, then a lookup table updates the climate; climate zones decide whether Arona speaks, how she speaks, or stays silent
-- **Login greeting, idle chat, care, and follow-up**: after a WebSocket connect, Arona greets by time of day; after a stretch of silence she checks in lightly; she reminds you to eat or rest by time of day; sparse follow-ups on unfinished plans in memory; when Planner allows it, she may add a line in the same turn
-- **AronaLM-Renderer-V2.x (GGUF)**: `llama-cpp-python` loads a Qwen3-1.7B fine-tuned GGUF (default Q4_K_M) and strips `<think>` reasoning blocks; the default dual-model path is non-streaming; the local fallback path can stream
-- **Memory and knowledge are separate**: long-term user facts go to SQLite + FTS5 + Chroma (jieba / BGE); world-lore goes Markdown corpus → local BGE + Chroma RAG; they are never mixed, and each is injected into the prompt on demand
+- **Dual-model pipeline**: **Planner (DeepSeek) → intent planning → Renderer (AronaLM-Renderer-V2.x)**; simple turns can be routed to the local single model. If Planner is disabled or fails, the system falls back to the local path
+- **Relationship climate**: three scalars — trust / dependence / tension — form a tensor. User actions are classified by rules, then a lookup table updates the climate; climate zones decide whether Arona speaks, how she holds herself, or stays silent
+- **Proactive behavior**: after a WebSocket connect, Arona greets and reminds by time of day; after a stretch of silence she checks in lightly; sparse follow-ups on unfinished plans in memory; when Planner allows it, she may add a line in the same turn
+- **AronaLM**: AronaLM-Renderer handles text rendering; when the dual-model pipeline is unavailable, the local single-model AronaLM-Generator takes over the full inference path
+- **Memory and knowledge are separate**: long-term user facts go to SQLite + FTS5 + Chroma; world-lore goes Markdown corpus → local BGE + Chroma RAG; they are never mixed, and each is injected into the prompt on demand
 - **Async memory extraction**: the main dialogue path is not blocked; DeepSeek JSON extraction (with a daily quota and buffered batches) falls back to regex if the call fails or no API key is set
-- **ASR dirty-text filter**: empty strings and Tencent Cloud ASR error templates are dropped at the entry point so Planner is not triggered by accident
-- **Bounded context**: multi-turn history truncation + memory / knowledge / history token budgets + an exact-match response cache keep latency and repeated inference in check
+- **Bounded context**: multi-turn history truncation + memory / knowledge / history token budgets keep the context from ballooning
 
 ### 🖥️ Desktop Client & Voice Services
 - **Spine 2D animation**: Arona character animation via Spine
@@ -118,13 +101,13 @@ See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
 | -TimeoutSec | Wait timeout per service; default `600` seconds |
 | -FrontendExe | Optional path to the desktop client executable; auto-detected if omitted |
 
+After startup the console stays open. You can stop / start / restart a single service by following the console output.
+
 > **Note**: If you have not configured every service yet, or you want to split services across hosts, follow the sections below first.
 
-After startup the console stays open. You can stop / start / restart a single service by following the console output:
+### Backend
 
-### Backend Setup
-
-**1. Place backend model files**
+**1. Place AronaLM model files**
 
 ```
 models/
@@ -164,9 +147,9 @@ python -m app.main
 
 To enable the knowledge base, set `knowledge.enabled: true` in `config.yaml` and restart the backend. Remember to ingest the corpus first; see [`backend/README.md`](backend/README.md).
 
-### Client (using a Release)
+### Client
 
-The recommended path is to download a packaged Windows client from GitHub [Releases](https://github.com/xiahy456/AronaAI/releases) — no need to build it yourself.
+Download the packaged client from the [Releases](https://github.com/xiahy456/AronaAI/releases) page.
 
 1. Open the Releases page and download the latest **installer** (`AronaAI_WindowsClient_v*_x64_Setup.exe`) or **portable zip** (`AronaAI_WindowsClient_v*_x64.zip`)
 2. After installing or extracting, edit `Config/config.json` in the program directory and fill in at least these keys:
@@ -212,10 +195,6 @@ cd gpt-sovits
 
 `go-apiv2` auto-restarts the API if inference stalls. For debugging without auto-restart, you can run `python api_v2.py` directly.
 
-### Fine-tune (for developers)
-
-See [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md).
-
 ---
 
 ## 📚 Modules & Configuration
@@ -224,14 +203,8 @@ See [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md).
 |------|------|
 | **Backend** (including `config.yaml`) | [`backend/README.md`](backend/README.md) |
 | **Desktop client** (including `config.json`) | [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md) |
-| **Model weights** (`models/`) | [`models/README.md`](models/README.md) |
-| **LLM fine-tune** (`llm/aronaLM/finetune`) | [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md) |
-
----
-
-## 📄 License
-
-This project is licensed under [Apache License 2.0](LICENSE).
+| **Models** (`models/`) | [`models/README.md`](models/README.md) |
+| **AronaLM fine-tune (for developers)** (`llm/aronaLM/finetune`) | [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md) |
 
 ---
 
@@ -259,7 +232,9 @@ This project is licensed under [Apache License 2.0](LICENSE).
 
 ---
 
-## ⚖️ Copyright & Intellectual Property
+## ⚖️ License, Copyright & Intellectual Property
+
+This project is licensed under [Apache License 2.0](LICENSE).
 
 This project is an **unofficial fan work** inspired by Arona from *Blue Archive*, and has **no affiliation, partnership, or authorization** with NEXON, NEXON Games, Yostar, or other related rights holders. All characters, settings, trademarks, and other intellectual property in the game remain with the original rights holders; references in this project do not imply a license or any claim of ownership.
 
