@@ -120,17 +120,7 @@ arona-ai/
 
 > **注意**：如果您还没有配置好所有服务，或希望分主机部署各个服务，请遵循下文的指示进行配置。
 
-启动完成后，控制台窗口会保持运行，可单独停止 / 启动 / 重启某一服务：
-
-```text
-status                         查看状态
-stop backend|gpt|frontend      停止单个服务
-start backend|gpt|frontend     启动已停止的服务
-restart backend|gpt|frontend   重启单个服务
-stop all  /  0  /  q  /  exit  全部停止并退出
-```
-
-数字快捷键：`1/2/3` 重启后端 / GPT-SoVITS / 前端，`4/5/6` 停止对应服务。`Ctrl+C` 同样会停止全部已跟踪进程。
+启动完成后，控制台窗口会保持运行，可依照控制台输出单独停止 / 启动 / 重启某一服务：
 
 ### 后端启动
 
@@ -162,10 +152,6 @@ cp config.example.yaml config.yaml   # Linux / macOS
 - `planner.enabled` / `planner.api_key`：默认开启双模型；填写 DeepSeek API Key。不填 Key 或关闭 `enabled` 则回落本地单模型
 - `memory.extractor.api_key`：DeepSeek API Key（可选；不填则记忆抽取走正则降级）
 - `knowledge.enabled`：是否启用世界观 RAG（默认 `false`，启用前请先灌库）
-- `proactive.welcome.enabled` / `proactive.relationship.enabled`：上线欢迎与关系气候（默认开启；关系状态落 `data/memory/relationship.json`）
-- `proactive.idle` / `proactive.care` / `proactive.goal` / `proactive.festival` / `proactive.continue`：空闲搭话、午饭/睡觉照料、goal 回访、节日问候与同轮补充（调度落 `data/memory/proactive.json`）
-
-> **注意**：`config.yaml` 已在 `.gitignore` 中，不会被提交到版本控制。
 
 **3. 启动服务**
 
@@ -176,43 +162,22 @@ pip install -r requirements.txt
 python -m app.main
 ```
 
-默认 WebSocket：`ws://127.0.0.1:20456/ws`（与 Qt 客户端一致）。
-
-健康检查：`GET http://127.0.0.1:20456/health`
-
 启用知识库：在 `config.yaml` 中设 `knowledge.enabled: true` 后重启后端，请记得灌库，相关指导在 [`backend/README.md`](backend/README.md) 中。
 
-### 客户端构建
+### 客户端（使用 Release）
 
-Windows 客户端使用 Visual Studio 2026 和 Qt 构建：
+推荐从 GitHub [Releases](https://github.com/xiahy456/AronaAI/releases) 下载已打包的 Windows 客户端，无需自行编译。
 
-1. 安装 [Qt 6.x](https://www.qt.io/download)（推荐6.5.3） 和 [Visual Studio 2026](https://visualstudio.microsoft.com/)，并在VS2026中安装`Qt VS Tools`扩展
-2. 确保你拥有v143 (Visual Studio 2022)平台工具集，在该项目中需要使用此平台工具集
-3. 确保你拥有Qt6.5.3的msvc2019_64，该项目中需要使用此Qt版本（Qt Version可在`Qt VS Tools`的设置中配置）
-4. 打开 `frontend/AronaAI_Spine_WindowsClient/AronaAI_Spine_WindowsClient.sln`
-5. 配置 Qt 版本和编译选项
-6. 编译运行
-
-#### 启动前准备
-
-在启动客户端之前，请完成以下准备工作：
-
-**配置 `config.json`**
-
-找到 `frontend/AronaAI_Spine_WindowsClient/Config/config.example.json`，复制并重命名配置文件，然后至少填写以下关键项：
-
-```bash
-# 复制并重命名配置文件
-cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/AronaAI_Spine_WindowsClient/Config/config.json
-```
+1. 打开 Releases 页面，下载最新版 **安装包**（`AronaAI_WindowsClient_v*_x64_Setup.exe`）或 **便携 zip**（`AronaAI_WindowsClient_v*_x64.zip`）
+2. 安装或解压后，编辑程序目录下的 `Config/config.json`，至少填写以下关键项：
 
 ```json
 {
   "aronalm": {
-    "websocket_url": "ws://your.aronalm.ip:20456/ws" // AronaLM 后端 WebSocket 地址
+    "websocket_url": "ws://your.aronalm.ip:20456/ws" // 你的 AronaLM 后端 WebSocket 地址
   },
   "tts": {
-    "host": "your.gpt.sovits.ip", // GPT-SoVITS 服务地址
+    "host": "your.gpt.sovits.ip" // 你的 GPT-SoVITS 服务地址
   },
   "tencent_speech_recognizer": {
     "secret_id": "${TENCENT_SECRET_ID}", // 腾讯云语音识别 SecretId（可用环境变量占位）
@@ -221,16 +186,7 @@ cp frontend/AronaAI_Spine_WindowsClient/Config/config.example.json frontend/Aron
 }
 ```
 
-完整字段说明见 [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md)。
-
-> **注意**：
- - 资源路径相对**程序工作目录**解析；在 Visual Studio 中调试时默认为项目根目录，请勿直接双击 `x64/Debug` 或 `x64/Release` 下的 exe（工作目录会不对）。
- - 请将 AronaLM 后端服务、GPT-SoVITS 服务的地址、端口按实际情况填写。
- - `tts.request_timeout_ms` 仅改配置即可生效（dist 客户端同理）；`TTSManager` / `MainController` 源码改动需重新编译客户端后才有超时与字幕兜底逻辑。
- - 使用根目录 `pack-client.ps1` 打包客户端，会自动写入与包内布局一致的相对路径，并输出两份文件：一份保留配置文件中的腾讯云 SecretId 和 SecretKey，另一份删除。
- - 本项目使用**腾讯云语音识别**（ASR），腾讯云 ASR 的 SecretId 和 SecretKey 可以在腾讯云控制台的 API 密钥管理中获取。
-
-> **注意**：`config.json` 已在 `.gitignore` 中，不会被提交到版本控制，请放心修改。
+完整字段说明见 [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md)。从源码构建客户端亦见该文档。
 
 ### 语音合成服务
 
@@ -254,11 +210,9 @@ cd gpt-sovits
 # Linux:   chmod +x go-apiv2.sh && ./go-apiv2.sh
 ```
 
-`go-apiv2` 会在推理卡住时自动重启 API。异机部署时，在 TTS 机运行上述命令，并在客户端 `config.json` 将 `tts.host` 设为 TTS 机 IP。
+`go-apiv2` 会在推理卡住时自动重启 API。仅调试、不要自动重启时，可直接运行 `python api_v2.py`。
 
-> 仅调试、不要自动重启时，可直接运行 `python api_v2.py`。
-
-### 模型微调（可选）
+### 模型微调（如果您是开发者，请参考如下内容）
 
 见 [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md)。
 
@@ -297,7 +251,7 @@ cd gpt-sovits
 - **bge-small-zh-v1.5** - 文本嵌入模型 (https://huggingface.co/BAAI/bge-small-zh-v1.5)
 
 <p align="center">
-  <strong>感谢所有协助开发的贡献者们，与所有「蔚蓝档案」社区的贡献者们</strong>
+  <strong>感谢所有协助开发的贡献者们，与所有「蔚蓝档案」社区内容的创作者们</strong>
 </p>
 <p align="center">
   <strong>感谢你们为这个社区带来的精彩作品与活力</strong>

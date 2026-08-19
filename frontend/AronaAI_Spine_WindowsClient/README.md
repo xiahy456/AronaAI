@@ -2,6 +2,58 @@
 
 基于 Qt/C++ + Spine 2D 的 Windows 桌面客户端，经 WebSocket 对接后端，可接 GPT-SoVITS TTS 与腾讯云 ASR。
 
+日常使用请从仓库 [Releases](https://github.com/xiahy456/AronaAI/releases) 下载安装包或便携 zip，配置见下文。需要自行编译时，按本节构建。
+
+## 客户端构建
+
+Windows 客户端使用 Visual Studio 2026 和 Qt 构建：
+
+1. 安装 [Qt 6.x](https://www.qt.io/download)（推荐 6.5.3）和 [Visual Studio 2026](https://visualstudio.microsoft.com/)，并在 VS 2026 中安装 `Qt VS Tools` 扩展
+2. 确保你拥有 v143 (Visual Studio 2022) 平台工具集，在该项目中需要使用此平台工具集
+3. 确保你拥有 Qt 6.5.3 的 `msvc2019_64`，该项目中需要使用此 Qt 版本（Qt Version 可在 `Qt VS Tools` 的设置中配置）
+4. 打开本目录下的 `AronaAI_Spine_WindowsClient.sln`
+5. 配置 Qt 版本和编译选项
+6. 编译运行
+
+使用仓库根目录 `pack-client.ps1` 打包客户端，会自动写入与包内布局一致的相对路径，并输出两份文件：一份保留配置文件中的腾讯云 SecretId 和 SecretKey，另一份删除。
+
+### 启动前准备
+
+在启动客户端之前，请完成以下准备工作：
+
+**配置 `config.json`**
+
+将 [`Config/config.example.json`](Config/config.example.json) 复制并重命名，然后至少填写以下关键项：
+
+```bash
+# 复制并重命名配置文件
+cp Config/config.example.json Config/config.json
+```
+
+```json
+{
+  "aronalm": {
+    "websocket_url": "ws://your.aronalm.ip:20456/ws" // AronaLM 后端 WebSocket 地址
+  },
+  "tts": {
+    "host": "your.gpt.sovits.ip" // GPT-SoVITS 服务地址
+  },
+  "tencent_speech_recognizer": {
+    "secret_id": "${TENCENT_SECRET_ID}", // 腾讯云语音识别 SecretId（可用环境变量占位）
+    "secret_key": "${TENCENT_SECRET_KEY}" // 腾讯云语音识别 SecretKey（可用环境变量占位）
+  }
+}
+```
+
+完整字段说明见下文「配置说明」。
+
+> **注意**：
+> - 资源路径相对**程序工作目录**解析；在 Visual Studio 中调试时默认为项目根目录，请勿直接双击 `x64/Debug` 或 `x64/Release` 下的 exe（工作目录会不对）。
+> - 请将 AronaLM 后端服务、GPT-SoVITS 服务的地址、端口按实际情况填写。
+> - `tts.request_timeout_ms` 仅改配置即可生效（dist 客户端同理）；`TTSManager` / `MainController` 源码改动需重新编译客户端后才有超时与字幕兜底逻辑。
+> - 本项目使用**腾讯云语音识别**（ASR），腾讯云 ASR 的 SecretId 和 SecretKey 可以在腾讯云控制台的 API 密钥管理中获取。
+> - `config.json` 已在 `.gitignore` 中，不会被提交到版本控制，请放心修改。
+
 ## 配置说明
 
 配置文件位于 `Config/`（由 [`Config/config.example.json`](Config/config.example.json) 复制为 `config.json`，已 gitignore）。完整示例如下：
@@ -76,4 +128,3 @@
 > **注意**：
 > - 资源路径相对**程序工作目录**解析；在 Visual Studio 中调试时默认为项目根目录，请勿直接双击 `x64/Debug` 或 `x64/Release` 下的 exe（工作目录会不对）。
 > - `config.json` 已在 `.gitignore` 中，不会被提交到版本控制。
-> - 构建与启动步骤见仓库根目录 [`README.md`](../../README.md) 中的「客户端构建」。
