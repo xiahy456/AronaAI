@@ -9,15 +9,15 @@
 </p>
 
 <p align="center">
-  <sub>The cloud handles planning and extraction; the local model handles persona and the immersive scene. Relationship tensors and proactive events form a rule-based control plane, so you live with Arona rather than chat with her.</sub>
+  The cloud handles planning and extraction; the local model handles persona and the immersive scene. Relationship tensors and proactive events form a rule-based control plane, so you live with Arona rather than chat with her.
+</p>
+
+<p align="center">
+  <em>Version: 2.1.0</em>
 </p>
 
 <p align="center">
   <sub>Repository: https://github.com/xiahy456/AronaAI</sub>
-</p>
-
-<p align="center">
-  <sub>Version: 2.1.0</sub>
 </p>
 
 <p align="center">

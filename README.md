@@ -5,19 +5,19 @@
 </p>
 
 <p align="center">
-  <strong>基于《蔚蓝档案》角色「阿洛娜」的非交互式桌面AI</strong>
+  <strong>基于<em>《蔚蓝档案》角色「阿洛娜」</em>的非交互式桌面AI</strong>
 </p>
 
 <p align="center">
-  <sub>云端负责规划与抽取，本地负责人设与沉浸场景，关系张量与主动事件构建规则控制面，让你与阿洛娜相处而非对话。</sub>
+  云端负责规划与抽取，本地负责人设与沉浸场景，关系张量与主动事件构建规则控制面，让你与阿洛娜相处而非对话。
+</p>
+
+<p align="center">
+  <em>版本：2.1.0</em>
 </p>
 
 <p align="center">
   <sub>项目地址：https://github.com/xiahy456/AronaAI</sub>
-</p>
-
-<p align="center">
-  <sub>版本：2.1.0</sub>
 </p>
 
 <p align="center">
