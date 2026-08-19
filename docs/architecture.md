@@ -85,7 +85,8 @@ arona-ai/
 │   ├── bge-small-zh-v1.5/      # 知识 / 记忆嵌入模型
 │   └── Qwen3-1.7B-unsloth-bnb-4bit/  # 微调基座（仅训练时需要）
 ├── assets/                     # 项目资源
-└── start-all.ps1               # 本机一键启动
+├── start-all.ps1               # 本机一键启动
+└── start-all.bat               # Windows 一键本机启动所有服务
 ```
 
 后端模块职责见 [`backend/README.md`](../backend/README.md)；模型放置见 [`models/README.md`](../models/README.md)。

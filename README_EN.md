@@ -17,10 +17,6 @@
 </p>
 
 <p align="center">
-  <sub>Repository: https://github.com/xiahy456/AronaAI</sub>
-</p>
-
-<p align="center">
   <a href="README.md">中文</a> · <strong>English</strong>
 </p>
 
@@ -49,10 +45,10 @@ arona-ai/
 ├── backend/                              # Python backend (FastAPI + WebSocket)
 ├── frontend/                             # Desktop client (Qt/C++ + Spine)
 ├── gpt-sovits/                           # GPT-SoVITS TTS
-├── llm/aronaLM/finetune/                 # AronaLM fine-tune (not actually a "large" model… we wrote that earlier and haven't fixed it yet)
+├── llm/aronaLM/finetune/                 # AronaLM fine-tune (not actually a "large" model)
 ├── models/                               # Local model weights (download yourself)
 ├── assets/                               # Project assets
-└── start-all.ps1                         # Windows one-click local start for all services
+└── start-all.bat                         # Windows one-click local start for all services
 ```
 
 See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
@@ -92,7 +88,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
 ### Start All Local Services
 
 ```bash
-.\start-all.ps1
+.\start-all.bat # or just double-click start-all.bat
 ```
 
 | Parameter | Description |
@@ -134,7 +130,7 @@ Fill in as needed:
 - `model.gguf_path`: default `AronaLM-Renderer-V2.4`; for single-model only, switch to the Generator path in the comments
 - `planner.enabled` / `planner.api_key`: dual-model is on by default; set a DeepSeek API key. With no key or `enabled` off, the backend falls back to the local single model
 - `memory.extractor.api_key`: DeepSeek API key (optional; without it, memory extraction uses the regex fallback)
-- `knowledge.enabled`: world-lore RAG (default `false`; ingest the corpus before turning this on)
+- `knowledge.enabled`: whether to enable the world-lore RAG knowledge base (default `false`; ingest the corpus before turning this on; see [`backend/README.md`](backend/README.md))
 
 **3. Start the service**
 
@@ -144,8 +140,6 @@ cd backend
 pip install -r requirements.txt
 python -m app.main
 ```
-
-To enable the knowledge base, set `knowledge.enabled: true` in `config.yaml` and restart the backend. Remember to ingest the corpus first; see [`backend/README.md`](backend/README.md).
 
 ### Client
 
@@ -170,6 +164,8 @@ Download the packaged client from the [Releases](https://github.com/xiahy456/Aro
 ```
 
 Full field docs: [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md). Building the client from source is also covered there.
+
+3. Start the client by running the client executable.
 
 ### TTS Service
 

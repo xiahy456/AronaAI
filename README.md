@@ -17,10 +17,6 @@
 </p>
 
 <p align="center">
-  <sub>项目地址：https://github.com/xiahy456/AronaAI</sub>
-</p>
-
-<p align="center">
   <strong>中文</strong> · <a href="README_EN.md">English</a>
 </p>
 
@@ -52,7 +48,7 @@ arona-ai/
 ├── llm/aronaLM/finetune/                 # AronaLM 微调（其实不是大模型啦……之前写错了还没有改过来呢）
 ├── models/                               # 本地模型权重（需自行下载）
 ├── assets/                               # 项目资源
-└── start-all.ps1                         # Windows 一键本机启动所有服务
+└── start-all.bat                         # Windows 一键本机启动所有服务
 ```
 
 完整目录树见 [`docs/architecture.md`](docs/architecture.md)。
@@ -92,7 +88,7 @@ arona-ai/
 ### 本地一键启动所有服务
 
 ```bash
-.\start-all.ps1
+.\start-all.bat # 或者直接双击打开 start-all.bat 文件
 ```
 
 | 参数 | 说明 |
@@ -134,7 +130,7 @@ cp config.example.yaml config.yaml   # Linux / macOS
 - `model.gguf_path`：默认 `AronaLM-Renderer-V2.4`；仅使用单模型时改为注释中的 Generator 路径
 - `planner.enabled` / `planner.api_key`：默认开启双模型；填写 DeepSeek API Key。不填 Key 或关闭 `enabled` 则回落本地单模型
 - `memory.extractor.api_key`：DeepSeek API Key（可选；不填则记忆抽取走正则降级）
-- `knowledge.enabled`：是否启用世界观 RAG（默认 `false`，启用前请先灌库）
+- `knowledge.enabled`：是否启用世界观 RAG 知识库（默认 `false`，启用前请先灌库，相关指导在 [`backend/README.md`](backend/README.md) 中）
 
 **3. 启动服务**
 
@@ -144,8 +140,6 @@ cd backend
 pip install -r requirements.txt
 python -m app.main
 ```
-
-启用知识库：在 `config.yaml` 中设 `knowledge.enabled: true` 后重启后端，请记得灌库，相关指导在 [`backend/README.md`](backend/README.md) 中。
 
 ### 客户端
 
@@ -170,6 +164,8 @@ python -m app.main
 ```
 
 完整字段说明见 [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md)。从源码构建客户端亦见该文档。
+
+3. 启动客户端，直接运行客户端可执行文件即可。
 
 ### 语音合成服务
 
