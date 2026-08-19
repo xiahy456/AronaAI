@@ -223,7 +223,7 @@ cd gpt-sovits
   <strong>感谢所有协助开发的贡献者们，与所有「蔚蓝档案」社区内容的创作者们</strong>
 </p>
 <p align="center">
-  <strong>感谢你们为这个社区带来的精彩作品与活力</strong>
+  <strong>感谢你们为这个社区带来精彩作品与活力</strong>
 </p>
 
 ---
@@ -247,5 +247,5 @@ cd gpt-sovits
 ---
 
 <p align="center">
-  <sub>/* 就像草莓牛奶一样的，甜蜜的奇迹 */</sub>
+  <sub>/* 就像草莓牛奶一样，甜蜜的奇迹 */</sub>
 </p>
