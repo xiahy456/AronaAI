@@ -89,8 +89,6 @@ class PlannerConfig(BaseModel):
     timeout_sec: float = 20
     temperature: float = 0.3
     max_tokens: int = 512
-    # When True, greetings/identity use local AronaLM only.
-    router_enabled: bool = True
 
 
 class TokenBudgetConfig(BaseModel):

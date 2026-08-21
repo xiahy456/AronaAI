@@ -58,7 +58,7 @@ arona-ai/
 ## ✨ 核心功能
 
 ### 🤖 AI 对话引擎
-- **双模型链路**：**Planner（DeepSeek）→ 意图规划 → Renderer（AronaLM-Renderer-V2.x）**；简单轮次可由路由走本地单模型，Planner 关闭或失败时回落本地路径
+- **双模型链路**：**Planner（DeepSeek）→ 意图规划 → Renderer（AronaLM-Renderer-V2.x）**；Planner 关闭或失败时回落本地路径
 - **关系气候**：信任 / 依赖 / 张力三标量构建张量；规则分类用户行动后查表更新，气候分区决定开口、姿态或沉默
 - **主动行为**：WebSocket 连接后按时段主动问候、提醒，安静若干时间后轻在场；稀疏回访记忆里的未完成计划；Planner 允许时同轮补充
 - **AronaLM**：AronaLM-Renderer 负责文字渲染；双模型链路不可用时回落本地单模型 AronaLM-Generator 完成推理全流程

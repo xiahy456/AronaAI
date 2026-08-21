@@ -70,7 +70,6 @@ planner:
   timeout_sec: 20
   temperature: 0.3
   max_tokens: 512
-  router_enabled: true
 
 proactive:
   welcome:

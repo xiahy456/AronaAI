@@ -8,16 +8,19 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import load_config
-from app.planner import EMOTION_WHITELIST, normalize_emotion, parse_and_gate_intent, route_mode
+from app.planner import EMOTION_WHITELIST, normalize_emotion, parse_and_gate_intent
 from app.planner.prompts import PLANNER_SYSTEM, build_planner_user_message
-from app.prompt import build_renderer_messages, clip_inject_chunks
+from app.prompt import (
+    LOCAL_MAX_HISTORY_TURNS,
+    build_messages,
+    build_renderer_messages,
+    clip_inject_chunks,
+)
 from app.protocol import msg_chat_response
 from app.relationship.events import USER_ACT_WHITELIST, USER_ACT_WHITELIST_CSV, USER_DELTAS
 
 
 def main() -> None:
-    assert route_mode("你好") == "local"
-    assert route_mode("今天好难受，什么都不想做") == "dual"
     assert normalize_emotion("SMILE") == "smile"
     assert normalize_emotion("nope") == "normal"
 
@@ -66,6 +69,23 @@ def main() -> None:
     assert "【回复意图卡】" not in msgs[-1]["content"]
     assert card.draft in msgs[-1]["content"]
     assert "意图草稿" in msgs[0]["content"] or "【意图草稿】" in msgs[-1]["content"]
+
+    hist_local = []
+    for i in range(6):
+        hist_local.append({"role": "user", "content": f"老师第{i + 1}轮"})
+        hist_local.append({"role": "assistant", "content": f"阿洛娜第{i + 1}轮"})
+    local_msgs = build_messages(
+        cfg,
+        user_text="本轮",
+        history=hist_local,
+        memories=[],
+        knowledge=[],
+    )
+    hist_in_prompt = local_msgs[1:-1]
+    assert len(hist_in_prompt) == LOCAL_MAX_HISTORY_TURNS * 2
+    assert hist_in_prompt[0]["content"] == "老师第3轮"
+    assert hist_in_prompt[-1]["content"] == "阿洛娜第6轮"
+    assert local_msgs[-1]["content"] == "本轮"
 
     follow = parse_and_gate_intent(
         '{"draft":"光环是阿洛娜身份的一部分，我可以慢慢讲给老师听。",'

@@ -58,7 +58,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
 ## ✨ Core Features
 
 ### 🤖 AI Dialogue Engine
-- **Dual-model pipeline**: **Planner (DeepSeek) → intent planning → Renderer (AronaLM-Renderer-V2.x)**; simple turns can be routed to the local single model. If Planner is disabled or fails, the system falls back to the local path
+- **Dual-model pipeline**: **Planner (DeepSeek) → intent planning → Renderer (AronaLM-Renderer-V2.x)**; if Planner is disabled or fails, the system falls back to the local path
 - **Relationship climate**: three scalars — trust / dependence / tension — form a tensor. User actions are classified by rules, then a lookup table updates the climate; climate zones decide whether Arona speaks, how she holds herself, or stays silent
 - **Proactive behavior**: after a WebSocket connect, Arona greets and reminds by time of day; after a stretch of silence she checks in lightly; sparse follow-ups on unfinished plans in memory; when Planner allows it, she may add a line in the same turn
 - **AronaLM**: AronaLM-Renderer handles text rendering; when the dual-model pipeline is unavailable, the local single-model AronaLM-Generator takes over the full inference path

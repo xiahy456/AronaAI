@@ -16,7 +16,7 @@ from .memory.extractor import MemoryExtractor
 from .memory.store import MemoryStore
 from .memory.trigger import should_extract
 from .model_loader import ModelLoader
-from .planner import DEFAULT_EMOTION, IntentCard, PlannerClient, route_mode
+from .planner import DEFAULT_EMOTION, IntentCard, PlannerClient
 from .proactive import (
     HISTORY_USER_MARKER,
     ResolvedSlot,
@@ -186,13 +186,7 @@ class Orchestrator:
             len(history),
         )
 
-        mode = "local"
-        if self.config.planner.router_enabled:
-            mode = route_mode(user_text)
-        elif self.planner.enabled:
-            mode = "dual"
-
-        use_dual = mode == "dual" and self.planner.enabled
+        use_dual = self.planner.enabled
         if use_dual:
             self.stats["dual_route_count"] += 1
         else:
@@ -409,13 +403,7 @@ class Orchestrator:
         if history:
             context_parts.append("history")
 
-        mode = "local"
-        if self.config.planner.router_enabled:
-            mode = route_mode(user_text)
-        elif self.planner.enabled:
-            mode = "dual"
-
-        use_dual = mode == "dual" and self.planner.enabled
+        use_dual = self.planner.enabled
         if use_dual:
             self.stats["dual_route_count"] += 1
         else:

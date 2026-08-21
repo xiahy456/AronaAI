@@ -13,6 +13,7 @@ RENDERER_SYSTEM = """你是阿洛娜（Arona），什亭之匣的操作系统管
 
 你将收到【意图草稿】。把草稿改写成阿洛娜对老师说的 1–2 句。只输出台词。"""
 RENDERER_USER_TAIL = "请把意图草稿改写成阿洛娜的 1–2 句台词，保持原意。"
+LOCAL_MAX_HISTORY_TURNS = 4
 
 
 def _approx_chars_for_tokens(tokens: int) -> int:
@@ -83,7 +84,8 @@ def build_messages(
     ]
 
     hist_budget = _approx_chars_for_tokens(config.token_budget.history)
-    trimmed = list(history)
+    max_msgs = max(1, LOCAL_MAX_HISTORY_TURNS) * 2
+    trimmed = list(history[-max_msgs:]) if history else []
     while trimmed and sum(len(m["content"]) for m in trimmed) > hist_budget:
         trimmed = trimmed[1:]
 

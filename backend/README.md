@@ -12,7 +12,7 @@
 | **对话编排** | `app/orchestrator.py` | 分类/更新关系 → 决策 →（可选）检索 → Planner 或本地 → 生成 → 回写自身行动 → 异步记忆抽取 |
 | **关系气候** | `app/relationship/` | 信任/依赖/张力状态、事件 Δ 表、规则分类、气候分区与行动策略、JSON 落盘 |
 | **主动事件** | `app/proactive/` | 上线欢迎、空闲轻搭话、午饭/睡觉照料、goal 回访、节日问候、同轮补充；连接表 + 调度落盘 |
-| **Planner** | `app/planner/` | DeepSeek 意图卡、情感白名单、简单/复杂路由；只读气候档位与姿态，不见 A/B/C 数字 |
+| **Planner** | `app/planner/` | DeepSeek 意图卡、情感白名单；只读气候档位与姿态，不见 A/B/C 数字 |
 | **模型加载** | `app/model_loader.py` | llama-cpp-python 加载 GGUF，支持流式与 `<think>` 过滤 |
 | **WebSocket** | `app/ws_handler.py` | 会话连接、上线欢迎、消息分发、ASR 过滤接入 |
 | **输入过滤** | `app/input_filter.py` | 丢弃空串 / 腾讯云 ASR 错误模板，避免误触发对话 |
@@ -83,7 +83,7 @@ Planner 只看见【关系气候】档位与【建议姿态】，禁止下发 A/
 | Planner prompt | `PlannerClient.plan()` | [`app/planner/client.py`](app/planner/client.py) |
 | Renderer prompt | `build_renderer_messages()` | [`app/prompt.py`](app/prompt.py) |
 
-调用方是 [`app/orchestrator.py`](app/orchestrator.py)：客户端用户输入走 `handle_chat()`；后端系统消息走 `handle_initiate()` / `handle_welcome()` / `_maybe_continue()`。Planner 失败或路由到 local 时走 `build_messages()`（本地单模型），不拼 Renderer prompt。
+调用方是 [`app/orchestrator.py`](app/orchestrator.py)：客户端用户输入走 `handle_chat()`；后端系统消息走 `handle_initiate()` / `handle_welcome()` / `_maybe_continue()`。Planner 关闭或失败时走 `build_messages()`（本地单模型），不拼 Renderer prompt。
 
 ```text
 用户 chat / 系统 instruction
@@ -164,7 +164,6 @@ Planner 只看见【关系气候】档位与【建议姿态】，禁止下发 A/
 ### 不进这条链路
 
 - 记忆抽取：`EXTRACT_SYSTEM` 在 [`app/memory/extractor.py`](app/memory/extractor.py)（另一路 DeepSeek）
-- 路由：[`app/planner/router.py`](app/planner/router.py) 只决定 local vs dual，没有 LLM prompt
 
 改话术时：用户对话改 `PLANNER_SYSTEM`；欢迎/空闲/照料等改对应 `build_*_instruction`；关系口吻改 `policy.py`；阿洛娜最终台词风格改 `app/prompt.py` 的 `RENDERER_SYSTEM`。
 
@@ -278,7 +277,7 @@ python scripts/ingest_knowledge.py --rebuild
 | `conversation` | 多轮历史保留轮数 |
 | `knowledge` | 世界观 RAG（语料目录、Chroma、嵌入模型、检索阈值） |
 | `memory` | SQLite + Chroma 路径、混合检索、DeepSeek 抽取器（`every_n_turns` / `extract_buffer_turns`）与正则降级 |
-| `planner` | 默认开启的双模型 Planner（DeepSeek 意图卡、路由开关；无 Key / `enabled: false` 则回落本地） |
+| `planner` | 默认开启的双模型 Planner（DeepSeek 意图卡；无 Key / `enabled: false` 则回落本地） |
 | `proactive` | 上线欢迎；关系气候；空闲搭话；照料窗口；goal 回访；节日问候；同轮 `continue` |
 | `token_budget` | memory / knowledge / history 注入预算 |
 | `logging` | 日志目录、文件名、级别与滚动策略 |
