@@ -93,10 +93,13 @@ public:
     // 设置Sovits模型
     void setSovitsWeights(const QString& weightsPath);
 
-    // 播放音频（仅在队列播下一条时调用；上一条未结束时不要打断）
-    void playAudio(const QByteArray& audioData);
+    // 预热参考音频与 prompt cache（不播、不上字幕）
+    void warmup(const TTSRequestParams& params);
 
-    // 本条已呈现完毕（播完 / TTS 失败字幕 / 跳过播放），允许合成下一条
+    // 播放音频；返回 WAV 时长（秒，失败为 -1）。上一条未结束时不要打断。
+    double playAudio(const QByteArray& audioData);
+
+    // 本条已呈现完毕（播完 / TTS 失败字幕 / 跳过播放），允许播放队列下一条
     void notifyPlaybackFinished();
 
     // 保存音频到文件
@@ -123,17 +126,18 @@ private:
         enum RequestType {
             TTSGet,
             TTSPost,
+            WarmupTTS,
             ControlCommand,
             SetGPTWeights,
-            SetSovitsWeights
+            SetSovitsWeights,
+            SetReferAudio
         };
 
         RequestType type;
         TTSRequestParams params;  // 用于TTS请求
         QString command;          // 用于控制命令
-        QString weightsPath;      // 用于模型切换
+        QString weightsPath;      // 用于模型切换 / 参考音频
 
-        // 构造函数
         QueuedRequest(RequestType t, const TTSRequestParams& p)
             : type(t), params(p) {
         }
@@ -142,10 +146,29 @@ private:
         }
         QueuedRequest(RequestType t, const QString& path, bool isModelWeight)
             : type(t), weightsPath(path) {
+            Q_UNUSED(isModelWeight);
         }
     };
 
+    struct ReadyPlayback {
+        bool isError = false;
+        QByteArray audioData;
+        QString mediaType;
+        QString text;
+        QString emotion;
+        QString errorString;
+    };
+
+    struct WavPcmInfo {
+        QByteArray pcm;
+        int sampleRate = 32000;
+        int channelCount = 1;
+        int bitsPerSample = 16;
+        double durationSec = -1;
+    };
+
     QQueue<QueuedRequest> requestQueue;
+    QQueue<ReadyPlayback> m_readyPlayback;
 
     QNetworkAccessManager* networkManager;
     QString serverHost;
@@ -161,6 +184,7 @@ private:
     bool m_awaitingPlayback;
     bool m_playingAudio;
     bool m_ignoreAudioIdle;
+    bool m_currentIsWarmup;
     int m_playbackGeneration;
     QString currentTtsText;
     QString currentTtsEmotion;
@@ -173,12 +197,15 @@ private:
     void executeControlCommand(const QString& command);
     void executeSetGPTWeights(const QString& weightsPath);
     void executeSetSovitsWeights(const QString& weightsPath);
+    void executeSetReferAudio(const QString& audioPath);
     void cleanupCurrentReply();
     void applyRequestTimeout(QNetworkRequest& request) const;
     QUrl buildBaseUrl() const;
     QUrlQuery buildQueryFromParams(const TTSRequestParams& params) const;
     QJsonObject buildJsonFromParams(const TTSRequestParams& params) const;
-    void handleTTSResponse(QNetworkReply* reply);
+    void enqueueTtsPlaybackFromReply(QNetworkReply* reply, bool httpError, const QString& errorString);
+    void tryDeliverPlayback();
+    bool extractWavPcm(const QByteArray& wav, WavPcmInfo* out) const;
 
 };
 

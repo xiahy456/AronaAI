@@ -24,6 +24,7 @@
 #include <QAudioFormat>
 #include <QAudioSink>
 #include <QTimer>
+#include <cstring>
 
 TTSManager::TTSManager(QObject* parent)
     : QObject(parent)
@@ -35,6 +36,7 @@ TTSManager::TTSManager(QObject* parent)
     , m_awaitingPlayback(false)
     , m_playingAudio(false)
     , m_ignoreAudioIdle(false)
+    , m_currentIsWarmup(false)
     , m_playbackGeneration(0)
     , requestTimeoutMs(45000)
 {
@@ -57,7 +59,8 @@ TTSManager::TTSManager(QObject* parent)
 TTSManager::~TTSManager()
 {
     cleanupCurrentReply();
-    requestQueue.clear();  // 清空请求队列
+    requestQueue.clear();
+    m_readyPlayback.clear();
 
     if (audioSink) {
         audioSink->stop();
@@ -204,6 +207,19 @@ void TTSManager::setSovitsWeights(const QString& weightsPath)
     processNextRequest();
 }
 
+void TTSManager::warmup(const TTSRequestParams& params)
+{
+    if (!params.refAudioPath.isEmpty()) {
+        requestQueue.enqueue(QueuedRequest(QueuedRequest::SetReferAudio, params.refAudioPath, true));
+    }
+    TTSRequestParams warm = params;
+    warm.text = QStringLiteral("老师好。");
+    warm.emotion.clear();
+    requestQueue.enqueue(QueuedRequest(QueuedRequest::WarmupTTS, warm));
+    FINE_DEBUG_OUTPUT("[TTS Operation]Warmup queued (set_refer_audio + short /tts)");
+    processNextRequest();
+}
+
 void TTSManager::onNetworkReplyFinished()
 {
     QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
@@ -216,71 +232,113 @@ void TTSManager::onNetworkReplyFinished()
     }
 
     const bool isTts = reply->url().path() == QLatin1String("/tts");
+    const bool warmup = m_currentIsWarmup;
     if (isTts) {
         if (reply->error() != QNetworkReply::NoError) {
-            FINE_DEBUG_OUTPUT(QString("[Latency] TTS RTT: %1 ms (error)")
-                .arg(m_ttsRequestTimer.elapsed()));
+            FINE_DEBUG_OUTPUT(QString("[Latency] TTS RTT: %1 ms (%2error)")
+                .arg(m_ttsRequestTimer.elapsed())
+                .arg(warmup ? QStringLiteral("warmup ") : QString()));
         }
         else {
-            FINE_DEBUG_OUTPUT(QString("[Latency] TTS RTT: %1 ms")
-                .arg(m_ttsRequestTimer.elapsed()));
+            FINE_DEBUG_OUTPUT(QString("[Latency] TTS RTT: %1 ms%2")
+                .arg(m_ttsRequestTimer.elapsed())
+                .arg(warmup ? QStringLiteral(" (warmup)") : QString()));
         }
+    }
+
+    if (warmup) {
+        if (reply->error() != QNetworkReply::NoError) {
+            ERROR_DEBUG_OUTPUT("[TTS Operation]Warmup failed: " + reply->errorString());
+        }
+        else {
+            FINE_DEBUG_OUTPUT("[TTS Operation]Warmup /tts complete");
+        }
+        cleanupCurrentReply();
+        isProcessingRequest = false;
+        processNextRequest();
+        return;
     }
 
     if (isTts) {
-        m_awaitingPlayback = true;
-    }
-
-    if (reply->error() != QNetworkReply::NoError) {
-        if (isTts) {
-            QString errorMsg = reply->errorString();
+        QString errorMsg;
+        const bool httpError = reply->error() != QNetworkReply::NoError;
+        if (httpError) {
+            errorMsg = reply->errorString();
             if (reply->error() == QNetworkReply::TimeoutError
                 || reply->error() == QNetworkReply::OperationCanceledError) {
                 errorMsg = QString("TTS request timed out after %1 ms").arg(requestTimeoutMs);
             }
-            emit ttsError(errorMsg, currentTtsText, currentTtsEmotion);
         }
-    }
-    else if (isTts) {
-        handleTTSResponse(reply);
+        enqueueTtsPlaybackFromReply(reply, httpError, errorMsg);
+        cleanupCurrentReply();
+        isProcessingRequest = false;
+        processNextRequest();
+        tryDeliverPlayback();
+        return;
     }
 
     cleanupCurrentReply();
-    if (isTts) {
-        // 等本条播完（或 notifyPlaybackFinished）再合成下一条
-        return;
-    }
     isProcessingRequest = false;
     processNextRequest();
 }
 
-void TTSManager::handleTTSResponse(QNetworkReply* reply)
+void TTSManager::enqueueTtsPlaybackFromReply(QNetworkReply* reply, bool httpError, const QString& errorString)
 {
+    ReadyPlayback item;
+    item.text = currentTtsText;
+    item.emotion = currentTtsEmotion;
+    item.mediaType = currentMediaType;
+
+    if (httpError) {
+        item.isError = true;
+        item.errorString = errorString;
+        m_readyPlayback.enqueue(item);
+        return;
+    }
+
     if (reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() == 200) {
         QByteArray audioData = reply->readAll();
 
-        // 检查是否是JSON错误响应
         if (audioData.startsWith('{') && audioData.contains("message")) {
             QJsonDocument doc = QJsonDocument::fromJson(audioData);
             if (doc.isObject()) {
-                QString errorMsg = doc.object()["message"].toString();
-                emit ttsError(errorMsg, currentTtsText, currentTtsEmotion);
+                item.isError = true;
+                item.errorString = doc.object()["message"].toString();
+                m_readyPlayback.enqueue(item);
                 return;
             }
         }
 
-        emit ttsFinished(audioData, currentMediaType, currentTtsText, currentTtsEmotion);
+        item.audioData = audioData;
+        m_readyPlayback.enqueue(item);
+        return;
+    }
+
+    QByteArray errorData = reply->readAll();
+    QString errorMsg = QString::fromUtf8(errorData);
+    if (errorData.startsWith('{')) {
+        QJsonDocument doc = QJsonDocument::fromJson(errorData);
+        if (doc.isObject()) {
+            errorMsg = doc.object()["message"].toString();
+        }
+    }
+    item.isError = true;
+    item.errorString = errorMsg;
+    m_readyPlayback.enqueue(item);
+}
+
+void TTSManager::tryDeliverPlayback()
+{
+    if (m_awaitingPlayback || m_readyPlayback.isEmpty()) {
+        return;
+    }
+    ReadyPlayback item = m_readyPlayback.dequeue();
+    m_awaitingPlayback = true;
+    if (item.isError) {
+        emit ttsError(item.errorString, item.text, item.emotion);
     }
     else {
-        QByteArray errorData = reply->readAll();
-        QString errorMsg = QString::fromUtf8(errorData);
-        if (errorData.startsWith('{')) {
-            QJsonDocument doc = QJsonDocument::fromJson(errorData);
-            if (doc.isObject()) {
-                errorMsg = doc.object()["message"].toString();
-            }
-        }
-        emit ttsError(errorMsg, currentTtsText, currentTtsEmotion);
+        emit ttsFinished(item.audioData, item.mediaType, item.text, item.emotion);
     }
 }
 
@@ -292,26 +350,42 @@ void TTSManager::notifyPlaybackFinished()
     m_awaitingPlayback = false;
     m_playingAudio = false;
     m_playbackGeneration++;
-    isProcessingRequest = false;
-    processNextRequest();
+    tryDeliverPlayback();
 }
 
-void TTSManager::playAudio(const QByteArray& audioData)
+double TTSManager::playAudio(const QByteArray& audioData)
 {
     if (audioData.isEmpty()) {
         notifyPlaybackFinished();
-        return;
+        return -1;
+    }
+
+    WavPcmInfo wav;
+    QByteArray pcm = audioData;
+    int sampleRate = 32000;
+    int channelCount = 1;
+    double duration = -1;
+    if (extractWavPcm(audioData, &wav)) {
+        pcm = wav.pcm;
+        sampleRate = wav.sampleRate;
+        channelCount = wav.channelCount;
+        duration = wav.durationSec;
+    }
+    else {
+        ERROR_DEBUG_OUTPUT("[TTS Operation]WAV parse failed, playing bytes as raw PCM");
     }
 
     // 队列播下一条时才 stop；此时上一条应已结束
     m_ignoreAudioIdle = true;
     if (audioSink) {
         audioSink->stop();
+        delete audioSink;
+        audioSink = nullptr;
     }
 
     QAudioFormat format;
-    format.setSampleRate(32000);
-    format.setChannelCount(1);
+    format.setSampleRate(sampleRate);
+    format.setChannelCount(channelCount);
     format.setSampleFormat(QAudioFormat::Int16);
 
     QAudioDevice audioDevice = QMediaDevices::defaultAudioOutput();
@@ -324,27 +398,24 @@ void TTSManager::playAudio(const QByteArray& audioData)
         delete audioBuffer;
     }
     audioBuffer = new QBuffer(this);
-    audioBuffer->setData(audioData);
+    audioBuffer->setData(pcm);
     audioBuffer->open(QIODevice::ReadOnly);
 
-    if (!audioSink) {
-        audioSink = new QAudioSink(audioDevice, format, this);
-        connect(audioSink, &QAudioSink::stateChanged, this, [this](QAudio::State state) {
-            if (m_ignoreAudioIdle || !m_playingAudio) {
-                return;
-            }
-            if (state == QAudio::IdleState || state == QAudio::StoppedState) {
-                notifyPlaybackFinished();
-            }
-        });
-    }
+    audioSink = new QAudioSink(audioDevice, format, this);
+    connect(audioSink, &QAudioSink::stateChanged, this, [this](QAudio::State state) {
+        if (m_ignoreAudioIdle || !m_playingAudio) {
+            return;
+        }
+        if (state == QAudio::IdleState || state == QAudio::StoppedState) {
+            notifyPlaybackFinished();
+        }
+    });
 
     m_playingAudio = true;
     audioSink->start(audioBuffer);
     m_ignoreAudioIdle = false;
 
-    const double dur = getWavDuration(audioData);
-    const int fallbackMs = dur > 0 ? static_cast<int>(dur * 1000.0) + 500 : 10000;
+    const int fallbackMs = duration > 0 ? static_cast<int>(duration * 1000.0) + 500 : 10000;
     const int gen = ++m_playbackGeneration;
     QTimer::singleShot(fallbackMs, this, [this, gen]() {
         if (gen != m_playbackGeneration) {
@@ -352,6 +423,7 @@ void TTSManager::playAudio(const QByteArray& audioData)
         }
         notifyPlaybackFinished();
     });
+    return duration;
 }
 
 bool TTSManager::saveAudioToFile(const QByteArray& audioData, const QString& filePath)
@@ -365,92 +437,109 @@ bool TTSManager::saveAudioToFile(const QByteArray& audioData, const QString& fil
     return false;
 }
 
+bool TTSManager::extractWavPcm(const QByteArray& wav, WavPcmInfo* out) const
+{
+    if (!out || wav.size() < 12) {
+        return false;
+    }
+    const char* data = wav.constData();
+    if (memcmp(data, "RIFF", 4) != 0 || memcmp(data + 8, "WAVE", 4) != 0) {
+        return false;
+    }
+
+    int sampleRate = 0;
+    int channelCount = 0;
+    int bitsPerSample = 0;
+    int pcmOffset = -1;
+    quint32 pcmSize = 0;
+
+    int offset = 12;
+    while (offset + 8 <= wav.size()) {
+        char chunkId[4];
+        quint32 chunkSize = 0;
+        memcpy(chunkId, data + offset, 4);
+        memcpy(&chunkSize, data + offset + 4, 4);
+        const int payload = offset + 8;
+        if (payload > wav.size()) {
+            break;
+        }
+        if (memcmp(chunkId, "fmt ", 4) == 0 && chunkSize >= 16 && payload + 16 <= wav.size()) {
+            quint16 audioFormat = 0;
+            quint16 channels = 0;
+            quint32 rate = 0;
+            quint16 bits = 0;
+            memcpy(&audioFormat, data + payload, 2);
+            memcpy(&channels, data + payload + 2, 2);
+            memcpy(&rate, data + payload + 4, 4);
+            memcpy(&bits, data + payload + 14, 2);
+            Q_UNUSED(audioFormat);
+            channelCount = channels;
+            sampleRate = static_cast<int>(rate);
+            bitsPerSample = bits;
+        }
+        else if (memcmp(chunkId, "data", 4) == 0) {
+            pcmOffset = payload;
+            pcmSize = chunkSize;
+            break;
+        }
+        offset += 8 + static_cast<int>(chunkSize);
+        if (chunkSize & 1) {
+            offset += 1;
+        }
+    }
+
+    if (pcmOffset < 0 || sampleRate <= 0 || channelCount <= 0 || bitsPerSample <= 0) {
+        return false;
+    }
+    const int available = wav.size() - pcmOffset;
+    const int bytes = qMin(static_cast<int>(pcmSize), available);
+    if (bytes <= 0) {
+        return false;
+    }
+
+    out->pcm = wav.mid(pcmOffset, bytes);
+    out->sampleRate = sampleRate;
+    out->channelCount = channelCount;
+    out->bitsPerSample = bitsPerSample;
+    out->durationSec = static_cast<double>(bytes)
+        / (static_cast<double>(sampleRate) * channelCount * (bitsPerSample / 8.0));
+
+    FINE_DEBUG_OUTPUT(QString("[TTS Operation]WAV file information: ")
+        + "sample rate: " + QString::number(sampleRate)
+        + "| channel num: " + QString::number(channelCount)
+        + "| bits per sample: " + QString::number(bitsPerSample)
+        + "| data size:" + QString::number(bytes)
+        + "| duration:" + QString::number(out->durationSec) + " second");
+    return true;
+}
+
 double TTSManager::getWavDuration(const QByteArray& audioData)
 {
-    // WAV文件头结构
-    struct WavHeader {
-        // RIFF头
-        char riffId[4];        // "RIFF"
-        quint32 riffSize;       // 文件大小-8
-        char waveId[4];         // "WAVE"
-
-        // fmt块
-        char fmtId[4];          // "fmt "
-        quint32 fmtSize;        // fmt块大小
-        quint16 audioFormat;     // 音频格式 (1 = PCM)
-        quint16 numChannels;     // 声道数
-        quint32 sampleRate;      // 采样率
-        quint32 byteRate;        // 字节率 = sampleRate * numChannels * bitsPerSample/8
-        quint16 blockAlign;      // 块对齐 = numChannels * bitsPerSample/8
-        quint16 bitsPerSample;   // 位深度
-    };
-
-    if (audioData.size() < sizeof(WavHeader)) {
-        ERROR_DEBUG_OUTPUT("[TTS Operation]This wav file is too small to read header!");
+    WavPcmInfo info;
+    if (!extractWavPcm(audioData, &info)) {
+        ERROR_DEBUG_OUTPUT("[TTS Operation]Failed to find data");
         return -1;
     }
-
-    // 将数据复制到头结构
-    WavHeader header;
-    memcpy(&header, audioData.constData(), sizeof(WavHeader));
-
-    // 验证是否为有效的WAV文件
-    if (memcmp(header.riffId, "RIFF", 4) != 0 ||
-        memcmp(header.waveId, "WAVE", 4) != 0 ||
-        memcmp(header.fmtId, "fmt ", 4) != 0) {
-        ERROR_DEBUG_OUTPUT("[TTS Operation]Invailed wav file format!");
-        return -1;
-    }
-
-    // 查找data块
-    int offset = sizeof(WavHeader);
-    while (offset < audioData.size() - 8) {
-        char chunkId[4];
-        quint32 chunkSize;
-
-        memcpy(chunkId, audioData.constData() + offset, 4);
-        memcpy(&chunkSize, audioData.constData() + offset + 4, 4);
-
-        if (memcmp(chunkId, "data", 4) == 0) {
-            // 找到data块
-            quint32 dataSize = chunkSize;
-
-            // 计算时长：数据大小 / (采样率 * 声道数 * 位深度/8)
-            double duration = static_cast<double>(dataSize) /
-                (header.sampleRate * header.numChannels * (header.bitsPerSample / 8.0));
-
-            FINE_DEBUG_OUTPUT(QString("[TTS Operation]WAV file information: ")
-                + "sample rate: " + QString::number(header.sampleRate)
-                + "| channel num: " + QString::number(header.numChannels)
-                + "| bits per sample: " + QString::number(header.bitsPerSample)
-                + "| data size:" + QString::number(dataSize)
-                + "| duration:" + QString::number(duration) + " second");
-
-            return duration;
-        }
-
-        offset += 8 + chunkSize;
-    }
-
-    ERROR_DEBUG_OUTPUT("[TTS Operation]Failed to find data");
-    return -1;
+    return info.durationSec;
 }
 
 void TTSManager::processNextRequest()
 {
-    // 如果正在处理请求或队列为空，则返回
+    // 合成与播放解耦：只挡 HTTP 进行中，不挡正在播放
     if (isProcessingRequest || requestQueue.isEmpty()) {
         return;
     }
 
     isProcessingRequest = true;
     QueuedRequest request = requestQueue.dequeue();
+    m_currentIsWarmup = (request.type == QueuedRequest::WarmupTTS);
 
     switch (request.type) {
     case QueuedRequest::TTSGet:
         executeTTSGet(request.params);
         break;
     case QueuedRequest::TTSPost:
+    case QueuedRequest::WarmupTTS:
         executeTTSPost(request.params);
         break;
     case QueuedRequest::ControlCommand:
@@ -461,6 +550,9 @@ void TTSManager::processNextRequest()
         break;
     case QueuedRequest::SetSovitsWeights:
         executeSetSovitsWeights(request.weightsPath);
+        break;
+    case QueuedRequest::SetReferAudio:
+        executeSetReferAudio(request.weightsPath);
         break;
     }
 }
@@ -478,6 +570,7 @@ void TTSManager::executeTTSGet(const TTSRequestParams& params)
     currentTtsEmotion = params.emotion;
 
     cleanupCurrentReply();
+    m_ttsRequestTimer.restart();
     currentReply = networkManager->get(request);
 
     connect(currentReply, &QNetworkReply::finished,
@@ -619,6 +712,40 @@ void TTSManager::executeSetSovitsWeights(const QString& weightsPath)
                 errorMsg = QString("Sovits weight request timed out after %1 ms").arg(requestTimeoutMs);
             }
             emit modelSwitched(false, errorMsg);
+        }
+
+        cleanupCurrentReply();
+        isProcessingRequest = false;
+        processNextRequest();
+        });
+}
+
+void TTSManager::executeSetReferAudio(const QString& audioPath)
+{
+    QUrl url = buildBaseUrl();
+    url.setPath("/set_refer_audio");
+
+    QUrlQuery query;
+    query.addQueryItem("refer_audio_path", audioPath);
+    url.setQuery(query);
+
+    QNetworkRequest request(url);
+    applyRequestTimeout(request);
+    cleanupCurrentReply();
+    currentReply = networkManager->get(request);
+
+    connect(currentReply, &QNetworkReply::finished, [this]() {
+        if (!currentReply) {
+            ERROR_DEBUG_OUTPUT("[TTS Operation]set_refer_audio aborted");
+            isProcessingRequest = false;
+            processNextRequest();
+            return;
+        }
+        if (currentReply->error() == QNetworkReply::NoError) {
+            FINE_DEBUG_OUTPUT("[TTS Operation]set_refer_audio success");
+        }
+        else {
+            ERROR_DEBUG_OUTPUT("[TTS Operation]set_refer_audio failed: " + currentReply->errorString());
         }
 
         cleanupCurrentReply();

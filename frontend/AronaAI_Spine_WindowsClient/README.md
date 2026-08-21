@@ -50,7 +50,7 @@ cp Config/config.example.json Config/config.json
 > **注意**：
 > - 资源路径相对**程序工作目录**解析；在 Visual Studio 中调试时默认为项目根目录，请勿直接双击 `x64/Debug` 或 `x64/Release` 下的 exe（工作目录会不对）。
 > - 请将 AronaLM 后端服务、GPT-SoVITS 服务的地址、端口按实际情况填写。
-> - `tts.request_timeout_ms` 仅改配置即可生效（dist 客户端同理）；`TTSManager` / `MainController` 源码改动需重新编译客户端后才有超时与字幕兜底逻辑。
+> - `tts.request_timeout_ms` 仅改配置即可生效（dist 客户端同理）；`TTSManager` / `MainController` 源码改动需重新编译客户端后才有超时、预热与合成/播放解耦逻辑。
 > - 本项目使用**腾讯云语音识别**（ASR），腾讯云 ASR 的 SecretId 和 SecretKey 可以在腾讯云控制台的 API 密钥管理中获取。
 > - `config.json` 已在 `.gitignore` 中，不会被提交到版本控制，请放心修改。
 
@@ -105,6 +105,7 @@ cp Config/config.example.json Config/config.json
     "fragment_interval": 0.3, // 片段间隔（秒）
     "seed": -1, // 随机种子（-1 表示随机）
     "parallel_infer": true, // 是否启用并行推理（8GB 显卡建议 false）
+    "reload_weights_on_start": false, // 启动时是否再调 /set_gpt_weights 与 /set_sovits_weights；默认 false，沿用 api 已从 yaml 加载的权重，避免打掉参考音频缓存
     "request_timeout_ms": 45000, // 客户端等待 /tts 的超时（毫秒）；超时后仍显示字幕，不卡死 UI
     "repetition_penalty": 1.35, // 重复惩罚系数
     "sample_steps": 32, // 采样步数

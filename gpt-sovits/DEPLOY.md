@@ -145,9 +145,10 @@ python api_v2.py
 | `ref_audio_path` | `ref_audio/Arona/arona_academy_in_2.ogg` |
 | `prompt_text` / `prompt_lang` | 上文文案 / `zh` |
 | `parallel_infer` | 8 GB 显卡设 `false` |
+| `reload_weights_on_start` | 默认 `false`。为 `true` 时客户端启动会再切 GPT/SoVITS 权重 |
 | `request_timeout_ms` | `45000`（超时仍显示字幕，不卡 UI） |
 
-客户端启动时会请求 `/set_gpt_weights`、`/set_sovits_weights`，对话时 POST `/tts`。完整字段见 [`frontend/AronaAI_Spine_WindowsClient/README.md`](../frontend/AronaAI_Spine_WindowsClient/README.md)。
+客户端启动时默认**不再**请求 `/set_gpt_weights`、`/set_sovits_weights`（权重已由 `tts_infer.yaml` 加载），而是 `GET /set_refer_audio` 再 POST 一句极短 `/tts` 预热 prompt cache，随后对话才 POST `/tts`。需要热切权重时把 `reload_weights_on_start` 设为 `true`。完整字段见 [`frontend/AronaAI_Spine_WindowsClient/README.md`](../frontend/AronaAI_Spine_WindowsClient/README.md)。
 
 ---
 

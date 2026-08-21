@@ -73,10 +73,17 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
             }
         });
 
-    // 切权重与 WebSocket 并行：欢迎语 TTS 会在权重请求之后排队
-    m_ttsManager->setGPTWeights(GET_STRING_FROM_JSON(_global_config, "tts", "gpt_path"));
-    m_ttsManager->setSovitsWeights(GET_STRING_FROM_JSON(_global_config, "tts", "sovits_path"));
-    FINE_DEBUG_OUTPUT("[Startup] TTS weight switch started, connecting WebSocket without waiting");
+    const bool reloadWeights = GET_BOOL_FROM_JSON(_global_config, "tts", "reload_weights_on_start");
+    if (reloadWeights) {
+        m_ttsManager->setGPTWeights(GET_STRING_FROM_JSON(_global_config, "tts", "gpt_path"));
+        m_ttsManager->setSovitsWeights(GET_STRING_FROM_JSON(_global_config, "tts", "sovits_path"));
+        FINE_DEBUG_OUTPUT("[Startup] TTS weight switch queued (reload_weights_on_start=true)");
+    }
+    else {
+        FINE_DEBUG_OUTPUT("[Startup] Skip TTS weight reload (reload_weights_on_start=false); yaml weights stay loaded");
+    }
+    m_ttsManager->warmup(ttsRequestParams);
+    FINE_DEBUG_OUTPUT("[Startup] TTS warmup queued, connecting WebSocket without waiting");
 
     connect(m_audioRecorder, &AudioRecorder::errorOccurred,
         this, &MainController::onAudioError);
@@ -100,7 +107,7 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
     connect(m_webSocketController, &WebSocketController::connectionStateChanged,
         this, &MainController::onWebSocketStateChanged);
 
-    FINE_DEBUG_OUTPUT("[Startup] TTS weight switch started; WebSocket connect deferred until splash hooks are ready");
+    FINE_DEBUG_OUTPUT("[Startup] TTS warmup queued; WebSocket connect deferred until splash hooks are ready");
 
     if (m_userInputWidget) {
         connect(m_userInputWidget, &UserInputWidget::textSubmitted,
@@ -142,7 +149,7 @@ void MainController::presentOutput(const QByteArray& audioData, const QString& m
     ++m_outputGeneration;
     const int gen = m_outputGeneration;
 
-    m_ttsManager->playAudio(audioData);
+    const double wavSec = m_ttsManager->playAudio(audioData);
     m_mainWidget->showOutputText(line);
     if (m_measuringUserTurn) {
         FINE_DEBUG_OUTPUT(QString("[Latency] User send to text on screen: %1 ms")
@@ -150,7 +157,6 @@ void MainController::presentOutput(const QByteArray& audioData, const QString& m
         m_measuringUserTurn = false;
     }
     int duration = qMax(500, line.size() * 100);
-    const double wavSec = m_ttsManager->getWavDuration(audioData);
     if (wavSec > 0) {
         duration = static_cast<int>(1000 * wavSec);
     }
@@ -392,7 +398,7 @@ void MainController::processInputText(const QString& text)
 void MainController::onWebSocketConnected(const QString& sessionId)
 {
     FINE_DEBUG_OUTPUT("[WebSocket] Connected! Session ID: " + sessionId);
-    FINE_DEBUG_OUTPUT(QString("[Startup] WebSocket connected, TTS models loaded: %1/2")
+    FINE_DEBUG_OUTPUT(QString("[Startup] WebSocket connected, TTS models reloaded: %1/2")
         .arg(m_ttsModelsLoaded));
 }
 

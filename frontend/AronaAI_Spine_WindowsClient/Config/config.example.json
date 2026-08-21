@@ -60,6 +60,7 @@
     "fragment_interval": 0.3,
     "seed": -1,
     "parallel_infer": true,
+    "reload_weights_on_start": false,
     "request_timeout_ms": 25000,
     "repetition_penalty": 1.35,
     "sample_steps": 32,

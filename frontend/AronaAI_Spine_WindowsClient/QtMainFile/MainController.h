@@ -45,7 +45,7 @@ public:
 	MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer, WebSocketController* webSocketController, UserInputWidget* userInputWidget);
 	~MainController();
 
-	// 执行输出（排队 TTS；字幕与表情在本条合成完成后再上屏）
+	// 执行输出（排队 TTS；字幕与语音同时上屏；合成可与上一条播放重叠）
 	void executeOutput(const QString& text);
 	// 开始录音、识别
 	void startAudioProcessing();
