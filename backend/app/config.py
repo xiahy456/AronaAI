@@ -48,6 +48,9 @@ class KnowledgeConfig(BaseModel):
     max_inject_chars: int = 400
     min_score: float = 0.45
     score_margin: float = 0.08
+    query_cache_enabled: bool = True
+    query_cache_size: int = 64
+    query_cache_min_cosine: float = 0.92
 
 
 class ExtractorConfig(BaseModel):

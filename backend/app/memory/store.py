@@ -224,6 +224,9 @@ class MemoryStore:
         except Exception:
             logger.exception("Memory Chroma warmup failed; will retry on first use")
 
+    def encode_query(self, text: str) -> list[float]:
+        return self._ensure_encoder().encode_query(text)
+
     def upsert(
         self,
         key: str,
@@ -438,7 +441,12 @@ class MemoryStore:
             out[str(row["key"])] = cat or "other"
         return out
 
-    def retrieve_entries(self, query: str, top_k: int = 3) -> list[dict[str, Any]]:
+    def retrieve_entries(
+        self,
+        query: str,
+        top_k: int = 3,
+        query_embedding: list[float] | None = None,
+    ) -> list[dict[str, Any]]:
         """Hybrid retrieve returning key/content/category/score dicts."""
         query = (query or "").strip()
         if not query:
@@ -456,8 +464,8 @@ class MemoryStore:
                     query,
                 )
                 return []
-            encoder = self._ensure_encoder()
-            query_embedding = encoder.encode_queries([query])[0]
+            if query_embedding is None:
+                query_embedding = self._ensure_encoder().encode_query(query)
         except Exception:
             logger.exception("Memory retrieve backend init failed")
             return []
@@ -515,8 +523,18 @@ class MemoryStore:
         )
         return entries
 
-    def retrieve(self, query: str, top_k: int = 3) -> list[str]:
-        return [e["content"] for e in self.retrieve_entries(query, top_k)]
+    def retrieve(
+        self,
+        query: str,
+        top_k: int = 3,
+        query_embedding: list[float] | None = None,
+    ) -> list[str]:
+        return [
+            e["content"]
+            for e in self.retrieve_entries(
+                query, top_k, query_embedding=query_embedding
+            )
+        ]
 
     def find_exact_content(self, content: str) -> list[dict[str, Any]]:
         """Return rows whose stored content equals strip(content) or compare-normalized form."""

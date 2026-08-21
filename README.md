@@ -63,6 +63,7 @@ arona-ai/
 - **主动行为**：WebSocket 连接后按时段主动问候、提醒，安静若干时间后轻在场；稀疏回访记忆里的未完成计划；Planner 允许时同轮补充
 - **AronaLM**：AronaLM-Renderer 负责文字渲染；双模型链路不可用时回落本地单模型 AronaLM-Generator 完成推理全流程
 - **记忆与知识分离**：用户长期事实进 SQLite + FTS5 + Chroma；世界观设定进 Markdown 语料 → 本地 BGE + Chroma RAG；互不混写、按需注入 Prompt
+- **中间结果缓存**：世界观近义检索可复用 lore 命中；Renderer 复用固定 system 前缀 KV
 - **异步记忆抽取**：对话主路径不阻塞；DeepSeek JSON 抽取（含日配额与缓冲批量），失败或无 Key 时自动正则降级
 - **上下文可控**：多轮历史截断 + memory/knowledge/history token budget，阻止上下文膨胀
 

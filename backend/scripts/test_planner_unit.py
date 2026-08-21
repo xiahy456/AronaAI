@@ -12,6 +12,7 @@ from app.planner import EMOTION_WHITELIST, normalize_emotion, parse_and_gate_int
 from app.planner.prompts import PLANNER_SYSTEM, build_planner_user_message
 from app.prompt import (
     LOCAL_MAX_HISTORY_TURNS,
+    RENDERER_USER_TAIL,
     build_messages,
     build_renderer_messages,
     clip_inject_chunks,
@@ -155,6 +156,22 @@ def main() -> None:
     )
     assert "设定甲" in clipped_msg
     assert "设定乙" not in clipped_msg
+
+    from app.model_loader import ModelLoader
+
+    warmup_messages = build_renderer_messages(cfg, draft="老师好。")
+    assert warmup_messages[0]["role"] == "system"
+    assert "意图草稿" in warmup_messages[1]["content"]
+    assert RENDERER_USER_TAIL in warmup_messages[1]["content"]
+
+    class _FakeChatLLM:
+        def create_chat_completion(self, messages, cache_prompt=False, **kwargs):
+            return {"choices": [{"message": {"content": ""}}]}
+
+    loader = ModelLoader()
+    loader._llm = _FakeChatLLM()
+    loader._configure_prompt_cache()
+    assert loader._extra_completion_kwargs.get("cache_prompt") is True
 
     _ = EMOTION_WHITELIST
     print("ok")

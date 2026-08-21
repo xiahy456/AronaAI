@@ -13,7 +13,7 @@
 | **关系气候** | `app/relationship/` | 信任/依赖/张力状态、事件 Δ 表、规则分类、气候分区与行动策略、JSON 落盘 |
 | **主动事件** | `app/proactive/` | 上线欢迎、空闲轻搭话、午饭/睡觉照料、goal 回访、节日问候、同轮补充；连接表 + 调度落盘 |
 | **Planner** | `app/planner/` | DeepSeek 意图卡、情感白名单；只读气候档位与姿态，不见 A/B/C 数字 |
-| **模型加载** | `app/model_loader.py` | llama-cpp-python 加载 GGUF，支持流式与 `<think>` 过滤 |
+| **模型加载** | `app/model_loader.py` | llama-cpp-python 加载 GGUF；启动时用 Renderer prompt 预热并复用前缀 KV |
 | **WebSocket** | `app/ws_handler.py` | 会话连接、上线欢迎、消息分发、ASR 过滤接入 |
 | **输入过滤** | `app/input_filter.py` | 丢弃空串 / 腾讯云 ASR 错误模板，避免误触发对话 |
 | **协议** | `app/protocol.py` | 客户端/服务端消息类型定义 |
@@ -66,7 +66,8 @@ python scripts/test_proactive_unit.py      # 空闲 / 照料 / goal / 节日 / c
   → 查表 Δ 更新信任 / 依赖 / 张力
   → 气候分区 + 姿态（action / stance / must_not）
   → silence / refuse：写入历史，不调用 LLM，不发 chat_response
-  → speak：记忆/知识检索 → Planner 或本地 → Renderer → chat_response
+  → speak：本轮 query embedding 只算一次 → 记忆/知识检索（知识近义命中可复用）
+       → Planner 或本地 → Renderer（复用 system 前缀 KV）→ chat_response
   → 回写阿洛娜自身行动（followed_up / gave_space / teased / greeted）
 ```
 
@@ -266,6 +267,8 @@ python scripts/ingest_knowledge.py --rebuild
 4. 冒烟检索：`python scripts/test_knowledge_rag.py`
 5. 在 `config.yaml` 设 `knowledge.enabled: true` 后重启后端
 
+对话主路径里记忆与知识检索共用同一轮 BGE query 向量。知识命中（过滤后的 lore 文本）可按 query 向量近义复用，默认 `query_cache_min_cosine: 0.92`；`ingest` / `--rebuild` 会清空该缓存。不缓存 Planner 草稿或最终台词。
+
 ## 配置
 
 由 `config.example.yaml` 复制为 `config.yaml`（已 gitignore），主要段落：
@@ -275,7 +278,7 @@ python scripts/ingest_knowledge.py --rebuild
 | `server` | 监听地址、端口、WebSocket 路径（默认 `/ws`） |
 | `model` | GGUF 路径（默认 Renderer v2.4）、上下文长度、采样参数、本地回落用 system prompt |
 | `conversation` | 多轮历史保留轮数 |
-| `knowledge` | 世界观 RAG（语料目录、Chroma、嵌入模型、检索阈值） |
+| `knowledge` | 世界观 RAG（语料目录、Chroma、嵌入模型、检索阈值、近义 query 缓存） |
 | `memory` | SQLite + Chroma 路径、混合检索、DeepSeek 抽取器（`every_n_turns` / `extract_buffer_turns`）与正则降级 |
 | `planner` | 默认开启的双模型 Planner（DeepSeek 意图卡；无 Key / `enabled: false` 则回落本地） |
 | `proactive` | 上线欢迎；关系气候；空闲搭话；照料窗口；goal 回访；节日问候；同轮 `continue` |

@@ -36,6 +36,9 @@ knowledge:
   max_inject_chars: 400
   min_score: 0.45
   score_margin: 0.08
+  query_cache_enabled: true
+  query_cache_size: 64
+  query_cache_min_cosine: 0.92
 
 memory:
   db_path: "data/memory/memory.db"

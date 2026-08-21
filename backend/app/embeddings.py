@@ -11,6 +11,13 @@ logger = logging.getLogger(__name__)
 BGE_QUERY_INSTRUCTION = "为这个句子生成表示以用于检索相关文章："
 
 
+def cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Dot product; callers should pass L2-normalized BGE vectors."""
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    return float(sum(x * y for x, y in zip(a, b)))
+
+
 class LocalBgeEncoder:
     """Local sentence-transformers BGE encoder (no HuggingFace download)."""
 
@@ -41,3 +48,6 @@ class LocalBgeEncoder:
             show_progress_bar=False,
         )
         return [v.tolist() for v in vectors]
+
+    def encode_query(self, text: str) -> list[float]:
+        return self.encode_queries([text])[0]

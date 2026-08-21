@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 import re
 import threading
@@ -15,6 +16,8 @@ logger = logging.getLogger(__name__)
 _THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 _LEADING_JUNK_PUNCT = frozenset(".,。、;；:：!！?？")
 _ELLIPSIS_CHAR = "…"
+_RAM_CACHE_BYTES = 32 * 1024 * 1024
+_WARMUP_DRAFT = "老师好。"
 
 
 def strip_think_tags(text: str) -> str:
@@ -54,6 +57,7 @@ class ModelLoader:
         self._llm: Any = None
         self._lock = threading.Lock()
         self._config: AppConfig | None = None
+        self._extra_completion_kwargs: dict[str, Any] = {}
 
     def load(self, config: AppConfig) -> None:
         with self._lock:
@@ -73,26 +77,65 @@ class ModelLoader:
                 verbose=False,
             )
             self._config = config
+            self._configure_prompt_cache()
             logger.info("Model loaded")
 
+    def _configure_prompt_cache(self) -> None:
+        """Reuse Renderer system prefix KV across turns when llama-cpp allows it."""
+        self._extra_completion_kwargs = {}
+        if self._llm is None:
+            return
+        try:
+            params = inspect.signature(self._llm.create_chat_completion).parameters
+        except (TypeError, ValueError):
+            params = {}
+        if "cache_prompt" in params:
+            self._extra_completion_kwargs["cache_prompt"] = True
+            logger.info("llama-cpp cache_prompt enabled")
+            return
+        try:
+            from llama_cpp import LlamaRAMCache
+
+            cache = LlamaRAMCache(capacity_bytes=_RAM_CACHE_BYTES)
+            self._llm.set_cache(cache)
+            logger.info(
+                "llama-cpp LlamaRAMCache enabled capacity_bytes=%d",
+                _RAM_CACHE_BYTES,
+            )
+        except Exception:
+            logger.warning(
+                "prompt prefix cache unavailable; Renderer KV will recompute each turn",
+                exc_info=True,
+            )
+
     def warmup(self) -> None:
-        """Run a tiny sync completion so first user request is not GPU-cold."""
+        """Prime GPU and Renderer chat-template prefix so first request is not cold."""
         if self._llm is None:
             logger.warning("Local LLM warmup skipped: model not loaded")
             return
-        logger.info("Warming up local LLM")
+        cfg = self._config
+        if cfg is None:
+            logger.warning("Local LLM warmup skipped: model not configured")
+            return
+        from .prompt import build_renderer_messages
+
+        messages = build_renderer_messages(cfg, draft=_WARMUP_DRAFT)
+        logger.info("Warming up local LLM with renderer prefix")
         t0 = time.perf_counter()
         try:
             with self._lock:
-                self._llm.create_chat_completion(
-                    messages=[{"role": "user", "content": "hi"}],
+                result = self._llm.create_chat_completion(
+                    messages=messages,
                     max_tokens=1,
                     temperature=0,
                     stream=False,
+                    **self._extra_completion_kwargs,
                 )
+            usage = (result or {}).get("usage") or {}
             logger.info(
-                "Local LLM warmup done latency=%.3fs",
+                "Local LLM warmup done latency=%.3fs usage=%s",
                 time.perf_counter() - t0,
+                usage,
             )
         except Exception:
             logger.exception(
@@ -125,6 +168,7 @@ class ModelLoader:
                 top_p=cfg.model.top_p,
                 repeat_penalty=cfg.model.repeat_penalty,
                 stream=False,
+                **self._extra_completion_kwargs,
             )
         content = result["choices"][0]["message"]["content"] or ""
         cleaned = clean_model_output(content)

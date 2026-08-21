@@ -16,9 +16,11 @@ for _stream in (sys.stdout, sys.stderr):
         pass
 
 from app.config import load_config  # noqa: E402
+from app.embeddings import cosine_similarity  # noqa: E402
 from app.knowledge import (  # noqa: E402
     KnowledgeRetriever,
     ScoredKnowledgeHit,
+    SemanticHitCache,
     filter_knowledge_hits,
     ingest_corpus,
 )
@@ -114,11 +116,124 @@ def _test_clip_unit(config) -> list[str]:
     return failures
 
 
+def _test_query_cache_unit() -> list[str]:
+    failures: list[str] = []
+    if cosine_similarity([1.0, 0.0], [1.0, 0.0]) != 1.0:
+        failures.append("cosine_similarity identical vectors")
+    if cosine_similarity([1.0, 0.0], [0.0, 1.0]) != 0.0:
+        failures.append("cosine_similarity orthogonal vectors")
+    if cosine_similarity([1.0], [1.0, 0.0]) != 0.0:
+        failures.append("cosine_similarity length mismatch")
+
+    cache = SemanticHitCache(size=2, min_cosine=0.92)
+    vec_a = [1.0, 0.0]
+    vec_near = [0.96, 0.28]  # cosine ~ 0.96
+    vec_far = [0.0, 1.0]
+    cache.put(vec_a, ["lore-a"], top_k=2, collection_n=5)
+
+    hit = cache.get(vec_a, top_k=2, collection_n=5)
+    if hit is None or hit[0] != ["lore-a"]:
+        failures.append(f"exact embedding hit: {hit}")
+
+    near = cache.get(vec_near, top_k=2, collection_n=5)
+    if near is None or near[0] != ["lore-a"]:
+        failures.append(f"near embedding hit: {near}")
+
+    if cache.get(vec_far, top_k=2, collection_n=5) is not None:
+        failures.append("orthogonal embedding should miss")
+    if cache.get(vec_a, top_k=3, collection_n=5) is not None:
+        failures.append("different top_k should miss")
+    if cache.get(vec_a, top_k=2, collection_n=9) is not None:
+        failures.append("different collection_n should miss")
+
+    cache.put([0.0, 1.0], ["lore-b"], top_k=2, collection_n=5)
+    cache.put([0.7, 0.7], ["lore-c"], top_k=2, collection_n=5)
+    if len(cache) != 2:
+        failures.append(f"LRU size: expected 2, got {len(cache)}")
+    if cache.get(vec_a, top_k=2, collection_n=5) is not None:
+        failures.append("LRU should evict oldest entry")
+
+    cache.clear()
+    if len(cache) != 0 or cache.get(vec_far, top_k=2, collection_n=5) is not None:
+        failures.append("clear should empty cache")
+    return failures
+
+
+class _CountingEncoder:
+    def __init__(self) -> None:
+        self.n = 0
+
+    def encode_queries(self, texts: list[str]) -> list[list[float]]:
+        self.n += 1
+        return [[1.0, 0.0] for _ in texts]
+
+    def encode_query(self, text: str) -> list[float]:
+        return self.encode_queries([text])[0]
+
+    def encode_documents(self, texts: list[str]) -> list[list[float]]:
+        return [[1.0, 0.0] for _ in texts]
+
+
+class _FakeCollection:
+    def count(self) -> int:
+        return 1
+
+    def query(self, **kwargs):  # noqa: ANN003
+        return {"documents": [[]], "distances": [[]], "metadatas": [[]]}
+
+
+def _test_retrieve_uses_provided_embedding(config) -> list[str]:
+    failures: list[str] = []
+    encoder = _CountingEncoder()
+    retriever = KnowledgeRetriever(config, encoder=encoder)
+    retriever.enabled = True
+    retriever._encoder = encoder
+    retriever._collection = _FakeCollection()
+    original_cache = bool(retriever.config.query_cache_enabled)
+    try:
+        retriever.config.query_cache_enabled = False
+
+        provided = [1.0, 0.0]
+        retriever.retrieve("阿洛娜是谁", top_k=2, query_embedding=provided)
+        retriever.retrieve("阿洛娜是谁", top_k=2, query_embedding=provided)
+        if encoder.n != 0:
+            failures.append(
+                f"provided embedding should skip encode, got encode_queries={encoder.n}"
+            )
+
+        retriever.retrieve("阿洛娜是谁", top_k=2)
+        if encoder.n != 1:
+            failures.append(
+                f"missing embedding should encode once, got encode_queries={encoder.n}"
+            )
+
+        retriever.config.query_cache_enabled = True
+        retriever._query_cache.clear()
+        encoder.n = 0
+        retriever.retrieve("重复问题", top_k=2, query_embedding=provided)
+        retriever.retrieve("近义问题", top_k=2, query_embedding=provided)
+        if encoder.n != 0:
+            failures.append("cached retrieve with provided embedding encoded")
+        if len(retriever._query_cache) != 1:
+            failures.append(
+                f"cache size after put+hit: expected 1, got {len(retriever._query_cache)}"
+            )
+
+        retriever._query_cache.clear()
+        if len(retriever._query_cache) != 0:
+            failures.append("ingest-style clear left entries")
+    finally:
+        retriever.config.query_cache_enabled = original_cache
+    return failures
+
+
 def main() -> int:
     config = load_config()
     failures: list[str] = []
     failures.extend(_test_filter_unit())
     failures.extend(_test_clip_unit(config))
+    failures.extend(_test_query_cache_unit())
+    failures.extend(_test_retrieve_uses_provided_embedding(config))
     if failures:
         print("FAIL: unit filters", file=sys.stderr)
         for item in failures:

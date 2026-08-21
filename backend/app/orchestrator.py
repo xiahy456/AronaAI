@@ -128,6 +128,27 @@ class Orchestrator:
             user_text,
         )
 
+        need_rag = use_rag and self.knowledge.enabled
+        query_embedding: list[float] | None = None
+        if use_memory or need_rag:
+            t0 = time.perf_counter()
+            try:
+                query_embedding = await asyncio.to_thread(
+                    self.memory_store.encode_query, user_text
+                )
+                logger.info(
+                    "query embedding session=%s latency=%.3fs dim=%d",
+                    session_id,
+                    time.perf_counter() - t0,
+                    len(query_embedding),
+                )
+            except Exception:
+                logger.exception(
+                    "query embedding failed session=%s; retrieve will encode itself",
+                    session_id,
+                )
+                query_embedding = None
+
         memories: list[str] = []
         if use_memory:
             t0 = time.perf_counter()
@@ -135,6 +156,7 @@ class Orchestrator:
                 self.memory_store.retrieve,
                 user_text,
                 self.config.memory.retrieve_top_k,
+                query_embedding,
             )
             logger.info(
                 "memory retrieve session=%s hits=%d latency=%.3fs items=%s",
@@ -155,6 +177,7 @@ class Orchestrator:
                 self.knowledge.retrieve,
                 user_text,
                 self.config.knowledge.retrieve_top_k,
+                query_embedding,
             )
             logger.info(
                 "rag retrieve session=%s hits=%d latency=%.3fs items=%s",

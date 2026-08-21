@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -11,7 +12,7 @@ from typing import Any
 import jieba
 
 from .config import AppConfig, KnowledgeConfig
-from .embeddings import LocalBgeEncoder
+from .embeddings import LocalBgeEncoder, cosine_similarity
 
 logger = logging.getLogger(__name__)
 
@@ -213,6 +214,76 @@ def filter_knowledge_hits(
     return passed[:k]
 
 
+@dataclass
+class _QueryCacheEntry:
+    embedding: list[float]
+    hits: list[str]
+    top_k: int
+    collection_n: int
+
+
+class SemanticHitCache:
+    """In-process nearest-neighbor cache of filtered knowledge hit texts."""
+
+    def __init__(self, *, size: int, min_cosine: float) -> None:
+        self.size = max(1, int(size))
+        self.min_cosine = float(min_cosine)
+        self._entries: list[_QueryCacheEntry] = []
+        self._lock = threading.Lock()
+
+    def get(
+        self,
+        embedding: list[float],
+        *,
+        top_k: int,
+        collection_n: int,
+    ) -> tuple[list[str], float] | None:
+        with self._lock:
+            best: _QueryCacheEntry | None = None
+            best_cos = -1.0
+            for entry in self._entries:
+                if entry.top_k != top_k or entry.collection_n != collection_n:
+                    continue
+                cos = cosine_similarity(embedding, entry.embedding)
+                if cos >= self.min_cosine and cos > best_cos:
+                    best = entry
+                    best_cos = cos
+            if best is None:
+                return None
+            self._entries.remove(best)
+            self._entries.append(best)
+            return list(best.hits), best_cos
+
+    def put(
+        self,
+        embedding: list[float],
+        hits: list[str],
+        *,
+        top_k: int,
+        collection_n: int,
+    ) -> None:
+        with self._lock:
+            self._entries.append(
+                _QueryCacheEntry(
+                    embedding=list(embedding),
+                    hits=list(hits),
+                    top_k=int(top_k),
+                    collection_n=int(collection_n),
+                )
+            )
+            overflow = len(self._entries) - self.size
+            if overflow > 0:
+                del self._entries[:overflow]
+
+    def clear(self) -> None:
+        with self._lock:
+            self._entries.clear()
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._entries)
+
+
 class KnowledgeRetriever:
     def __init__(
         self,
@@ -228,6 +299,10 @@ class KnowledgeRetriever:
         self._collection: Any | None = None
         self._encoder: LocalBgeEncoder | None = encoder
         self._client: Any | None = None
+        self._query_cache = SemanticHitCache(
+            size=int(self.config.query_cache_size),
+            min_cosine=float(self.config.query_cache_min_cosine),
+        )
 
     def _ensure_backend(self) -> None:
         if self._collection is not None and self._encoder is not None:
@@ -261,7 +336,12 @@ class KnowledgeRetriever:
         jieba.initialize()
         self._ensure_backend()
 
-    def retrieve(self, query: str, top_k: int | None = None) -> list[str]:
+    def retrieve(
+        self,
+        query: str,
+        top_k: int | None = None,
+        query_embedding: list[float] | None = None,
+    ) -> list[str]:
         if not self.enabled:
             return []
         query = (query or "").strip()
@@ -290,7 +370,25 @@ class KnowledgeRetriever:
         n_results = min(candidate_k, count)
 
         try:
-            q_emb = self._encoder.encode_queries([query])[0]
+            q_emb = (
+                query_embedding
+                if query_embedding is not None
+                else self._encoder.encode_query(query)
+            )
+            cache_on = bool(self.config.query_cache_enabled)
+            if cache_on:
+                cached = self._query_cache.get(
+                    q_emb, top_k=k, collection_n=count
+                )
+                if cached is not None:
+                    hits, cosine = cached
+                    logger.info(
+                        "knowledge retrieve cache=hit cosine=%.3f query=%r hits=%d",
+                        cosine,
+                        query,
+                        len(hits),
+                    )
+                    return hits
             result = self._collection.query(
                 query_embeddings=[q_emb],
                 n_results=n_results,
@@ -333,8 +431,9 @@ class KnowledgeRetriever:
             score_margin=float(self.config.score_margin),
             top_k=k,
         )
+        hits = [h.text for h in filtered]
         logger.info(
-            "knowledge retrieve query=%r candidates=%d hits=%d min_score=%.3f "
+            "knowledge retrieve cache=miss query=%r candidates=%d hits=%d min_score=%.3f "
             "score_margin=%.3f scores=%s",
             query,
             len(documents),
@@ -343,7 +442,9 @@ class KnowledgeRetriever:
             self.config.score_margin,
             [(round(h.similarity, 3), h.title, h.overlap) for h in filtered],
         )
-        return [h.text for h in filtered]
+        if bool(self.config.query_cache_enabled):
+            self._query_cache.put(q_emb, hits, top_k=k, collection_n=count)
+        return hits
 
     def ingest(self, *, rebuild: bool = False) -> int:
         """Load Markdown corpus into Chroma. Returns number of upserted chunks."""
@@ -370,6 +471,7 @@ class KnowledgeRetriever:
             except Exception:
                 pass
             self._collection = None
+            self._query_cache.clear()
 
         self._collection = self._client.get_or_create_collection(
             name=self.config.collection,
@@ -389,6 +491,7 @@ class KnowledgeRetriever:
             metadatas=metadatas,
             embeddings=embeddings,
         )
+        self._query_cache.clear()
         logger.info(
             "Ingested %d knowledge chunks into %s",
             len(chunks),
