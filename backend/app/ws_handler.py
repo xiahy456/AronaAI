@@ -85,10 +85,9 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
             logger.info("%s", format_interactive_log(payload))
             reset_trace()
             logger.info(
-                "WS send session=%s type=%s from_cache=%s context=%s latency=%s content=%r",
+                "WS send session=%s type=%s context=%s latency=%s content=%r",
                 session_id,
                 msg_type,
-                payload.get("from_cache"),
                 payload.get("context_used"),
                 payload.get("latency"),
                 payload.get("content", ""),
@@ -317,7 +316,6 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                         await send(
                             msg_chat_response(
                                 ASR_FALLBACK_REPLY,
-                                from_cache=False,
                                 context_used="asr_filter",
                                 latency=0.0,
                                 emotion=ASR_FALLBACK_EMOTION,

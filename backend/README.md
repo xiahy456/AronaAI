@@ -70,7 +70,7 @@ python scripts/test_proactive_unit.py      # 空闲 / 照料 / goal / 节日 / c
   → 回写阿洛娜自身行动（followed_up / gave_space / teased / greeted）
 ```
 
-Planner 只看见【关系气候】档位与【建议姿态】，禁止下发 A/B/C 浮点或「提升信任度」。缓存命中也会先分类、后回写，避免绕过关系层。
+Planner 只看见【关系气候】档位与【建议姿态】，禁止下发 A/B/C 浮点或「提升信任度」。
 
 `action` 目前实际用到的是 `speak`（开口）、`silence`（沉默）、`initiate`（欢迎 / 空闲 / 照料 / goal 回访 / 节日）与 `continue`（同轮补一句）。欢迎与节日回写 `greeted`，空闲与 goal 回写 `checked_in`，照料回写 `cared`（均不抬依赖）；同轮补充回写 `followed_up`。
 
@@ -234,7 +234,7 @@ WebSocket 连接并发送 `connected` 后，若 `proactive.welcome.enabled` 为�
 | goal 回访 | 老师安静 5 分钟后；每条 goal 冷却 6 小时；每天最多 1 次 | 扫记忆 `category=goal`，轻轻提起最久未回访的一条；不催、不盘问、不编造进展；老师说「先别提」等则 mute 上一条 7 天；休息时段 / `depart` 不回访；气候闸与空闲相同；历史 `【回访】`；直接注入该条记忆 |
 | 午饭照料 | 12:00–12:30，每天一次 | 短提醒吃饭，不催；`cling_risk` 更短；可检索作息记忆 |
 | 睡觉照料 | 23:00–23:20，每天一次 | 提醒休息；允许在休息时段触发；历史 `【提醒】` |
-| 同轮补充 | Planner `followup_ok`（按「能否扩展」） | 仅用户 chat 双模型路径、首句成功后最多再扩 1 句；本地回落 / 缓存 / 欢迎 / idle / care / goal / festival 不续说；历史 `【补充】` |
+| 同轮补充 | Planner `followup_ok`（按「能否扩展」） | 仅用户 chat 双模型路径、首句成功后最多再扩 1 句；本地回落 / 欢迎 / idle / care / goal / festival 不续说；历史 `【补充】` |
 
 调度状态落 `data/memory/proactive.json`（含 `festival_done`）。跨日清当日节日标记。节日成功才标记；失败可下次再试。关闭：`proactive.idle.enabled` / `proactive.care.enabled` / `proactive.goal.enabled` / `proactive.continue.enabled` / `proactive.festival.enabled`。
 
@@ -304,7 +304,7 @@ python scripts/ingest_knowledge.py --rebuild
 {"type":"chat","content":"你好","options":{"use_rag":true,"use_memory":true}}
 ```
 
-正常回复：`{"type":"chat_response","content":"...","emotion":"...","from_cache":false,"context_used":"...","latency":...}`。
+正常回复：`{"type":"chat_response","content":"...","emotion":"...","context_used":"...","latency":...}`。
 
 连接后若欢迎开启，服务端会再推一条 `chat_response`（`context_used` 含 `welcome`，节日当天首次则为 `festival`；凌晨/深夜节日可能再跟一条 `sleep`）。空闲搭话 / 照料 / goal 回访同样推 `chat_response`（`context_used` 含 `idle` / `lunch` / `sleep` / `goal`）。Planner 标 `followup_ok` 时，同一轮用户消息后可能再跟一条 `chat_response`（`context_used` 含 `continue`）。关系层决定沉默时**不**发 `chat_response`，前端保持安静。
 

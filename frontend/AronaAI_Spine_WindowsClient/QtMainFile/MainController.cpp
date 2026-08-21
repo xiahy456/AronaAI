@@ -396,14 +396,13 @@ void MainController::onWebSocketConnected(const QString& sessionId)
         .arg(m_ttsModelsLoaded));
 }
 
-void MainController::onWebSocketChatResponse(const QString& content, bool fromCache, const QString& contextUsed, double latency, const QString& emotion)
+void MainController::onWebSocketChatResponse(const QString& content, const QString& contextUsed, double latency, const QString& emotion)
 {
     FINE_DEBUG_OUTPUT(QString("[Latency] Backend RTT: %1 ms (server_reported: %2s)")
         .arg(m_backendTimer.elapsed())
         .arg(latency, 0, 'f', 2));
     FINE_DEBUG_OUTPUT("[WebSocket] Received AI response: " + content.left(50) + "...");
-    FINE_DEBUG_OUTPUT(QString("[WebSocket] Cache: %1, Context: %2, Latency: %3s, Emotion: %4")
-        .arg(fromCache ? "yes" : "no")
+    FINE_DEBUG_OUTPUT(QString("[WebSocket] Context: %1, Latency: %2s, Emotion: %3")
         .arg(contextUsed)
         .arg(latency)
         .arg(emotion));

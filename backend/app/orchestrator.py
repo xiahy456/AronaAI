@@ -272,7 +272,6 @@ class Orchestrator:
         await send(
             msg_chat_response(
                 full,
-                from_cache=False,
                 context_used=context_used,
                 latency=round(latency, 4),
                 emotion=emotion,
@@ -514,7 +513,6 @@ class Orchestrator:
         await send(
             msg_chat_response(
                 full,
-                from_cache=False,
                 context_used=context_used,
                 latency=round(latency, 4),
                 emotion=emotion,

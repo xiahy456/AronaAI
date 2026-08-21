@@ -128,7 +128,7 @@ signals:
 
     // 收到聊天响应信号（contextUsed 为后端经过的模块标识，如 "none"/"memory+rag"）
     // emotion 为英文表情值（如 smile），由客户端映射到 Spine 动画值
-    void chatResponseReceived(const QString& content, bool fromCache,
+    void chatResponseReceived(const QString& content,
         const QString& contextUsed, double latency, const QString& emotion);
 
     // 收到错误信号

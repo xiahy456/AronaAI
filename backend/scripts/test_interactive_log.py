@@ -64,7 +64,6 @@ def test_format_interactive_log_block() -> None:
     payload = {
         "type": "chat_response",
         "content": "嗯，我在这儿等您回来哦。",
-        "from_cache": False,
         "context_used": "climate+planner+renderer",
         "latency": 2.1,
         "emotion": "smile",

@@ -76,7 +76,7 @@ private slots:
 	void onRecognizeFinished(const QString& text);
 	// WebSocket 相关槽函数
 	void onWebSocketConnected(const QString& sessionId);
-	void onWebSocketChatResponse(const QString& content, bool fromCache, const QString& contextUsed, double latency, const QString& emotion);
+	void onWebSocketChatResponse(const QString& content, const QString& contextUsed, double latency, const QString& emotion);
 	void onWebSocketError(WebSocketController::ErrorCode code, const QString& message);
 	void onWebSocketStateChanged(WebSocketController::ConnectionState state);
 
