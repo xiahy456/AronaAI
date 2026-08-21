@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .classify import classify_user_act
-from .events import AronaAct, UserAct, arona_delta, user_delta
+from .events import AronaAct, UserAct, arona_delta, normalize_user_act, user_delta
 from .policy import Action, Climate, Decision, decide, decide_proactive, map_arona_act
 from .state import RelationshipState
 from .store import RelationshipStore
@@ -102,6 +102,14 @@ class RelationshipEngine:
             self.state.tension,
         )
         return act, decision
+
+    def note_planner_user_act(self, act: str) -> UserAct:
+        """Overwrite last_user_act from Planner; do not re-apply user Δ."""
+        normalized = normalize_user_act(act)
+        self.state.last_user_act = normalized
+        self.store.save(self.state)
+        logger.info("relationship planner_user_act=%s", normalized)
+        return normalized
 
     def peek_climate(self) -> str:
         from .policy import resolve_climate

@@ -223,6 +223,16 @@ class Orchestrator:
                 self.stats["planner_hits"] += 1
                 emotion = intent.arona_emotion
                 self._merge_decision_into_intent(intent, decision)
+                self._note_planner_user_act(intent.user_act)
+                if not intent.reply_ok:
+                    reset_trace()
+                    await self._skip_generation(
+                        session_id=session_id,
+                        user_text=user_text,
+                        decision=decision,
+                        reason="reply_ok_false",
+                    )
+                    return
 
         if intent is not None:
             messages = build_renderer_messages(
@@ -431,6 +441,21 @@ class Orchestrator:
                 intent is not None,
                 time.perf_counter() - t0,
             )
+            if intent is not None and not intent.reply_ok:
+                if not intent.to_renderer_draft():
+                    logger.info(
+                        "initiate reply_ok=false empty draft treated as miss "
+                        "session=%s kind=%s",
+                        session_id,
+                        kind,
+                    )
+                    intent = None
+                else:
+                    logger.info(
+                        "initiate ignoring reply_ok=false session=%s kind=%s",
+                        session_id,
+                        kind,
+                    )
             if intent is None:
                 self.stats["planner_fallbacks"] += 1
                 logger.info(
@@ -548,6 +573,11 @@ class Orchestrator:
         _act, decision = self.relationship.on_user_text(user_text)
         return decision
 
+    def _note_planner_user_act(self, act: str) -> None:
+        if self.relationship is None or not self.config.proactive.relationship.enabled:
+            return
+        self.relationship.note_planner_user_act(act)
+
     def _note_arona_relationship(
         self, decision: Decision | None, action: str
     ) -> None:
@@ -634,18 +664,24 @@ class Orchestrator:
         *,
         session_id: str,
         user_text: str,
-        decision: Decision,
+        decision: Decision | None,
+        reason: str | None = None,
     ) -> None:
-        key = "silence_count" if decision.action == "silence" else "refuse_count"
+        action = "silence" if reason == "reply_ok_false" else (
+            decision.action if decision is not None else "silence"
+        )
+        key = "silence_count" if action == "silence" else "refuse_count"
         self.stats[key] = int(self.stats.get(key, 0)) + 1
         self.conversations.append(session_id, "user", user_text)
-        self._note_arona_relationship(decision, decision.action)
+        if decision is not None:
+            self._note_arona_relationship(decision, action)
         logger.info(
-            "chat skipped session=%s action=%s climate=%s user_act=%s request=%r",
+            "chat skipped session=%s action=%s climate=%s user_act=%s reason=%s request=%r",
             session_id,
-            decision.action,
-            decision.climate,
-            decision.user_act,
+            action,
+            decision.climate if decision is not None else None,
+            decision.user_act if decision is not None else None,
+            reason or action,
             user_text,
         )
 

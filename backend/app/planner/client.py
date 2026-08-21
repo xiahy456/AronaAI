@@ -79,10 +79,11 @@ class PlannerClient:
                 logger.warning("planner parse/gate failed raw=%s", content)
                 return None
             logger.info(
-                "planner ok emotion=%s topic=%r stance=%r",
+                "planner ok emotion=%s reply_ok=%s user_act=%s followup_ok=%s",
                 card.arona_emotion,
-                card.topic,
-                card.stance,
+                card.reply_ok,
+                card.user_act,
+                card.followup_ok,
             )
             return card
         except Exception as exc:

@@ -29,6 +29,8 @@ AronaAct = Literal[
     "missed_promise",
 ]
 
+DEFAULT_USER_ACT: UserAct = "other"
+
 # (trust, dependence, tension)
 USER_DELTAS: dict[UserAct, tuple[float, float, float]] = {
     "fatigue": (0.0, 0.08, -0.05),
@@ -54,6 +56,20 @@ ARONA_DELTAS: dict[AronaAct, tuple[float, float, float]] = {
     "cared": (0.02, 0.0, 0.0),
     "missed_promise": (-0.12, 0.0, 0.06),
 }
+
+
+USER_ACT_WHITELIST: frozenset[str] = frozenset(USER_DELTAS)
+USER_ACT_WHITELIST_CSV = ", ".join(sorted(USER_ACT_WHITELIST))
+
+
+def normalize_user_act(value: object | None) -> UserAct:
+    """Return a whitelist user_act; unknown/missing -> other."""
+    if not isinstance(value, str):
+        return DEFAULT_USER_ACT
+    key = value.strip().lower()
+    if key in USER_DELTAS:
+        return key  # type: ignore[return-value]
+    return DEFAULT_USER_ACT
 
 
 def user_delta(act: UserAct) -> tuple[float, float, float]:

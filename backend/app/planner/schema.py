@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from ..relationship.events import DEFAULT_USER_ACT, normalize_user_act
 from .emotions import DEFAULT_EMOTION, normalize_emotion
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ def _as_str_list(value: object | None) -> list[str]:
 
 @dataclass
 class IntentCard:
-    """V2.4 intent: draft + emotion + followup_ok.
+    """V2.4 intent: draft + emotion + followup_ok + reply_ok + user_act.
 
     Legacy card fields may still appear in raw JSON; they are parsed then ignored
     for rendering (to_renderer only exposes draft).
@@ -51,6 +52,8 @@ class IntentCard:
     draft: str = ""
     arona_emotion: str = DEFAULT_EMOTION
     followup_ok: bool = False
+    reply_ok: bool = True
+    user_act: str = DEFAULT_USER_ACT
     # Legacy (ignored by Renderer; kept so old payloads / tests don't explode)
     user_emotion: str = ""
     topic: str = ""
@@ -64,11 +67,19 @@ class IntentCard:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> IntentCard:
         draft = _as_str(data.get("draft"))
-        # Soft migrate: if only old card fields exist, leave draft empty (gate fails).
+        reply_ok = _as_bool(data.get("reply_ok"), True)
+        followup_ok = _as_bool(data.get("followup_ok"), False)
+        if not reply_ok:
+            followup_ok = False
+            emotion = DEFAULT_EMOTION
+        else:
+            emotion = normalize_emotion(data.get("arona_emotion"))
         return cls(
             draft=draft,
-            arona_emotion=normalize_emotion(data.get("arona_emotion")),
-            followup_ok=_as_bool(data.get("followup_ok"), False),
+            arona_emotion=emotion,
+            followup_ok=followup_ok,
+            reply_ok=reply_ok,
+            user_act=normalize_user_act(data.get("user_act")),
             user_emotion=_as_str(data.get("user_emotion")),
             topic=_as_str(data.get("topic")),
             stance=_as_str(data.get("stance")),
@@ -114,7 +125,7 @@ def parse_and_gate_intent(raw_text: str) -> IntentCard | None:
     if data is None:
         return None
     card = IntentCard.from_dict(data)
-    if not card.draft.strip():
+    if card.reply_ok and not card.draft.strip():
         logger.info("planner gate failed: empty draft")
         return None
     return card

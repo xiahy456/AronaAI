@@ -12,6 +12,7 @@ from app.planner import EMOTION_WHITELIST, normalize_emotion, parse_and_gate_int
 from app.planner.prompts import PLANNER_SYSTEM, build_planner_user_message
 from app.prompt import build_renderer_messages, clip_inject_chunks
 from app.protocol import msg_chat_response
+from app.relationship.events import USER_ACT_WHITELIST, USER_ACT_WHITELIST_CSV, USER_DELTAS
 
 
 def main() -> None:
@@ -36,9 +37,13 @@ def main() -> None:
     assert card.draft.startswith("考试")
     assert card.arona_emotion == "smile"
     assert card.followup_ok is False
+    assert card.reply_ok is True
+    assert card.user_act == "other"
     assert card.to_renderer_dict() == {"draft": card.draft}
     assert "arona_emotion" not in card.to_renderer_dict()
     assert "followup_ok" not in card.to_renderer_dict()
+    assert "reply_ok" not in card.to_renderer_dict()
+    assert "user_act" not in card.to_renderer_dict()
 
     cfg = load_config()
     hist = [
@@ -67,6 +72,29 @@ def main() -> None:
         '"arona_emotion":"smile","followup_ok":true}'
     )
     assert follow is not None and follow.followup_ok is True
+    assert follow.reply_ok is True
+
+    silent = parse_and_gate_intent(
+        '{"draft":"","arona_emotion":"smile","followup_ok":true,'
+        '"reply_ok":false,"user_act":"depart"}'
+    )
+    assert silent is not None
+    assert silent.reply_ok is False
+    assert silent.draft == ""
+    assert silent.user_act == "depart"
+    assert silent.followup_ok is False
+    assert silent.arona_emotion == "normal"
+
+    assert parse_and_gate_intent(
+        '{"draft":"","arona_emotion":"normal","followup_ok":false,"reply_ok":true}'
+    ) is None
+
+    bad_act = parse_and_gate_intent(
+        '{"draft":"好的老师。","arona_emotion":"smile","followup_ok":false,'
+        '"reply_ok":true,"user_act":"not_a_real_act"}'
+    )
+    assert bad_act is not None
+    assert bad_act.user_act == "other"
 
     m = msg_chat_response("ok", emotion="shy")
     assert m["emotion"] == "shy"
@@ -77,6 +105,12 @@ def main() -> None:
     assert "规划参谋" in PLANNER_SYSTEM
     assert '"draft"' in PLANNER_SYSTEM or "draft：" in PLANNER_SYSTEM
     assert "想聊什么" in PLANNER_SYSTEM
+    assert "reply_ok" in PLANNER_SYSTEM
+    assert "user_act" in PLANNER_SYSTEM
+    assert set(USER_ACT_WHITELIST) == set(USER_DELTAS)
+    for act in USER_ACT_WHITELIST:
+        assert act in PLANNER_SYSTEM
+    assert USER_ACT_WHITELIST_CSV
     user_msg = build_planner_user_message(
         user_text="谢谢你，阿洛娜。",
         history=[],
@@ -86,6 +120,7 @@ def main() -> None:
     assert "【老师本轮消息】" in user_msg
     assert "【阿洛娜主要人设】" not in user_msg
     assert "must_say" not in user_msg
+    assert "先判断 reply_ok" in user_msg
 
     long_a = "设定甲" * 10
     long_b = "设定乙" * 10
