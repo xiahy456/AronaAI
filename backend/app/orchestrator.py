@@ -157,6 +157,7 @@ class Orchestrator:
                 user_text,
                 self.config.memory.retrieve_top_k,
                 query_embedding,
+                apply_inject_cooldown=True,
             )
             logger.info(
                 "memory retrieve session=%s hits=%d latency=%.3fs items=%s",
@@ -404,6 +405,7 @@ class Orchestrator:
                 self.memory_store.retrieve,
                 memory_query,
                 self.config.memory.retrieve_top_k,
+                apply_inject_cooldown=True,
             )
             logger.info(
                 "initiate memory retrieve session=%s kind=%s hits=%d latency=%.3fs",

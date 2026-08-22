@@ -73,6 +73,7 @@ class MemoryConfig(BaseModel):
     candidate_top_k: int = 10
     min_score: float = 0.35
     max_inject_chars: int = 400
+    inject_cooldown_sec: float = 3600
     extract_context_top_k: int = 8
     reconcile_enabled: bool = True
     reconcile_min_score: float = 0.82

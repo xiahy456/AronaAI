@@ -172,7 +172,8 @@ class MemoryStore:
                     content TEXT NOT NULL,
                     category TEXT,
                     updated_at REAL NOT NULL,
-                    source TEXT
+                    source TEXT,
+                    last_injected_at REAL
                 )
                 """
             )
@@ -182,6 +183,14 @@ class MemoryStore:
                 USING fts5(key, content, tokenize='unicode61')
                 """
             )
+            cols = {
+                str(row[1])
+                for row in conn.execute("PRAGMA table_info(memories)").fetchall()
+            }
+            if "last_injected_at" not in cols:
+                conn.execute(
+                    "ALTER TABLE memories ADD COLUMN last_injected_at REAL"
+                )
             conn.commit()
 
     def _ensure_encoder(self) -> LocalBgeEncoder:
@@ -308,6 +317,74 @@ class MemoryStore:
             collection.delete(ids=[key])
         except Exception:
             logger.exception("Memory Chroma delete failed key=%s", key)
+
+    def mark_injected(
+        self,
+        keys: list[str],
+        now: float | None = None,
+    ) -> None:
+        cleaned = [str(k).strip() for k in keys if str(k or "").strip()]
+        if not cleaned:
+            return
+        ts = time.time() if now is None else float(now)
+        placeholders = ",".join("?" for _ in cleaned)
+        with self._connect() as conn:
+            conn.execute(
+                f"UPDATE memories SET last_injected_at = ? WHERE key IN ({placeholders})",
+                [ts, *cleaned],
+            )
+            conn.commit()
+        logger.info("memory inject marked keys=%s ts=%.3f", cleaned, ts)
+
+    def _cooled_keys(
+        self,
+        keys: list[str],
+        now: float,
+        cooldown_sec: float,
+    ) -> set[str]:
+        cleaned = [str(k).strip() for k in keys if str(k or "").strip()]
+        if not cleaned or cooldown_sec <= 0:
+            return set()
+        cutoff = float(now) - float(cooldown_sec)
+        placeholders = ",".join("?" for _ in cleaned)
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT key FROM memories
+                WHERE key IN ({placeholders})
+                  AND last_injected_at IS NOT NULL
+                  AND last_injected_at > ?
+                """,
+                [*cleaned, cutoff],
+            ).fetchall()
+        return {str(row["key"]) for row in rows}
+
+    def _drop_cooled_entries(
+        self,
+        passed: list[tuple[str, str, float]],
+        *,
+        apply_inject_cooldown: bool,
+    ) -> list[tuple[str, str, float]]:
+        if not apply_inject_cooldown or not passed:
+            return passed
+        cooldown = float(self.config.inject_cooldown_sec)
+        if cooldown <= 0:
+            return passed
+        cooled = self._cooled_keys(
+            [key for key, _, _ in passed],
+            time.time(),
+            cooldown,
+        )
+        if not cooled:
+            return passed
+        remaining = [(k, c, s) for k, c, s in passed if k not in cooled]
+        logger.info(
+            "memory retrieve cooldown skipped keys=%s remaining=%d cooldown_sec=%.0f",
+            sorted(cooled),
+            len(remaining),
+            cooldown,
+        )
+        return remaining
 
     @staticmethod
     def _fts_quote(token: str) -> str:
@@ -446,6 +523,8 @@ class MemoryStore:
         query: str,
         top_k: int = 3,
         query_embedding: list[float] | None = None,
+        *,
+        apply_inject_cooldown: bool = False,
     ) -> list[dict[str, Any]]:
         """Hybrid retrieve returning key/content/category/score dicts."""
         query = (query or "").strip()
@@ -496,7 +575,11 @@ class MemoryStore:
             (key, content, score)
             for key, (content, score) in ranked
             if score >= min_score and content
-        ][:top_k]
+        ]
+        passed = self._drop_cooled_entries(
+            passed,
+            apply_inject_cooldown=apply_inject_cooldown,
+        )[:top_k]
 
         categories = self._categories_for_keys([key for key, _, _ in passed])
         entries = [
@@ -528,13 +611,19 @@ class MemoryStore:
         query: str,
         top_k: int = 3,
         query_embedding: list[float] | None = None,
+        *,
+        apply_inject_cooldown: bool = False,
     ) -> list[str]:
-        return [
-            e["content"]
-            for e in self.retrieve_entries(
-                query, top_k, query_embedding=query_embedding
-            )
-        ]
+        entries = self.retrieve_entries(
+            query,
+            top_k,
+            query_embedding=query_embedding,
+            apply_inject_cooldown=apply_inject_cooldown,
+        )
+        cooldown = float(self.config.inject_cooldown_sec)
+        if apply_inject_cooldown and cooldown > 0 and entries:
+            self.mark_injected([e["key"] for e in entries])
+        return [e["content"] for e in entries]
 
     def find_exact_content(self, content: str) -> list[dict[str, Any]]:
         """Return rows whose stored content equals strip(content) or compare-normalized form."""

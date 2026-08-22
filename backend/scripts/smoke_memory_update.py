@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -267,11 +268,97 @@ def test_semantic_and_exact_dedup() -> None:
         store._client = None
 
 
+def _sql_insert(store: MemoryStore, key: str, content: str) -> None:
+    with store._connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO memories(key, content, category, updated_at, source)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (key, content, "preference", time.time(), "test"),
+        )
+        conn.commit()
+
+
+def _last_injected_at(store: MemoryStore, key: str) -> float | None:
+    row = (
+        store._connect()
+        .execute("SELECT last_injected_at FROM memories WHERE key = ?", (key,))
+        .fetchone()
+    )
+    if row is None or row["last_injected_at"] is None:
+        return None
+    return float(row["last_injected_at"])
+
+
+def test_inject_cooldown() -> None:
+    print("== inject cooldown ==")
+    cfg = load_config()
+    store, _tmp = _make_store(cfg)
+    try:
+        _sql_insert(store, "pref_spicy", "老师喜欢吃辛辣食物但难以控制")
+        _sql_insert(store, "pref_pizza", "老师喜欢吃披萨")
+        now = time.time()
+        store.mark_injected(["pref_spicy"], now=now)
+
+        cooled = store._cooled_keys(
+            ["pref_spicy", "pref_pizza"], now, cooldown_sec=3600
+        )
+        if cooled != {"pref_spicy"}:
+            _fail(f"expected pref_spicy cooled within 1h, got {cooled}")
+
+        expired = store._cooled_keys(
+            ["pref_spicy", "pref_pizza"], now + 3600, cooldown_sec=3600
+        )
+        if expired:
+            _fail(f"expected cooldown expired after 1h, got {expired}")
+
+        before = _last_injected_at(store, "pref_spicy")
+        store.upsert(
+            "pref_spicy",
+            "老师喜欢吃辛辣食物但难以控制",
+            category="preference",
+            source="test",
+        )
+        after = _last_injected_at(store, "pref_spicy")
+        if before is None or after is None or after != before:
+            _fail(
+                f"upsert must keep last_injected_at, before={before} after={after}"
+            )
+
+        passed = [
+            ("pref_spicy", "老师喜欢吃辛辣食物但难以控制", 0.9),
+            ("pref_pizza", "老师喜欢吃披萨", 0.8),
+        ]
+        dropped = store._drop_cooled_entries(
+            passed, apply_inject_cooldown=True
+        )
+        if [key for key, _, _ in dropped] != ["pref_pizza"]:
+            _fail(f"expected cooled key dropped and pizza kept, got {dropped}")
+
+        kept = store._drop_cooled_entries(passed, apply_inject_cooldown=False)
+        if [key for key, _, _ in kept] != ["pref_spicy", "pref_pizza"]:
+            _fail(f"extractor path must not drop cooled keys, got {kept}")
+
+        store.config = store.config.model_copy(update={"inject_cooldown_sec": 0})
+        zeroed = store._drop_cooled_entries(
+            passed, apply_inject_cooldown=True
+        )
+        if [key for key, _, _ in zeroed] != ["pref_spicy", "pref_pizza"]:
+            _fail(f"inject_cooldown_sec=0 must not filter, got {zeroed}")
+
+        print("  inject cooldown ok")
+    finally:
+        store._collection = None
+        store._client = None
+
+
 def main() -> None:
     test_normalize_and_regex()
     test_format_context()
     test_reconcile_color_and_goal_delete()
     test_semantic_and_exact_dedup()
+    test_inject_cooldown()
     print("ALL SMOKE CHECKS PASSED")
 
 

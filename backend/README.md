@@ -112,7 +112,7 @@ Planner 只看见【关系气候】档位与【建议姿态】，禁止下发 A/
 
 `FIXED_MUST_NOT` 仍在 `prompts.py`，V2.4 **不再注入**。
 
-`build_planner_user_message()` 按顺序拼：可选 `climate_block` → `【长期记忆】` → `【相关知识】` → `【近期对话】` → `【老师本轮消息】` → 收尾「若有【关系气候】，按建议姿态写草稿」。
+`build_planner_user_message()` 按顺序拼：可选 `climate_block` → `【长期记忆】` → `【相关知识】` → `【近期对话】` → `【老师本轮消息】` → 收尾「若有【关系气候】，按建议姿态写草稿」。写入 Planner 的记忆按 key 冷却，默认 1 小时内不重复注入（`memory.inject_cooldown_sec`）；抽取侧检索不受影响。
 
 **`【老师本轮消息】` 按来源分套：**
 
@@ -267,7 +267,7 @@ python scripts/ingest_knowledge.py --rebuild
 4. 冒烟检索：`python scripts/test_knowledge_rag.py`
 5. 在 `config.yaml` 设 `knowledge.enabled: true` 后重启后端
 
-对话主路径里记忆与知识检索共用同一轮 BGE query 向量。知识命中（过滤后的 lore 文本）可按 query 向量近义复用，默认 `query_cache_min_cosine: 0.92`；`ingest` / `--rebuild` 会清空该缓存。不缓存 Planner 草稿或最终台词。
+对话主路径里记忆与知识检索共用同一轮 BGE query 向量。写入 Planner 的记忆命中按 key 冷却，默认 `memory.inject_cooldown_sec: 3600` 内不重复注入，空缺由下一名候选补上；抽取器看已有记忆时不走该冷却。知识命中（过滤后的 lore 文本）可按 query 向量近义复用，默认 `query_cache_min_cosine: 0.92`；`ingest` / `--rebuild` 会清空该缓存。不缓存 Planner 草稿或最终台词。
 
 ## 配置
 
@@ -279,7 +279,7 @@ python scripts/ingest_knowledge.py --rebuild
 | `model` | GGUF 路径（默认 Renderer v2.4）、上下文长度、采样参数、本地回落用 system prompt |
 | `conversation` | 多轮历史保留轮数 |
 | `knowledge` | 世界观 RAG（语料目录、Chroma、嵌入模型、检索阈值、近义 query 缓存） |
-| `memory` | SQLite + Chroma 路径、混合检索、DeepSeek 抽取器（`every_n_turns` / `extract_buffer_turns`）与正则降级 |
+| `memory` | SQLite + Chroma 路径、混合检索、注入冷却（`inject_cooldown_sec`）、DeepSeek 抽取器（`every_n_turns` / `extract_buffer_turns`）与正则降级 |
 | `planner` | 默认开启的双模型 Planner（DeepSeek 意图卡；无 Key / `enabled: false` 则回落本地） |
 | `proactive` | 上线欢迎；关系气候；空闲搭话；照料窗口；goal 回访；节日问候；同轮 `continue` |
 | `token_budget` | memory / knowledge / history 注入预算 |

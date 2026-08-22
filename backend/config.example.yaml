@@ -48,6 +48,7 @@ memory:
   candidate_top_k: 10
   min_score: 0.35
   max_inject_chars: 400
+  inject_cooldown_sec: 3600
   extract_context_top_k: 8
   reconcile_enabled: true
   reconcile_min_score: 0.82
