@@ -18,6 +18,20 @@ logger = logging.getLogger(__name__)
 
 _HEADING_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 _PUNCT_RE = re.compile(r"^[\W_]+$", re.UNICODE)
+_CLAUSE_RE = re.compile(r"[，。；;？?！!\n]+")
+
+# Token groups used only to count lexical overlap (not an intent gate).
+_ALIAS_GROUPS: tuple[frozenset[str], ...] = (
+    frozenset({"衣服", "穿", "服装", "上衣", "裙子", "发带", "伞"}),
+    frozenset({"职责", "负责", "工作"}),
+    frozenset({"谁", "身份"}),
+)
+_PHRASE_ALIASES: tuple[tuple[str, frozenset[str]], ...] = (
+    ("做什么", frozenset({"职责", "负责", "工作"})),
+    ("干什么", frozenset({"职责", "负责", "工作"})),
+    ("是谁", frozenset({"身份", "谁"})),
+    ("穿什么", frozenset({"服装", "衣服", "穿"})),
+)
 
 # Function words plus default persona names that collapse all lore chunks.
 _LEXICAL_STOPWORDS = frozenset(
@@ -181,6 +195,36 @@ def _lexical_tokens(text: str) -> set[str]:
     return tokens
 
 
+def _expand_overlap_tokens(text: str) -> set[str]:
+    tokens = _lexical_tokens(text)
+    expanded = set(tokens)
+    for group in _ALIAS_GROUPS:
+        if expanded & group:
+            expanded |= group
+    blob = text or ""
+    for phrase, extras in _PHRASE_ALIASES:
+        if phrase in blob:
+            expanded |= extras
+    return expanded
+
+
+def lexical_overlap(query: str, chunk_text: str) -> int:
+    """Count alias-aware token overlap between a query and a chunk."""
+    return len(_expand_overlap_tokens(query) & _expand_overlap_tokens(chunk_text))
+
+
+def split_retrieve_clauses(query: str) -> list[str]:
+    """Split on clause punctuation; drop pieces with no lexical tokens."""
+    text = (query or "").strip()
+    if not text:
+        return []
+    parts = [p.strip() for p in _CLAUSE_RE.split(text) if p.strip()]
+    if len(parts) <= 1:
+        return [text]
+    kept = [p for p in parts if _lexical_tokens(p)]
+    return kept if kept else [text]
+
+
 @dataclass
 class ScoredKnowledgeHit:
     similarity: float
@@ -195,9 +239,18 @@ def filter_knowledge_hits(
     min_score: float,
     score_margin: float,
     top_k: int,
+    min_score_no_overlap: float = 0.62,
 ) -> list[ScoredKnowledgeHit]:
-    """Drop weak neighbors: absolute score, gap to best hit, then lexical extras."""
-    passed = [h for h in hits if h.similarity >= min_score]
+    """Keep precise neighbors: score floors, gap to best hit, then lexical extras."""
+    passed: list[ScoredKnowledgeHit] = []
+    no_ov_floor = float(min_score_no_overlap)
+    abs_floor = float(min_score)
+    for hit in hits:
+        if hit.overlap <= 0:
+            if hit.similarity >= no_ov_floor:
+                passed.append(hit)
+        elif hit.similarity >= abs_floor:
+            passed.append(hit)
     if not passed:
         return []
     passed.sort(key=lambda h: (-h.similarity, -h.overlap, h.title))
@@ -336,6 +389,77 @@ class KnowledgeRetriever:
         jieba.initialize()
         self._ensure_backend()
 
+    def _chroma_query(
+        self,
+        embedding: list[float],
+        n_results: int,
+    ) -> dict[str, Any]:
+        assert self._collection is not None
+        return self._collection.query(
+            query_embeddings=[embedding],
+            n_results=n_results,
+            include=["documents", "metadatas", "distances"],
+        )
+
+    @staticmethod
+    def _hits_from_chroma(
+        result: dict[str, Any],
+        query_for_overlap: str,
+    ) -> list[ScoredKnowledgeHit]:
+        documents = (result.get("documents") or [[]])[0]
+        distances = (result.get("distances") or [[]])[0]
+        metadatas = (result.get("metadatas") or [[]])[0]
+        raw_hits: list[ScoredKnowledgeHit] = []
+        for doc, dist, meta in zip(documents, distances, metadatas):
+            similarity = 1.0 - float(dist)
+            meta_dict = meta if isinstance(meta, dict) else {}
+            title = str(meta_dict.get("title") or "").strip()
+            display_body = str(meta_dict.get("body") or "").strip()
+            if display_body:
+                text = f"{title}：{display_body}" if title else display_body
+            else:
+                text = (doc or "").strip()
+            if not text:
+                continue
+            overlap = lexical_overlap(query_for_overlap, f"{title}\n{display_body or text}")
+            raw_hits.append(
+                ScoredKnowledgeHit(
+                    similarity=similarity,
+                    title=title or text[:40],
+                    text=text,
+                    overlap=overlap,
+                )
+            )
+        return raw_hits
+
+    @staticmethod
+    def _merge_hits_by_title(
+        groups: list[list[ScoredKnowledgeHit]],
+        query_for_overlap: str,
+    ) -> list[ScoredKnowledgeHit]:
+        merged: dict[str, ScoredKnowledgeHit] = {}
+        for group in groups:
+            for hit in group:
+                prev = merged.get(hit.title)
+                if prev is None or hit.similarity > prev.similarity:
+                    merged[hit.title] = hit
+        out: list[ScoredKnowledgeHit] = []
+        for hit in merged.values():
+            overlap = lexical_overlap(
+                query_for_overlap,
+                f"{hit.title}\n{hit.text}",
+            )
+            out.append(
+                ScoredKnowledgeHit(
+                    similarity=hit.similarity,
+                    title=hit.title,
+                    text=hit.text,
+                    overlap=overlap,
+                )
+            )
+        out.sort(key=lambda h: (-h.similarity, -h.overlap, h.title))
+        return out
+
     def retrieve(
         self,
         query: str,
@@ -389,56 +513,87 @@ class KnowledgeRetriever:
                         len(hits),
                     )
                     return hits
-            result = self._collection.query(
-                query_embeddings=[q_emb],
-                n_results=n_results,
-                include=["documents", "metadatas", "distances"],
-            )
+
+            clauses = split_retrieve_clauses(query)
+            clause_n = len(clauses)
+            if len(clauses) <= 1:
+                result = self._chroma_query(q_emb, n_results)
+                raw_hits = self._hits_from_chroma(result, query)
+                candidate_n = len((result.get("documents") or [[]])[0])
+            else:
+                clause_embs = self._encoder.encode_queries(clauses)
+                groups: list[list[ScoredKnowledgeHit]] = []
+                candidate_n = 0
+                abs_floor = float(self.config.min_score)
+                no_ov_floor = float(self.config.min_score_no_overlap)
+                margin = float(self.config.score_margin)
+                for clause, emb in zip(clauses, clause_embs):
+                    result = self._chroma_query(emb, n_results)
+                    candidate_n += len((result.get("documents") or [[]])[0])
+                    clause_raw = self._hits_from_chroma(result, clause)
+                    clause_kept = filter_knowledge_hits(
+                        clause_raw,
+                        min_score=abs_floor,
+                        score_margin=margin,
+                        top_k=k,
+                        min_score_no_overlap=no_ov_floor,
+                    )
+                    if not clause_kept:
+                        ranked = sorted(
+                            clause_raw,
+                            key=lambda h: (-h.similarity, -h.overlap, h.title),
+                        )
+                        for hit in ranked:
+                            if hit.overlap > 0 and hit.similarity >= abs_floor - 0.05:
+                                clause_kept = [hit]
+                                break
+                    if clause_kept:
+                        groups.append(clause_kept)
+                raw_hits = self._merge_hits_by_title(groups, query) if groups else []
+                filtered = filter_knowledge_hits(
+                    raw_hits,
+                    min_score=0.0,
+                    score_margin=1.0,
+                    top_k=k,
+                    min_score_no_overlap=no_ov_floor,
+                )
+                hits = [h.text for h in filtered]
+                logger.info(
+                    "knowledge retrieve cache=miss query=%r clauses=%d candidates=%d hits=%d "
+                    "min_score=%.3f min_score_no_overlap=%.3f score_margin=%.3f scores=%s",
+                    query,
+                    clause_n,
+                    candidate_n,
+                    len(filtered),
+                    self.config.min_score,
+                    self.config.min_score_no_overlap,
+                    self.config.score_margin,
+                    [(round(h.similarity, 3), h.title, h.overlap) for h in filtered],
+                )
+                if bool(self.config.query_cache_enabled):
+                    self._query_cache.put(q_emb, hits, top_k=k, collection_n=count)
+                return hits
         except Exception:
             logger.exception("Knowledge retrieve failed for query=%r", query)
             return []
-
-        documents = (result.get("documents") or [[]])[0]
-        distances = (result.get("distances") or [[]])[0]
-        metadatas = (result.get("metadatas") or [[]])[0]
-        query_tokens = _lexical_tokens(query)
-
-        raw_hits: list[ScoredKnowledgeHit] = []
-        for doc, dist, meta in zip(documents, distances, metadatas):
-            similarity = 1.0 - float(dist)
-            meta_dict = meta if isinstance(meta, dict) else {}
-            title = str(meta_dict.get("title") or "").strip()
-            display_body = str(meta_dict.get("body") or "").strip()
-            if display_body:
-                text = f"{title}：{display_body}" if title else display_body
-            else:
-                text = (doc or "").strip()
-            if not text:
-                continue
-            overlap = len(query_tokens & _lexical_tokens(f"{title}\n{display_body or text}"))
-            raw_hits.append(
-                ScoredKnowledgeHit(
-                    similarity=similarity,
-                    title=title or text[:40],
-                    text=text,
-                    overlap=overlap,
-                )
-            )
 
         filtered = filter_knowledge_hits(
             raw_hits,
             min_score=float(self.config.min_score),
             score_margin=float(self.config.score_margin),
             top_k=k,
+            min_score_no_overlap=float(self.config.min_score_no_overlap),
         )
         hits = [h.text for h in filtered]
         logger.info(
-            "knowledge retrieve cache=miss query=%r candidates=%d hits=%d min_score=%.3f "
-            "score_margin=%.3f scores=%s",
+            "knowledge retrieve cache=miss query=%r clauses=%d candidates=%d hits=%d "
+            "min_score=%.3f min_score_no_overlap=%.3f score_margin=%.3f scores=%s",
             query,
-            len(documents),
+            clause_n,
+            candidate_n,
             len(filtered),
             self.config.min_score,
+            self.config.min_score_no_overlap,
             self.config.score_margin,
             [(round(h.similarity, 3), h.title, h.overlap) for h in filtered],
         )

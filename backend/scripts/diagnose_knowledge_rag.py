@@ -38,10 +38,13 @@ from app.knowledge import (  # noqa: E402
     _lexical_tokens,
     filter_knowledge_hits,
     ingest_corpus,
+    lexical_overlap,
+    split_retrieve_clauses,
 )
 from eval_knowledge_rag import CASES, _evaluate_case, _known_titles  # noqa: E402
 
 DROP_MIN = "min_score"
+DROP_NO_OV = "min_score_no_overlap"
 DROP_MARGIN = "score_margin"
 DROP_LEX = "lexical_zero_overlap"
 DROP_TOPK = "top_k_cut"
@@ -54,12 +57,21 @@ def _stage_drop_reasons(
     min_score: float,
     score_margin: float,
     top_k: int,
+    min_score_no_overlap: float,
 ) -> dict[str, str]:
     """Map title -> first stage that dropped it (or kept)."""
     reasons: dict[str, str] = {h.title: DROP_MIN for h in raw}
-    passed = [h for h in raw if h.similarity >= min_score]
-    for hit in passed:
-        reasons[hit.title] = DROP_MARGIN
+    passed: list[ScoredKnowledgeHit] = []
+    for hit in raw:
+        if hit.overlap <= 0:
+            if hit.similarity >= min_score_no_overlap:
+                passed.append(hit)
+                reasons[hit.title] = DROP_MARGIN
+            else:
+                reasons[hit.title] = DROP_NO_OV
+        elif hit.similarity >= min_score:
+            passed.append(hit)
+            reasons[hit.title] = DROP_MARGIN
     if not passed:
         return reasons
     passed.sort(key=lambda h: (-h.similarity, -h.overlap, h.title))
@@ -111,7 +123,7 @@ def _collect_raw(
         text = f"{title}：{body}" if title and body else (body or (doc or "").strip())
         if not text:
             continue
-        overlap = len(set(query_tokens) & _lexical_tokens(f"{title}\n{body or text}"))
+        overlap = lexical_overlap(query, f"{title}\n{body or text}")
         raw.append(
             ScoredKnowledgeHit(
                 similarity=similarity,
@@ -181,21 +193,49 @@ def main() -> int:
     known = _known_titles(config.knowledge_corpus_abs_path)
     min_score = float(config.knowledge.min_score)
     margin = float(config.knowledge.score_margin)
+    no_ov = float(config.knowledge.min_score_no_overlap)
     top_k = int(config.knowledge.retrieve_top_k)
 
     ablations = {
-        "current": {"min_score": min_score, "score_margin": margin, "top_k": top_k},
-        "no_lexical": {"min_score": min_score, "score_margin": margin, "top_k": top_k, "lexical": False},
-        "margin_0.15": {"min_score": min_score, "score_margin": 0.15, "top_k": top_k},
-        "top_k_3": {"min_score": min_score, "score_margin": margin, "top_k": 3},
-        "min_score_0.50": {"min_score": 0.50, "score_margin": margin, "top_k": top_k},
+        "current": {
+            "min_score": min_score,
+            "score_margin": margin,
+            "top_k": top_k,
+            "min_score_no_overlap": no_ov,
+        },
+        "no_lexical": {
+            "min_score": min_score,
+            "score_margin": margin,
+            "top_k": top_k,
+            "min_score_no_overlap": no_ov,
+            "lexical": False,
+        },
+        "margin_0.15": {
+            "min_score": min_score,
+            "score_margin": 0.15,
+            "top_k": top_k,
+            "min_score_no_overlap": no_ov,
+        },
+        "top_k_2": {
+            "min_score": min_score,
+            "score_margin": margin,
+            "top_k": 2,
+            "min_score_no_overlap": no_ov,
+        },
+        "min_score_0.50": {
+            "min_score": 0.50,
+            "score_margin": margin,
+            "top_k": top_k,
+            "min_score_no_overlap": no_ov,
+        },
     }
 
     cases_out: list[dict[str, object]] = []
     problem_counter: dict[str, int] = {}
 
     print(
-        f"min_score={min_score} score_margin={margin} top_k={top_k} chunks={len(known)}"
+        f"min_score={min_score} min_score_no_overlap={no_ov} "
+        f"score_margin={margin} top_k={top_k} chunks={len(known)}"
     )
     print()
 
@@ -203,12 +243,31 @@ def main() -> int:
         query = str(case["query"])
         raw, q_tokens = _collect_raw(retriever, query)
         reasons = _stage_drop_reasons(
-            raw, min_score=min_score, score_margin=margin, top_k=top_k
+            raw,
+            min_score=min_score,
+            score_margin=margin,
+            top_k=top_k,
+            min_score_no_overlap=no_ov,
         )
-        current_hits = filter_knowledge_hits(
-            raw, min_score=min_score, score_margin=margin, top_k=top_k
+        hit_texts = retriever.retrieve(query, top_k=top_k)
+        evaluated = _evaluate_case(
+            case=case, hit_texts=hit_texts, known=known, top_k=top_k
         )
-        current_eval = _eval_from_hits(case, current_hits, known, top_k)
+        current_eval = {
+            "ok": evaluated.ok,
+            "note": evaluated.note,
+            "hit_titles": evaluated.hit_titles,
+            "fp": evaluated.fp,
+            "fn": evaluated.fn,
+            "precision": evaluated.precision,
+            "recall": evaluated.recall,
+            "clauses": split_retrieve_clauses(query),
+        }
+        current_hits = [
+            next((h for h in raw if h.title == title), None)
+            for title in evaluated.hit_titles
+        ]
+        current_hits = [h for h in current_hits if h is not None]
         expect = [str(t) for t in (case.get("expect") or [])]
 
         gold_trace: list[dict[str, object]] = []
@@ -249,6 +308,7 @@ def main() -> int:
                 min_score=float(spec["min_score"]),
                 score_margin=float(spec["score_margin"]),
                 top_k=int(spec["top_k"]),
+                min_score_no_overlap=float(spec["min_score_no_overlap"]),
             )
             ablation_eval[name] = _eval_from_hits(
                 case, filtered, known, int(spec["top_k"])
@@ -325,6 +385,7 @@ def main() -> int:
     payload = {
         "config": {
             "min_score": min_score,
+            "min_score_no_overlap": no_ov,
             "score_margin": margin,
             "retrieve_top_k": top_k,
             "titles": known,

@@ -23,6 +23,8 @@ from app.knowledge import (  # noqa: E402
     SemanticHitCache,
     filter_knowledge_hits,
     ingest_corpus,
+    lexical_overlap,
+    split_retrieve_clauses,
 )
 from app.prompt import clip_inject_chunks, clip_knowledge_for_inject  # noqa: E402
 
@@ -46,13 +48,14 @@ def _test_filter_unit() -> list[str]:
     failures: list[str] = []
     extras = filter_knowledge_hits(
         [
-            ScoredKnowledgeHit(0.62, "职责", "职责：协助日常事务", overlap=1),
-            ScoredKnowledgeHit(0.58, "服装", "服装：白色发带与内裤", overlap=0),
-            ScoredKnowledgeHit(0.57, "光环", "光环：蓝色圆环", overlap=0),
+            ScoredKnowledgeHit(0.70, "职责", "职责：协助日常事务", overlap=1),
+            ScoredKnowledgeHit(0.68, "服装", "服装：白色发带与内裤", overlap=0),
+            ScoredKnowledgeHit(0.67, "光环", "光环：蓝色圆环", overlap=0),
         ],
         min_score=0.45,
+        min_score_no_overlap=0.62,
         score_margin=0.08,
-        top_k=2,
+        top_k=3,
     )
     titles = [h.title for h in extras]
     if titles != ["职责"]:
@@ -63,11 +66,41 @@ def _test_filter_unit() -> list[str]:
             ScoredKnowledgeHit(0.40, "身份", "身份：操作系统管理员", overlap=0),
         ],
         min_score=0.45,
+        min_score_no_overlap=0.62,
         score_margin=0.08,
-        top_k=2,
+        top_k=3,
     )
     if weak:
         failures.append(f"min_score: expected empty, got {[h.title for h in weak]}")
+
+    mid_no_ov = filter_knowledge_hits(
+        [
+            ScoredKnowledgeHit(0.56, "职责", "职责：协助日常事务", overlap=0),
+        ],
+        min_score=0.45,
+        min_score_no_overlap=0.62,
+        score_margin=0.08,
+        top_k=3,
+    )
+    if mid_no_ov:
+        failures.append(
+            f"min_score_no_overlap: expected empty, got {[h.title for h in mid_no_ov]}"
+        )
+
+    high_no_ov = filter_knowledge_hits(
+        [
+            ScoredKnowledgeHit(0.69, "身份", "身份：操作系统管理员", overlap=0),
+            ScoredKnowledgeHit(0.66, "服装", "服装：白色发带", overlap=0),
+        ],
+        min_score=0.45,
+        min_score_no_overlap=0.62,
+        score_margin=0.08,
+        top_k=3,
+    )
+    if [h.title for h in high_no_ov] != ["身份"]:
+        failures.append(
+            f"zero-overlap top-1 only: expected ['身份'], got {[h.title for h in high_no_ov]}"
+        )
 
     margin = filter_knowledge_hits(
         [
@@ -75,25 +108,48 @@ def _test_filter_unit() -> list[str]:
             ScoredKnowledgeHit(0.55, "身份", "身份：操作系统管理员", overlap=1),
         ],
         min_score=0.45,
+        min_score_no_overlap=0.62,
         score_margin=0.08,
-        top_k=2,
+        top_k=3,
     )
     if [h.title for h in margin] != ["职责"]:
         failures.append(f"score_margin: expected ['职责'], got {[h.title for h in margin]}")
 
-    top_only = filter_knowledge_hits(
+    two_ok = filter_knowledge_hits(
         [
-            ScoredKnowledgeHit(0.60, "职责", "职责：协助日常事务", overlap=0),
-            ScoredKnowledgeHit(0.58, "服装", "服装：白色发带", overlap=0),
+            ScoredKnowledgeHit(0.80, "光环", "光环：蓝色圆环", overlap=3),
+            ScoredKnowledgeHit(0.74, "服装", "服装：衣服与发带", overlap=2),
         ],
         min_score=0.45,
+        min_score_no_overlap=0.62,
         score_margin=0.08,
-        top_k=2,
+        top_k=3,
     )
-    if [h.title for h in top_only] != ["职责"]:
-        failures.append(
-            f"keep top-1 with zero overlap: expected ['职责'], got {[h.title for h in top_only]}"
-        )
+    if [h.title for h in two_ok] != ["光环", "服装"]:
+        failures.append(f"two overlapping hits: expected ['光环', '服装'], got {[h.title for h in two_ok]}")
+    if len(two_ok) > 3:
+        failures.append("filtered list longer than top_k")
+    return failures
+
+
+def _test_clause_and_alias_unit() -> list[str]:
+    failures: list[str] = []
+    if split_retrieve_clauses("阿洛娜是谁") != ["阿洛娜是谁"]:
+        failures.append(f"single clause: {split_retrieve_clauses('阿洛娜是谁')}")
+    thanks = split_retrieve_clauses("谢谢你，阿洛娜")
+    if thanks != ["谢谢你"]:
+        failures.append(f"drop name-only clause: expected ['谢谢你'], got {thanks}")
+    multi = split_retrieve_clauses("阿洛娜是谁，平时又负责什么？")
+    if multi != ["阿洛娜是谁", "平时又负责什么"]:
+        failures.append(f"two clauses: {multi}")
+    if lexical_overlap("阿洛娜穿什么衣服", "服装：白色发带与裙子") <= 0:
+        failures.append("alias 衣服/穿 should overlap 服装")
+    if lexical_overlap("阿洛娜是谁", "身份：操作系统管理员") <= 0:
+        failures.append("phrase 是谁 should overlap 身份")
+    if lexical_overlap("平时负责什么工作", "职责：协助日常事务") <= 0:
+        failures.append("alias 负责/工作 should overlap 职责")
+    if lexical_overlap("谢谢你，阿洛娜", "职责：协助日常事务") != 0:
+        failures.append("thanks should not alias-overlap 职责")
     return failures
 
 
@@ -231,6 +287,7 @@ def main() -> int:
     config = load_config()
     failures: list[str] = []
     failures.extend(_test_filter_unit())
+    failures.extend(_test_clause_and_alias_unit())
     failures.extend(_test_clip_unit(config))
     failures.extend(_test_query_cache_unit())
     failures.extend(_test_retrieve_uses_provided_embedding(config))
