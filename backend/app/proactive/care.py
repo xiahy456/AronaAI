@@ -42,6 +42,33 @@ def in_window(now: datetime, start: str, end: str) -> bool:
     return cur >= start_min or cur < end_min
 
 
+def _elapsed(now: datetime, then: datetime | None) -> float | None:
+    if then is None:
+        return None
+    return (now - then).total_seconds()
+
+
+def care_skip_reason(
+    kind: CareKind,
+    now: datetime,
+    *,
+    done_today: list[str] | set[str],
+    start: str,
+    end: str,
+    last_proactive_at: datetime | None = None,
+    after_sec: float = 0,
+) -> str | None:
+    """Why care cannot fire. None means it may fire."""
+    if kind in done_today:
+        return "done_today"
+    if not in_window(now, start, end):
+        return "out_of_window"
+    elapsed_proactive = _elapsed(now, last_proactive_at)
+    if elapsed_proactive is not None and elapsed_proactive < after_sec:
+        return f"after_welcome wait={after_sec - elapsed_proactive:.0f}s"
+    return None
+
+
 def should_fire_care(
     kind: CareKind,
     now: datetime,
@@ -49,10 +76,21 @@ def should_fire_care(
     done_today: list[str] | set[str],
     start: str,
     end: str,
+    last_proactive_at: datetime | None = None,
+    after_sec: float = 0,
 ) -> bool:
-    if kind in done_today:
-        return False
-    return in_window(now, start, end)
+    return (
+        care_skip_reason(
+            kind,
+            now,
+            done_today=done_today,
+            start=start,
+            end=end,
+            last_proactive_at=last_proactive_at,
+            after_sec=after_sec,
+        )
+        is None
+    )
 
 
 def build_care_instruction(kind: CareKind, climate: str | None = None) -> str:

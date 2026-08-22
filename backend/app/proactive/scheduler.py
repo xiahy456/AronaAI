@@ -14,7 +14,7 @@ from .care import (
     CARE_MEMORY_QUERY,
     HISTORY_CARE_MARKER,
     build_care_instruction,
-    should_fire_care,
+    care_skip_reason,
 )
 from .festival import (
     HISTORY_FESTIVAL_MARKER,
@@ -273,17 +273,22 @@ class ProactiveScheduler:
                 )
 
         if getattr(self.care_cfg, "enabled", True):
+            after_sec = float(getattr(self.idle_cfg, "after_sec", 0) or 0)
+            last_proactive_at = _parse_iso(self.state.last_proactive_at)
             for kind, start, end in (
                 ("lunch", self.care_cfg.lunch_start, self.care_cfg.lunch_end),
                 ("sleep", self.care_cfg.sleep_start, self.care_cfg.sleep_end),
             ):
-                if should_fire_care(
+                reason = care_skip_reason(
                     kind,  # type: ignore[arg-type]
                     dt,
                     done_today=self.state.care_done,
                     start=start,
                     end=end,
-                ):
+                    last_proactive_at=last_proactive_at,
+                    after_sec=after_sec,
+                )
+                if reason is None:
                     return Motive(
                         kind=kind,  # type: ignore[arg-type]
                         instruction=build_care_instruction(kind, climate),  # type: ignore[arg-type]
@@ -291,6 +296,8 @@ class ProactiveScheduler:
                         retrieve_memory=True,
                         memory_query=CARE_MEMORY_QUERY,
                     )
+                if reason.startswith("after_welcome"):
+                    return None
 
         if getattr(self.goal_cfg, "enabled", True) and can_attempt_goal(
             dt,
@@ -335,6 +342,31 @@ class ProactiveScheduler:
                 instruction=build_idle_instruction(climate),
                 history_marker=HISTORY_IDLE_MARKER,
             )
+        return None
+
+    def care_block_reason(self, now: datetime | None = None) -> str | None:
+        """Skip reason when lunch/sleep is in window but waiting after_sec."""
+        if not getattr(self.care_cfg, "enabled", True):
+            return None
+        dt = now or datetime.now()
+        self.state.roll_day(dt)
+        after_sec = float(getattr(self.idle_cfg, "after_sec", 0) or 0)
+        last_proactive_at = _parse_iso(self.state.last_proactive_at)
+        for kind, start, end in (
+            ("lunch", self.care_cfg.lunch_start, self.care_cfg.lunch_end),
+            ("sleep", self.care_cfg.sleep_start, self.care_cfg.sleep_end),
+        ):
+            reason = care_skip_reason(
+                kind,  # type: ignore[arg-type]
+                dt,
+                done_today=self.state.care_done,
+                start=start,
+                end=end,
+                last_proactive_at=last_proactive_at,
+                after_sec=after_sec,
+            )
+            if reason is not None and reason.startswith("after_welcome"):
+                return f"{kind} {reason}"
         return None
 
     def idle_block_reason(

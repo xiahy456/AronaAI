@@ -233,8 +233,8 @@ WebSocket 连接并发送 `connected` 后，若 `proactive.welcome.enabled` 为�
 | 节日问候 | 公历节假日 / 农历年表 / 老师生日 | 当天第一次上线欢迎直接换成祝福，整天只说一次；凌晨/深夜先祝福再跟一句休息提醒；tick 仅在欢迎没说过时兜底；`depart` 时 tick 不说、欢迎仍可换；历史 `【节日】`；回写 `greeted` |
 | 空闲轻搭话 | 老师安静 15 分钟；两次搭话间隔默认 30 分钟；每天最多 3 次 | 欢迎/照料之后只需再等 `after_sec`，不占用搭话冷却；深夜/凌晨不闲聊；上一轮是 `depart` 不闲聊；仅 `secure_play` / `steady` 可开口；历史 `【搭话】`；不检索记忆 |
 | goal 回访 | 老师安静 5 分钟后；每条 goal 冷却 6 小时；每天最多 1 次 | 扫记忆 `category=goal`，轻轻提起最久未回访的一条；不催、不盘问、不编造进展；老师说「先别提」等则 mute 上一条 7 天；休息时段 / `depart` 不回访；气候闸与空闲相同；历史 `【回访】`；直接注入该条记忆 |
-| 午饭照料 | 12:00–12:30，每天一次 | 短提醒吃饭，不催；`cling_risk` 更短；可检索作息记忆 |
-| 睡觉照料 | 23:00–23:20，每天一次 | 提醒休息；允许在休息时段触发；历史 `【提醒】` |
+| 午饭照料 | 12:00–12:30，每天一次 | 短提醒吃饭，不催；`cling_risk` 更短；可检索作息记忆；欢迎（及任何已写入 `last_proactive_at` 的主动开口）之后再等 `idle.after_sec`；窗口内等待时不改发搭话或回访 |
+| 睡觉照料 | 23:00–23:20，每天一次 | 提醒休息；允许在休息时段触发；历史 `【提醒】`；与午饭相同，相对欢迎再等 `idle.after_sec`；节日欢迎里的休息补发仍同一轮发出、不等间隔 |
 | 同轮补充 | Planner `followup_ok`（按「能否扩展」） | 仅用户 chat 双模型路径、首句成功后最多再扩 1 句；本地回落 / 欢迎 / idle / care / goal / festival 不续说；历史 `【补充】` |
 
 调度状态落 `data/memory/proactive.json`（含 `festival_done`）。跨日清当日节日标记。节日成功才标记；失败可下次再试。关闭：`proactive.idle.enabled` / `proactive.care.enabled` / `proactive.goal.enabled` / `proactive.continue.enabled` / `proactive.festival.enabled`。

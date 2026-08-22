@@ -131,9 +131,13 @@ async def tick_once(state: "AppState", now: datetime | None = None) -> bool:
         birthday_content=birthday,
     )
     if motive is None:
-        reason = state.scheduler.idle_block_reason(dt, last_user_act=last_user_act)
-        if reason:
-            logger.info("proactive idle skipped reason=%s", reason)
+        care_reason = state.scheduler.care_block_reason(dt)
+        if care_reason:
+            logger.info("proactive care skipped reason=%s", care_reason)
+        else:
+            reason = state.scheduler.idle_block_reason(dt, last_user_act=last_user_act)
+            if reason:
+                logger.info("proactive idle skipped reason=%s", reason)
         return False
 
     decision = None

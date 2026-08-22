@@ -131,6 +131,36 @@ def test_care_window_once_per_day() -> None:
         "sleep", datetime(2026, 8, 13, 15, 0, 0), done_today=[], start="23:00", end="23:20"
     ):
         _fail("afternoon is not sleep window")
+    if should_fire_care(
+        "lunch",
+        lunch,
+        done_today=[],
+        start="12:00",
+        end="12:30",
+        last_proactive_at=lunch - timedelta(seconds=60),
+        after_sec=900,
+    ):
+        _fail("welcome gap (after_sec) should block lunch")
+    if not should_fire_care(
+        "lunch",
+        lunch,
+        done_today=[],
+        start="12:00",
+        end="12:30",
+        last_proactive_at=lunch - timedelta(seconds=1000),
+        after_sec=900,
+    ):
+        _fail("lunch should fire after after_sec")
+    if not should_fire_care(
+        "lunch",
+        lunch,
+        done_today=[],
+        start="12:00",
+        end="12:30",
+        last_proactive_at=None,
+        after_sec=900,
+    ):
+        _fail("no last_proactive_at should still fire lunch")
     text = build_care_instruction("lunch", climate="cling_risk")
     if "更短" not in text or HISTORY_CARE_MARKER != "【提醒】":
         _fail("cling care should be shorter")
@@ -262,6 +292,68 @@ def test_welcome_does_not_eat_idle_cooldown(tmp: Path) -> None:
     reason = sched.idle_block_reason(soon, last_user_act="other")
     if reason is None or "idle_cooldown" not in reason:
         _fail(f"expected idle_cooldown reason, got {reason}")
+    print("  ok")
+
+
+def test_care_waits_after_welcome(tmp: Path) -> None:
+    print("== care waits idle.after_sec after welcome; no goal fallthrough ==")
+    idle_cfg = SimpleNamespace(
+        enabled=True, after_sec=900, cooldown_sec=1800, max_per_day=3
+    )
+    care_cfg = SimpleNamespace(
+        enabled=True,
+        lunch_start="12:00",
+        lunch_end="12:30",
+        sleep_start="23:00",
+        sleep_end="23:20",
+    )
+    sched = ProactiveScheduler(
+        tmp / "proactive_care_welcome.json",
+        idle_cfg=idle_cfg,
+        care_cfg=care_cfg,
+        goal_cfg=_goal_cfg(),
+    )
+    noon = datetime(2026, 8, 13, 12, 10, 0)
+    sched.note_user_activity(noon - timedelta(seconds=2000))
+    sched.note_proactive(noon - timedelta(seconds=60))
+    waiting = sched.pick_motive(
+        noon,
+        last_user_act="other",
+        climate="secure_play",
+        goals=_sample_goals(),
+    )
+    if waiting is not None:
+        _fail(f"care in window should wait after_sec, not fall through, got {waiting}")
+    reason = sched.care_block_reason(noon)
+    if reason is None or "after_welcome" not in reason:
+        _fail(f"expected after_welcome care skip, got {reason}")
+
+    ready = noon + timedelta(seconds=840)
+    picked = sched.pick_motive(
+        ready,
+        last_user_act="other",
+        climate="secure_play",
+        goals=_sample_goals(),
+    )
+    if picked is None or picked.kind != "lunch":
+        _fail(f"lunch should fire after after_sec, got {picked}")
+
+    night = datetime(2026, 8, 13, 23, 5, 0)
+    night_sched = ProactiveScheduler(
+        tmp / "proactive_care_sleep.json",
+        idle_cfg=idle_cfg,
+        care_cfg=care_cfg,
+    )
+    night_sched.note_proactive(night - timedelta(seconds=60))
+    blocked_sleep = night_sched.pick_motive(night, last_user_act="other")
+    if blocked_sleep is not None:
+        _fail(f"sleep should wait after_sec after welcome, got {blocked_sleep}")
+    sleep_ready = night_sched.pick_motive(
+        night + timedelta(seconds=840),
+        last_user_act="other",
+    )
+    if sleep_ready is None or sleep_ready.kind != "sleep":
+        _fail(f"sleep should fire after after_sec, got {sleep_ready}")
     print("  ok")
 
 
@@ -616,8 +708,15 @@ def test_festival_calendar_and_once(tmp: Path) -> None:
     if sched.pending_festival(noon) is not None:
         _fail("second welcome same day should not swap to festival")
     again = sched.pick_motive(noon, last_user_act="other", climate="secure_play")
-    if again is None or again.kind != "lunch":
-        _fail(f"after festival, lunch should fire, got {again}")
+    if again is not None and again.kind == "lunch":
+        _fail(f"festival just fired, lunch should wait after_sec, got {again}")
+    lunch_later = sched.pick_motive(
+        noon + timedelta(seconds=900),
+        last_user_act="other",
+        climate="secure_play",
+    )
+    if lunch_later is None or lunch_later.kind != "lunch":
+        _fail(f"after after_sec, lunch should fire, got {lunch_later}")
 
     night = datetime(2026, 10, 1, 23, 10, 0)
     night_sched = ProactiveScheduler(
@@ -764,6 +863,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         test_scheduler_persist_and_priority(Path(tmp))
         test_welcome_does_not_eat_idle_cooldown(Path(tmp))
+        test_care_waits_after_welcome(Path(tmp))
         test_mute_last_goal_phrase(Path(tmp))
         test_goal_after_welcome_not_blocked_by_idle(Path(tmp))
         test_festival_calendar_and_once(Path(tmp))
