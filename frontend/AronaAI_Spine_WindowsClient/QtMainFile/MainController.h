@@ -47,10 +47,11 @@ public:
 
 	// 执行输出（排队 TTS；字幕与语音同时上屏；合成可与上一条播放重叠）
 	void executeOutput(const QString& text);
-	// 开始录音、识别
+	// 开始持续聆听
 	void startAudioProcessing();
-	// 停止录音、识别
+	// 停止持续聆听
 	void stopAudioProcessing();
+	bool isListening() const;
 	// 切换主界面鼠标穿透
 	void toggleMouseTransparent();
 	// 呼出用户文本输入界面
@@ -70,10 +71,10 @@ private slots:
 	void onTTSError(const QString& errorString, const QString& text, const QString& emotion);
 	// 音频输入出错
 	void onAudioError(const QString& error);
-	// 音频识别出错
 	void onRecognizeError(const QString& error);
-	// 处理识别结果
-	void onRecognizeFinished(const QString& text);
+	void onTranscriptReceived(const QString& text, bool isFinal, int sliceType);
+	void onSpeechDetected();
+	void onPcmFrame(const QByteArray& frame);
 	// WebSocket 相关槽函数
 	void onWebSocketConnected(const QString& sessionId);
 	void onWebSocketChatResponse(const QString& content, const QString& contextUsed, double latency, const QString& emotion);
@@ -90,7 +91,10 @@ private:
 	TTSManager::TTSRequestParams ttsRequestParams;	// 语音合成请求参数
 	QString m_currentText = "";	// 当前正在处理的文本
 	QString m_currentEmotion = "normal";	// 当前回复表情（英文值）
-	bool m_waitingForAIResponse = false;	// 是否正在等待AI回复
+	bool m_waitingForAIResponse = false;	// 是否正在等待AI回复（仅文本输入）
+	bool m_listening = false;	// 持续聆听是否开启
+	int m_transcriptSeq = 0;
+	QElapsedTimer m_bargeInGuardTimer;
 	bool m_measuringUserTurn = false;	// 是否正在测量用户回合端到端耗时
 	QElapsedTimer m_backendTimer;	// 后端 WebSocket RTT
 	QElapsedTimer m_userTurnTimer;	// 用户发送到字幕上屏
@@ -108,6 +112,7 @@ private:
 
 	// 处理用户输入的文本（语音识别或文本输入）
 	void processInputText(const QString& text);
+	void interruptOutput();
 	void presentOutput(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion);
 	void presentOutputError(const QString& text, const QString& emotion);
 	void holdOrPresentOutput(const QByteArray& audioData, const QString& mediaType, bool isError, const QString& text, const QString& emotion);

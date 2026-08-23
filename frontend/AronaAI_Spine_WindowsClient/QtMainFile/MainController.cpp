@@ -87,16 +87,29 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
 
     connect(m_audioRecorder, &AudioRecorder::errorOccurred,
         this, &MainController::onAudioError);
+    connect(m_audioRecorder, &AudioRecorder::pcmFrameReady,
+        this, &MainController::onPcmFrame, Qt::QueuedConnection);
+    connect(m_audioRecorder, &AudioRecorder::speechDetected,
+        this, &MainController::onSpeechDetected, Qt::QueuedConnection);
 
     if (m_tencentRecognizer) {
         m_tencentRecognizer->setParent(this);
     }
     connect(m_tencentRecognizer, &TencentSpeechRecognizer::errorOccurred,
         this, &MainController::onRecognizeError);
-    connect(m_tencentRecognizer, &TencentSpeechRecognizer::recognizeFinished,
-		this, &MainController::onRecognizeFinished);
+    connect(m_tencentRecognizer, &TencentSpeechRecognizer::transcriptReceived,
+        this, &MainController::onTranscriptReceived);
 
-    m_tencentRecognizer->setCredentials(GET_STRING_FROM_JSON(_global_config, "tencent_speech_recognizer", "secret_id"), GET_STRING_FROM_JSON(_global_config, "tencent_speech_recognizer", "secret_key"));
+    QString secretId = GET_STRING_FROM_JSON(_global_config, "tencent_speech_recognizer", "secret_id");
+    QString secretKey = GET_STRING_FROM_JSON(_global_config, "tencent_speech_recognizer", "secret_key");
+    QString appId = GET_STRING_FROM_JSON(_global_config, "tencent_speech_recognizer", "app_id");
+    if (appId.isEmpty()) {
+        const int appIdNum = GET_INT_FROM_JSON(_global_config, "tencent_speech_recognizer", "app_id");
+        if (appIdNum > 0) {
+            appId = QString::number(appIdNum);
+        }
+    }
+    m_tencentRecognizer->setCredentials(secretId, secretKey, appId);
 
     connect(m_webSocketController, &WebSocketController::connected,
         this, &MainController::onWebSocketConnected);
@@ -150,6 +163,8 @@ void MainController::presentOutput(const QByteArray& audioData, const QString& m
     const int gen = m_outputGeneration;
 
     const double wavSec = m_ttsManager->playAudio(audioData);
+    m_audioRecorder->setPlaybackGuard(true);
+    m_bargeInGuardTimer.start();
     m_mainWidget->showOutputText(line);
     if (m_measuringUserTurn) {
         FINE_DEBUG_OUTPUT(QString("[Latency] User send to text on screen: %1 ms")
@@ -170,6 +185,7 @@ void MainController::presentOutput(const QByteArray& audioData, const QString& m
         m_mainWidget->hideOutputText();
         m_mainWidget->clearAnimation(2, 0.2f);
         m_mainWidget->clearAnimation(1, 0.2f);
+        m_audioRecorder->setPlaybackGuard(false);
         });
 }
 
@@ -279,32 +295,46 @@ void MainController::dismissSplashOnUnrecoverableError()
 
 void MainController::startAudioProcessing()
 {
-    if (m_audioRecorder->startRecording()) {
-        FINE_DEBUG_OUTPUT("[Audio Input Processing]Recording");
-    }
-    else {
-        ERROR_DEBUG_OUTPUT("[Audio Input Processing]Failed to start recording");
-    }
-}
-
-// 停止录音识别
-void MainController::stopAudioProcessing()
-{
-    // 停止录制并获取音频数据
-    QByteArray audioData = m_audioRecorder->stopRecording();
-    FINE_DEBUG_OUTPUT("[Audio Input Processing]Recognizing...");
-
-    // 识别结果
-    QString input_text;
-    if (!audioData.isEmpty()) {
-        // 直接调用腾讯云的识别，结果会通过 recognizeFinished 信号返回
-        m_tencentRecognizer->recognize(audioData);
-    }
-    else {
-        ERROR_DEBUG_OUTPUT("[Audio Input Processing]Failed to capture audio!");
+    if (m_listening) {
         return;
     }
-    FINE_DEBUG_OUTPUT("[Audio Input Processing]Audio processing program is ready!");
+    if (!m_tencentRecognizer->isInitialized()) {
+        ERROR_DEBUG_OUTPUT("[Audio Input Processing]Realtime ASR is not initialized");
+        return;
+    }
+    if (!m_audioRecorder->startRecording()) {
+        ERROR_DEBUG_OUTPUT("[Audio Input Processing]Failed to start recording");
+        return;
+    }
+    if (!m_tencentRecognizer->startRealtime()) {
+        m_audioRecorder->stopRecording();
+        ERROR_DEBUG_OUTPUT("[Audio Input Processing]Failed to start realtime ASR");
+        return;
+    }
+    m_listening = true;
+    m_transcriptSeq = 0;
+    m_webSocketController->sendListenState(true);
+    FINE_DEBUG_OUTPUT("[Audio Input Processing]Continuous listen on");
+}
+
+bool MainController::isListening() const
+{
+    return m_listening;
+}
+
+void MainController::stopAudioProcessing()
+{
+    if (!m_listening) {
+        m_audioRecorder->stopRecording();
+        m_tencentRecognizer->stopRealtime();
+        return;
+    }
+    m_listening = false;
+    m_audioRecorder->stopRecording();
+    m_audioRecorder->setPlaybackGuard(false);
+    m_tencentRecognizer->stopRealtime();
+    m_webSocketController->sendListenState(false);
+    FINE_DEBUG_OUTPUT("[Audio Input Processing]Continuous listen off");
 }
 
 void MainController::toggleMouseTransparent()
@@ -330,24 +360,78 @@ void MainController::onAudioError(const QString& error)
     ERROR_DEBUG_OUTPUT("[Audio Input Processing]Audio error!");
 }
 
-void MainController::onRecognizeError(const QString& error)
+void MainController::onPcmFrame(const QByteArray& frame)
 {
-    ERROR_DEBUG_OUTPUT("[Audio Input Processing]Recognize error!");
-}
-
-void MainController::onRecognizeFinished(const QString& text)
-{
-    const QString trimmed = text.trimmed();
-    FINE_DEBUG_OUTPUT("[Audio Input Processing]Recognize finished! Result: " + trimmed);
-    // Drop ASR error strings that were historically mis-emitted as success
-    if (trimmed.isEmpty()
-        || trimmed.contains(QStringLiteral("[Tencent Speech Recognizer]"))
-        || trimmed.contains(QStringLiteral("Didnt recognize"), Qt::CaseInsensitive)
-        || trimmed.contains(QStringLiteral("Didn't recognize"), Qt::CaseInsensitive)) {
-        ERROR_DEBUG_OUTPUT("[Audio Input Processing]Ignoring unusable ASR text, not sending chat");
+    if (!m_listening) {
         return;
     }
-    processInputText(trimmed);
+    m_tencentRecognizer->sendAudio(frame);
+}
+
+void MainController::onSpeechDetected()
+{
+    if (!m_listening) {
+        return;
+    }
+    if (m_bargeInGuardTimer.isValid() && m_bargeInGuardTimer.elapsed() < 400) {
+        return;
+    }
+    if (m_ttsManager->isPlayingAudio() || m_waitingForAIResponse || m_hasPendingOutput) {
+        FINE_DEBUG_OUTPUT("[Audio Input Processing]Barge-in speech detected");
+        interruptOutput();
+        return;
+    }
+    if (m_webSocketController->isConnected()) {
+        m_webSocketController->sendInterrupt();
+    }
+}
+
+void MainController::interruptOutput()
+{
+    FINE_DEBUG_OUTPUT("[Main Controller] Interrupting output");
+    ++m_outputGeneration;
+    m_ttsManager->interruptPlayback();
+    m_audioRecorder->setPlaybackGuard(false);
+    m_waitingForAIResponse = false;
+    m_measuringUserTurn = false;
+    m_mainWidget->hideOutputText();
+    m_mainWidget->clearAnimation(2, 0.2f);
+    m_mainWidget->clearAnimation(1, 0.2f);
+    if (m_webSocketController->isConnected()) {
+        m_webSocketController->sendInterrupt();
+    }
+}
+
+void MainController::onRecognizeError(const QString& error)
+{
+    ERROR_DEBUG_OUTPUT("[Audio Input Processing]Recognize error: " + error);
+}
+
+void MainController::onTranscriptReceived(const QString& text, bool isFinal, int sliceType)
+{
+    const QString trimmed = text.trimmed();
+    FINE_DEBUG_OUTPUT(QString("[Audio Input Processing]ASR slice=%1 final=%2 text=%3")
+        .arg(sliceType)
+        .arg(isFinal ? "true" : "false")
+        .arg(trimmed));
+    if (!m_listening || !isFinal || trimmed.isEmpty()) {
+        return;
+    }
+    if (trimmed.contains(QStringLiteral("[Tencent Speech Recognizer]"))
+        || trimmed.contains(QStringLiteral("Didnt recognize"), Qt::CaseInsensitive)
+        || trimmed.contains(QStringLiteral("Didn't recognize"), Qt::CaseInsensitive)) {
+        ERROR_DEBUG_OUTPUT("[Audio Input Processing]Ignoring unusable ASR text");
+        return;
+    }
+    if (!m_webSocketController->isConnected()) {
+        ERROR_DEBUG_OUTPUT("[Main Controller] WebSocket not connected, drop transcript");
+        return;
+    }
+    ++m_transcriptSeq;
+    m_webSocketController->sendTranscript(
+        trimmed,
+        QString::number(m_transcriptSeq),
+        0);
 }
 
 void MainController::processInputText(const QString& text)

@@ -353,6 +353,30 @@ void TTSManager::notifyPlaybackFinished()
     tryDeliverPlayback();
 }
 
+bool TTSManager::isPlayingAudio() const
+{
+    return m_playingAudio || m_awaitingPlayback;
+}
+
+void TTSManager::interruptPlayback()
+{
+    m_playbackGeneration++;
+    requestQueue.clear();
+    m_readyPlayback.clear();
+    cleanupCurrentReply();
+    isProcessingRequest = false;
+    m_ignoreAudioIdle = true;
+    if (audioSink) {
+        audioSink->stop();
+        delete audioSink;
+        audioSink = nullptr;
+    }
+    m_playingAudio = false;
+    m_awaitingPlayback = false;
+    m_ignoreAudioIdle = false;
+    FINE_DEBUG_OUTPUT("[TTS Operation]Playback interrupted");
+}
+
 double TTSManager::playAudio(const QByteArray& audioData)
 {
     if (audioData.isEmpty()) {

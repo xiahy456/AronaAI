@@ -171,6 +171,33 @@ void WebSocketController::sendChatMessage(const QString& content,
     sendMessage(message);
 }
 
+void WebSocketController::sendListenState(bool listening)
+{
+    QJsonObject message;
+    message["type"] = "listen_state";
+    message["state"] = listening ? QStringLiteral("on") : QStringLiteral("off");
+    sendMessage(message);
+}
+
+void WebSocketController::sendTranscript(const QString& text, const QString& segmentId, int silenceMs)
+{
+    QJsonObject message;
+    message["type"] = "transcript";
+    message["content"] = text;
+    message["speaker"] = QStringLiteral("teacher");
+    message["is_final"] = true;
+    message["segment_id"] = segmentId;
+    message["silence_ms"] = silenceMs;
+    sendMessage(message);
+}
+
+void WebSocketController::sendInterrupt()
+{
+    QJsonObject message;
+    message["type"] = "interrupt";
+    sendMessage(message);
+}
+
 void WebSocketController::clearSession()
 {
     QJsonObject message;

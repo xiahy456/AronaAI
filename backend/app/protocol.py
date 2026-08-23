@@ -10,6 +10,9 @@ TYPE_CHAT = "chat"
 TYPE_CLEAR_SESSION = "clear_session"
 TYPE_GET_STATS = "get_stats"
 TYPE_PING = "ping"
+TYPE_LISTEN_STATE = "listen_state"
+TYPE_TRANSCRIPT = "transcript"
+TYPE_INTERRUPT = "interrupt"
 
 # Server -> client
 TYPE_CONNECTED = "connected"

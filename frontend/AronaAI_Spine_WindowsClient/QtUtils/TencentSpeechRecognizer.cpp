@@ -18,42 +18,73 @@
 */
 
 #include "TencentSpeechRecognizer.h"
+
+#include <algorithm>
 #include <QCryptographicHash>
 #include <QMessageAuthenticationCode>
 #include <QDateTime>
-#include <QTimeZone>
-#include <QUrlQuery>
-#include <QHttpMultiPart>
-#include <QHttpPart>
-#include <QFile>
-#include <QBuffer>
 #include <QRandomGenerator>
+#include <QUuid>
+#include <QUrl>
+#include <QPair>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
+#include <QProcessEnvironment>
 
-// 腾讯云语音识别API的固定参数
-const QString SERVICE = "asr";
-const QString ACTION = "SentenceRecognition"; // 一句话识别接口
-const QString VERSION = "2019-06-14";
-const QString REGION = "ap-guangzhou"; // 根据你的服务区域选择
-const QString ENDPOINT = "asr.tencentcloudapi.com";
+namespace {
+const QString kHost = QStringLiteral("asr.cloud.tencent.com");
+const int kPacketBytes = 6400; // 200ms of 16kHz mono int16
+}
 
 TencentSpeechRecognizer::TencentSpeechRecognizer(QObject* parent)
     : QObject(parent)
-    , m_networkManager(new QNetworkAccessManager(this))
     , m_initialized(false)
+    , m_wantStreaming(false)
+    , m_handshook(false)
+    , m_socket(new QWebSocket(QString(), QWebSocketProtocol::VersionLatest, this))
+    , m_sendTimer(new QTimer(this))
 {
-    connect(m_networkManager, &QNetworkAccessManager::finished,
-        this, &TencentSpeechRecognizer::onNetworkReplyFinished);
+    connect(m_socket, &QWebSocket::connected, this, &TencentSpeechRecognizer::onConnected);
+    connect(m_socket, &QWebSocket::disconnected, this, &TencentSpeechRecognizer::onDisconnected);
+    connect(m_socket, &QWebSocket::textMessageReceived, this, &TencentSpeechRecognizer::onTextMessage);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    connect(m_socket, &QWebSocket::errorOccurred, this, &TencentSpeechRecognizer::onSocketError);
+#else
+    connect(m_socket, QOverload<QAbstractSocket::SocketError>::of(&QWebSocket::error),
+        this, &TencentSpeechRecognizer::onSocketError);
+#endif
+    m_sendTimer->setInterval(200);
+    connect(m_sendTimer, &QTimer::timeout, this, &TencentSpeechRecognizer::onSendTimer);
 }
 
 TencentSpeechRecognizer::~TencentSpeechRecognizer()
 {
+    stopRealtime();
 }
 
-void TencentSpeechRecognizer::setCredentials(const QString& secretId, const QString& secretKey)
+QString TencentSpeechRecognizer::expandEnv(const QString& value)
 {
-    m_secretId = secretId;
-    m_secretKey = secretKey;
-    m_initialized = !m_secretId.isEmpty() && !m_secretKey.isEmpty();
+    const QString trimmed = value.trimmed();
+    if (trimmed.size() >= 4 && trimmed.startsWith(QLatin1String("${")) && trimmed.endsWith(QLatin1Char('}'))) {
+        const QString name = trimmed.mid(2, trimmed.size() - 3);
+        return QProcessEnvironment::systemEnvironment().value(name);
+    }
+    return trimmed;
+}
+
+void TencentSpeechRecognizer::setCredentials(const QString& secretId, const QString& secretKey, const QString& appId)
+{
+    m_secretId = expandEnv(secretId);
+    m_secretKey = expandEnv(secretKey);
+    m_appId = expandEnv(appId);
+    if (m_appId.isEmpty()) {
+        m_appId = expandEnv(QStringLiteral("${TENCENT_APP_ID}"));
+    }
+    m_initialized = !m_secretId.isEmpty() && !m_secretKey.isEmpty() && !m_appId.isEmpty();
+    if (!m_initialized) {
+        ERROR_DEBUG_OUTPUT("[Tencent Speech Recognizer]Realtime ASR needs secret_id, secret_key, and app_id");
+    }
 }
 
 bool TencentSpeechRecognizer::isInitialized() const
@@ -61,197 +92,192 @@ bool TencentSpeechRecognizer::isInitialized() const
     return m_initialized;
 }
 
-QString TencentSpeechRecognizer::recognize(const QByteArray& audioData)
+bool TencentSpeechRecognizer::isStreaming() const
+{
+    return m_wantStreaming;
+}
+
+QByteArray TencentSpeechRecognizer::hmacSha1(const QByteArray& key, const QByteArray& data) const
+{
+    return QMessageAuthenticationCode::hash(data, key, QCryptographicHash::Sha1);
+}
+
+QUrl TencentSpeechRecognizer::buildRequestUrl() const
+{
+    const qint64 timestamp = QDateTime::currentSecsSinceEpoch();
+    const qint64 expired = timestamp + 24 * 3600;
+    const quint32 nonce = QRandomGenerator::global()->bounded(1, 1000000000);
+    const QString voiceId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+
+    QList<QPair<QString, QString>> params;
+    params.append({QStringLiteral("engine_model_type"), QStringLiteral("16k_zh")});
+    params.append({QStringLiteral("expired"), QString::number(expired)});
+    params.append({QStringLiteral("needvad"), QStringLiteral("1")});
+    params.append({QStringLiteral("nonce"), QString::number(nonce)});
+    params.append({QStringLiteral("secretid"), m_secretId});
+    params.append({QStringLiteral("timestamp"), QString::number(timestamp)});
+    params.append({QStringLiteral("vad_silence_time"), QStringLiteral("800")});
+    params.append({QStringLiteral("voice_format"), QStringLiteral("1")});
+    params.append({QStringLiteral("voice_id"), voiceId});
+    std::sort(params.begin(), params.end(), [](const auto& a, const auto& b) {
+        return a.first < b.first;
+    });
+
+    QString query;
+    for (int i = 0; i < params.size(); ++i) {
+        if (i > 0) {
+            query += QLatin1Char('&');
+        }
+        query += params[i].first;
+        query += QLatin1Char('=');
+        query += params[i].second;
+    }
+
+    const QString origin = kHost + QStringLiteral("/asr/v2/") + m_appId + QLatin1Char('?') + query;
+    const QByteArray digest = hmacSha1(m_secretKey.toUtf8(), origin.toUtf8());
+    const QByteArray signature = QUrl::toPercentEncoding(QString::fromLatin1(digest.toBase64()));
+    const QUrl url(QStringLiteral("wss://") + origin + QStringLiteral("&signature=") + QString::fromLatin1(signature));
+    return url;
+}
+
+bool TencentSpeechRecognizer::startRealtime()
 {
     if (!m_initialized) {
         emit errorOccurred("[Tencent Speech Recognizer]TencentCloud authentication information havent beem set!");
-        return QString();
+        return false;
+    }
+    if (m_wantStreaming) {
+        return true;
     }
 
-    if (audioData.isEmpty()) {
-        emit errorOccurred("[Tencent Speech Recognizer]Audio data is null!");
-        return QString();
-    }
-
-    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Start TencentCloud Speech Recoginizing...");
-    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Audio data size: " + QString::number(audioData.size()) + "Bytes");
-
-    // 1. 构建请求体
-    QByteArray audioBase64 = audioData.toBase64();
-
-    QJsonObject jsonBody;
-    jsonBody["EngSerViceType"] = "16k_zh";
-    jsonBody["SourceType"] = 1;
-    jsonBody["VoiceFormat"] = "pcm";
-    jsonBody["Data"] = QString(audioBase64);
-
-    QJsonDocument jsonDoc(jsonBody);
-    QByteArray requestBody = jsonDoc.toJson(QJsonDocument::Compact);
-
-    // 2. 获取当前时间戳
-    qint64 timestamp = QDateTime::currentSecsSinceEpoch();
-    QString timestampStr = QString::number(timestamp);
-
-    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Current timestamp: " + timestampStr);
-    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Current UTC time:"
-        + QDateTime::fromSecsSinceEpoch(timestamp, QTimeZone::UTC).toString("yyyy-MM-dd hh:mm:ss"));
-
-    // 3. 生成签名
-    QByteArray signature = generateSignature(SERVICE, ACTION, VERSION, REGION, requestBody, timestampStr);
-
-    // 4. 构建请求 - ✅ 添加所有必要的头部
-    QNetworkRequest request;
-    request.setUrl(QUrl("https://" + ENDPOINT));
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json; charset=utf-8");
-    request.setRawHeader("Host", ENDPOINT.toUtf8());
-    request.setRawHeader("X-TC-Action", ACTION.toUtf8());
-    request.setRawHeader("X-TC-Version", VERSION.toUtf8());
-    request.setRawHeader("X-TC-Timestamp", timestampStr.toUtf8());
-    request.setRawHeader("X-TC-Region", REGION.toUtf8());
-    request.setRawHeader("X-TC-Language", "zh-CN");
-    request.setRawHeader("Authorization", signature);
-
-    m_networkManager->post(request, requestBody);
-
-    return QString();
+    m_wantStreaming = true;
+    m_handshook = false;
+    m_sendBuffer.clear();
+    const QUrl url = buildRequestUrl();
+    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Opening realtime ASR websocket");
+    m_socket->open(url);
+    return true;
 }
 
-void TencentSpeechRecognizer::onNetworkReplyFinished(QNetworkReply* reply)
+void TencentSpeechRecognizer::stopRealtime()
 {
-    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Get network reply succeed!");
+    m_wantStreaming = false;
+    m_sendTimer->stop();
+    if (m_socket->state() == QAbstractSocket::ConnectedState) {
+        if (!m_sendBuffer.isEmpty()) {
+            m_socket->sendBinaryMessage(m_sendBuffer);
+            m_sendBuffer.clear();
+        }
+        m_socket->sendTextMessage(QStringLiteral("{\"type\":\"end\"}"));
+        m_socket->close();
+    }
+    else if (m_socket->state() != QAbstractSocket::UnconnectedState) {
+        m_socket->abort();
+    }
+    m_handshook = false;
+    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Realtime ASR stopped");
+}
 
-    if (!reply) {
-        // 无回复消息
-        ERROR_DEBUG_OUTPUT("[Tencent Speech Recognizer]Network reply is null!");
+void TencentSpeechRecognizer::sendAudio(const QByteArray& pcm)
+{
+    if (!m_wantStreaming || pcm.isEmpty()) {
         return;
     }
+    m_sendBuffer.append(pcm);
+}
 
-    reply->deleteLater();
+void TencentSpeechRecognizer::onConnected()
+{
+    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Realtime socket connected, waiting handshake");
+}
 
-    if (reply->error() != QNetworkReply::NoError) {
-        // 网络请求失败
-        ERROR_DEBUG_OUTPUT("[Tencent Speech Recognizer]Request failed!");
-        emit errorOccurred("[Tencent Speech Recognizer]Request failed: " + reply->errorString());
-        return;
+void TencentSpeechRecognizer::onDisconnected()
+{
+    m_sendTimer->stop();
+    m_handshook = false;
+    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Realtime socket disconnected");
+    if (m_wantStreaming) {
+        ERROR_DEBUG_OUTPUT("[Tencent Speech Recognizer]Realtime socket dropped while listening, reconnecting");
+        QTimer::singleShot(500, this, [this]() {
+            if (!m_wantStreaming) {
+                return;
+            }
+            m_socket->open(buildRequestUrl());
+        });
     }
+}
 
-    // 读取响应数据
-    QByteArray responseData = reply->readAll();
-	// 输出原始返回数据用于调试
-    FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Raw response data: " + QString(responseData));
+void TencentSpeechRecognizer::onSocketError(QAbstractSocket::SocketError error)
+{
+    Q_UNUSED(error);
+    ERROR_DEBUG_OUTPUT("[Tencent Speech Recognizer]Realtime socket error: " + m_socket->errorString());
+    emit errorOccurred("[Tencent Speech Recognizer]Request failed: " + m_socket->errorString());
+}
 
-    // 解析 JSON
+void TencentSpeechRecognizer::onTextMessage(const QString& message)
+{
     QJsonParseError parseError;
-    QJsonDocument jsonResponse = QJsonDocument::fromJson(responseData, &parseError);
-
-    if (parseError.error != QJsonParseError::NoError) {
-        emit errorOccurred("[Tencent Speech Recognizer]JSON analysis error: " + parseError.errorString());
+    const QJsonDocument doc = QJsonDocument::fromJson(message.toUtf8(), &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        ERROR_DEBUG_OUTPUT("[Tencent Speech Recognizer]JSON analysis error: " + parseError.errorString());
         return;
     }
 
-    if (!jsonResponse.isObject()) {
-        emit errorOccurred("[Tencent Speech Recognizer]Response data is not JSON object!");
+    const QJsonObject obj = doc.object();
+    const int code = obj.value(QStringLiteral("code")).toInt(-1);
+    if (code != 0) {
+        const QString err = obj.value(QStringLiteral("message")).toString();
+        ERROR_DEBUG_OUTPUT("[Tencent Speech Recognizer]TencentClout API error: " + err);
+        emit errorOccurred("[Tencent Speech Recognizer]TencentClout API error: " + err);
+        if (code == 4002 || code == 4003 || code == 4001) {
+            m_wantStreaming = false;
+        }
         return;
     }
 
-    QJsonObject responseObj = jsonResponse.object();
+    if (!m_handshook) {
+        m_handshook = true;
+        m_sendTimer->start();
+        FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Realtime handshake ok");
+    }
 
-    // 处理响应
-    if (responseObj.contains("Response")) {
-        QJsonObject resp = responseObj["Response"].toObject();
-        if (resp.contains("Error")) {
-            QJsonObject errorObj = resp["Error"].toObject();
-            QString errorMsg = errorObj["Message"].toString();
-            emit errorOccurred("[Tencent Speech Recognizer]TencentClout API error: " + errorMsg);
-        }
-        else {
-            QString result = resp["Result"].toString().trimmed();
-            if (result.isEmpty()) {
-                // Empty ASR must not go through recognizeFinished → chat pipeline
-                emit errorOccurred("[Tencent Speech Recognizer]Didnt recognize vailable content!");
-            }
-            else {
-                emit recognizeFinished(result);
-            }
-        }
+    if (obj.value(QStringLiteral("final")).toInt() == 1) {
+        FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Realtime stream final=1");
+        return;
+    }
+
+    if (!obj.contains(QStringLiteral("result"))) {
+        return;
+    }
+    const QJsonObject result = obj.value(QStringLiteral("result")).toObject();
+    const QString text = result.value(QStringLiteral("voice_text_str")).toString().trimmed();
+    const int sliceType = result.value(QStringLiteral("slice_type")).toInt(-1);
+    const bool isFinal = (sliceType == 2);
+    FINE_DEBUG_OUTPUT(QString("[Tencent Speech Recognizer]transcript final=%1 slice=%2 text=%3")
+        .arg(isFinal ? "true" : "false")
+        .arg(sliceType)
+        .arg(text));
+    if (!text.isEmpty()) {
+        emit transcriptReceived(text, isFinal, sliceType);
+    }
+}
+
+void TencentSpeechRecognizer::onSendTimer()
+{
+    if (!m_wantStreaming || m_socket->state() != QAbstractSocket::ConnectedState || !m_handshook) {
+        return;
+    }
+    QByteArray packet;
+    if (m_sendBuffer.size() >= kPacketBytes) {
+        packet = m_sendBuffer.left(kPacketBytes);
+        m_sendBuffer.remove(0, kPacketBytes);
+    }
+    else if (!m_sendBuffer.isEmpty()) {
+        packet = m_sendBuffer;
+        m_sendBuffer.clear();
     }
     else {
-        emit errorOccurred("[Tencent Speech Recognizer]Response data format error: lack of 'Response'");
+        packet = QByteArray(kPacketBytes, '\0');
     }
-}
-
-// 生成腾讯云API v3签名 (这是最复杂的部分，需要严格按照腾讯云文档实现)
-QByteArray TencentSpeechRecognizer::generateSignature(const QString& service, const QString& action,
-    const QString& version, const QString& region,
-    const QByteArray& payload, const QString& timestamp)
-{
-    QString algorithm = "TC3-HMAC-SHA256";
-
-    // 1. 构建 CanonicalRequest
-    QString httpRequestMethod = "POST";
-    QString canonicalUri = "/";
-    QString canonicalQueryString = "";
-    QString actionLower = action.toLower();
-    QString canonicalHeaders = QString("content-type:application/json; charset=utf-8\n") +
-        "host:" + ENDPOINT + "\n" +
-        "x-tc-action:" + actionLower + "\n";
-    QString signedHeaders = "content-type;host;x-tc-action";  // ✅ 添加 x-tc-action
-
-    QByteArray hashedRequestPayload = QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex();
-    QString canonicalRequest = httpRequestMethod + "\n" +
-        canonicalUri + "\n" +
-        canonicalQueryString + "\n" +
-        canonicalHeaders + "\n" +
-        signedHeaders + "\n" +
-        hashedRequestPayload;
-
-    // 构建 StringToSign
-    // Date 必须用 UTC+0（腾讯云 TC3 要求）。本地时区（如 UTC+8）在本地 00:00–08:00
-    // 会算出“下一天”的日期，导致 AuthFailure.SignatureFailure。
-    QByteArray hashedCanonicalRequest = QCryptographicHash::hash(canonicalRequest.toUtf8(), QCryptographicHash::Sha256).toHex();
-    QString date = QDateTime::fromSecsSinceEpoch(timestamp.toLongLong(), QTimeZone::UTC).toString("yyyy-MM-dd");
-    QString credentialScope = date + "/" + service + "/tc3_request";
-    QString stringToSign = algorithm + "\n" +
-        timestamp + "\n" +
-        credentialScope + "\n" +
-        hashedCanonicalRequest;
-
-    // 计算签名
-    QByteArray secretKeyBytes = m_secretKey.toUtf8();
-
-    // kKey = "TC3" + SecretKey
-    QByteArray kKey = "TC3" + secretKeyBytes;
-
-    // kDate = HMAC_SHA256(kKey, Date)
-    QByteArray kDate = hmacSha256(kKey, date.toUtf8());
-
-    // kService = HMAC_SHA256(kDate, Service)
-    QByteArray kService = hmacSha256(kDate, service.toUtf8());
-
-    // kSigning = HMAC_SHA256(kService, "tc3_request")
-    QByteArray kSigning = hmacSha256(kService, "tc3_request");
-
-    // Signature = HexEncode(HMAC_SHA256(kSigning, StringToSign))
-    QByteArray signature = hexEncode(hmacSha256(kSigning, stringToSign.toUtf8()));
-
-    // 4. 构建 Authorization
-    QString authorization = algorithm + " " +
-        "Credential=" + m_secretId + "/" + credentialScope + ", " +
-        "SignedHeaders=" + signedHeaders + ", " +
-        "Signature=" + signature;
-
-    return authorization.toUtf8();
-}
-
-// 返回原始的二进制数据（不是十六进制）
-QByteArray TencentSpeechRecognizer::hmacSha256(const QByteArray& key, const QByteArray& data)
-{
-    return QMessageAuthenticationCode::hash(data, key, QCryptographicHash::Sha256);
-    // 注意：QMessageAuthenticationCode::hash 返回的是原始二进制数据！
-}
-
-// 将二进制数据转换为十六进制字符串
-QByteArray TencentSpeechRecognizer::hexEncode(const QByteArray& input)
-{
-    return input.toHex();
+    m_socket->sendBinaryMessage(packet);
 }

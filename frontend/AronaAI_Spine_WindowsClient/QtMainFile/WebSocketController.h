@@ -90,6 +90,10 @@ public:
         bool useRag = true,
         bool useMemory = true);
 
+    void sendListenState(bool listening);
+    void sendTranscript(const QString& text, const QString& segmentId, int silenceMs);
+    void sendInterrupt();
+
     // 清空会话
     void clearSession();
 

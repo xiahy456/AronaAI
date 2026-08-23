@@ -75,6 +75,14 @@ planner:
   timeout_sec: 20
   temperature: 0.3
   max_tokens: 512
+  router_enabled: true
+  router_timeout_sec: 3
+  router_max_tokens: 64
+
+listen:
+  silence_commit_ms: 1000
+  incomplete_commit_ms: 1800
+  continuation_window_sec: 8
 
 proactive:
   welcome:

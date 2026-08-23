@@ -14,6 +14,7 @@ class ConnectionHub:
     def __init__(self) -> None:
         self._sessions: dict[str, SendFn] = {}
         self._busy: set[str] = set()
+        self._listening: set[str] = set()
 
     def register(self, session_id: str, send: SendFn) -> None:
         self._sessions[session_id] = send
@@ -21,6 +22,16 @@ class ConnectionHub:
     def unregister(self, session_id: str) -> None:
         self._sessions.pop(session_id, None)
         self._busy.discard(session_id)
+        self._listening.discard(session_id)
+
+    def set_listening(self, session_id: str, listening: bool) -> None:
+        if listening:
+            self._listening.add(session_id)
+        else:
+            self._listening.discard(session_id)
+
+    def is_listening(self, session_id: str) -> bool:
+        return session_id in self._listening
 
     def set_busy(self, session_id: str, busy: bool) -> None:
         if busy:
@@ -35,5 +46,5 @@ class ConnectionHub:
         return [
             (session_id, send)
             for session_id, send in self._sessions.items()
-            if session_id not in self._busy
+            if session_id not in self._busy and session_id not in self._listening
         ]

@@ -103,7 +103,7 @@ def build_planner_user_message(
         f"【相关知识】\n{know_block}\n\n"
         f"【近期对话】\n{hist_block}\n\n"
         f"【老师本轮消息】\n{user_text.strip()}\n\n"
-        "注意：先判断 reply_ok，再写 draft。请看【近期对话】里阿洛娜最后一句是否已经道别或收束。\n"
+        "注意：先判断 reply_ok，再写 draft。\n"
         "若 reply_ok 为 true 且有【关系气候】，按建议姿态写草稿。\n"
         "请输出唯一 JSON 对象。"
     )

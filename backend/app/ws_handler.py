@@ -33,8 +33,11 @@ from .protocol import (
     TYPE_CLEAR_SESSION,
     TYPE_CONNECTED,
     TYPE_GET_STATS,
+    TYPE_INTERRUPT,
+    TYPE_LISTEN_STATE,
     TYPE_PING,
     TYPE_PONG,
+    TYPE_TRANSCRIPT,
     msg_chat_response,
     msg_connected,
     msg_error,
@@ -42,6 +45,17 @@ from .protocol import (
     msg_result,
     msg_stats,
 )
+from .turntaking import (
+    ACTION_IGNORE,
+    ACTION_REPLY,
+    ACTION_WAIT,
+    AddressRouter,
+    LlmTurnRouter,
+    TurnBuffer,
+    is_teacher_speaker,
+    looks_incomplete,
+)
+from .turntaking.speaker import normalize_speaker
 
 logger = logging.getLogger(__name__)
 
@@ -79,9 +93,18 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
 
     chat_recv_at: float | None = None
 
+    turn_buffer = TurnBuffer()
+    address_router = AddressRouter(LlmTurnRouter(state.config.planner))
+    listen_cfg = state.config.listen
+    generation_id = 0
+    inflight_user: str | None = None
+    commit_task: asyncio.Task[None] | None = None
+    wait_extended = False
+
     async def send(payload: dict[str, Any]) -> None:
         msg_type = payload.get("type")
         if msg_type == TYPE_CHAT_RESPONSE:
+            turn_buffer.note_arona_spoke()
             logger.info("%s", format_interactive_log(payload))
             reset_trace()
             logger.info(
@@ -108,11 +131,27 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
 
     chat_task: asyncio.Task[None] | None = None
 
+    def _clear_inflight() -> None:
+        nonlocal inflight_user
+        inflight_user = None
+
+    async def _cancel_commit() -> None:
+        nonlocal commit_task
+        task = commit_task
+        commit_task = None
+        if task is not None and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
     async def _run_chat(
         content: str,
         options: dict[str, Any],
         request_json: str | None,
         started_at: float | None,
+        abort_check: Any | None = None,
     ) -> None:
         state.hub.set_busy(session_id, True)
         if state.scheduler is not None:
@@ -129,7 +168,12 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                 send=send,
                 request_json=request_json,
                 started_at=started_at,
+                abort_check=abort_check,
+                on_committed=_clear_inflight,
             )
+            if inflight_user:
+                turn_buffer.prepend(inflight_user)
+                _clear_inflight()
         except asyncio.CancelledError:
             logger.info("chat cancelled session=%s", session_id)
             raise
@@ -141,6 +185,107 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                 pass
         finally:
             state.hub.set_busy(session_id, False)
+
+    async def _interrupt_generation(*, restore_inflight: bool) -> None:
+        nonlocal chat_task, generation_id, inflight_user
+        generation_id += 1
+        if restore_inflight and inflight_user:
+            turn_buffer.prepend(inflight_user)
+            inflight_user = None
+        if chat_task is not None and not chat_task.done():
+            chat_task.cancel()
+            try:
+                await chat_task
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                logger.exception(
+                    "Error while interrupting chat task session=%s", session_id
+                )
+
+    async def _commit_turn() -> None:
+        nonlocal commit_task, chat_task, inflight_user, wait_extended, generation_id
+        commit_task = None
+        if not turn_buffer.listening:
+            return
+        text = turn_buffer.joined()
+        if not text:
+            return
+        history = state.conversations.get_history(session_id)
+        last_arona = ""
+        for msg in reversed(history):
+            if msg.get("role") == "assistant":
+                last_arona = str(msg.get("content") or "")
+                break
+        result = await address_router.decide(
+            text=text,
+            seconds_since_arona=turn_buffer.seconds_since_arona(),
+            continuation_window_sec=listen_cfg.continuation_window_sec,
+            already_waited=wait_extended,
+            last_arona=last_arona,
+            silence_ms=listen_cfg.silence_commit_ms
+            if not wait_extended
+            else listen_cfg.incomplete_commit_ms,
+        )
+        logger.info(
+            "listen commit session=%s action=%s reason=%s source=%s text=%r",
+            session_id,
+            result.action,
+            result.reason,
+            result.source,
+            text,
+        )
+        if result.action == ACTION_WAIT:
+            wait_extended = True
+            delay = max(0.05, listen_cfg.incomplete_commit_ms / 1000.0)
+            commit_task = asyncio.create_task(_commit_after(delay))
+            return
+        wait_extended = False
+        if result.action == ACTION_IGNORE:
+            turn_buffer.clear()
+            return
+        if result.action != ACTION_REPLY:
+            return
+        drained = turn_buffer.drain()
+        if not drained or is_unusable_user_text(drained):
+            logger.info(
+                "listen reply skipped session=%s reason=unusable text=%r",
+                session_id,
+                drained,
+            )
+            return
+        if chat_task is not None and not chat_task.done():
+            await _interrupt_generation(restore_inflight=True)
+        my_id = generation_id
+        inflight_user = drained
+        started = time.perf_counter()
+        chat_task = asyncio.create_task(
+            _run_chat(
+                drained,
+                {},
+                None,
+                started,
+                lambda: generation_id != my_id,
+            )
+        )
+
+    async def _commit_after(delay_sec: float) -> None:
+        try:
+            await asyncio.sleep(delay_sec)
+            await _commit_turn()
+        except asyncio.CancelledError:
+            raise
+
+    def _schedule_commit() -> None:
+        nonlocal commit_task, wait_extended
+        wait_extended = False
+        if commit_task is not None and not commit_task.done():
+            commit_task.cancel()
+        delay_ms = listen_cfg.silence_commit_ms
+        if looks_incomplete(turn_buffer.last_text()):
+            delay_ms = listen_cfg.incomplete_commit_ms
+            wait_extended = True
+        commit_task = asyncio.create_task(_commit_after(max(0.05, delay_ms / 1000.0)))
 
     async def _run_welcome() -> None:
         state.hub.set_busy(session_id, True)
@@ -330,6 +475,78 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                             chat_recv_at,
                         )
                     )
+                elif msg_type == TYPE_LISTEN_STATE:
+                    raw_state = data.get("state") or data.get("listening")
+                    if isinstance(raw_state, bool):
+                        listening = raw_state
+                    else:
+                        listening = str(raw_state or "").strip().lower() in {
+                            "on",
+                            "true",
+                            "1",
+                            "start",
+                        }
+                    logger.info(
+                        "WS listen_state session=%s listening=%s",
+                        session_id,
+                        listening,
+                    )
+                    await _cancel_commit()
+                    turn_buffer.set_listening(listening)
+                    state.hub.set_listening(session_id, listening)
+                    wait_extended = False
+                elif msg_type == TYPE_TRANSCRIPT:
+                    text = str(data.get("content") or data.get("text") or "")
+                    speaker = normalize_speaker(data.get("speaker"))
+                    is_final = bool(data.get("is_final", True))
+                    silence_ms = int(data.get("silence_ms") or 0)
+                    segment_id = str(data.get("segment_id") or "")
+                    logger.info(
+                        "WS transcript session=%s final=%s speaker=%s silence_ms=%s "
+                        "segment=%s content=%r",
+                        session_id,
+                        is_final,
+                        speaker,
+                        silence_ms,
+                        segment_id,
+                        text,
+                    )
+                    if not turn_buffer.listening:
+                        logger.info(
+                            "WS transcript ignored session=%s reason=not_listening",
+                            session_id,
+                        )
+                        continue
+                    if not is_final:
+                        continue
+                    if not is_teacher_speaker(speaker):
+                        logger.info(
+                            "WS transcript dropped session=%s reason=non_teacher speaker=%s",
+                            session_id,
+                            speaker,
+                        )
+                        continue
+                    if is_unusable_user_text(text):
+                        logger.info(
+                            "WS transcript dropped session=%s reason=unusable content=%r",
+                            session_id,
+                            text,
+                        )
+                        continue
+                    if state.scheduler is not None:
+                        state.scheduler.note_user_activity()
+                    turn_buffer.push(
+                        text=text,
+                        speaker=speaker,
+                        segment_id=segment_id,
+                        silence_ms=silence_ms,
+                    )
+                    _schedule_commit()
+                elif msg_type == TYPE_INTERRUPT:
+                    logger.info("WS interrupt session=%s", session_id)
+                    await _interrupt_generation(restore_inflight=True)
+                    if state.scheduler is not None:
+                        state.scheduler.note_user_activity()
                 else:
                     logger.warning(
                         "WS unknown type session=%s type=%r",
@@ -343,6 +560,16 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
     except WebSocketDisconnect:
         logger.info("WS disconnected session=%s", session_id)
     finally:
+        if commit_task is not None and not commit_task.done():
+            commit_task.cancel()
+            try:
+                await commit_task
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                logger.exception(
+                    "Error while cancelling listen commit session=%s", session_id
+                )
         if chat_task is not None and not chat_task.done():
             chat_task.cancel()
             try:

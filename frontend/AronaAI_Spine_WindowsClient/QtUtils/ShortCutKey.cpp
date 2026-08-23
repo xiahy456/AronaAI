@@ -56,13 +56,13 @@ ShortCutKey::~ShortCutKey()
 void ShortCutKey::onSwitchAudioInput()
 {
 	FINE_DEBUG_OUTPUT("[Short Cut Key]Key 'Switch Audio Input' activated!");
-	if (m_switchAudioInputEnabled) {
+	if (m_mainController->isListening()) {
 		m_mainController->stopAudioProcessing();
 		m_switchAudioInputEnabled = false;
 	}
 	else {
 		m_mainController->startAudioProcessing();
-		m_switchAudioInputEnabled = true;
+		m_switchAudioInputEnabled = m_mainController->isListening();
 	}
 }
 

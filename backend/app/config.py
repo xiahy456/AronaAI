@@ -94,6 +94,17 @@ class PlannerConfig(BaseModel):
     timeout_sec: float = 20
     temperature: float = 0.3
     max_tokens: int = 512
+    router_enabled: bool = False
+    router_timeout_sec: float = 3.0
+    router_max_tokens: int = 64
+
+
+class ListenConfig(BaseModel):
+    """Continuous-listen turn taking (silence commit + addressee router)."""
+
+    silence_commit_ms: int = 1000
+    incomplete_commit_ms: int = 1800
+    continuation_window_sec: float = 8.0
 
 
 class TokenBudgetConfig(BaseModel):
@@ -186,6 +197,7 @@ class AppConfig(BaseModel):
     knowledge: KnowledgeConfig = Field(default_factory=KnowledgeConfig)
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     planner: PlannerConfig = Field(default_factory=PlannerConfig)
+    listen: ListenConfig = Field(default_factory=ListenConfig)
     proactive: ProactiveConfig = Field(default_factory=ProactiveConfig)
     token_budget: TokenBudgetConfig = Field(default_factory=TokenBudgetConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)

@@ -8,6 +8,8 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+AbortCheck = Callable[[], bool]
+
 from .config import AppConfig
 from .conversation import ConversationManager
 from .knowledge import KnowledgeRetriever
@@ -88,7 +90,16 @@ class Orchestrator:
         send: SendFn,
         request_json: str | None = None,
         started_at: float | None = None,
-    ) -> None:
+        abort_check: AbortCheck | None = None,
+        on_committed: Callable[[], None] | None = None,
+    ) -> bool:
+        def _aborted() -> bool:
+            return abort_check is not None and abort_check()
+
+        def _committed() -> None:
+            if on_committed is not None:
+                on_committed()
+
         begin_trace(started_at=started_at, request_json=request_json)
         user_text = (content or "").strip()
         if not user_text:
@@ -101,7 +112,7 @@ class Orchestrator:
                     emotion=DEFAULT_EMOTION,
                 )
             )
-            return
+            return True
 
         use_rag = bool(options.get("use_rag", self.config.knowledge.enabled))
         use_memory = bool(options.get("use_memory", True))
@@ -118,7 +129,8 @@ class Orchestrator:
                 user_text=user_text,
                 decision=decision,
             )
-            return
+            _committed()
+            return True
 
         logger.info(
             "chat start session=%s use_rag=%s use_memory=%s request=%r",
@@ -250,7 +262,8 @@ class Orchestrator:
                         decision=decision,
                         reason="reply_ok_false",
                     )
-                    return
+                    _committed()
+                    return True
 
         if intent is not None:
             messages = build_renderer_messages(
@@ -293,6 +306,10 @@ class Orchestrator:
             full,
         )
         update_trace(renderer_text=full)
+        if _aborted():
+            logger.info("chat aborted before send session=%s", session_id)
+            reset_trace()
+            return False
         await send(
             msg_chat_response(
                 full,
@@ -304,6 +321,7 @@ class Orchestrator:
 
         self.conversations.append(session_id, "user", user_text)
         self.conversations.append(session_id, "assistant", full)
+        _committed()
 
         await self._maybe_extract(session_id, user_text)
         self._note_arona_relationship(decision, "speak")
@@ -326,7 +344,9 @@ class Orchestrator:
             send=send,
             climate=decision.climate if decision is not None else None,
             decision=decision,
+            abort_check=abort_check,
         )
+        return True
 
     async def handle_welcome(
         self,
@@ -607,6 +627,7 @@ class Orchestrator:
         send: SendFn,
         climate: str | None,
         decision: Decision | None,
+        abort_check: AbortCheck | None = None,
     ) -> None:
         if intent is None or not intent.followup_ok:
             return
@@ -624,6 +645,9 @@ class Orchestrator:
         if delay > 0:
             logger.info("continue delay session=%s sec=%s", session_id, delay)
             await asyncio.sleep(delay)
+        if abort_check is not None and abort_check():
+            logger.info("continue aborted session=%s", session_id)
+            return
         logger.info("continue start session=%s", session_id)
         await self.handle_initiate(
             session_id=session_id,

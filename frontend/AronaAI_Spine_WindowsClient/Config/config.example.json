@@ -76,6 +76,7 @@
   },
   "tencent_speech_recognizer": {
     "secret_id": "${TENCENT_SECRET_ID}",
-    "secret_key": "${TENCENT_SECRET_KEY}"
+    "secret_key": "${TENCENT_SECRET_KEY}",
+    "app_id": "${TENCENT_APP_ID}"
   }
 }

@@ -99,6 +99,9 @@ public:
     // 播放音频；返回 WAV 时长（秒，失败为 -1）。上一条未结束时不要打断。
     double playAudio(const QByteArray& audioData);
 
+    bool isPlayingAudio() const;
+    void interruptPlayback();
+
     // 本条已呈现完毕（播完 / TTS 失败字幕 / 跳过播放），允许播放队列下一条
     void notifyPlaybackFinished();
 

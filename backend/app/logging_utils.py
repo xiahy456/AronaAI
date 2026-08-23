@@ -24,6 +24,9 @@ _APP_LOGGERS = (
     "app.knowledge",
     "app.memory.store",
     "app.memory.extractor",
+    "app.turntaking",
+    "app.turntaking.router",
+    "app.turntaking.llm_router",
 )
 
 
