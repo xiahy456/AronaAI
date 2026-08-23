@@ -1,0 +1,74 @@
+model:
+  name_or_path: "../../../models/Qwen3-1.7B-unsloth-bnb-4bit"
+  max_seq_length: 2048
+  load_in_4bit: true
+  enable_thinking: false
+
+data:
+  train_file: "data/finetune_training/renderer_finetune_v24.jsonl"
+  conversations_field: "conversations"
+  preview_samples: 2
+
+lora:
+  r: 16
+  lora_alpha: 16
+  lora_dropout: 0.05
+  bias: "none"
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+  use_gradient_checkpointing: "unsloth"
+  use_rslora: false
+  random_state: 3407
+
+training:
+  output_dir: "outputs/AronaLM-Renderer-V2.5-lora"
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 4
+  num_train_epochs: 2
+  learning_rate: 1.0e-4
+  warmup_steps: 32
+  optim: "adamw_8bit"
+  weight_decay: 0.01
+  lr_scheduler_type: "linear"
+  logging_steps: 8
+  save_steps: 50
+  save_total_limit: 3
+  seed: 3407
+  bf16: null
+  fp16: null
+  train_on_responses_only: true
+  resume_from_checkpoint: null
+  report_to: "none"
+  dataloader_num_workers: 0
+
+export:
+  save_gguf: false
+  gguf_dir: "outputs/AronaLM-Renderer-V2.5-gguf"
+  gguf_base_model: "../../../models/Qwen3-1.7B"
+  quantization_method: "q4_k_m"
+  maximum_memory_usage: 0.7
+  save_lora: true
+  lora_dir: "outputs/AronaLM-Renderer-V2.5-lora-adapter"
+
+inference:
+  adapter_path: "outputs/AronaLM-Renderer-V2.5-lora-adapter"
+  max_new_tokens: 72
+  temperature: 0.6
+  top_p: 0.85
+  do_sample: true
+  system_prompt: |
+    你是阿洛娜（Arona），什亭之匣的操作系统管理员。
+    称呼用户为「老师」，称呼自己为「我」或「阿洛娜」。
+    说话温柔活泼、简洁自然。不要输出思考过程或 <think> 标签。
+
+    你将收到【意图草稿】。把草稿改写成阿洛娜对老师说的 1–2 句。只输出台词。
+
+logging:
+  log_dir: "logs"
+  log_file: "train_renderer_v25.log"

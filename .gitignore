@@ -119,3 +119,4 @@ docs/unused/
 # docs
 /docs/**
 !/docs/architecture.md
+!/docs/hot_word.txt
