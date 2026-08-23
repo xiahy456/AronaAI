@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <em>Version: 2.2.2</em>
+  <em>Version: 2.3.0</em>
 </p>
 
 <p align="center">
@@ -45,7 +45,7 @@ arona-ai/
 ├── backend/                              # Python backend (FastAPI + WebSocket)
 ├── frontend/                             # Desktop client (Qt/C++ + Spine)
 ├── gpt-sovits/                           # GPT-SoVITS TTS
-├── llm/aronaLM/finetune/                 # AronaLM fine-tune (not actually a "large" model)
+├── llm/aronaLM/finetune/                 # AronaLM fine-tune (not actually a large model… I wrote that wrong earlier and still haven't changed it)
 ├── models/                               # Local model weights (download yourself)
 ├── assets/                               # Project assets
 └── start-all.bat                         # Windows one-click local start for all services
@@ -63,6 +63,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
 - **Proactive behavior**: after a WebSocket connect, Arona greets and reminds by time of day; after a stretch of silence she checks in lightly; sparse follow-ups on unfinished plans in memory; when Planner allows it, she may add a line in the same turn
 - **AronaLM**: AronaLM-Renderer handles text rendering; when the dual-model pipeline is unavailable, the local single-model AronaLM-Generator takes over the full inference path
 - **Memory and knowledge are separate**: long-term user facts go to SQLite + FTS5 + Chroma; world-lore goes Markdown corpus → local BGE + Chroma RAG; they are never mixed, and each is injected into the prompt on demand
+- **Intermediate result cache**: world-lore near-synonym retrieval can reuse lore hits; the Renderer reuses a fixed system-prefix KV cache
 - **Async memory extraction**: the main dialogue path is not blocked; DeepSeek JSON extraction (with a daily quota and buffered batches) falls back to regex if the call fails or no API key is set
 - **Bounded context**: multi-turn history truncation + memory / knowledge / history token budgets keep the context from ballooning
 
@@ -157,13 +158,16 @@ Download the packaged client from the [Releases](https://github.com/xiahy456/Aro
     "host": "your.gpt.sovits.ip" // your GPT-SoVITS host
   },
   "tencent_speech_recognizer": {
-    "secret_id": "${TENCENT_SECRET_ID}", // Tencent Cloud ASR SecretId (env-var placeholders allowed)
-    "secret_key": "${TENCENT_SECRET_KEY}" // Tencent Cloud ASR SecretKey (env-var placeholders allowed)
+    "secret_id": "${TENCENT_SECRET_ID}", // Tencent Cloud real-time ASR SecretId (env-var placeholders allowed)
+    "secret_key": "${TENCENT_SECRET_KEY}",  // Tencent Cloud real-time ASR SecretKey (env-var placeholders allowed)
+    "app_id": "${TENCENT_APP_ID}" // Tencent Cloud real-time ASR AppId
   }
 }
 ```
 
 Full field docs: [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md). Building the client from source is also covered there.
+
+> **Note**: Upload [`docs/hot_word.txt`](docs/hot_word.txt) as a hot-word list in Tencent Cloud ASR and set it as the default hot-word list.
 
 3. Start the client by running the client executable.
 

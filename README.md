@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <em>版本：2.2.2</em>
+  <em>版本：2.3.0</em>
 </p>
 
 <p align="center">
@@ -158,8 +158,9 @@ python -m app.main
     "host": "your.gpt.sovits.ip" // 你的 GPT-SoVITS 服务地址
   },
   "tencent_speech_recognizer": {
-    "secret_id": "${TENCENT_SECRET_ID}", // 腾讯云语音识别 SecretId（可用环境变量占位）
-    "secret_key": "${TENCENT_SECRET_KEY}" // 腾讯云语音识别 SecretKey（可用环境变量占位）
+    "secret_id": "${TENCENT_SECRET_ID}", // 腾讯云实时语音识别 SecretId（可用环境变量占位）
+    "secret_key": "${TENCENT_SECRET_KEY}",  // 腾讯云实时语音识别 SecretKey（可用环境变量占位）
+    "app_id": "${TENCENT_APP_ID}" // 腾讯云实时语音识别 AppId
   }
 }
 ```
