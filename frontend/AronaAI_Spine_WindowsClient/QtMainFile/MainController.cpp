@@ -110,6 +110,8 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
         }
     }
     m_tencentRecognizer->setCredentials(secretId, secretKey, appId);
+    m_tencentRecognizer->setVadSilenceTime(
+        GET_INT_FROM_JSON(_global_config, "tencent_speech_recognizer", "vad_silence_time"));
 
     connect(m_webSocketController, &WebSocketController::connected,
         this, &MainController::onWebSocketConnected);

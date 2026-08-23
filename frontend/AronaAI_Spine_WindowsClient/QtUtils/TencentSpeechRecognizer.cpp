@@ -35,10 +35,14 @@
 namespace {
 const QString kHost = QStringLiteral("asr.cloud.tencent.com");
 const int kPacketBytes = 6400; // 200ms of 16kHz mono int16
+const int kDefaultVadSilenceTimeMs = 1200;
+const int kMinVadSilenceTimeMs = 240;
+const int kMaxVadSilenceTimeMs = 2000;
 }
 
 TencentSpeechRecognizer::TencentSpeechRecognizer(QObject* parent)
     : QObject(parent)
+    , m_vadSilenceTimeMs(kDefaultVadSilenceTimeMs)
     , m_initialized(false)
     , m_wantStreaming(false)
     , m_handshook(false)
@@ -87,6 +91,18 @@ void TencentSpeechRecognizer::setCredentials(const QString& secretId, const QStr
     }
 }
 
+void TencentSpeechRecognizer::setVadSilenceTime(int ms)
+{
+    if (ms <= 0) {
+        m_vadSilenceTimeMs = kDefaultVadSilenceTimeMs;
+    }
+    else {
+        m_vadSilenceTimeMs = qBound(kMinVadSilenceTimeMs, ms, kMaxVadSilenceTimeMs);
+    }
+    FINE_DEBUG_OUTPUT(QString("[Tencent Speech Recognizer]vad_silence_time=%1ms")
+        .arg(m_vadSilenceTimeMs));
+}
+
 bool TencentSpeechRecognizer::isInitialized() const
 {
     return m_initialized;
@@ -116,7 +132,7 @@ QUrl TencentSpeechRecognizer::buildRequestUrl() const
     params.append({QStringLiteral("nonce"), QString::number(nonce)});
     params.append({QStringLiteral("secretid"), m_secretId});
     params.append({QStringLiteral("timestamp"), QString::number(timestamp)});
-    params.append({QStringLiteral("vad_silence_time"), QStringLiteral("800")});
+    params.append({QStringLiteral("vad_silence_time"), QString::number(m_vadSilenceTimeMs)});
     params.append({QStringLiteral("voice_format"), QStringLiteral("1")});
     params.append({QStringLiteral("voice_id"), voiceId});
     std::sort(params.begin(), params.end(), [](const auto& a, const auto& b) {

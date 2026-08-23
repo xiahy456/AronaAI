@@ -1,18 +1,10 @@
-"""Listen-session turn taking: buffer, speaker filter, addressee router."""
+"""Listen-session turn taking: buffer, speaker filter, silence EOT."""
 
 from .buffer import TurnBuffer
-from .llm_router import LlmTurnRouter
-from .router import AddressRouter, RouteResult
-from .rules import ACTION_IGNORE, ACTION_REPLY, ACTION_WAIT, looks_incomplete
+from .rules import looks_incomplete
 from .speaker import SPEAKER_OTHER, SPEAKER_TEACHER, SPEAKER_UNKNOWN, is_teacher_speaker
 
 __all__ = [
-    "ACTION_IGNORE",
-    "ACTION_REPLY",
-    "ACTION_WAIT",
-    "AddressRouter",
-    "LlmTurnRouter",
-    "RouteResult",
     "SPEAKER_OTHER",
     "SPEAKER_TEACHER",
     "SPEAKER_UNKNOWN",

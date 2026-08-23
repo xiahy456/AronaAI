@@ -127,6 +127,10 @@ def main() -> None:
     assert '"draft"' in PLANNER_SYSTEM or "draft：" in PLANNER_SYSTEM
     assert "想聊什么" in PLANNER_SYSTEM
     assert "reply_ok" in PLANNER_SYSTEM
+    assert "默认 true" in PLANNER_SYSTEM
+    assert "没点名" in PLANNER_SYSTEM
+    assert "打电话" in PLANNER_SYSTEM
+    assert "拿不准时选 true" in PLANNER_SYSTEM
     assert "user_act" in PLANNER_SYSTEM
     assert set(USER_ACT_WHITELIST) == set(USER_DELTAS)
     for act in USER_ACT_WHITELIST:
@@ -142,6 +146,7 @@ def main() -> None:
     assert "【阿洛娜主要人设】" not in user_msg
     assert "must_say" not in user_msg
     assert "先判断 reply_ok" in user_msg
+    assert "拿不准是否对阿洛娜说时 reply_ok 选 true" in user_msg
 
     long_a = "设定甲" * 10
     long_b = "设定乙" * 10

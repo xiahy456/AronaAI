@@ -46,11 +46,6 @@ from .protocol import (
     msg_stats,
 )
 from .turntaking import (
-    ACTION_IGNORE,
-    ACTION_REPLY,
-    ACTION_WAIT,
-    AddressRouter,
-    LlmTurnRouter,
     TurnBuffer,
     is_teacher_speaker,
     looks_incomplete,
@@ -94,7 +89,6 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
     chat_recv_at: float | None = None
 
     turn_buffer = TurnBuffer()
-    address_router = AddressRouter(LlmTurnRouter(state.config.planner))
     listen_cfg = state.config.listen
     generation_id = 0
     inflight_user: str | None = None
@@ -208,52 +202,16 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         commit_task = None
         if not turn_buffer.listening:
             return
-        text = turn_buffer.joined()
-        if not text:
-            return
-        history = state.conversations.get_history(session_id)
-        last_arona = ""
-        for msg in reversed(history):
-            if msg.get("role") == "assistant":
-                last_arona = str(msg.get("content") or "")
-                break
-        result = await address_router.decide(
-            text=text,
-            seconds_since_arona=turn_buffer.seconds_since_arona(),
-            continuation_window_sec=listen_cfg.continuation_window_sec,
-            already_waited=wait_extended,
-            last_arona=last_arona,
-            silence_ms=listen_cfg.silence_commit_ms
-            if not wait_extended
-            else listen_cfg.incomplete_commit_ms,
-        )
-        logger.info(
-            "listen commit session=%s action=%s reason=%s source=%s text=%r",
-            session_id,
-            result.action,
-            result.reason,
-            result.source,
-            text,
-        )
-        if result.action == ACTION_WAIT:
-            wait_extended = True
-            delay = max(0.05, listen_cfg.incomplete_commit_ms / 1000.0)
-            commit_task = asyncio.create_task(_commit_after(delay))
-            return
-        wait_extended = False
-        if result.action == ACTION_IGNORE:
-            turn_buffer.clear()
-            return
-        if result.action != ACTION_REPLY:
-            return
         drained = turn_buffer.drain()
         if not drained or is_unusable_user_text(drained):
             logger.info(
-                "listen reply skipped session=%s reason=unusable text=%r",
+                "listen commit skipped session=%s reason=unusable text=%r",
                 session_id,
                 drained,
             )
             return
+        wait_extended = False
+        logger.info("listen commit session=%s text=%r", session_id, drained)
         if chat_task is not None and not chat_task.done():
             await _interrupt_generation(restore_inflight=True)
         my_id = generation_id

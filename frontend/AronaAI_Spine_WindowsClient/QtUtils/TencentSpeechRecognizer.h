@@ -38,6 +38,7 @@ public:
     ~TencentSpeechRecognizer();
 
     void setCredentials(const QString& secretId, const QString& secretKey, const QString& appId);
+    void setVadSilenceTime(int ms);
     bool isInitialized() const;
     bool isStreaming() const;
 
@@ -64,6 +65,7 @@ private:
     QString m_secretId;
     QString m_secretKey;
     QString m_appId;
+    int m_vadSilenceTimeMs;
     bool m_initialized;
     bool m_wantStreaming;
     bool m_handshook;
