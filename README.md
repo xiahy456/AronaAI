@@ -166,6 +166,8 @@ python -m app.main
 
 完整字段说明见 [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md)。从源码构建客户端亦见该文档。
 
+> **注意**：请在腾讯语音识别热词表中上传[`docs/hot_word.txt`](docs/hot_word.txt)作为热词表，并将其设置为默认热词
+
 3. 启动客户端，直接运行客户端可执行文件即可。
 
 ### 语音合成服务
