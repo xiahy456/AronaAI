@@ -10,7 +10,7 @@ This directory holds local model weights for AronaAI runtime and finetuning (git
 
 ```
 models/
-├── AronaLM-Renderer-V2.x/              # 后端默认：Renderer GGUF（双模型链路）
+├── AronaLM-Renderer-V2.x/              # Renderer GGUF（双模型链路）
 │   └── AronaLM-Renderer-V2.x.Q4_K_M.gguf
 ├── AronaLM-Generator-V2.x/                # 可选：本地单模型 / Planner 回落
 │   └── AronaLM-Generator-V2.x.Q4_K_M.gguf
@@ -23,9 +23,9 @@ models/
 
 ---
 
-## 后端推理（必需） / Backend Inference (Required)
+## 后端推理 / Backend Inference
 
-对话默认走 **Planner（DeepSeek）→ 意图卡 → Renderer（AronaLM-Renderer-V2.x）**；`llama-cpp-python` 加载本目录下的 GGUF。
+启用Arona-Renderer渲染修正时，对话默认走 **Planner（DeepSeek）→ 意图卡 → Renderer（AronaLM-Renderer-V2.x）**；`llama-cpp-python` 加载本目录下的 GGUF。
 
 | 模型 | 路径 | 用途 | 配置项 |
 |------|------|------|--------|

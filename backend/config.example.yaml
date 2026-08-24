@@ -1,13 +1,18 @@
+# 各配置项说明请查阅 backend/README.md
+
 server:
   host: "127.0.0.1"
   port: 20456
   ws_path: "/ws"
 
 model:
-  enabled: true  # false = 不加载 Arona-Renderer，直接用 planner.draft 作为 content
+  # enable 是否启用Arona-Renderer渲染修正
+  #   - true 启用，planner+renderer双模型链路，planner失败时回落renderer推理
+  #   - false 不启用，只使用planner草稿
+  enabled: false
+  # gguf_path 为 Arona-Renderer 模型路径
+  #   如果要使用单模型 gguf_path: "../models/AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf"
   gguf_path: "../models/AronaLM-Renderer-V2.4/AronaLM-Renderer-V2.4.Q4_K_M.gguf"
-  # rollback: ../models/AronaLM-Renderer-V2.2/AronaLM-Renderer-V2.2.Q4_K_M.gguf
-  # 如果要使用单模型 gguf_path: "../models/AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf"
   n_ctx: 2048
   n_gpu_layers: -1
   max_new_tokens: 72

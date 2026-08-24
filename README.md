@@ -82,7 +82,7 @@ arona-ai/
 | 组件 | 要求 |
 |------|------|
 | Python | 3.10+ |
-| CUDA | 11.8（可选，llama.cpp GPU 层 / 微调训练） |
+| CUDA | 11.8（可选，AronaLM + llama.cpp GPU 层 / 微调训练） |
 | 操作系统 | Windows 10/11 (客户端/服务端) / Linux 及其衍生系统 (服务端) |
 | 后端依赖 | `backend/requirements.txt` |
 
@@ -104,22 +104,7 @@ arona-ai/
 
 ### 后端
 
-**1. 放置AronaLM模型文件**
-
-```
-models/
-├── AronaLM-Renderer-V2.x/        # Renderer GGUF（双模型链路）
-│   └── AronaLM-Renderer-V2.x.Q4_K_M.gguf
-├── AronaLM-Generator-V2.x/          # 可选：本地单模型 / Planner 回落
-│   └── AronaLM-Generator-V2.x.Q4_K_M.gguf
-└── bge-small-zh-v1.5/            # 知识 / 记忆嵌入模型（启用 knowledge 或记忆向量检索时需要）
-```
-
-> **AronaLM-Renderer-V2.x**：请使用 [xiahy456/AronaLM-Renderer-V2.4](https://www.modelscope.cn/models/xiahy456/AronaLM-Renderer-V2.4)。
-
-> **AronaLM-Generator-V2.x**：可选，见 [xiahy456/AronaLM-Generator-V2.0](https://www.modelscope.cn/models/xiahy456/AronaLM-Generator-V2.0)。仅在关闭 Planner 或需要回落单模型时使用。
-
-**2. 配置 `config.yaml`**
+**1. 配置 `config.yaml`**
 
 ```bash
 # 在 backend/ 目录下
@@ -128,10 +113,13 @@ cp config.example.yaml config.yaml   # Linux / macOS
 ```
 
 按需填写：
-- `model.gguf_path`：默认 `AronaLM-Renderer-V2.4`；仅使用单模型时改为注释中的 Generator 路径
+- `model.enabled`：是否启用Arona-Renderer渲染修正；`true` 启用，`false` 不启用，只使用planner草稿
+- `model.gguf_path`：默认为`AronaLM-Renderer-V2.4`，仅当启用Arona-Renderer时才有作用，若未启用则可以忽略
 - `planner.enabled` / `planner.api_key`：默认开启双模型；填写 DeepSeek API Key。不填 Key 或关闭 `enabled` 则回落本地单模型
 - `memory.extractor.api_key`：DeepSeek API Key（可选；不填则记忆抽取走正则降级）
 - `knowledge.enabled`：是否启用世界观 RAG 知识库（默认 `false`，启用前请先灌库，相关指导在 [`backend/README.md`](backend/README.md) 中）
+
+**注意**：如果启用了Arona-Renderer渲染修正，则需要放置AronaLM-Renderer模型文件；如果未启用则不需要放置。模型放置相关配置请参考 [`models/README.md`](models/README.md)。
 
 **3. 启动服务**
 

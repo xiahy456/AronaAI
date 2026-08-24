@@ -82,7 +82,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
 | Component | Requirement |
 |------|------|
 | Python | 3.10+ |
-| CUDA | 11.8 (optional; llama.cpp GPU layers / fine-tuning) |
+| CUDA | 11.8 (optional; AronaLM + llama.cpp GPU layers / fine-tuning) |
 | OS | Windows 10/11 (client / server) / Linux and derivatives (server) |
 | Backend deps | `backend/requirements.txt` |
 
@@ -104,22 +104,7 @@ After startup the console stays open. You can stop / start / restart a single se
 
 ### Backend
 
-**1. Place AronaLM model files**
-
-```
-models/
-├── AronaLM-Renderer-V2.x/        # Renderer GGUF (dual-model pipeline)
-│   └── AronaLM-Renderer-V2.x.Q4_K_M.gguf
-├── AronaLM-Generator-V2.x/          # Optional: local single-model / Planner fallback
-│   └── AronaLM-Generator-V2.x.Q4_K_M.gguf
-└── bge-small-zh-v1.5/            # Embeddings for knowledge / memory (needed when knowledge or vector memory search is on)
-```
-
-> **AronaLM-Renderer-V2.x**: use [xiahy456/AronaLM-Renderer-V2.4](https://www.modelscope.cn/models/xiahy456/AronaLM-Renderer-V2.4).
-
-> **AronaLM-Generator-V2.x**: optional; see [xiahy456/AronaLM-Generator-V2.0](https://www.modelscope.cn/models/xiahy456/AronaLM-Generator-V2.0). Needed only when Planner is off or you want the single-model fallback.
-
-**2. Configure `config.yaml`**
+**1. Configure `config.yaml`**
 
 ```bash
 # From backend/
@@ -128,10 +113,13 @@ cp config.example.yaml config.yaml   # Linux / macOS
 ```
 
 Fill in as needed:
-- `model.gguf_path`: default `AronaLM-Renderer-V2.4`; for single-model only, switch to the Generator path in the comments
+- `model.enabled`: whether to enable Arona-Renderer rendering correction; `true` enables it, `false` disables it and uses the Planner draft only
+- `model.gguf_path`: default `AronaLM-Renderer-V2.4`; only used when Arona-Renderer is enabled, and can be ignored otherwise
 - `planner.enabled` / `planner.api_key`: dual-model is on by default; set a DeepSeek API key. With no key or `enabled` off, the backend falls back to the local single model
 - `memory.extractor.api_key`: DeepSeek API key (optional; without it, memory extraction uses the regex fallback)
 - `knowledge.enabled`: whether to enable the world-lore RAG knowledge base (default `false`; ingest the corpus before turning this on; see [`backend/README.md`](backend/README.md))
+
+**Note**: If Arona-Renderer rendering correction is enabled, you need to place the AronaLM-Renderer model files; if it is not enabled, you do not. For model placement, see [`models/README.md`](models/README.md).
 
 **3. Start the service**
 
