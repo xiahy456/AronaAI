@@ -102,7 +102,7 @@ Planner 只看见【关系气候】档位与【建议姿态】，禁止下发 A/
 
 ### Planner prompt
 
-结构固定为两条 message：`system = PLANNER_SYSTEM`，`user = climate + 记忆 + 知识 + 历史 +「老师本轮消息」+ 收尾句`。
+结构固定为两条 message：`system = PLANNER_SYSTEM`，`user = climate +【当前时间】+ 记忆 + 知识 + 历史 +「老师本轮消息」+ 收尾句`。
 
 | 部件 | 位置 |
 |------|------|
@@ -112,7 +112,7 @@ Planner 只看见【关系气候】档位与【建议姿态】，禁止下发 A/
 
 `FIXED_MUST_NOT` 仍在 `prompts.py`，V2.4 **不再注入**。
 
-`build_planner_user_message()` 按顺序拼：可选 `climate_block` → `【长期记忆】` → `【相关知识】` → `【近期对话】` → `【老师本轮消息】` → 收尾「若有【关系气候】，按建议姿态写草稿」。写入 Planner 的记忆按 key 冷却，默认 1 小时内不重复注入（`memory.inject_cooldown_sec`）；抽取侧检索不受影响。
+`build_planner_user_message()` 按顺序拼：可选 `climate_block` → `【当前时间】`（与记忆抽取同一格式，如 `2026年8月24日 星期一 10:14`）→ `【长期记忆】` → `【相关知识】` → `【近期对话】` → `【老师本轮消息】` → 收尾「若有【关系气候】，按建议姿态写草稿」。写入 Planner 的记忆按 key 冷却，默认 1 小时内不重复注入（`memory.inject_cooldown_sec`）；抽取侧检索不受影响。
 
 **`【老师本轮消息】` 按来源分套：**
 
@@ -267,7 +267,7 @@ python scripts/ingest_knowledge.py --rebuild
 4. 冒烟检索：`python scripts/test_knowledge_rag.py`；时间感知查询单测（不加载 BGE）：`python scripts/test_query_time.py`
 5. 在 `config.yaml` 设 `knowledge.enabled: true` 后重启后端
 
-对话主路径里记忆与知识检索共用一轮 BGE：同时编码老师原文和带当前时间的附带查询（相对日期会先展开成与记忆写入相同的绝对日期）。两路召回按 key / 标题合并后截断 `top_k`。写入 Planner 的记忆命中按 key 冷却，默认 `memory.inject_cooldown_sec: 3600` 内不重复注入，空缺由下一名候选补上；抽取器看已有记忆时不走该冷却。知识命中（过滤后的 lore 文本）可按 query 向量近义复用，默认 `query_cache_min_cosine: 0.92`，缓存按自然日区分以免跨日复用带日期的命中；`ingest` / `--rebuild` 会清空该缓存。不缓存 Planner 草稿或最终台词。当前时间只用于检索查询，不写入 Planner prompt。
+对话主路径里记忆与知识检索共用一轮 BGE：同时编码老师原文和带当前时间的附带查询（相对日期会先展开成与记忆写入相同的绝对日期）。两路召回按 key / 标题合并后截断 `top_k`。写入 Planner 的记忆命中按 key 冷却，默认 `memory.inject_cooldown_sec: 3600` 内不重复注入，空缺由下一名候选补上；抽取器看已有记忆时不走该冷却。知识命中（过滤后的 lore 文本）可按 query 向量近义复用，默认 `query_cache_min_cosine: 0.92`，缓存按自然日区分以免跨日复用带日期的命中；`ingest` / `--rebuild` 会清空该缓存。不缓存 Planner 草稿或最终台词。当前时间同时用于检索附带查询，并以 `【当前时间】` 写入 Planner user 消息（不写入 Renderer）。
 
 ## 配置
 

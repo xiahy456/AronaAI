@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
+from ..query_time import format_extract_now
 from ..relationship.events import USER_ACT_WHITELIST_CSV
 from .emotions import EMOTION_WHITELIST_CSV
 
@@ -61,7 +64,8 @@ PLANNER_SYSTEM = f"""你是桌面陪伴助手「阿洛娜」的「回复规划�
    不要因为「没点名」「像在自言自语」「只是在讲自己的事」而判 false。拿不准时选 true。
 10. user_act 必须从下列英文值中原样选一个，看老师本轮意图，不是看阿洛娜想说什么：{USER_ACT_WHITELIST_CSV}
     道别、去忙、先去休息、要睡觉、晚安收束 → depart。短「嗯/好/哦」且不是道别 → short_ack。拿不准 → other。禁止输出信任度、依赖度、张力或任何数值。禁止自造表外值。
-11. 如果需要提到其他学生的姓名，仅使用名字即可，不使用姓氏。例如：“白子”，而非“砂狼 白子”或“砂狼白子”。若学生只有名字没有姓氏，直接使用名字即可。
+11. 如果需要提到其他学生的姓名，仅使用名字即可，不使用姓氏。例如：「白子」，而非「砂狼 白子」或「砂狼白子」。若学生只有名字没有姓氏，直接使用名字即可。
+12. 以 user 消息里的【当前时间】为「现在」：判断记忆/知识中的绝对日期是否仍相关，已过期的日程不要当成本轮事实；老师未点明时段时，问候、吃饭、睡觉等跟此时钟对齐。draft 对老师仍用「今天 / 现在 / 早上」等口语，禁止把完整公历年月日念出来。
 
 JSON：{{"draft": string, "arona_emotion": string, "followup_ok": bool, "reply_ok": bool, "user_act": string}}
 """
@@ -74,6 +78,7 @@ def build_planner_user_message(
     memories: list[str],
     knowledge: list[str],
     climate_block: str = "",
+    now: datetime | None = None,
 ) -> str:
     mem_block = "（无）"
     if memories:
@@ -101,6 +106,7 @@ def build_planner_user_message(
 
     return (
         f"{climate_section}"
+        f"{format_extract_now(now)}\n\n"
         f"【长期记忆】\n{mem_block}\n\n"
         f"【相关知识】\n{know_block}\n\n"
         f"【近期对话】\n{hist_block}\n\n"

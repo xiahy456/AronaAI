@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -132,16 +133,22 @@ def main() -> None:
     assert "打电话" in PLANNER_SYSTEM
     assert "拿不准时选 true" in PLANNER_SYSTEM
     assert "user_act" in PLANNER_SYSTEM
+    assert "【当前时间】" in PLANNER_SYSTEM
+    assert "禁止把完整公历年月日念出来" in PLANNER_SYSTEM
     assert set(USER_ACT_WHITELIST) == set(USER_DELTAS)
     for act in USER_ACT_WHITELIST:
         assert act in PLANNER_SYSTEM
     assert USER_ACT_WHITELIST_CSV
+    frozen = datetime(2026, 8, 24, 10, 14)
     user_msg = build_planner_user_message(
         user_text="谢谢你，阿洛娜。",
         history=[],
         memories=[],
         knowledge=[],
+        now=frozen,
     )
+    assert "【当前时间】2026年8月24日 星期一 10:14" in user_msg
+    assert user_msg.index("【当前时间】") < user_msg.index("【长期记忆】")
     assert "【老师本轮消息】" in user_msg
     assert "【阿洛娜主要人设】" not in user_msg
     assert "must_say" not in user_msg
