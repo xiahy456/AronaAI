@@ -217,11 +217,15 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         my_id = generation_id
         inflight_user = drained
         started = time.perf_counter()
+        request_json = json.dumps(
+            {"type": "transcript", "content": drained},
+            ensure_ascii=False,
+        )
         chat_task = asyncio.create_task(
             _run_chat(
                 drained,
                 {},
-                None,
+                request_json,
                 started,
                 lambda: generation_id != my_id,
             )

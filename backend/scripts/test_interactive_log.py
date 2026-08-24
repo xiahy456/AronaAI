@@ -6,6 +6,7 @@ Run from backend/:
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -126,11 +127,37 @@ def test_format_missing_fields_are_none() -> None:
     print("  ok")
 
 
+def test_format_listen_transcript_request() -> None:
+    print("== listen transcript request is pretty-printed ==")
+    reset_trace()
+    content = "这就导致一个什么问题呢？就是导致。"
+    begin_trace(
+        started_at=1.0,
+        request_json=json.dumps(
+            {"type": "transcript", "content": content},
+            ensure_ascii=False,
+        ),
+    )
+    block = format_interactive_log(
+        {"type": "chat_response", "content": "老师，您慢慢说。"},
+        elapsed=0.5,
+    )
+    if "request:\n(none)" in block:
+        _fail("listen request should not be (none)")
+    if '"type": "transcript"' not in block:
+        _fail(f"request should show transcript type:\n{block}")
+    if f'"content": "{content}"' not in block:
+        _fail(f"request should pretty-print listen content:\n{block}")
+    reset_trace()
+    print("  ok")
+
+
 def main() -> None:
     try:
         test_pretty_json()
         test_format_interactive_log_block()
         test_format_missing_fields_are_none()
+        test_format_listen_transcript_request()
     finally:
         reset_trace()
     print("ALL PASS")
