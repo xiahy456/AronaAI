@@ -4,6 +4,7 @@ server:
   ws_path: "/ws"
 
 model:
+  enabled: true  # false = 不加载 Arona-Renderer，直接用 planner.draft 作为 content
   gguf_path: "../models/AronaLM-Renderer-V2.4/AronaLM-Renderer-V2.4.Q4_K_M.gguf"
   # rollback: ../models/AronaLM-Renderer-V2.2/AronaLM-Renderer-V2.2.Q4_K_M.gguf
   # 如果要使用单模型 gguf_path: "../models/AronaLM-Generator-V2.0/AronaLM-Generator-V2.0.Q4_K_M.gguf"

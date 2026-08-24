@@ -1,3 +1,17 @@
+# Copyright 2026 xia_hy456. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Chat orchestrator: retrieve -> (plan) -> prompt -> generate -> async memory extract."""
 
 from __future__ import annotations
@@ -32,7 +46,7 @@ from .proactive.followup import (
     too_similar,
 )
 from .prompt import build_messages, build_renderer_messages, clip_knowledge_for_inject
-from .protocol import msg_chat_response
+from .protocol import CODE_INTERNAL, msg_chat_response, msg_error
 from .query_time import build_time_aware_query
 from .relationship import (
     Decision,
@@ -282,47 +296,32 @@ class Orchestrator:
                     _committed()
                     return True
 
-        if intent is not None:
-            messages = build_renderer_messages(
-                self.config,
-                draft=intent.to_renderer_draft(),
-            )
-            context_parts.append("renderer")
-        else:
-            messages = build_messages(
-                self.config,
-                user_text=user_text,
-                history=history,
-                memories=memories,
-                knowledge=knowledge_chunks,
-                extra_system=self._local_hint(decision),
-            )
-
-        update_trace(renderer_prompt=messages)
-        context_used = "+".join(context_parts) if context_parts else "none"
-        system_chars = len(messages[0]["content"]) if messages else 0
-        logger.info(
-            "prompt built session=%s mode=%s messages=%d system_chars=%d context=%s emotion=%s",
-            session_id,
-            "renderer" if intent is not None else "local",
-            len(messages),
-            system_chars,
-            context_used,
-            emotion,
+        full, context_used = await self._compose_reply(
+            session_id=session_id,
+            intent=intent,
+            user_text=user_text,
+            history=history,
+            memories=memories,
+            knowledge=knowledge_chunks,
+            context_parts=context_parts,
+            extra_system=self._local_hint(decision),
+            emotion=emotion,
         )
-
-        logger.info("llm generate start session=%s mode=sync", session_id)
-        t0 = time.perf_counter()
-        full = await asyncio.to_thread(self.model.generate, messages, self.config)
         latency = time.perf_counter() - start
-        logger.info(
-            "llm generate done session=%s mode=sync latency=%.3fs chars=%d response=%r",
-            session_id,
-            time.perf_counter() - t0,
-            len(full),
-            full,
-        )
-        update_trace(renderer_text=full)
+        if full is None:
+            logger.warning(
+                "chat cannot generate session=%s reason=renderer_disabled_planner_miss",
+                session_id,
+            )
+            reset_trace()
+            await send(
+                msg_error(
+                    CODE_INTERNAL,
+                    "Planner failed and local renderer is disabled",
+                )
+            )
+            _committed()
+            return True
         if _aborted():
             logger.info("chat aborted before send session=%s", session_id)
             reset_trace()
@@ -515,45 +514,19 @@ class Orchestrator:
                 emotion = intent.arona_emotion
                 self._merge_decision_into_intent(intent, decision)
 
-        if intent is not None:
-            messages = build_renderer_messages(
-                self.config,
-                draft=intent.to_renderer_draft(),
-            )
-            context_parts.append("renderer")
-        else:
-            messages = build_messages(
-                self.config,
-                user_text=user_text,
-                history=history,
-                memories=memories,
-                knowledge=[],
-                extra_system=self._local_hint(decision) if decision is not None else None,
-            )
-
-        update_trace(renderer_prompt=messages)
-        context_used = "+".join(context_parts)
-        logger.info(
-            "initiate prompt built session=%s kind=%s mode=%s context=%s emotion=%s",
-            session_id,
-            kind,
-            "renderer" if intent is not None else "local",
-            context_used,
-            emotion,
+        full, context_used = await self._compose_reply(
+            session_id=session_id,
+            intent=intent,
+            user_text=user_text,
+            history=history,
+            memories=memories,
+            knowledge=[],
+            context_parts=context_parts,
+            extra_system=self._local_hint(decision) if decision is not None else None,
+            emotion=emotion,
+            kind=kind,
         )
-
-        t0 = time.perf_counter()
-        full = await asyncio.to_thread(self.model.generate, messages, self.config)
         latency = time.perf_counter() - start
-        logger.info(
-            "initiate llm done session=%s kind=%s latency=%.3fs chars=%d response=%r",
-            session_id,
-            kind,
-            time.perf_counter() - t0,
-            len(full),
-            full,
-        )
-
         if not (full or "").strip():
             logger.warning(
                 "initiate empty response session=%s kind=%s", session_id, kind
@@ -571,7 +544,6 @@ class Orchestrator:
             reset_trace()
             return False
 
-        update_trace(renderer_text=full)
         await send(
             msg_chat_response(
                 full,
@@ -614,6 +586,126 @@ class Orchestrator:
             full,
         )
         return True
+
+    async def _compose_reply(
+        self,
+        *,
+        session_id: str,
+        intent: IntentCard | None,
+        user_text: str,
+        history: list[dict[str, str]],
+        memories: list[str],
+        knowledge: list[str],
+        context_parts: list[str],
+        extra_system: str | None = None,
+        emotion: str = DEFAULT_EMOTION,
+        kind: str | None = None,
+    ) -> tuple[str | None, str]:
+        """Build the spoken line: renderer GGUF, local GGUF fallback, or planner draft.
+
+        Returns (text, context_used). text is None when the renderer is off and
+        planner produced no intent.
+        """
+        parts = list(context_parts)
+        renderer_on = self.config.model.enabled
+        label = "initiate" if kind is not None else "chat"
+        kind_suffix = f" kind={kind}" if kind is not None else ""
+
+        if not renderer_on:
+            context_used = "+".join(parts) if parts else "none"
+            if intent is None:
+                logger.warning(
+                    "%s renderer disabled and planner unavailable session=%s%s",
+                    label,
+                    session_id,
+                    kind_suffix,
+                )
+                return None, context_used
+            full = intent.to_renderer_draft()
+            if kind is None:
+                logger.info(
+                    "prompt built session=%s mode=draft messages=0 system_chars=0 "
+                    "context=%s emotion=%s",
+                    session_id,
+                    context_used,
+                    emotion,
+                )
+            else:
+                logger.info(
+                    "initiate prompt built session=%s kind=%s mode=draft "
+                    "context=%s emotion=%s",
+                    session_id,
+                    kind,
+                    context_used,
+                    emotion,
+                )
+            return full, context_used
+
+        if intent is not None:
+            messages = build_renderer_messages(
+                self.config,
+                draft=intent.to_renderer_draft(),
+            )
+            parts.append("renderer")
+            mode = "renderer"
+        else:
+            messages = build_messages(
+                self.config,
+                user_text=user_text,
+                history=history,
+                memories=memories,
+                knowledge=knowledge,
+                extra_system=extra_system,
+            )
+            mode = "local"
+
+        update_trace(renderer_prompt=messages)
+        context_used = "+".join(parts) if parts else "none"
+        system_chars = len(messages[0]["content"]) if messages else 0
+        if kind is None:
+            logger.info(
+                "prompt built session=%s mode=%s messages=%d system_chars=%d "
+                "context=%s emotion=%s",
+                session_id,
+                mode,
+                len(messages),
+                system_chars,
+                context_used,
+                emotion,
+            )
+            logger.info("llm generate start session=%s mode=sync", session_id)
+        else:
+            logger.info(
+                "initiate prompt built session=%s kind=%s mode=%s context=%s emotion=%s",
+                session_id,
+                kind,
+                mode,
+                context_used,
+                emotion,
+            )
+
+        t0 = time.perf_counter()
+        full = await asyncio.to_thread(self.model.generate, messages, self.config)
+        generate_latency = time.perf_counter() - t0
+        if kind is None:
+            logger.info(
+                "llm generate done session=%s mode=sync latency=%.3fs chars=%d response=%r",
+                session_id,
+                generate_latency,
+                len(full),
+                full,
+            )
+        else:
+            logger.info(
+                "initiate llm done session=%s kind=%s latency=%.3fs chars=%d response=%r",
+                session_id,
+                kind,
+                generate_latency,
+                len(full),
+                full,
+            )
+        update_trace(renderer_text=full)
+        return full, context_used
 
     def _note_user_relationship(self, user_text: str) -> Decision | None:
         if self.relationship is None or not self.config.proactive.relationship.enabled:

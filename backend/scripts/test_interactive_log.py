@@ -152,12 +152,43 @@ def test_format_listen_transcript_request() -> None:
     print("  ok")
 
 
+def test_format_renderer_disabled_is_none() -> None:
+    print("== renderer off: renderer_text is (none), content is draft ==")
+    reset_trace()
+    draft = "老师好，我在这儿。"
+    begin_trace(
+        started_at=1.0,
+        request_json='{"type":"chat","content":"好"}',
+    )
+    update_trace(
+        planner_prompt=[{"role": "system", "content": "你是规划参谋"}],
+        planner_json='{"draft":"老师好，我在这儿。","arona_emotion":"smile","followup_ok":false}',
+    )
+    payload = {
+        "type": "chat_response",
+        "content": draft,
+        "context_used": "climate+planner",
+        "latency": 0.4,
+        "emotion": "smile",
+    }
+    block = format_interactive_log(payload, elapsed=0.4)
+    if "renderer_text:\n(none)" not in block:
+        _fail(f"disabled renderer should log renderer_text (none):\n{block}")
+    if "renderer_prompt:\n(none)" not in block:
+        _fail(f"disabled renderer should log renderer_prompt (none):\n{block}")
+    if f'"content": "{draft}"' not in block:
+        _fail(f"response content should be planner draft:\n{block}")
+    reset_trace()
+    print("  ok")
+
+
 def main() -> None:
     try:
         test_pretty_json()
         test_format_interactive_log_block()
         test_format_missing_fields_are_none()
         test_format_listen_transcript_request()
+        test_format_renderer_disabled_is_none()
     finally:
         reset_trace()
     print("ALL PASS")
