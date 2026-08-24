@@ -1,9 +1,6 @@
 /*
  Copyright xia_hy456. All rights reserved.
 
- @Author: xia_hy456
- @Date: 2026/3/14 22:15:53
-
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -43,7 +40,7 @@ public:
     MainWidget(QWidget *parent = nullptr);
 	// 析构函数
     ~MainWidget();
-	// 显示输出文本并显示气泡
+	// 显示输出文本并显示气泡（已可见时只换文本，不从 0 淡入）
 	void showOutputText(const QString& text);
     // 隐藏输出文本并隐藏气泡
 	void hideOutputText();
@@ -81,5 +78,6 @@ private:
 
     // 不透明度动画属性
 	OpacityAnimation* m_opacityAnimation_aronaOutputTextBox = nullptr;   // 文本框不透明度动画
+	bool m_outputBubbleVisible = false;	// 台词气泡是否已在显示（连续换句时避免从 0 淡入）
 
 };

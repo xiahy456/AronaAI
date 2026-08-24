@@ -1,9 +1,6 @@
 /*
  Copyright xia_hy456. All rights reserved.
 
- @Author: xia_hy456
- @Date: 2026/3/14 22:15:53
-
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -18,6 +15,7 @@
 */
 
 #include "MainController.h"
+#include "SpokenTextSplitter.h"
 #include <QTimer>
 
 MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer, WebSocketController* webSocketController, UserInputWidget* userInputWidget)
@@ -144,9 +142,12 @@ void MainController::startSession()
 
 void MainController::executeOutput(const QString& text)
 {
-    ttsRequestParams.text = text;
     ttsRequestParams.emotion = m_currentEmotion;
-    m_ttsManager->requestTTSPost(ttsRequestParams);
+    const QStringList parts = SpokenTextSplitter::split(text);
+    for (const QString& part : parts) {
+        ttsRequestParams.text = part;
+        m_ttsManager->requestTTSPost(ttsRequestParams);
+    }
 }
 
 void MainController::onTTSFinished(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion)

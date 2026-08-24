@@ -1,9 +1,6 @@
 ﻿/*
  Copyright xia_hy456. All rights reserved.
 
- @Author: xia_hy456
- @Date: 2026/3/14 22:15:53
-
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -103,15 +100,20 @@ MainWidget::~MainWidget()
 
 void MainWidget::showOutputText(const QString& text)
 {
-    // 更新文本内容
     ui.aronaOutputText->setText(text);
-    // 气泡不透明度从0到1
+    if (m_outputBubbleVisible) {
+        return;
+    }
+    m_outputBubbleVisible = true;
 	m_opacityAnimation_aronaOutputTextBox->startAnimation(0.0, 0.85);
 }
 
 void MainWidget::hideOutputText()
 {
-    // 气泡不透明度从1到0
+    if (!m_outputBubbleVisible) {
+        return;
+    }
+    m_outputBubbleVisible = false;
     m_opacityAnimation_aronaOutputTextBox->startAnimation(0.85, 0.0);
 }
 

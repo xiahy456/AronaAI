@@ -377,6 +377,9 @@
     <ClCompile Include="QtMainFile\MainController.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="QtMainFile\SpokenTextSplitter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="QHotkey\qhotkey.cpp">
       <Filter>QHotkey</Filter>
     </ClCompile>
@@ -707,6 +710,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="QtMainFile\AronaEmotionMap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="QtMainFile\SpokenTextSplitter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="QtUtils\Defines.h">

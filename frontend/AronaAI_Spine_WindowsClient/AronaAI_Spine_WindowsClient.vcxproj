@@ -31,6 +31,7 @@
     <ClCompile Include="QtMainFile\main.cpp" />
     <ClCompile Include="QtMainFile\MainController.cpp" />
     <ClCompile Include="QtMainFile\MainWidget.cpp" />
+    <ClCompile Include="QtMainFile\SpokenTextSplitter.cpp" />
     <ClCompile Include="QtMainFile\SettingsWidget.cpp" />
     <ClCompile Include="QtMainFile\StartWidget.cpp" />
     <ClCompile Include="QtMainFile\SystemTray.cpp" />
@@ -125,6 +126,7 @@
     <QtMoc Include="QHotkey\qhotkey_p.h" />
     <ClInclude Include="QtMainFile\GlobalVariables.h" />
     <ClInclude Include="QtMainFile\AronaEmotionMap.h" />
+    <ClInclude Include="QtMainFile\SpokenTextSplitter.h" />
     <QtMoc Include="QtMainFile\SettingsWidget.h" />
     <QtMoc Include="QtMainFile\SystemTray.h" />
     <QtMoc Include="QtMainFile\TTSManager.h" />
