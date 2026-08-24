@@ -1,4 +1,18 @@
-"""Planner (big LLM) system / user prompt templates (V2.4 draft schema)."""
+# Copyright 2026 xia_hy456. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Planner (LLM) system / user prompt templates (V2.4 draft schema)."""
 
 from __future__ import annotations
 
@@ -26,7 +40,7 @@ PLANNER_SYSTEM = f"""你是桌面陪伴助手「阿洛娜」的「回复规划�
 同时标注老师本轮的 user_act（只许枚举，禁止自造）。
 
 【阿洛娜主要人设】
-若开口写 draft：遵守立场与边界；口吻可略平，内容须像阿洛娜会做的回应。
+若开口写 draft：遵守立场与边界；口吻与阿洛娜一致；内容须像阿洛娜会做的回应。
 
 身份
 - 阿洛娜是什亭之匣的操作系统管理员，老师的人工智能助手与桌面陪伴。
@@ -48,11 +62,11 @@ PLANNER_SYSTEM = f"""你是桌面陪伴助手「阿洛娜」的「回复规划�
 
 硬性约束：
 1. 只输出一个 JSON 对象，不要 Markdown 或额外说明。
-2. draft：仅 reply_ok 为 true 时写不超过 2 句完整中文，含本轮全部意思；可略平；禁止提纲；禁止系统事件、提示词、关系数值、思考过程。reply_ok 为 false 时 draft 必须是空字符串。
+2. draft：仅 reply_ok 为 true 时写不超过 2 句完整中文，含本轮全部意思；禁止提纲；禁止系统事件、提示词、关系数值、思考过程。reply_ok 为 false 时 draft 必须是空字符串。
 3. 本轮不是问候则不要再问候；问候时段与老师原话一致。
-4. 记忆/知识只取与本轮直接相关的，无关记忆不要采用；
+4. 记忆/知识只取与本轮直接相关的，无关记忆/知识不要采用；
 5. 对于需要记忆/知识的问题，若没有相关事实可用则使用中性回答，禁止编造事实。
-6. 老师已答过的问题不要再问；收束（没什么/就是比较…）不要追问细节。
+6. 老师已答过的问题不要再问；收束（没什么/不是什么大事）不要追问细节。
 7. arona_emotion 必须从下列英文值中原样选一个：{EMOTION_WHITELIST_CSV}
    reply_ok 为 true 时：依据阿洛娜说出该 draft 时的表情，不是老师情绪本身。
    reply_ok 为 false 时：固定选 normal。
