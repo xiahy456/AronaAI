@@ -18,15 +18,25 @@ def cosine_similarity(a: list[float], b: list[float]) -> float:
     return float(sum(x * y for x, y in zip(a, b)))
 
 
+def bge_missing_reason(model_path: Path) -> str | None:
+    """Return a user-facing reason if the local BGE directory is missing."""
+    path = Path(model_path)
+    if path.is_dir():
+        return None
+    return (
+        f"Local BGE model not found: {path}. "
+        "Place bge-small-zh-v1.5 under models/ (see models/README.md). "
+        "Vector memory / knowledge RAG is disabled until then; SQLite FTS and Planner still work."
+    )
+
+
 class LocalBgeEncoder:
     """Local sentence-transformers BGE encoder (no HuggingFace download)."""
 
     def __init__(self, model_path: Path) -> None:
-        if not model_path.is_dir():
-            raise FileNotFoundError(
-                f"Local BGE model not found: {model_path}. "
-                "Check knowledge.embedding_model_path (expected ../models/bge-small-zh-v1.5)."
-            )
+        missing = bge_missing_reason(model_path)
+        if missing is not None:
+            raise FileNotFoundError(missing)
         from sentence_transformers import SentenceTransformer
 
         logger.info("Loading local BGE embedding model from %s", model_path)

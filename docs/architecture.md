@@ -23,6 +23,9 @@ arona-ai/
 │   │   ├── logging_utils.py    # 日志工具
 │   │   └── memory/             # 长期记忆（SQLite + FTS5 + Chroma + DeepSeek 抽取）
 │   ├── scripts/                # 联调 / 灌库 / 测试脚本
+│   ├── pack/                   # Windows 便携包模板（启动脚本 / README）
+│   ├── dist/                   # 打包输出（gitignore）
+│   │   └── AronaAI_Backend/    # Release 可执行目录
 │   ├── data/                   # 记忆库、知识语料与向量库
 │   │   ├── memory/             # memory.db + chroma + relationship.json + proactive.json
 │   │   └── knowledge/          # 语料 corpus + chroma
@@ -85,7 +88,10 @@ arona-ai/
 │   └── Qwen3-1.7B-unsloth-bnb-4bit/  # 微调基座（仅训练时需要）
 ├── assets/                     # 项目资源
 ├── start-all.ps1               # 本机一键启动
-└── start-all.bat               # Windows 一键本机启动所有服务
+├── start-all.bat               # Windows 一键本机启动所有服务
+├── pack-client.ps1             # 打包桌面客户端
+├── pack-backend.ps1            # 打包后端 Windows 便携目录
+└── setup-backend-pack-env.ps1  # 创建后端打包用最小 conda 环境
 ```
 
 后端模块职责见 [`backend/README.md`](../backend/README.md)；模型放置见 [`models/README.md`](../models/README.md)。

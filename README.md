@@ -48,7 +48,9 @@ arona-ai/
 ├── llm/aronaLM/finetune/                 # AronaLM 微调（其实不是大模型啦……之前写错了还没有改过来呢）
 ├── models/                               # 本地模型权重（需自行下载）
 ├── assets/                               # 项目资源
-└── start-all.bat                         # Windows 一键本机启动所有服务
+├── start-all.bat                         # Windows 一键本机启动所有服务
+├── pack-client.ps1                       # 打包桌面客户端
+└── pack-backend.ps1                      # 打包后端 Windows 便携目录
 ```
 
 完整目录树见 [`docs/architecture.md`](docs/architecture.md)。
@@ -103,6 +105,8 @@ arona-ai/
 > **注意**：如果您还没有配置好所有服务，或希望分主机部署各个服务，请遵循下文的指示进行配置。
 
 ### 后端
+
+Windows 也可以从 [Releases](https://github.com/xiahy456/AronaAI/releases) 下载便携包 `AronaAI_Backend_v*_x64.zip`，解压后按包内 `README.txt` 填写 DeepSeek Key、放置模型，再双击 `AronaAI_Backend.bat`。不需要本机 conda / Python。从源码启动则按下面几步。
 
 **1. 配置 `config.yaml`**
 

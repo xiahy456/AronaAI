@@ -13,7 +13,7 @@ from typing import Any
 import jieba
 
 from .config import AppConfig, KnowledgeConfig
-from .embeddings import LocalBgeEncoder, cosine_similarity
+from .embeddings import LocalBgeEncoder, bge_missing_reason, cosine_similarity
 from .query_time import (
     build_time_aware_query,
     cache_day_key,
@@ -371,6 +371,14 @@ class KnowledgeRetriever:
             min_cosine=float(self.config.query_cache_min_cosine),
         )
 
+    def _ensure_encoder(self) -> LocalBgeEncoder:
+        if self._encoder is None:
+            missing = bge_missing_reason(self.embedding_path)
+            if missing is not None:
+                raise FileNotFoundError(missing)
+            self._encoder = LocalBgeEncoder(self.embedding_path)
+        return self._encoder
+
     def _ensure_backend(self) -> None:
         if self._collection is not None and self._encoder is not None:
             return
@@ -379,8 +387,7 @@ class KnowledgeRetriever:
         from chromadb.config import Settings
 
         self.chroma_path.mkdir(parents=True, exist_ok=True)
-        if self._encoder is None:
-            self._encoder = LocalBgeEncoder(self.embedding_path)
+        self._ensure_encoder()
         self._client = chromadb.PersistentClient(
             path=str(self.chroma_path),
             settings=Settings(anonymized_telemetry=False),
@@ -580,6 +587,9 @@ class KnowledgeRetriever:
 
         try:
             self._ensure_backend()
+        except FileNotFoundError as exc:
+            logger.warning("%s", exc)
+            return []
         except Exception:
             logger.exception("Knowledge backend init failed")
             return []
@@ -686,8 +696,7 @@ class KnowledgeRetriever:
         from chromadb.config import Settings
 
         self.chroma_path.mkdir(parents=True, exist_ok=True)
-        if self._encoder is None:
-            self._encoder = LocalBgeEncoder(self.embedding_path)
+        self._ensure_encoder()
         self._client = chromadb.PersistentClient(
             path=str(self.chroma_path),
             settings=Settings(anonymized_telemetry=False),

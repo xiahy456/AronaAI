@@ -16,6 +16,8 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -24,7 +26,21 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
 
-BACKEND_DIR = Path(__file__).resolve().parent.parent
+def resolve_backend_dir() -> Path:
+    """Directory that owns config.yaml, data/, logs/, and models/.
+
+    Override with ARONA_BACKEND_DIR. Frozen (PyInstaller) builds use the
+    executable directory. Source checkouts use the backend/ folder.
+    """
+    override = os.environ.get("ARONA_BACKEND_DIR", "").strip()
+    if override:
+        return Path(override).expanduser().resolve()
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent.parent
+
+
+BACKEND_DIR = resolve_backend_dir()
 
 
 class ServerConfig(BaseModel):

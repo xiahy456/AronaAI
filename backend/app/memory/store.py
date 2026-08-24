@@ -14,7 +14,7 @@ from typing import Any
 import jieba
 
 from ..config import AppConfig, MemoryConfig
-from ..embeddings import LocalBgeEncoder
+from ..embeddings import LocalBgeEncoder, bge_missing_reason
 from ..query_time import (
     build_time_aware_query,
     memory_time_fts_queries,
@@ -202,6 +202,9 @@ class MemoryStore:
 
     def _ensure_encoder(self) -> LocalBgeEncoder:
         if self._encoder is None:
+            missing = bge_missing_reason(self.embedding_path)
+            if missing is not None:
+                raise FileNotFoundError(missing)
             self._encoder = LocalBgeEncoder(self.embedding_path)
         return self._encoder
 
@@ -237,6 +240,8 @@ class MemoryStore:
         logger.info("jieba dictionary ready")
         try:
             self._ensure_chroma()
+        except FileNotFoundError as exc:
+            logger.warning("%s", exc)
         except Exception:
             logger.exception("Memory Chroma warmup failed; will retry on first use")
 
@@ -395,6 +400,56 @@ class MemoryStore:
             cooldown,
         )
         return remaining
+
+    def _fts_only_entries(
+        self,
+        query: str,
+        top_k: int,
+        *,
+        apply_inject_cooldown: bool,
+    ) -> list[dict[str, Any]]:
+        """SQLite FTS retrieve used when BGE / Chroma is unavailable."""
+        candidate_k = max(top_k, int(self.config.candidate_top_k))
+        keys = self._fts_candidate_keys(query, candidate_k)
+        if not keys:
+            logger.info("memory retrieve query=%r fts-only hits=0", query)
+            return []
+        with self._connect() as conn:
+            placeholders = ",".join("?" * len(keys))
+            rows = conn.execute(
+                f"SELECT key, content, category FROM memories WHERE key IN ({placeholders})",
+                keys,
+            ).fetchall()
+        by_key = {str(row["key"]): row for row in rows}
+        passed: list[tuple[str, str, float]] = []
+        for index, key in enumerate(keys):
+            row = by_key.get(key)
+            if row is None:
+                continue
+            content = str(row["content"] or "").strip()
+            if not content:
+                continue
+            passed.append((key, content, 1.0 - index * 0.01))
+        passed = self._drop_cooled_entries(
+            passed,
+            apply_inject_cooldown=apply_inject_cooldown,
+        )[:top_k]
+        categories = self._categories_for_keys([key for key, _, _ in passed])
+        entries = [
+            {
+                "key": key,
+                "content": content,
+                "category": categories.get(key),
+                "score": float(score),
+            }
+            for key, content, score in passed
+        ]
+        logger.info(
+            "memory retrieve query=%r fts-only hits=%d",
+            query,
+            len(entries),
+        )
+        return entries
 
     @staticmethod
     def _fts_quote(token: str) -> str:
@@ -644,9 +699,20 @@ class MemoryStore:
                 return []
             if query_embedding is None:
                 query_embedding = self._ensure_encoder().encode_query(query)
+        except FileNotFoundError as exc:
+            logger.warning("%s", exc)
+            return self._fts_only_entries(
+                query,
+                top_k,
+                apply_inject_cooldown=apply_inject_cooldown,
+            )
         except Exception:
-            logger.exception("Memory retrieve backend init failed")
-            return []
+            logger.exception("Memory retrieve backend init failed; falling back to FTS")
+            return self._fts_only_entries(
+                query,
+                top_k,
+                apply_inject_cooldown=apply_inject_cooldown,
+            )
 
         orig_merged, fts_n, vec_n = self._hybrid_score_map(
             query, query_embedding, candidate_k

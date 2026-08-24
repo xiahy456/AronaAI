@@ -48,7 +48,9 @@ arona-ai/
 ├── llm/aronaLM/finetune/                 # AronaLM fine-tune (not actually a large model… I wrote that wrong earlier and still haven't changed it)
 ├── models/                               # Local model weights (download yourself)
 ├── assets/                               # Project assets
-└── start-all.bat                         # Windows one-click local start for all services
+├── start-all.bat                         # Windows one-click local start for all services
+├── pack-client.ps1                       # pack the desktop client
+└── pack-backend.ps1                      # pack the Windows portable backend
 ```
 
 See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
@@ -103,6 +105,8 @@ After startup the console stays open. You can stop / start / restart a single se
 > **Note**: If you have not configured every service yet, or you want to split services across hosts, follow the sections below first.
 
 ### Backend
+
+On Windows you can also download the portable zip `AronaAI_Backend_v*_x64.zip` from [Releases](https://github.com/xiahy456/AronaAI/releases). Unzip it, follow the bundled `README.txt` (DeepSeek key + model placement), then double-click `AronaAI_Backend.bat`. No conda / global Python is required. To run from source, follow the steps below.
 
 **1. Configure `config.yaml`**
 

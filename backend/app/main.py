@@ -26,7 +26,7 @@ from fastapi import FastAPI, WebSocket
 
 from .config import get_config
 from .conversation import ConversationManager
-from .embeddings import LocalBgeEncoder
+from .embeddings import LocalBgeEncoder, bge_missing_reason
 from .knowledge import KnowledgeRetriever
 from .logging_utils import configure_logging
 from .memory.extractor import MemoryExtractor
@@ -69,8 +69,14 @@ def create_app() -> FastAPI:
     conversations = ConversationManager(
         max_history_turns=config.conversation.max_history_turns
     )
-    # Shared BGE encoder for memory + knowledge retrieval.
-    shared_encoder = LocalBgeEncoder(config.knowledge_embedding_abs_path)
+    # Shared BGE encoder for memory + knowledge retrieval. Load lazily so a
+    # missing models/bge-small-zh-v1.5 does not block Planner-only startup.
+    shared_encoder: LocalBgeEncoder | None = None
+    missing_bge = bge_missing_reason(config.knowledge_embedding_abs_path)
+    if missing_bge is None:
+        shared_encoder = LocalBgeEncoder(config.knowledge_embedding_abs_path)
+    else:
+        logger.warning("%s", missing_bge)
     memory_store = MemoryStore(config, encoder=shared_encoder)
     extractor = MemoryExtractor(memory_store, config.memory.extractor)
     knowledge = KnowledgeRetriever(config, encoder=shared_encoder)
@@ -120,6 +126,8 @@ def create_app() -> FastAPI:
         if knowledge.enabled:
             try:
                 await asyncio.to_thread(knowledge.warmup)
+            except FileNotFoundError as exc:
+                logger.warning("%s", exc)
             except Exception:
                 logger.exception("Knowledge warmup failed; RAG will retry on first use")
         await extractor.start()
@@ -168,7 +176,7 @@ def main() -> None:
     _configure_stdio_utf8()
     configure_logging()
     uvicorn.run(
-        "app.main:app",
+        app,
         host=config.server.host,
         port=config.server.port,
         reload=False,

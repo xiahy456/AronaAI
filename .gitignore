@@ -16,6 +16,7 @@
 
 # backend config
 /backend/config.yaml
+/backend/dist/
 
 # models
 /models/**

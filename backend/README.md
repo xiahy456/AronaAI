@@ -30,7 +30,9 @@
 
 ## 快速开始
 
-创建并激活 conda 环境 `shittim-chest`：
+Windows 便携包：从 [Releases](https://github.com/xiahy456/AronaAI/releases) 下载 `AronaAI_Backend_v*_x64.zip`，解压后按包内 `README.txt` 配置即可，无需 conda。维护者打包见下文「便携发布包」。
+
+从源码启动时，创建并激活 conda 环境 `shittim-chest`：
 
 ```bash
 conda activate shittim-chest
@@ -47,6 +49,28 @@ uvicorn app.main:app --host 127.0.0.1 --port 20456
 ```
 
 默认 WebSocket：`ws://127.0.0.1:20456/ws`（与 Qt 客户端一致）。
+
+## 便携发布包（Windows x64）
+
+给 GitHub Release 打的是解压即用的目录，**不是** PyInstaller 单文件。相对路径仍相对包根解析（`ARONA_BACKEND_DIR` 可覆盖）。
+
+维护者在一台已能跑后端的 Windows 机器上：
+
+```powershell
+# 1) 最小运行时 conda 环境（CPU torch + CUDA llama-cpp；不要用含 Unsloth 的训练环境）
+.\setup-backend-pack-env.ps1
+
+# 2) 打目录 + zip（可选带上本机 BGE，并预灌知识库）
+.\pack-backend.ps1
+.\pack-backend.ps1 -IncludeBge -IngestKnowledge
+```
+
+产物：
+
+- 目录：`backend/dist/AronaAI_Backend/`（已 gitignore）
+- zip：`release/AronaAI_Backend_v<version>_x64.zip`
+
+zip **不含** GGUF、**不含** 本机 `config.yaml` 里的真实 Key。用户解压后编辑包内 `config.yaml`，按 `models/README.txt` 放置 BGE / Renderer。启动：`AronaAI_Backend.bat`。
 
 ## 联调脚本
 
@@ -308,7 +332,7 @@ python scripts/ingest_knowledge.py --rebuild
 
 ## 配置
 
-由 `config.example.yaml` 复制为 `config.yaml`（已 gitignore）。相对路径均相对 `backend/` 解析。下表默认值与示例文件一致。
+由 `config.example.yaml` 复制为 `config.yaml`（已 gitignore）。相对路径均相对后端根目录解析（源码为 `backend/`；便携包为解压目录；可用环境变量 `ARONA_BACKEND_DIR` 覆盖）。下表默认值与示例文件一致。
 
 
 | 配置段            | 说明                                              |

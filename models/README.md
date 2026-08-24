@@ -89,3 +89,5 @@ models/AronaLM-Renderer-V2.4/AronaLM-Renderer-V2.4.Q4_K_M.gguf
 并配置 `planner.api_key`（DeepSeek）。不填 Key 或关闭 Planner 时，改为放置并指向 `AronaLM-Generator-V2.0` GGUF。
 
 启用知识 / 记忆向量检索时再补上 `bge-small-zh-v1.5/`；启用语音合成时再配置 GPT-SoVITS 权重与参考音频。
+
+Windows 便携后端（`AronaAI_Backend_v*_x64.zip`）把上述路径放到**解压目录内的 `models/`**，不再使用仓库里的 `../models/`。包内 `config.yaml` 已改成 `models/bge-small-zh-v1.5` 与 `models/AronaLM-Renderer-V2.4/...`。GGUF 默认不打进 zip，需自行下载后放入。
