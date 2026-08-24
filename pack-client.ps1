@@ -10,9 +10,9 @@
     2) frontend\AronaAI_Spine_WindowsClient\pack_sanitize_secrets.ps1
        → dist\AronaAI_Client_Release（脱敏，对外分发）
     3) 将 AronaAI_Client_Release 打成 zip
-       → dist\installer\AronaAI_WindowsClient_v<version>_x64.zip
+       → release\AronaAI_WindowsClient_v<version>_x64.zip
     4) Inno Setup ISCC 编译 AronaAI.iss
-       → dist\installer\AronaAI_WindowsClient_v<version>_x64_Setup.exe（基于脱敏发布包）
+       → release\AronaAI_WindowsClient_v<version>_x64_Setup.exe（基于脱敏发布包）
 
   任一脚本失败则立即退出。
 
@@ -88,15 +88,18 @@ Invoke-PackScript -ScriptPath $SanitizeScript -Arguments $packArgs -Label "Pack 
 
 $IssPath = Join-Path $ClientRoot "AronaAI.iss"
 $ReleaseDir = Join-Path $ClientRoot "dist\AronaAI_Client_Release"
-$InstallerDir = Join-Path $ClientRoot "dist\installer"
+$ArtifactDir = Join-Path $PSScriptRoot "release"
 $PackVersion = Get-ClientPackVersion -IssPath $IssPath
-$ZipPath = Join-Path $InstallerDir "AronaAI_WindowsClient_v${PackVersion}_x64.zip"
+$ZipPath = Join-Path $ArtifactDir "AronaAI_WindowsClient_v${PackVersion}_x64.zip"
+
+if ((-not $SkipZip) -or (-not $SkipInstaller)) {
+    New-Item -ItemType Directory -Force -Path $ArtifactDir | Out-Null
+}
 
 if (-not $SkipZip) {
     if (-not (Test-Path -LiteralPath $ReleaseDir)) {
         throw "Release package not found: $ReleaseDir"
     }
-    New-Item -ItemType Directory -Force -Path $InstallerDir | Out-Null
     if (Test-Path -LiteralPath $ZipPath) {
         Remove-Item -LiteralPath $ZipPath -Force
     }
@@ -119,7 +122,7 @@ if (-not $SkipInstaller) {
     Write-Host ("[{0}] Compile Inno Setup installer" -f (Get-Date -Format "HH:mm:ss")) -ForegroundColor Cyan
     Push-Location $ClientRoot
     try {
-        & $InnoISCC ".\AronaAI.iss"
+        & $InnoISCC "/O$ArtifactDir" ".\AronaAI.iss"
         if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE
         }
@@ -132,5 +135,5 @@ if (-not $SkipInstaller) {
 Write-Host ""
 Write-Host ("[{0}] Client packs finished." -f (Get-Date -Format "HH:mm:ss")) -ForegroundColor Green
 if ((-not $SkipZip) -or (-not $SkipInstaller)) {
-    Write-Host "Artifacts: $InstallerDir"
+    Write-Host "Artifacts: $ArtifactDir"
 }
