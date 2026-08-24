@@ -79,60 +79,26 @@ See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
 
 ## 🚀 Quick Start
 
-### Prerequisites
-
-| Component | Requirement |
-|------|------|
-| Python | 3.10+ |
-| CUDA | 11.8 (optional; AronaLM + llama.cpp GPU layers / fine-tuning) |
-| OS | Windows 10/11 (client / server) / Linux and derivatives (server) |
-| Backend deps | `backend/requirements.txt` |
-
-### Start All Local Services
-
-```bash
-.\start-all.bat # or just double-click start-all.bat
-```
-
-| Parameter | Description |
-|------|------|
-| -CondaEnv | Conda env name for the backend; default `shittim-chest` |
-| -TimeoutSec | Wait timeout per service; default `600` seconds |
-| -FrontendExe | Optional path to the desktop client executable; auto-detected if omitted |
-
-After startup the console stays open. You can stop / start / restart a single service by following the console output.
-
-> **Note**: If you have not configured every service yet, or you want to split services across hosts, follow the sections below first.
-
 ### Backend
 
-On Windows you can also download the portable zip `AronaAI_Backend_v*_x64.zip` from [Releases](https://github.com/xiahy456/AronaAI/releases). Unzip it, follow the bundled `README.txt` (DeepSeek key + model placement), then double-click `AronaAI_Backend.bat`. No conda / global Python is required. To run from source, follow the steps below.
+Download the packaged portable backend from the [Releases](https://github.com/xiahy456/AronaAI/releases) page. The bundle includes a Python runtime; you do **not** need conda or Python installed on the machine.
 
-**1. Configure `config.yaml`**
+1. Open the Releases page and download the latest **portable zip** (`AronaAI_Backend_v*_x64.zip`)
 
-```bash
-# From backend/
-copy config.example.yaml config.yaml   # Windows
-cp config.example.yaml config.yaml   # Linux / macOS
-```
+2. After extracting, edit `config.yaml` in the directory and fill in at least these keys:
 
-Fill in as needed:
-- `model.enabled`: whether to enable Arona-Renderer rendering correction; `true` enables it, `false` disables it and uses the Planner draft only
-- `model.gguf_path`: default `AronaLM-Renderer-V2.4`; only used when Arona-Renderer is enabled, and can be ignored otherwise
-- `planner.enabled` / `planner.api_key`: dual-model is on by default; set a DeepSeek API key. With no key or `enabled` off, the backend falls back to the local single model
-- `memory.extractor.api_key`: DeepSeek API key (optional; without it, memory extraction uses the regex fallback)
-- `knowledge.enabled`: whether to enable the world-lore RAG knowledge base (default `false`; ingest the corpus before turning this on; see [`backend/README.md`](backend/README.md))
+   - `planner.api_key` / `memory.extractor.api_key`: replace `YOUR_DEEPSEEK_API_KEY` with your DeepSeek API Key (**required**). Without a key, or with `planner.enabled` off, the backend falls back to the local single model; memory extraction without a key uses the regex fallback
+   - `model.enabled`: whether to enable Arona-Renderer rendering correction; `true` enables it, `false` disables it (Planner draft only). Place the GGUF only when this is enabled. **Disabled by default**
+   - `knowledge.enabled`: whether to enable world-lore RAG. The zip already has the corpus ingested, and this is **enabled by default**
 
-**Note**: If Arona-Renderer rendering correction is enabled, you need to place the AronaLM-Renderer model files; if it is not enabled, you do not. For model placement, see [`models/README.md`](models/README.md).
+3. Place models under `models/` in the extracted directory as needed (paths are already set in the bundled `config.yaml`; see the bundled `models/README.txt` or [`models/README.md`](models/README.md)):
+   - When Renderer is enabled: `models/AronaLM-Renderer-V2.4/AronaLM-Renderer-V2.4.Q4_K_M.gguf`
 
-**3. Start the service**
+4. Double-click `AronaAI_Backend.bat` to start. Set the desktop client's `websocket_url` to `ws://127.0.0.1:20456/ws` (this is already the default).
 
-```bash
-conda activate shittim-chest   # env setup: see the backend README
-cd backend
-pip install -r requirements.txt
-python -m app.main
-```
+> **System requirements**: Windows 10 / 11 x64. If it fails to start, run the bundled `vc_redist.x64.exe` first. Renderer GPU layers need an NVIDIA GPU and a reasonably recent driver. Do not extract a new version over a directory you are already using (unless you do not need to keep memory); runtime data lives in `data/memory/` and `logs/`.
+
+Full field docs and running from source (conda / `python -m app.main`) are in [`backend/README.md`](backend/README.md).
 
 ### Client
 
@@ -230,7 +196,7 @@ This project is licensed under [Apache License 2.0](LICENSE).
 
 This project is an **unofficial fan work** inspired by Arona from *Blue Archive*, and has **no affiliation, partnership, or authorization** with NEXON, NEXON Games, Yostar, or other related rights holders. All characters, settings, trademarks, and other intellectual property in the game remain with the original rights holders; references in this project do not imply a license or any claim of ownership.
 
-[Apache License 2.0](LICENSE) **applies only to this project's original source code and documentation**. This project is **not for commercial profit**. If a rights holder wishes related material removed, please contact us using the details below; we will cooperate promptly.
+[Apache License 2.0](LICENSE) **applies only to this project's original source code and documentation**. This project is **not for commercial profit**. If a rights holder wishes related material removed, please contact us using the details in **[About the Developer](#-about-the-developer)** below; we will cooperate promptly.
 
 ---
 

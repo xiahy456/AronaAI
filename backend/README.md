@@ -30,25 +30,45 @@
 
 ## 快速开始
 
-Windows 便携包：从 [Releases](https://github.com/xiahy456/AronaAI/releases) 下载 `AronaAI_Backend_v*_x64.zip`，解压后按包内 `README.txt` 配置即可，无需 conda。维护者打包见下文「便携发布包」。
+终端用户请从 [Releases](https://github.com/xiahy456/AronaAI/releases) 下载 `AronaAI_Backend_v*_x64.zip`，解压后按包内 `README.txt` 配置并双击 `AronaAI_Backend.bat`。不需要 conda / Python。维护者打包见下文「便携发布包」。
 
-从源码启动时，创建并激活 conda 环境 `shittim-chest`：
+### 从源码启动
+
+需要 conda 环境 `shittim-chest`（按 `requirements.txt` 安装依赖；若已装过 llama-cpp-python，一般不必重装）。
+
+**1. 配置 `config.yaml`**
+
+```bash
+# 在 backend/ 目录下
+copy config.example.yaml config.yaml   # Windows
+cp config.example.yaml config.yaml   # Linux / macOS
+```
+
+按需填写：
+- `model.enabled`：是否启用 Arona-Renderer 渲染修正；`true` 启用，`false` 不启用，只使用 Planner 草稿
+- `model.gguf_path`：默认为 `AronaLM-Renderer-V2.4`，仅当启用 Arona-Renderer 时才有作用，若未启用则可以忽略
+- `planner.enabled` / `planner.api_key`：默认开启双模型；填写 DeepSeek API Key。不填 Key 或关闭 `enabled` 则回落本地单模型
+- `memory.extractor.api_key`：DeepSeek API Key（可选；不填则记忆抽取走正则降级）
+- `knowledge.enabled`：是否启用世界观 RAG 知识库（默认 `false`，启用前请先灌库，相关指导见下文「世界观知识 RAG」）
+
+**2. 放置模型**
+
+如果启用了 Arona-Renderer 渲染修正，则需要放置 AronaLM-Renderer 模型文件；如果未启用则不需要放置。模型路径相对 `backend/`（示例为 `../models/...`），详见 [`models/README.md`](../models/README.md)。
+
+**3. 启动服务**
+
+工作目录必须是 `backend/`：
 
 ```bash
 conda activate shittim-chest
 cd backend
 pip install -r requirements.txt   # 若缺 fastapi/httpx/chromadb 等再装；无需重装 llama-cpp-python
-
-# 复制配置并填写 DeepSeek API Key（可选；不填则记忆走正则降级）
-copy config.example.yaml config.yaml
-
-# 启动（工作目录必须是 backend/）
 python -m app.main
 # 或
 uvicorn app.main:app --host 127.0.0.1 --port 20456
 ```
 
-默认 WebSocket：`ws://127.0.0.1:20456/ws`（与 Qt 客户端一致）。
+默认 WebSocket：`ws://127.0.0.1:20456/ws`（与 Qt 客户端一致）。健康检查：`http://127.0.0.1:20456/health`。
 
 ## 便携发布包（Windows x64）
 

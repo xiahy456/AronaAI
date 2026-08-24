@@ -79,60 +79,26 @@ arona-ai/
 
 ## 🚀 快速开始
 
-### 环境要求
-
-| 组件 | 要求 |
-|------|------|
-| Python | 3.10+ |
-| CUDA | 11.8（可选，AronaLM + llama.cpp GPU 层 / 微调训练） |
-| 操作系统 | Windows 10/11 (客户端/服务端) / Linux 及其衍生系统 (服务端) |
-| 后端依赖 | `backend/requirements.txt` |
-
-### 本地一键启动所有服务
-
-```bash
-.\start-all.bat # 或者直接双击打开 start-all.bat 文件
-```
-
-| 参数 | 说明 |
-|------|------|
-| -CondaEnv | 后端使用的 Conda 环境名称，默认为 `shittim-chest` |
-| -TimeoutSec | 每个服务的等待超时时间，默认为 `600` 秒 |
-| -FrontendExe | 可选的桌面客户端可执行文件路径，如果未提供，则自动检测 |
-
-启动完成后，控制台窗口会保持运行，可依照控制台输出单独停止 / 启动 / 重启某一服务。
-
-> **注意**：如果您还没有配置好所有服务，或希望分主机部署各个服务，请遵循下文的指示进行配置。
-
 ### 后端
 
-Windows 也可以从 [Releases](https://github.com/xiahy456/AronaAI/releases) 下载便携包 `AronaAI_Backend_v*_x64.zip`，解压后按包内 `README.txt` 填写 DeepSeek Key、放置模型，再双击 `AronaAI_Backend.bat`。不需要本机 conda / Python。从源码启动则按下面几步。
+从 [Releases 页面](https://github.com/xiahy456/AronaAI/releases) 下载已打包的后端便携目录。包内自带 Python 运行时，**不需要**本机安装 conda 或 Python。
 
-**1. 配置 `config.yaml`**
+1. 打开 Releases 页面，下载最新版 **便携 zip**（`AronaAI_Backend_v*_x64.zip`）
 
-```bash
-# 在 backend/ 目录下
-copy config.example.yaml config.yaml   # Windows
-cp config.example.yaml config.yaml   # Linux / macOS
-```
+2. 解压后，编辑目录下的 `config.yaml`，至少填写以下关键项：
 
-按需填写：
-- `model.enabled`：是否启用Arona-Renderer渲染修正；`true` 启用，`false` 不启用，只使用planner草稿
-- `model.gguf_path`：默认为`AronaLM-Renderer-V2.4`，仅当启用Arona-Renderer时才有作用，若未启用则可以忽略
-- `planner.enabled` / `planner.api_key`：默认开启双模型；填写 DeepSeek API Key。不填 Key 或关闭 `enabled` 则回落本地单模型
-- `memory.extractor.api_key`：DeepSeek API Key（可选；不填则记忆抽取走正则降级）
-- `knowledge.enabled`：是否启用世界观 RAG 知识库（默认 `false`，启用前请先灌库，相关指导在 [`backend/README.md`](backend/README.md) 中）
+   - `planner.api_key` / `memory.extractor.api_key`：把 `YOUR_DEEPSEEK_API_KEY` ：**必填**，换成你的 DeepSeek API Key。不填 Key 或关闭 `planner.enabled` 则回落本地单模型；记忆抽取无 Key 时走正则降级
+   - `model.enabled`：是否启用 Arona-Renderer 渲染修正；`true` 启用，`false` 不启用（只用 Planner 草稿）。仅启用时才需要放置 GGUF。**默认不启用**
+   - `knowledge.enabled`：是否启用世界观 RAG。压缩包已完成灌库，**默认启用**
 
-**注意**：如果启用了Arona-Renderer渲染修正，则需要放置AronaLM-Renderer模型文件；如果未启用则不需要放置。模型放置相关配置请参考 [`models/README.md`](models/README.md)。
+3. 按需把模型放到解压目录内的 `models/`（路径已写在包内 `config.yaml`，详见包内 `models/README.txt` 或 [`models/README.md`](models/README.md)）：
+   - 启用 Renderer 时：`models/AronaLM-Renderer-V2.4/AronaLM-Renderer-V2.4.Q4_K_M.gguf`
 
-**3. 启动服务**
+4. 双击 `AronaAI_Backend.bat` 启动。桌面客户端 `websocket_url` 填 `ws://127.0.0.1:20456/ws`（已是默认值）。
 
-```bash
-conda activate shittim-chest   # 环境配置见 backend README
-cd backend
-pip install -r requirements.txt
-python -m app.main
-```
+> **系统要求**：Windows 10 / 11 x64。若无法启动，先运行包内 `vc_redist.x64.exe`。启用 Renderer 的 GPU 层需要 NVIDIA 显卡与较新驱动。不要把新版本直接覆盖正在用的目录（除非不需要保留记忆）；运行时数据在 `data/memory/` 与 `logs/`。
+
+完整字段与从源码启动（conda / `python -m app.main`）见 [`backend/README.md`](backend/README.md)。
 
 ### 客户端
 
