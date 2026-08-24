@@ -11,6 +11,7 @@ from __future__ import annotations
 import sys
 import tempfile
 import time
+from datetime import datetime
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -24,7 +25,7 @@ for _stream in (sys.stdout, sys.stderr):
         pass
 
 from app.config import load_config  # noqa: E402
-from app.memory.extractor import MemoryExtractor, _format_existing_memories  # noqa: E402
+from app.memory.extractor import MemoryExtractor, _format_existing_memories, format_extract_now  # noqa: E402
 from app.memory.fallback import regex_extract_memories  # noqa: E402
 from app.memory.normalize import normalize_memory_item  # noqa: E402
 from app.memory.store import MemoryStore  # noqa: E402
@@ -86,6 +87,18 @@ def test_format_context() -> None:
     if "preference_color" not in text or "goal_walk" not in text:
         _fail(f"format missing keys: {text}")
     print("  format ok")
+
+
+def test_format_extract_now() -> None:
+    print("== A: format extract now ==")
+    text = format_extract_now(datetime(2026, 8, 24, 9, 19))
+    if "2026年8月24日" not in text:
+        _fail(f"expected calendar date, got {text}")
+    if "星期一" not in text:
+        _fail(f"expected weekday, got {text}")
+    if "09:19" not in text:
+        _fail(f"expected clock time, got {text}")
+    print(f"  format_extract_now ok: {text}")
 
 
 def _list_rows(store: MemoryStore) -> dict[str, tuple[str, str]]:
@@ -356,6 +369,7 @@ def test_inject_cooldown() -> None:
 def main() -> None:
     test_normalize_and_regex()
     test_format_context()
+    test_format_extract_now()
     test_reconcile_color_and_goal_delete()
     test_semantic_and_exact_dedup()
     test_inject_cooldown()

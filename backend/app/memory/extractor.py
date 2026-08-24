@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import time
+from datetime import datetime
 from typing import Any
 
 import httpx
@@ -20,13 +21,15 @@ logger = logging.getLogger(__name__)
 
 _HOT_KEYS = frozenset({"user_name", "preference_color", "user_birthday"})
 
-EXTRACT_SYSTEM = """你是记忆抽取助手。根据「用户（老师）」与「阿洛娜」的对话片段，以及可选的【已有相关记忆】，提取需要长期记住或需要更新/清除的用户（老师）事实。
+_WEEKDAYS_ZH = ("星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日")
+
+EXTRACT_SYSTEM = """你是记忆抽取助手。根据「用户（老师）」与「阿洛娜」的对话片段、【当前时间】，以及可选的【已有相关记忆】，提取需要长期记住或需要更新/清除的用户（老师）事实。
 只输出 JSON，格式：
 {"memories":[{"op":"upsert或delete","key":"英文蛇形键","content":"短中文陈述句","category":"preference|profile|goal|other"}]}
 规则：
 - 只提取已确认的精确事实（名字、偏好、约定、未完成的计划），不要闲聊、不要世界观百科。
 - 无值得记忆的内容时返回 {"memories":[]}
-- content 必须是短陈述句，例如「老师喜欢蓝色」；delete 时可省略 content 或沿用旧内容
+- content 必须是短陈述句；delete 时可省略 content 或沿用旧内容
 - 禁止疑问句、反问、猜测或未确认信息；错误示例：「老师喜欢什么颜色吗」
 - 不要把老师的提问本身当成事实写入
 - category 含义：
@@ -34,6 +37,14 @@ EXTRACT_SYSTEM = """你是记忆抽取助手。根据「用户（老师）」与
   - profile：档案信息（名字、生日等）
   - goal：未完成的计划/打算/约定（临时意图）
   - other：其它稳定事实
+- 时间写入 content（对照【当前时间】换算，禁止保留相对说法）：
+  - 按能确定的最细粒度写：能确定到日则写年月日（「今天 / 明天 / 后天 / 昨天 / 下周一」，如 2026年8月23日）；只能确定到月则写年月（「下个月 / 上个月 / 这个月」，如 2026年9月）；只能确定到年则写年份（「明年 / 去年」）。「下个月3号」这类已点明日的，仍写到日，不要停在月。缺少年份的绝对日期（如「8月31号」）用【当前时间】补全年份。
+  - 钟点可保留，但必须带日期。正确：「老师2026年8月24日下午4点睡到晚上7点」；错误：「老师今天下午4点睡到晚上7点」
+  - 区间写成覆盖的具体日期：未指定落在哪一天时用「或」（二选一）；连续时段用「到」。正确：「老师2026年8月22日或2026年8月23日要去医院」、「老师2026年8月31日到2026年9月6日要每天11点睡觉」；错误：「老师周末要去医院」、「老师下周要每天11点睡觉」。
+  - 过去时态 → 最近已发生的那个日期；将来/打算 → 即将到来的那个日期；拿不准时按即将到来的日期写
+  - 对话已给出带年的绝对日期则沿用，不要改成抽取当日
+  - 无时间含义的稳定事实（名字、偏好、生日本身）不要硬加抽取当日
+  - 无明确起止的周期性习惯保留周期表述（如「老师每周五加班」），不要压成某一天；若周期带有明确时段（如下周每天），则写成日期区间并保留周期
 - 若提供了【已有相关记忆】：
   - 同主题新事实与旧记忆冲突时：upsert 新内容，并对旧 key 输出 op=delete（若新事实复用同一 key 则只需 upsert）
   - 优先复用已有记忆的 key；仅当主题全新时才新建 key
@@ -42,6 +53,12 @@ EXTRACT_SYSTEM = """你是记忆抽取助手。根据「用户（老师）」与
 - 只记录与用户（老师）相关的记忆；例如「老师喜欢蓝色」
 - 记忆必须来自于用户（老师）所述。对于阿洛娜口述的老师记忆，除非得到老师肯定，否则判定为无效。
 """
+
+
+def format_extract_now(now: datetime | None = None) -> str:
+    dt = now or datetime.now()
+    weekday = _WEEKDAYS_ZH[dt.weekday()]
+    return f"【当前时间】{dt.year}年{dt.month}月{dt.day}日 {weekday} {dt.strftime('%H:%M')}"
 
 
 def _format_existing_memories(entries: list[dict[str, Any]]) -> str:
@@ -250,6 +267,7 @@ class MemoryExtractor:
     ) -> list[dict[str, Any]]:
         url = self.config.base_url.rstrip("/") + "/chat/completions"
         user_payload = (
+            f"{format_extract_now()}\n\n"
             f"{_format_existing_memories(existing)}\n\n【对话片段】\n{transcript}"
         )
         payload: dict[str, Any] = {
