@@ -6,12 +6,12 @@ import asyncio
 import json
 import logging
 import time
-from datetime import datetime
 from typing import Any
 
 import httpx
 
 from ..config import ExtractorConfig, MemoryConfig
+from ..query_time import format_extract_now
 from .fallback import regex_extract_memories
 from .normalize import normalize_memory_item
 from .store import MemoryStore, normalize_content_for_compare
@@ -20,8 +20,6 @@ from .validate import memory_reject_reason
 logger = logging.getLogger(__name__)
 
 _HOT_KEYS = frozenset({"user_name", "preference_color", "user_birthday"})
-
-_WEEKDAYS_ZH = ("星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日")
 
 EXTRACT_SYSTEM = """你是记忆抽取助手。根据「用户（老师）」与「阿洛娜」的对话片段、【当前时间】，以及可选的【已有相关记忆】，提取需要长期记住或需要更新/清除的用户（老师）事实。
 只输出 JSON，格式：
@@ -53,12 +51,6 @@ EXTRACT_SYSTEM = """你是记忆抽取助手。根据「用户（老师）」与
 - 只记录与用户（老师）相关的记忆；例如「老师喜欢蓝色」
 - 记忆必须来自于用户（老师）所述。对于阿洛娜口述的老师记忆，除非得到老师肯定，否则判定为无效。
 """
-
-
-def format_extract_now(now: datetime | None = None) -> str:
-    dt = now or datetime.now()
-    weekday = _WEEKDAYS_ZH[dt.weekday()]
-    return f"【当前时间】{dt.year}年{dt.month}月{dt.day}日 {weekday} {dt.strftime('%H:%M')}"
 
 
 def _format_existing_memories(entries: list[dict[str, Any]]) -> str:

@@ -185,25 +185,27 @@ def _test_query_cache_unit() -> list[str]:
     vec_a = [1.0, 0.0]
     vec_near = [0.96, 0.28]  # cosine ~ 0.96
     vec_far = [0.0, 1.0]
-    cache.put(vec_a, ["lore-a"], top_k=2, collection_n=5)
+    cache.put(vec_a, ["lore-a"], top_k=2, collection_n=5, cache_day="2026-08-24")
 
-    hit = cache.get(vec_a, top_k=2, collection_n=5)
+    hit = cache.get(vec_a, top_k=2, collection_n=5, cache_day="2026-08-24")
     if hit is None or hit[0] != ["lore-a"]:
         failures.append(f"exact embedding hit: {hit}")
 
-    near = cache.get(vec_near, top_k=2, collection_n=5)
+    near = cache.get(vec_near, top_k=2, collection_n=5, cache_day="2026-08-24")
     if near is None or near[0] != ["lore-a"]:
         failures.append(f"near embedding hit: {near}")
 
-    if cache.get(vec_far, top_k=2, collection_n=5) is not None:
+    if cache.get(vec_far, top_k=2, collection_n=5, cache_day="2026-08-24") is not None:
         failures.append("orthogonal embedding should miss")
-    if cache.get(vec_a, top_k=3, collection_n=5) is not None:
+    if cache.get(vec_a, top_k=3, collection_n=5, cache_day="2026-08-24") is not None:
         failures.append("different top_k should miss")
-    if cache.get(vec_a, top_k=2, collection_n=9) is not None:
+    if cache.get(vec_a, top_k=2, collection_n=9, cache_day="2026-08-24") is not None:
         failures.append("different collection_n should miss")
+    if cache.get(vec_a, top_k=2, collection_n=5, cache_day="2026-08-25") is not None:
+        failures.append("different cache_day should miss")
 
-    cache.put([0.0, 1.0], ["lore-b"], top_k=2, collection_n=5)
-    cache.put([0.7, 0.7], ["lore-c"], top_k=2, collection_n=5)
+    cache.put([0.0, 1.0], ["lore-b"], top_k=2, collection_n=5, cache_day="2026-08-24")
+    cache.put([0.7, 0.7], ["lore-c"], top_k=2, collection_n=5, cache_day="2026-08-24")
     if len(cache) != 2:
         failures.append(f"LRU size: expected 2, got {len(cache)}")
     if cache.get(vec_a, top_k=2, collection_n=5) is not None:
@@ -250,24 +252,39 @@ def _test_retrieve_uses_provided_embedding(config) -> list[str]:
         retriever.config.query_cache_enabled = False
 
         provided = [1.0, 0.0]
-        retriever.retrieve("阿洛娜是谁", top_k=2, query_embedding=provided)
-        retriever.retrieve("阿洛娜是谁", top_k=2, query_embedding=provided)
+        retriever.retrieve(
+            "阿洛娜是谁", top_k=2, query_embedding=provided, include_time=False
+        )
+        retriever.retrieve(
+            "阿洛娜是谁", top_k=2, query_embedding=provided, include_time=False
+        )
         if encoder.n != 0:
             failures.append(
                 f"provided embedding should skip encode, got encode_queries={encoder.n}"
             )
 
-        retriever.retrieve("阿洛娜是谁", top_k=2)
+        retriever.retrieve("阿洛娜是谁", top_k=2, include_time=False)
         if encoder.n != 1:
             failures.append(
                 f"missing embedding should encode once, got encode_queries={encoder.n}"
             )
 
+        encoder.n = 0
+        retriever.retrieve("阿洛娜是谁", top_k=2, query_embedding=provided)
+        if encoder.n != 1:
+            failures.append(
+                f"time-aware path should encode companion query, got encode_queries={encoder.n}"
+            )
+
         retriever.config.query_cache_enabled = True
         retriever._query_cache.clear()
         encoder.n = 0
-        retriever.retrieve("重复问题", top_k=2, query_embedding=provided)
-        retriever.retrieve("近义问题", top_k=2, query_embedding=provided)
+        retriever.retrieve(
+            "重复问题", top_k=2, query_embedding=provided, include_time=False
+        )
+        retriever.retrieve(
+            "近义问题", top_k=2, query_embedding=provided, include_time=False
+        )
         if encoder.n != 0:
             failures.append("cached retrieve with provided embedding encoded")
         if len(retriever._query_cache) != 1:

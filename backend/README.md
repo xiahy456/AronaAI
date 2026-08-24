@@ -264,10 +264,10 @@ python scripts/ingest_knowledge.py
 python scripts/ingest_knowledge.py --rebuild
 ```
 
-4. 冒烟检索：`python scripts/test_knowledge_rag.py`
+4. 冒烟检索：`python scripts/test_knowledge_rag.py`；时间感知查询单测（不加载 BGE）：`python scripts/test_query_time.py`
 5. 在 `config.yaml` 设 `knowledge.enabled: true` 后重启后端
 
-对话主路径里记忆与知识检索共用同一轮 BGE query 向量。写入 Planner 的记忆命中按 key 冷却，默认 `memory.inject_cooldown_sec: 3600` 内不重复注入，空缺由下一名候选补上；抽取器看已有记忆时不走该冷却。知识命中（过滤后的 lore 文本）可按 query 向量近义复用，默认 `query_cache_min_cosine: 0.92`；`ingest` / `--rebuild` 会清空该缓存。不缓存 Planner 草稿或最终台词。
+对话主路径里记忆与知识检索共用一轮 BGE：同时编码老师原文和带当前时间的附带查询（相对日期会先展开成与记忆写入相同的绝对日期）。两路召回按 key / 标题合并后截断 `top_k`。写入 Planner 的记忆命中按 key 冷却，默认 `memory.inject_cooldown_sec: 3600` 内不重复注入，空缺由下一名候选补上；抽取器看已有记忆时不走该冷却。知识命中（过滤后的 lore 文本）可按 query 向量近义复用，默认 `query_cache_min_cosine: 0.92`，缓存按自然日区分以免跨日复用带日期的命中；`ingest` / `--rebuild` 会清空该缓存。不缓存 Planner 草稿或最终台词。当前时间只用于检索查询，不写入 Planner prompt。
 
 ## 配置
 

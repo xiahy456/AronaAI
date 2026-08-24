@@ -6,6 +6,7 @@ import asyncio
 import logging
 import time
 from collections.abc import Awaitable, Callable
+from datetime import datetime
 from typing import Any
 
 AbortCheck = Callable[[], bool]
@@ -32,6 +33,7 @@ from .proactive.followup import (
 )
 from .prompt import build_messages, build_renderer_messages, clip_knowledge_for_inject
 from .protocol import msg_chat_response
+from .query_time import build_time_aware_query
 from .relationship import (
     Decision,
     RelationshipEngine,
@@ -142,17 +144,23 @@ class Orchestrator:
 
         need_rag = use_rag and self.knowledge.enabled
         query_embedding: list[float] | None = None
+        time_query_embedding: list[float] | None = None
+        retrieve_now = datetime.now()
+        time_query = build_time_aware_query(user_text, retrieve_now)
         if use_memory or need_rag:
             t0 = time.perf_counter()
             try:
-                query_embedding = await asyncio.to_thread(
-                    self.memory_store.encode_query, user_text
+                embeddings = await asyncio.to_thread(
+                    self.memory_store.encode_queries, [user_text, time_query]
                 )
+                query_embedding = embeddings[0]
+                time_query_embedding = embeddings[1]
                 logger.info(
-                    "query embedding session=%s latency=%.3fs dim=%d",
+                    "query embedding session=%s latency=%.3fs dim=%d time_query=%r",
                     session_id,
                     time.perf_counter() - t0,
                     len(query_embedding),
+                    time_query,
                 )
             except Exception:
                 logger.exception(
@@ -160,6 +168,7 @@ class Orchestrator:
                     session_id,
                 )
                 query_embedding = None
+                time_query_embedding = None
 
         memories: list[str] = []
         if use_memory:
@@ -170,6 +179,10 @@ class Orchestrator:
                 self.config.memory.retrieve_top_k,
                 query_embedding,
                 apply_inject_cooldown=True,
+                include_time=True,
+                time_query=time_query,
+                time_query_embedding=time_query_embedding,
+                now=retrieve_now,
             )
             logger.info(
                 "memory retrieve session=%s hits=%d latency=%.3fs items=%s",
@@ -191,6 +204,10 @@ class Orchestrator:
                 user_text,
                 self.config.knowledge.retrieve_top_k,
                 query_embedding,
+                include_time=True,
+                time_query=time_query,
+                time_query_embedding=time_query_embedding,
+                now=retrieve_now,
             )
             logger.info(
                 "rag retrieve session=%s hits=%d latency=%.3fs items=%s",

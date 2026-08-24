@@ -6,6 +6,7 @@ import logging
 import re
 import threading
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,11 @@ import jieba
 
 from .config import AppConfig, KnowledgeConfig
 from .embeddings import LocalBgeEncoder, cosine_similarity
+from .query_time import (
+    build_time_aware_query,
+    cache_day_key,
+    mentions_query_clock,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -273,6 +279,7 @@ class _QueryCacheEntry:
     hits: list[str]
     top_k: int
     collection_n: int
+    cache_day: str
 
 
 class SemanticHitCache:
@@ -290,12 +297,17 @@ class SemanticHitCache:
         *,
         top_k: int,
         collection_n: int,
+        cache_day: str = "",
     ) -> tuple[list[str], float] | None:
         with self._lock:
             best: _QueryCacheEntry | None = None
             best_cos = -1.0
             for entry in self._entries:
-                if entry.top_k != top_k or entry.collection_n != collection_n:
+                if (
+                    entry.top_k != top_k
+                    or entry.collection_n != collection_n
+                    or entry.cache_day != cache_day
+                ):
                     continue
                 cos = cosine_similarity(embedding, entry.embedding)
                 if cos >= self.min_cosine and cos > best_cos:
@@ -314,6 +326,7 @@ class SemanticHitCache:
         *,
         top_k: int,
         collection_n: int,
+        cache_day: str = "",
     ) -> None:
         with self._lock:
             self._entries.append(
@@ -322,6 +335,7 @@ class SemanticHitCache:
                     hits=list(hits),
                     top_k=int(top_k),
                     collection_n=int(collection_n),
+                    cache_day=str(cache_day),
                 )
             )
             overflow = len(self._entries) - self.size
@@ -460,11 +474,97 @@ class KnowledgeRetriever:
         out.sort(key=lambda h: (-h.similarity, -h.overlap, h.title))
         return out
 
+    @staticmethod
+    def _keep_best_by_title(
+        groups: list[list[ScoredKnowledgeHit]],
+    ) -> list[ScoredKnowledgeHit]:
+        merged: dict[str, ScoredKnowledgeHit] = {}
+        for group in groups:
+            for hit in group:
+                prev = merged.get(hit.title)
+                if prev is None or hit.similarity > prev.similarity:
+                    merged[hit.title] = hit
+        out = list(merged.values())
+        out.sort(key=lambda h: (-h.similarity, -h.overlap, h.title))
+        return out
+
+    def _retrieve_filtered_hits(
+        self,
+        query: str,
+        q_emb: list[float],
+        *,
+        k: int,
+        n_results: int,
+        split_clauses: bool,
+    ) -> tuple[list[ScoredKnowledgeHit], int, int]:
+        """Return filtered hits, clause count, and candidate count for one query."""
+        assert self._encoder is not None
+        if split_clauses:
+            clauses = split_retrieve_clauses(query)
+        else:
+            clauses = [query]
+        clause_n = len(clauses)
+        if len(clauses) <= 1:
+            result = self._chroma_query(q_emb, n_results)
+            raw_hits = self._hits_from_chroma(result, query)
+            candidate_n = len((result.get("documents") or [[]])[0])
+            filtered = filter_knowledge_hits(
+                raw_hits,
+                min_score=float(self.config.min_score),
+                score_margin=float(self.config.score_margin),
+                top_k=k,
+                min_score_no_overlap=float(self.config.min_score_no_overlap),
+            )
+            return filtered, clause_n, candidate_n
+
+        clause_embs = self._encoder.encode_queries(clauses)
+        groups: list[list[ScoredKnowledgeHit]] = []
+        candidate_n = 0
+        abs_floor = float(self.config.min_score)
+        no_ov_floor = float(self.config.min_score_no_overlap)
+        margin = float(self.config.score_margin)
+        for clause, emb in zip(clauses, clause_embs):
+            result = self._chroma_query(emb, n_results)
+            candidate_n += len((result.get("documents") or [[]])[0])
+            clause_raw = self._hits_from_chroma(result, clause)
+            clause_kept = filter_knowledge_hits(
+                clause_raw,
+                min_score=abs_floor,
+                score_margin=margin,
+                top_k=k,
+                min_score_no_overlap=no_ov_floor,
+            )
+            if not clause_kept:
+                ranked = sorted(
+                    clause_raw,
+                    key=lambda h: (-h.similarity, -h.overlap, h.title),
+                )
+                for hit in ranked:
+                    if hit.overlap > 0 and hit.similarity >= abs_floor - 0.05:
+                        clause_kept = [hit]
+                        break
+            if clause_kept:
+                groups.append(clause_kept)
+        raw_hits = self._merge_hits_by_title(groups, query) if groups else []
+        filtered = filter_knowledge_hits(
+            raw_hits,
+            min_score=0.0,
+            score_margin=1.0,
+            top_k=k,
+            min_score_no_overlap=no_ov_floor,
+        )
+        return filtered, clause_n, candidate_n
+
     def retrieve(
         self,
         query: str,
         top_k: int | None = None,
         query_embedding: list[float] | None = None,
+        *,
+        include_time: bool = True,
+        time_query: str | None = None,
+        time_query_embedding: list[float] | None = None,
+        now: datetime | None = None,
     ) -> list[str]:
         if not self.enabled:
             return []
@@ -475,6 +575,8 @@ class KnowledgeRetriever:
         k = top_k if top_k is not None else self.config.retrieve_top_k
         k = max(1, int(k))
         candidate_k = max(k, int(self.config.candidate_top_k))
+        clock = now or datetime.now()
+        day_key = cache_day_key(clock)
 
         try:
             self._ensure_backend()
@@ -502,93 +604,63 @@ class KnowledgeRetriever:
             cache_on = bool(self.config.query_cache_enabled)
             if cache_on:
                 cached = self._query_cache.get(
-                    q_emb, top_k=k, collection_n=count
+                    q_emb, top_k=k, collection_n=count, cache_day=day_key
                 )
                 if cached is not None:
                     hits, cosine = cached
                     logger.info(
-                        "knowledge retrieve cache=hit cosine=%.3f query=%r hits=%d",
+                        "knowledge retrieve cache=hit cosine=%.3f query=%r hits=%d day=%s",
                         cosine,
                         query,
                         len(hits),
+                        day_key,
                     )
                     return hits
 
-            clauses = split_retrieve_clauses(query)
-            clause_n = len(clauses)
-            if len(clauses) <= 1:
-                result = self._chroma_query(q_emb, n_results)
-                raw_hits = self._hits_from_chroma(result, query)
-                candidate_n = len((result.get("documents") or [[]])[0])
-            else:
-                clause_embs = self._encoder.encode_queries(clauses)
-                groups: list[list[ScoredKnowledgeHit]] = []
-                candidate_n = 0
-                abs_floor = float(self.config.min_score)
-                no_ov_floor = float(self.config.min_score_no_overlap)
-                margin = float(self.config.score_margin)
-                for clause, emb in zip(clauses, clause_embs):
-                    result = self._chroma_query(emb, n_results)
-                    candidate_n += len((result.get("documents") or [[]])[0])
-                    clause_raw = self._hits_from_chroma(result, clause)
-                    clause_kept = filter_knowledge_hits(
-                        clause_raw,
-                        min_score=abs_floor,
-                        score_margin=margin,
-                        top_k=k,
-                        min_score_no_overlap=no_ov_floor,
+            orig_hits, clause_n, candidate_n = self._retrieve_filtered_hits(
+                query,
+                q_emb,
+                k=k,
+                n_results=n_results,
+                split_clauses=True,
+            )
+            timed_query = ""
+            if include_time:
+                timed_query = (time_query or "").strip() or build_time_aware_query(
+                    query, clock
+                )
+                timed_emb = time_query_embedding
+                if timed_emb is None:
+                    timed_emb = self._encoder.encode_query(timed_query)
+                timed_hits, _, timed_cand = self._retrieve_filtered_hits(
+                    timed_query,
+                    timed_emb,
+                    k=k,
+                    n_results=n_results,
+                    split_clauses=False,
+                )
+                timed_hits = [
+                    hit
+                    for hit in timed_hits
+                    if mentions_query_clock(
+                        f"{hit.title}\n{hit.text}", clock, query
                     )
-                    if not clause_kept:
-                        ranked = sorted(
-                            clause_raw,
-                            key=lambda h: (-h.similarity, -h.overlap, h.title),
-                        )
-                        for hit in ranked:
-                            if hit.overlap > 0 and hit.similarity >= abs_floor - 0.05:
-                                clause_kept = [hit]
-                                break
-                    if clause_kept:
-                        groups.append(clause_kept)
-                raw_hits = self._merge_hits_by_title(groups, query) if groups else []
-                filtered = filter_knowledge_hits(
-                    raw_hits,
-                    min_score=0.0,
-                    score_margin=1.0,
-                    top_k=k,
-                    min_score_no_overlap=no_ov_floor,
-                )
-                hits = [h.text for h in filtered]
-                logger.info(
-                    "knowledge retrieve cache=miss query=%r clauses=%d candidates=%d hits=%d "
-                    "min_score=%.3f min_score_no_overlap=%.3f score_margin=%.3f scores=%s",
-                    query,
-                    clause_n,
-                    candidate_n,
-                    len(filtered),
-                    self.config.min_score,
-                    self.config.min_score_no_overlap,
-                    self.config.score_margin,
-                    [(round(h.similarity, 3), h.title, h.overlap) for h in filtered],
-                )
-                if bool(self.config.query_cache_enabled):
-                    self._query_cache.put(q_emb, hits, top_k=k, collection_n=count)
-                return hits
+                ]
+                candidate_n += timed_cand
+                filtered = self._keep_best_by_title([orig_hits, timed_hits])[:k]
+            else:
+                filtered = orig_hits
         except Exception:
             logger.exception("Knowledge retrieve failed for query=%r", query)
             return []
 
-        filtered = filter_knowledge_hits(
-            raw_hits,
-            min_score=float(self.config.min_score),
-            score_margin=float(self.config.score_margin),
-            top_k=k,
-            min_score_no_overlap=float(self.config.min_score_no_overlap),
-        )
         hits = [h.text for h in filtered]
         logger.info(
-            "knowledge retrieve cache=miss query=%r clauses=%d candidates=%d hits=%d "
-            "min_score=%.3f min_score_no_overlap=%.3f score_margin=%.3f scores=%s",
+            "knowledge retrieve cache=miss query=%r time_query=%r clauses=%d "
+            "candidates=%d hits=%d min_score=%.3f min_score_no_overlap=%.3f "
+            "score_margin=%.3f scores=%s",
             query,
+            timed_query or None,
             clause_n,
             candidate_n,
             len(filtered),
@@ -598,7 +670,9 @@ class KnowledgeRetriever:
             [(round(h.similarity, 3), h.title, h.overlap) for h in filtered],
         )
         if bool(self.config.query_cache_enabled):
-            self._query_cache.put(q_emb, hits, top_k=k, collection_n=count)
+            self._query_cache.put(
+                q_emb, hits, top_k=k, collection_n=count, cache_day=day_key
+            )
         return hits
 
     def ingest(self, *, rebuild: bool = False) -> int:

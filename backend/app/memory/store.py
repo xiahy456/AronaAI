@@ -7,6 +7,7 @@ import math
 import re
 import sqlite3
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,12 @@ import jieba
 
 from ..config import AppConfig, MemoryConfig
 from ..embeddings import LocalBgeEncoder
+from ..query_time import (
+    build_time_aware_query,
+    memory_time_fts_queries,
+    relative_dates_in,
+    relative_months_in,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -235,6 +242,9 @@ class MemoryStore:
 
     def encode_query(self, text: str) -> list[float]:
         return self._ensure_encoder().encode_query(text)
+
+    def encode_queries(self, texts: list[str]) -> list[list[float]]:
+        return self._ensure_encoder().encode_queries(texts)
 
     def upsert(
         self,
@@ -518,6 +528,90 @@ class MemoryStore:
             out[str(row["key"])] = cat or "other"
         return out
 
+    @staticmethod
+    def _merge_score_maps(
+        *maps: dict[str, tuple[str, float]],
+    ) -> dict[str, tuple[str, float]]:
+        merged: dict[str, tuple[str, float]] = {}
+        for mapping in maps:
+            for key, (content, score) in mapping.items():
+                prev = merged.get(key)
+                if prev is None or score > prev[1]:
+                    merged[key] = (content, score)
+        return merged
+
+    def _hybrid_score_map(
+        self,
+        query: str,
+        query_embedding: list[float],
+        candidate_k: int,
+        *,
+        fts_query: str | None = None,
+    ) -> tuple[dict[str, tuple[str, float]], int, int]:
+        """Vector + FTS merge for one query string. Returns (merged, fts_n, vec_n)."""
+        try:
+            vec_hits = self._vector_candidates(query_embedding, candidate_k)
+        except Exception:
+            logger.exception("Memory vector retrieve failed query=%r", query)
+            vec_hits = {}
+
+        fts_keys = self._fts_candidate_keys(
+            fts_query if fts_query is not None else query, candidate_k
+        )
+        try:
+            fts_scored = self._score_fts_keys(fts_keys, query_embedding)
+        except Exception:
+            logger.exception("Memory FTS rescore failed query=%r", query)
+            fts_scored = {}
+        return self._merge_score_maps(vec_hits, fts_scored), len(fts_keys), len(vec_hits)
+
+    def _time_aware_score_map(
+        self,
+        query: str,
+        candidate_k: int,
+        *,
+        now: datetime,
+        time_query: str | None,
+        time_query_embedding: list[float] | None,
+        fallback_embedding: list[float],
+    ) -> tuple[dict[str, tuple[str, float]], str, int, int]:
+        timed_query = (time_query or "").strip() or build_time_aware_query(query, now)
+        timed_emb = time_query_embedding
+        if timed_emb is None:
+            try:
+                timed_emb = self._ensure_encoder().encode_query(timed_query)
+            except Exception:
+                logger.exception("Memory time-aware encode failed query=%r", timed_query)
+                timed_emb = fallback_embedding
+
+        try:
+            vec_hits = self._vector_candidates(timed_emb, candidate_k)
+        except Exception:
+            logger.exception(
+                "Memory time-aware vector retrieve failed query=%r", timed_query
+            )
+            vec_hits = {}
+
+        fts_queries = memory_time_fts_queries(
+            now,
+            extra_dates=relative_dates_in(query, now),
+            extra_months=relative_months_in(query, now),
+        )
+        fts_keys: list[str] = []
+        seen: set[str] = set()
+        for fts_q in fts_queries:
+            for key in self._fts_candidate_keys(fts_q, candidate_k):
+                if key not in seen:
+                    seen.add(key)
+                    fts_keys.append(key)
+        try:
+            fts_scored = self._score_fts_keys(fts_keys, timed_emb)
+        except Exception:
+            logger.exception("Memory time-aware FTS rescore failed query=%r", timed_query)
+            fts_scored = {}
+        merged = self._merge_score_maps(vec_hits, fts_scored)
+        return merged, timed_query, len(fts_keys), len(vec_hits)
+
     def retrieve_entries(
         self,
         query: str,
@@ -525,6 +619,10 @@ class MemoryStore:
         query_embedding: list[float] | None = None,
         *,
         apply_inject_cooldown: bool = False,
+        include_time: bool = True,
+        time_query: str | None = None,
+        time_query_embedding: list[float] | None = None,
+        now: datetime | None = None,
     ) -> list[dict[str, Any]]:
         """Hybrid retrieve returning key/content/category/score dicts."""
         query = (query or "").strip()
@@ -534,6 +632,7 @@ class MemoryStore:
         top_k = max(1, int(top_k))
         candidate_k = max(top_k, int(self.config.candidate_top_k))
         min_score = float(self.config.min_score)
+        clock = now or datetime.now()
 
         try:
             collection = self._ensure_chroma()
@@ -549,26 +648,24 @@ class MemoryStore:
             logger.exception("Memory retrieve backend init failed")
             return []
 
-        try:
-            vec_hits = self._vector_candidates(query_embedding, candidate_k)
-        except Exception:
-            logger.exception("Memory vector retrieve failed query=%r", query)
-            vec_hits = {}
-
-        fts_keys = self._fts_candidate_keys(query, candidate_k)
-        try:
-            fts_scored = self._score_fts_keys(fts_keys, query_embedding)
-        except Exception:
-            logger.exception("Memory FTS rescore failed query=%r", query)
-            fts_scored = {}
-
-        merged: dict[str, tuple[str, float]] = {}
-        for key, (content, score) in vec_hits.items():
-            merged[key] = (content, score)
-        for key, (content, score) in fts_scored.items():
-            prev = merged.get(key)
-            if prev is None or score > prev[1]:
-                merged[key] = (content, score)
+        orig_merged, fts_n, vec_n = self._hybrid_score_map(
+            query, query_embedding, candidate_k
+        )
+        timed_query = ""
+        timed_fts_n = 0
+        timed_vec_n = 0
+        if include_time:
+            timed_map, timed_query, timed_fts_n, timed_vec_n = self._time_aware_score_map(
+                query,
+                candidate_k,
+                now=clock,
+                time_query=time_query,
+                time_query_embedding=time_query_embedding,
+                fallback_embedding=query_embedding,
+            )
+            merged = self._merge_score_maps(orig_merged, timed_map)
+        else:
+            merged = orig_merged
 
         ranked = sorted(merged.items(), key=lambda item: item[1][1], reverse=True)
         passed = [
@@ -592,12 +689,15 @@ class MemoryStore:
             for key, content, score in passed
         ]
         logger.info(
-            "memory retrieve query=%r fts_keys=%d fts_scored=%d vec_hits=%d "
-            "merged=%d hits=%d min_score=%.3f scores=%s items=%s",
+            "memory retrieve query=%r time_query=%r fts_keys=%d timed_fts_keys=%d "
+            "vec_hits=%d timed_vec_hits=%d merged=%d hits=%d min_score=%.3f "
+            "scores=%s items=%s",
             query,
-            len(fts_keys),
-            len(fts_scored),
-            len(vec_hits),
+            timed_query or None,
+            fts_n,
+            timed_fts_n,
+            vec_n,
+            timed_vec_n,
             len(merged),
             len(entries),
             min_score,
@@ -613,12 +713,20 @@ class MemoryStore:
         query_embedding: list[float] | None = None,
         *,
         apply_inject_cooldown: bool = False,
+        include_time: bool = True,
+        time_query: str | None = None,
+        time_query_embedding: list[float] | None = None,
+        now: datetime | None = None,
     ) -> list[str]:
         entries = self.retrieve_entries(
             query,
             top_k,
             query_embedding=query_embedding,
             apply_inject_cooldown=apply_inject_cooldown,
+            include_time=include_time,
+            time_query=time_query,
+            time_query_embedding=time_query_embedding,
+            now=now,
         )
         cooldown = float(self.config.inject_cooldown_sec)
         if apply_inject_cooldown and cooldown > 0 and entries:
