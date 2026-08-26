@@ -131,16 +131,14 @@ arona-ai/
 
 ### 语音合成服务
 
-#### 放置 GPT-SoVITS 模型文件与参考音频
+#### 放置 GPT-SoVITS 模型文件
 
 ```
 gpt-sovits/
 ├── GPT_weights_v2/            # GPT 模型权重
 │   └── ALuoNa_cn-e15.ckpt
-├── SoVITS_weights_v2/         # SoVITS 模型权重
-│   └── ALuoNa_cn_e16_s256.pth
-└── ref_audio/Arona/              # 参考音频
-   └── arona_academy_in_2.ogg   # 推荐的参考音频
+└── SoVITS_weights_v2/         # SoVITS 模型权重
+    └── ALuoNa_cn_e16_s256.pth
 ```
 
 #### 启动 GPT-SoVITS API 服务
@@ -170,7 +168,7 @@ cd gpt-sovits
 
 - **《蔚蓝档案》(ブルーアーカイブ)** - 一切奇迹的起点 (https://bluearchive-cn.com/)
 - **Spine** - 2D 动画引擎 (https://esotericsoftware.com/)
-- **基沃托斯古书馆** - Spine 动画资源与 Blueaka 字体 (https://kivo.wiki/)
+- **基沃托斯古书馆** - 游戏内资源与 Blueaka 字体 (https://kivo.wiki/)
 - **Qt** - 跨平台 GUI 框架 (https://www.qt.io/)
 - **llama.cpp / llama-cpp-python** - 本地 GGUF 推理 (https://github.com/ggml-org/llama.cpp)
 - **Qwen3-1.7B** - 微调训练基底模型 (https://huggingface.co/Qwen/Qwen3-1.7B)

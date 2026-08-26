@@ -1,8 +1,11 @@
-# GPT-SoVITs：仅跟踪启动脚本，其余一律不提交
+# GPT-SoVITs：仅跟踪启动脚本与参考音频，其余一律不提交
 /gpt-sovits/**
 !/gpt-sovits/go-apiv2.bat
 !/gpt-sovits/go-apiv2.sh
 !/gpt-sovits/DEPLOY.md
+!/gpt-sovits/ref_audio/
+!/gpt-sovits/ref_audio/Arona/
+!/gpt-sovits/ref_audio/Arona/arona_academy_in_1.ogg
 
 # social preview：仅跟踪成品图，其余素材不提交
 /assets/social_preview/**

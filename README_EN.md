@@ -137,10 +137,8 @@ Full field docs: [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/Aro
 gpt-sovits/
 ├── GPT_weights_v2/            # GPT weights
 │   └── ALuoNa_cn-e15.ckpt
-├── SoVITS_weights_v2/         # SoVITS weights
-│   └── ALuoNa_cn_e16_s256.pth
-└── ref_audio/Arona/              # Reference audio
-   └── arona_academy_in_2.ogg   # Recommended reference audio
+└── SoVITS_weights_v2/         # SoVITS weights
+    └── ALuoNa_cn_e16_s256.pth
 ```
 
 #### Start the GPT-SoVITS API
@@ -170,7 +168,7 @@ cd gpt-sovits
 
 - **Blue Archive (ブルーアーカイブ)** — where all miracles begin (https://bluearchive-cn.com/)
 - **Spine** — 2D animation engine (https://esotericsoftware.com/)
-- **Kivo Wiki** — Spine animation assets and Blueaka font (https://kivo.wiki/)
+- **Kivo Wiki** — Game assets and Blueaka font (https://kivo.wiki/)
 - **Qt** — cross-platform GUI framework (https://www.qt.io/)
 - **llama.cpp / llama-cpp-python** — local GGUF inference (https://github.com/ggml-org/llama.cpp)
 - **Qwen3-1.7B** — fine-tune base model (https://huggingface.co/Qwen/Qwen3-1.7B)
