@@ -131,7 +131,7 @@ Full field docs: [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/Aro
 
 ### TTS Service
 
-#### Place GPT-SoVITS model files and reference audio
+#### Place GPT-SoVITS model files
 
 ```
 gpt-sovits/

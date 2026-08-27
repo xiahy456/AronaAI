@@ -109,8 +109,9 @@ backend/data/**
 !backend/data/knowledge/**
 backend/data/knowledge/chroma/
 
-# photoshop files
+# photoshop and affinity files
 *.psd
+*.af
 
 # unused files
 docs/unused/
