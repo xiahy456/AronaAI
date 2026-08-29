@@ -91,6 +91,8 @@ private:
 	bool m_waitingForAIResponse = false;	// 是否正在等待AI回复（仅文本输入）
 	bool m_listening = false;	// 持续聆听是否开启
 	int m_transcriptSeq = 0;
+	QString m_latestTranscript;	// 最近一次 ASR 文本（含未结束的 partial）
+	QString m_lastSentTranscript;	// 已发给后端的最后一句
 	QElapsedTimer m_bargeInGuardTimer;
 	bool m_measuringUserTurn = false;	// 是否正在测量用户回合端到端耗时
 	QElapsedTimer m_backendTimer;	// 后端 WebSocket RTT
@@ -109,6 +111,8 @@ private:
 
 	// 处理用户输入的文本（语音识别或文本输入）
 	void processInputText(const QString& text);
+	void sendTranscriptToBackend(const QString& text);
+	void flushPendingTranscript();
 	void interruptOutput();
 	void presentOutput(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion);
 	void presentOutputError(const QString& text, const QString& emotion);

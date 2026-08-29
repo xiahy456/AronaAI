@@ -316,6 +316,8 @@ void MainController::startAudioProcessing()
     }
     m_listening = true;
     m_transcriptSeq = 0;
+    m_latestTranscript.clear();
+    m_lastSentTranscript.clear();
     m_webSocketController->sendListenState(true);
     FINE_DEBUG_OUTPUT("[Audio Input Processing]Continuous listen on");
 }
@@ -332,11 +334,14 @@ void MainController::stopAudioProcessing()
         m_tencentRecognizer->stopRealtime();
         return;
     }
+    flushPendingTranscript();
+    m_webSocketController->sendListenState(false);
     m_listening = false;
+    m_latestTranscript.clear();
+    m_lastSentTranscript.clear();
     m_audioRecorder->stopRecording();
     m_audioRecorder->setPlaybackGuard(false);
     m_tencentRecognizer->stopRealtime();
-    m_webSocketController->sendListenState(false);
     FINE_DEBUG_OUTPUT("[Audio Input Processing]Continuous listen off");
 }
 
@@ -410,19 +415,11 @@ void MainController::onRecognizeError(const QString& error)
     ERROR_DEBUG_OUTPUT("[Audio Input Processing]Recognize error: " + error);
 }
 
-void MainController::onTranscriptReceived(const QString& text, bool isFinal, int sliceType)
+void MainController::sendTranscriptToBackend(const QString& text)
 {
-    const QString trimmed = text.trimmed();
-    FINE_DEBUG_OUTPUT(QString("[Audio Input Processing]ASR slice=%1 final=%2 text=%3")
-        .arg(sliceType)
-        .arg(isFinal ? "true" : "false")
-        .arg(trimmed));
-    if (!m_listening || !isFinal || trimmed.isEmpty()) {
-        return;
-    }
-    if (trimmed.contains(QStringLiteral("[Tencent Speech Recognizer]"))
-        || trimmed.contains(QStringLiteral("Didnt recognize"), Qt::CaseInsensitive)
-        || trimmed.contains(QStringLiteral("Didn't recognize"), Qt::CaseInsensitive)) {
+    if (text.contains(QStringLiteral("[Tencent Speech Recognizer]"))
+        || text.contains(QStringLiteral("Didnt recognize"), Qt::CaseInsensitive)
+        || text.contains(QStringLiteral("Didn't recognize"), Qt::CaseInsensitive)) {
         ERROR_DEBUG_OUTPUT("[Audio Input Processing]Ignoring unusable ASR text");
         return;
     }
@@ -432,9 +429,36 @@ void MainController::onTranscriptReceived(const QString& text, bool isFinal, int
     }
     ++m_transcriptSeq;
     m_webSocketController->sendTranscript(
-        trimmed,
+        text,
         QString::number(m_transcriptSeq),
         0);
+    m_lastSentTranscript = text;
+}
+
+void MainController::flushPendingTranscript()
+{
+    const QString trimmed = m_latestTranscript.trimmed();
+    if (trimmed.isEmpty() || trimmed == m_lastSentTranscript) {
+        return;
+    }
+    FINE_DEBUG_OUTPUT("[Audio Input Processing]Flush pending transcript on listen stop: " + trimmed);
+    sendTranscriptToBackend(trimmed);
+}
+
+void MainController::onTranscriptReceived(const QString& text, bool isFinal, int sliceType)
+{
+    const QString trimmed = text.trimmed();
+    FINE_DEBUG_OUTPUT(QString("[Audio Input Processing]ASR slice=%1 final=%2 text=%3")
+        .arg(sliceType)
+        .arg(isFinal ? "true" : "false")
+        .arg(trimmed));
+    if (!trimmed.isEmpty()) {
+        m_latestTranscript = trimmed;
+    }
+    if (!m_listening || !isFinal || trimmed.isEmpty()) {
+        return;
+    }
+    sendTranscriptToBackend(trimmed);
 }
 
 void MainController::processInputText(const QString& text)

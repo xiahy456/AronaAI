@@ -212,10 +212,10 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                     "Error while interrupting chat task session=%s", session_id
                 )
 
-    async def _commit_turn() -> None:
+    async def _commit_turn(*, force: bool = False) -> None:
         nonlocal commit_task, chat_task, inflight_user, wait_extended, generation_id
         commit_task = None
-        if not turn_buffer.listening:
+        if not force and not turn_buffer.listening:
             return
         drained = turn_buffer.drain()
         if not drained or is_unusable_user_text(drained):
@@ -469,9 +469,19 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                         listening,
                     )
                     await _cancel_commit()
-                    turn_buffer.set_listening(listening)
-                    state.hub.set_listening(session_id, listening)
                     wait_extended = False
+                    if listening:
+                        turn_buffer.set_listening(True)
+                        state.hub.set_listening(session_id, True)
+                    else:
+                        logger.info(
+                            "WS listen stop flush session=%s pending=%r",
+                            session_id,
+                            turn_buffer.joined(),
+                        )
+                        await _commit_turn(force=True)
+                        turn_buffer.set_listening(False)
+                        state.hub.set_listening(session_id, False)
                 elif msg_type == TYPE_TRANSCRIPT:
                     text = str(data.get("content") or data.get("text") or "")
                     speaker = normalize_speaker(data.get("speaker"))

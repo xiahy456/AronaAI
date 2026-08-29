@@ -1,8 +1,5 @@
 /*
- Copyright xia_hy456. All rights reserved.
-
- @Author: xia_hy456
- @Date: 2026/3/14 22:15:53
+ Copyright 2026 xia_hy456. All rights reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -257,9 +254,9 @@ void TencentSpeechRecognizer::onTextMessage(const QString& message)
         FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Realtime handshake ok");
     }
 
-    if (obj.value(QStringLiteral("final")).toInt() == 1) {
+    const bool streamEnded = obj.value(QStringLiteral("final")).toInt() == 1;
+    if (streamEnded) {
         FINE_DEBUG_OUTPUT("[Tencent Speech Recognizer]Realtime stream final=1");
-        return;
     }
 
     if (!obj.contains(QStringLiteral("result"))) {
@@ -268,7 +265,7 @@ void TencentSpeechRecognizer::onTextMessage(const QString& message)
     const QJsonObject result = obj.value(QStringLiteral("result")).toObject();
     const QString text = result.value(QStringLiteral("voice_text_str")).toString().trimmed();
     const int sliceType = result.value(QStringLiteral("slice_type")).toInt(-1);
-    const bool isFinal = (sliceType == 2);
+    const bool isFinal = streamEnded || (sliceType == 2);
     FINE_DEBUG_OUTPUT(QString("[Tencent Speech Recognizer]transcript final=%1 slice=%2 text=%3")
         .arg(isFinal ? "true" : "false")
         .arg(sliceType)

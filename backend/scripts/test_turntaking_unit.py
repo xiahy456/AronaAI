@@ -36,6 +36,31 @@ def main() -> None:
     assert buf.drain().startswith("之前那句")
     assert buf.joined() == ""
 
+    # listen off must keep uncommitted text so the handler can force-commit
+    buf.set_listening(True)
+    assert buf.push(text="关麦前这句", speaker="teacher", segment_id="2") is not None
+    buf.set_listening(False)
+    assert buf.listening is False
+    assert buf.joined() == "关麦前这句"
+    assert buf.drain() == "关麦前这句"
+    assert buf.joined() == ""
+
+    # next listen session starts clean
+    buf.set_listening(True)
+    assert buf.push(text="上一轮残留", speaker="teacher") is not None
+    buf.set_listening(False)
+    buf.set_listening(True)
+    assert buf.joined() == ""
+    assert buf.listening is True
+
+    # handler sequence: drain (force commit) then set_listening(False)
+    buf.push(text="已final未满静音", speaker="teacher", segment_id="3")
+    flushed = buf.drain()
+    buf.set_listening(False)
+    assert flushed == "已final未满静音"
+    assert buf.joined() == ""
+    assert buf.listening is False
+
     assert looks_incomplete("那个然后")
     assert looks_incomplete("就是")
     assert not looks_incomplete("晚饭都还没吃啊。")
