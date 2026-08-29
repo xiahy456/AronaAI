@@ -505,6 +505,14 @@ void MainController::onWebSocketChatResponse(const QString& content, const QStri
 
     // 重置等待状态
     m_waitingForAIResponse = false;
+    m_measuringUserTurn = false;
+
+    if (content.trimmed().isEmpty()) {
+        FINE_DEBUG_OUTPUT(QString("[WebSocket] Silent skip (no speech), context=%1")
+            .arg(contextUsed));
+        return;
+    }
+
     m_currentEmotion = emotion.isEmpty() ? QStringLiteral("normal") : emotion;
 
     // 通过TTS播放AI回复

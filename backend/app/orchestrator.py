@@ -139,11 +139,12 @@ class Orchestrator:
         if decision is not None:
             context_parts.append("climate")
         if decision is not None and decision.action in {"silence", "refuse"}:
-            reset_trace()
             await self._skip_generation(
                 session_id=session_id,
                 user_text=user_text,
                 decision=decision,
+                send=send,
+                latency=time.perf_counter() - start,
             )
             _committed()
             return True
@@ -286,12 +287,14 @@ class Orchestrator:
                 self._merge_decision_into_intent(intent, decision)
                 self._note_planner_user_act(intent.user_act)
                 if not intent.reply_ok:
-                    reset_trace()
                     await self._skip_generation(
                         session_id=session_id,
                         user_text=user_text,
                         decision=decision,
+                        send=send,
                         reason="reply_ok_false",
+                        latency=time.perf_counter() - start,
+                        emotion=emotion,
                     )
                     _committed()
                     return True
@@ -809,7 +812,10 @@ class Orchestrator:
         session_id: str,
         user_text: str,
         decision: Decision | None,
+        send: SendFn,
         reason: str | None = None,
+        latency: float = 0.0,
+        emotion: str = DEFAULT_EMOTION,
     ) -> None:
         action = "silence" if reason == "reply_ok_false" else (
             decision.action if decision is not None else "silence"
@@ -827,6 +833,14 @@ class Orchestrator:
             decision.user_act if decision is not None else None,
             reason or action,
             user_text,
+        )
+        await send(
+            msg_chat_response(
+                "",
+                context_used=action,
+                latency=round(latency, 4),
+                emotion=emotion,
+            )
         )
 
     async def _maybe_extract(self, session_id: str, user_text: str) -> None:

@@ -98,6 +98,7 @@ zip **不含** GGUF、**不含** 本机 `config.yaml` 里的真实 Key。用户�
 python scripts/smoke_ws.py
 python scripts/test_input_filter.py        # ASR / 空串脏文本过滤断言
 python scripts/test_relationship_unit.py   # 关系公式 / 分区 / 分类 / 沉默（不加载 GGUF）
+python scripts/test_skip_ack.py            # 沉默/拒绝仍发空 chat_response（不加载 GGUF）
 python scripts/test_welcome_unit.py        # 欢迎时段与指令（不加载 GGUF）
 python scripts/test_proactive_unit.py      # 空闲 / 照料 / goal / 节日 / continue / 调度落盘（不加载 GGUF）
 ```
@@ -124,7 +125,7 @@ python scripts/test_proactive_unit.py      # 空闲 / 照料 / goal / 节日 / c
   → 规则分类 user_act
   → 查表 Δ 更新信任 / 依赖 / 张力
   → 气候分区 + 姿态（action / stance / must_not）
-  → silence / refuse：写入历史，不调用 LLM，不发 chat_response
+  → silence / refuse：写入历史，不调用 LLM，发空 content 的 chat_response（context_used=silence/refuse）
   → speak：本轮 query embedding 只算一次 → 记忆/知识检索（知识近义命中可复用）
        → Planner 或本地 → Renderer（复用 system 前缀 KV）→ chat_response
   → 回写阿洛娜自身行动（followed_up / gave_space / teased / greeted）
@@ -667,6 +668,6 @@ python scripts/ingest_knowledge.py --rebuild
 
 正常回复：`{"type":"chat_response","content":"...","emotion":"...","context_used":"...","latency":...}`。
 
-连接后若欢迎开启，服务端会再推一条 `chat_response`（`context_used` 含 `welcome`，节日当天首次则为 `festival`；凌晨/深夜节日可能再跟一条 `sleep`）。空闲搭话 / 照料 / goal 回访同样推 `chat_response`（`context_used` 含 `idle` / `lunch` / `sleep` / `goal`）。Planner 标 `followup_ok` 时，同一轮用户消息后可能再跟一条 `chat_response`（`context_used` 含 `continue`）。关系层决定沉默时**不**发 `chat_response`，前端保持安静。
+连接后若欢迎开启，服务端会再推一条 `chat_response`（`context_used` 含 `welcome`，节日当天首次则为 `festival`；凌晨/深夜节日可能再跟一条 `sleep`）。空闲搭话 / 照料 / goal 回访同样推 `chat_response`（`context_used` 含 `idle` / `lunch` / `sleep` / `goal`）。Planner 标 `followup_ok` 时，同一轮用户消息后可能再跟一条 `chat_response`（`context_used` 含 `continue`）。关系层决定沉默或 Planner 标 `reply_ok=false` 时仍发 `chat_response`，但 `content` 为空、`context_used` 为 `silence` / `refuse`，前端保持安静并解除等待。
 
 若 `content` 被判定为 ASR 脏文本，仍返回 `chat_response`，但 `context_used` 为 `"asr_filter"`，且不会进入双模型链路。
