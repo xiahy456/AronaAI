@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <em>版本：2.4.5</em>
+  <em>版本：2.4.6</em>
 </p>
 
 <p align="center">
