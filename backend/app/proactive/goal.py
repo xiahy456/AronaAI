@@ -1,3 +1,17 @@
+# Copyright 2026 xia_hy456. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Sparse follow-up of unfinished memory goals."""
 
 from __future__ import annotations
@@ -5,6 +19,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 
+from ..query_time import is_currently_important
 from .slots import REST_SLOTS, resolve_slot
 
 HISTORY_GOAL_MARKER = "【回访】"
@@ -26,6 +41,41 @@ def _parse_iso(value: str) -> datetime | None:
         return None
 
 
+def _is_muted(key: str, now: datetime, goal_mute: dict[str, str]) -> bool:
+    mute_until = _parse_iso(str(goal_mute.get(key) or ""))
+    return mute_until is not None and now < mute_until
+
+
+def goal_is_important(
+    content: str,
+    now: datetime,
+    *,
+    horizon_hours: float,
+) -> bool:
+    return is_currently_important(
+        content, now, horizon_hours=horizon_hours
+    )
+
+
+def has_important_goal(
+    goals: list[dict[str, object]],
+    now: datetime,
+    *,
+    goal_mute: dict[str, str],
+    horizon_hours: float,
+) -> bool:
+    for item in goals:
+        key = str(item.get("key") or "").strip()
+        content = str(item.get("content") or "").strip()
+        if not key or not content:
+            continue
+        if _is_muted(key, now, goal_mute):
+            continue
+        if goal_is_important(content, now, horizon_hours=horizon_hours):
+            return True
+    return False
+
+
 def can_attempt_goal(
     now: datetime,
     *,
@@ -34,10 +84,11 @@ def can_attempt_goal(
     goal_count: int,
     min_after_user_sec: float,
     max_per_day: int,
+    has_important: bool = False,
 ) -> bool:
     if last_user_act == "depart":
         return False
-    if goal_count >= max(0, int(max_per_day)):
+    if not has_important and goal_count >= max(0, int(max_per_day)):
         return False
     if resolve_slot(now).slot_id in REST_SLOTS:
         return False
@@ -55,27 +106,42 @@ def select_goal(
     goal_last: dict[str, str],
     goal_mute: dict[str, str],
     cooldown_sec: float,
+    important_horizon_hours: float = 36,
+    important_cooldown_sec: float = 1800,
+    goal_count: int = 0,
+    max_per_day: int | None = None,
 ) -> dict[str, object] | None:
-    """Oldest unvisited / longest-since-visit goal that is not muted or cooling."""
-    eligible: list[tuple[float, float, dict[str, object]]] = []
+    """Prefer currently important goals; otherwise oldest unvisited / longest idle."""
+    daily_full = (
+        max_per_day is not None and goal_count >= max(0, int(max_per_day))
+    )
+    eligible: list[tuple[int, float, float, dict[str, object]]] = []
     for item in goals:
         key = str(item.get("key") or "").strip()
         content = str(item.get("content") or "").strip()
         if not key or not content:
             continue
-        mute_until = _parse_iso(str(goal_mute.get(key) or ""))
-        if mute_until is not None and now < mute_until:
+        if _is_muted(key, now, goal_mute):
+            continue
+        important = goal_is_important(
+            content, now, horizon_hours=important_horizon_hours
+        )
+        if daily_full and not important:
             continue
         last = _parse_iso(str(goal_last.get(key) or ""))
-        if last is not None and (now - last).total_seconds() < cooldown_sec:
+        wait = (
+            float(important_cooldown_sec) if important else float(cooldown_sec)
+        )
+        if last is not None and wait > 0 and (now - last).total_seconds() < wait:
             continue
         last_ts = last.timestamp() if last else 0.0
         updated = float(item.get("updated_at") or 0.0)
-        eligible.append((last_ts, updated, item))
+        # important first (0), then longest since visit, then oldest updated_at
+        eligible.append((0 if important else 1, last_ts, updated, item))
     if not eligible:
         return None
-    eligible.sort(key=lambda row: (row[0], row[1]))
-    return eligible[0][2]
+    eligible.sort(key=lambda row: (row[0], row[1], row[2]))
+    return eligible[0][3]
 
 
 def build_goal_instruction(content: str, climate: str | None = None) -> str:

@@ -1,3 +1,17 @@
+# Copyright 2026 xia_hy456. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Persist last activity / daily caps and pick at most one proactive motive."""
 
 from __future__ import annotations
@@ -26,6 +40,7 @@ from .goal import (
     HISTORY_GOAL_MARKER,
     build_goal_instruction,
     can_attempt_goal,
+    has_important_goal,
     select_goal,
 )
 from .idle import (
@@ -299,32 +314,51 @@ class ProactiveScheduler:
                 if reason.startswith("after_welcome"):
                     return None
 
-        if getattr(self.goal_cfg, "enabled", True) and can_attempt_goal(
-            dt,
-            last_user_at=_parse_iso(self.state.last_user_at),
-            last_user_act=last_user_act,
-            goal_count=self.state.goal_count,
-            min_after_user_sec=float(self.goal_cfg.min_after_user_sec),
-            max_per_day=int(self.goal_cfg.max_per_day),
-        ):
-            selected = select_goal(
-                goals or [],
-                dt,
-                goal_last=self.state.goal_last,
-                goal_mute=self.state.goal_mute,
-                cooldown_sec=float(self.goal_cfg.cooldown_sec),
+        if getattr(self.goal_cfg, "enabled", True):
+            horizon = float(
+                getattr(self.goal_cfg, "important_horizon_hours", 36) or 36
             )
-            if selected is not None:
-                key = str(selected.get("key") or "").strip()
-                content = str(selected.get("content") or "").strip()
-                if key and content:
-                    return Motive(
-                        kind="goal",
-                        instruction=build_goal_instruction(content, climate),
-                        history_marker=HISTORY_GOAL_MARKER,
-                        goal_key=key,
-                        extra_memories=(content,),
-                    )
+            important_cd = float(
+                getattr(self.goal_cfg, "important_cooldown_sec", 1800) or 1800
+            )
+            goals_list = goals or []
+            has_important = has_important_goal(
+                goals_list,
+                dt,
+                goal_mute=self.state.goal_mute,
+                horizon_hours=horizon,
+            )
+            if can_attempt_goal(
+                dt,
+                last_user_at=_parse_iso(self.state.last_user_at),
+                last_user_act=last_user_act,
+                goal_count=self.state.goal_count,
+                min_after_user_sec=float(self.goal_cfg.min_after_user_sec),
+                max_per_day=int(self.goal_cfg.max_per_day),
+                has_important=has_important,
+            ):
+                selected = select_goal(
+                    goals_list,
+                    dt,
+                    goal_last=self.state.goal_last,
+                    goal_mute=self.state.goal_mute,
+                    cooldown_sec=float(self.goal_cfg.cooldown_sec),
+                    important_horizon_hours=horizon,
+                    important_cooldown_sec=important_cd,
+                    goal_count=self.state.goal_count,
+                    max_per_day=int(self.goal_cfg.max_per_day),
+                )
+                if selected is not None:
+                    key = str(selected.get("key") or "").strip()
+                    content = str(selected.get("content") or "").strip()
+                    if key and content:
+                        return Motive(
+                            kind="goal",
+                            instruction=build_goal_instruction(content, climate),
+                            history_marker=HISTORY_GOAL_MARKER,
+                            goal_key=key,
+                            extra_memories=(content,),
+                        )
 
         if getattr(self.idle_cfg, "enabled", True) and should_fire_idle(
             dt,

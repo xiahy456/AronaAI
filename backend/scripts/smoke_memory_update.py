@@ -340,18 +340,48 @@ def test_inject_cooldown() -> None:
             )
 
         passed = [
-            ("pref_spicy", "老师喜欢吃辛辣食物但难以控制", 0.9),
-            ("pref_pizza", "老师喜欢吃披萨", 0.8),
+            ("pref_spicy", "老师喜欢吃辛辣食物但难以控制", 0.40),
+            ("pref_pizza", "老师喜欢吃披萨", 0.80),
         ]
         dropped = store._drop_cooled_entries(
-            passed, apply_inject_cooldown=True
+            passed, apply_inject_cooldown=True, query="你好啊"
         )
         if [key for key, _, _ in dropped] != ["pref_pizza"]:
-            _fail(f"expected cooled key dropped and pizza kept, got {dropped}")
+            _fail(f"expected cooled weak hit dropped and pizza kept, got {dropped}")
 
         kept = store._drop_cooled_entries(passed, apply_inject_cooldown=False)
         if [key for key, _, _ in kept] != ["pref_spicy", "pref_pizza"]:
             _fail(f"extractor path must not drop cooled keys, got {kept}")
+
+        strong = [
+            ("pref_spicy", "老师喜欢吃辛辣食物但难以控制", 0.90),
+            ("pref_pizza", "老师喜欢吃披萨", 0.80),
+        ]
+        bypass_score = store._drop_cooled_entries(
+            strong, apply_inject_cooldown=True, query="你好啊"
+        )
+        if [key for key, _, _ in bypass_score] != ["pref_spicy", "pref_pizza"]:
+            _fail(f"high score must bypass cooldown, got {bypass_score}")
+
+        bypass_overlap = store._drop_cooled_entries(
+            passed, apply_inject_cooldown=True, query="辛辣还能吃吗"
+        )
+        if [key for key, _, _ in bypass_overlap] != ["pref_spicy", "pref_pizza"]:
+            _fail(f"query overlap must bypass cooldown, got {bypass_overlap}")
+
+        greeting = store._filter_by_score(
+            [("goal_ticket", ("老师2026年9月1日下午2点要订回深圳的车票", 0.391))],
+            "你好啊，阿洛娜",
+        )
+        if greeting:
+            _fail(f"greeting must not inject ticket, got {greeting}")
+
+        asked = store._filter_by_score(
+            [("goal_ticket", ("老师2026年9月1日下午2点要订回深圳的车票", 0.75))],
+            "回深圳要定的票得在什么时候定吗",
+        )
+        if not asked:
+            _fail("explicit ticket question must pass score floor")
 
         store.config = store.config.model_copy(update={"inject_cooldown_sec": 0})
         zeroed = store._drop_cooled_entries(

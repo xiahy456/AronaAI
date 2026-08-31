@@ -29,8 +29,10 @@ from app.query_time import (  # noqa: E402
     cache_day_key,
     expand_relative_time,
     format_clock_stamp,
+    is_currently_important,
     memory_time_fts_queries,
     mentions_query_clock,
+    parse_content_datetimes,
     relative_dates_in,
     relative_months_in,
 )
@@ -112,6 +114,30 @@ def test_fts_date_strings() -> None:
     print("  FTS date strings ok")
 
 
+def test_content_importance() -> None:
+    print("== content datetime / importance ==")
+    ticket = "老师2026年9月1日下午2点要订回深圳的车票"
+    parsed = parse_content_datetimes(ticket)
+    if len(parsed) != 1 or parsed[0] != datetime(2026, 9, 1, 14, 0):
+        _fail(f"ticket datetime: {parsed}")
+    ask_now = datetime(2026, 8, 31, 14, 46)
+    if not is_currently_important(ticket, ask_now, horizon_hours=36):
+        _fail("Aug 31 afternoon should treat Sept 1 14:00 ticket as important")
+    far = datetime(2026, 8, 20, 10, 0)
+    if is_currently_important(ticket, far, horizon_hours=36):
+        _fail("Aug 20 should not treat Sept 1 ticket as important")
+    overdue = datetime(2026, 9, 2, 10, 0)
+    if not is_currently_important(ticket, overdue, horizon_hours=36):
+        _fail("day after booking should still be important")
+    if is_currently_important("老师想去海边", ask_now, horizon_hours=36):
+        _fail("undated goal should not be important")
+    nap = "老师2026年8月24日下午4点睡到晚上7点"
+    nap_at = parse_content_datetimes(nap)
+    if not nap_at or nap_at[0] != datetime(2026, 8, 24, 16, 0):
+        _fail(f"nap datetime: {nap_at}")
+    print("  content datetime / importance ok")
+
+
 class _FakeColl:
     def count(self) -> int:
         return 2
@@ -162,6 +188,7 @@ def test_memory_merge_mock() -> None:
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         store = MemoryStore(cfg, db_path=Path(tmp) / "memory.db")
         store.config.min_score = 0.35
+        store.config.min_score_no_overlap = 0.60
         store.config.candidate_top_k = 5
         _patch_store_for_merge(
             store,
@@ -212,6 +239,7 @@ def test_memory_merge_mock() -> None:
 def main() -> int:
     test_format_and_expand()
     test_fts_date_strings()
+    test_content_importance()
     test_memory_merge_mock()
     print("PASS: time-aware retrieval helpers")
     return 0

@@ -1,3 +1,17 @@
+# Copyright 2026 xia_hy456. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """SQLite + FTS5 + Chroma hybrid long-term memory store."""
 
 from __future__ import annotations
@@ -105,6 +119,12 @@ _STOPWORDS = frozenset(
         "一些",
         "一下",
         "一样",
+        "老师",
+        "您",
+        "阿洛娜",
+        "阿罗娜",
+        "arona",
+        "アロナ",
     }
 )
 
@@ -129,6 +149,21 @@ def _tokenize(text: str) -> str:
     """Jieba tokenize then drop stopwords/punctuation for FTS indexing/query."""
     tokens = [t for t in _raw_tokens(text) if not _is_stop_or_punct(t)]
     return " ".join(tokens)
+
+
+def _overlap_token_set(text: str) -> set[str]:
+    return {t.lower() for t in _raw_tokens(text) if not _is_stop_or_punct(t)}
+
+
+def lexical_overlap(query: str, content: str) -> int:
+    """Count jieba token overlap; persona names are stopwords."""
+    if not (query or "").strip() or not (content or "").strip():
+        return 0
+    return len(_overlap_token_set(query) & _overlap_token_set(content))
+
+
+def _preview_scored(items: list[tuple[str, str, float]]) -> list[tuple[float, str]]:
+    return [(round(score, 3), content[:40]) for _, content, score in items]
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -374,11 +409,42 @@ class MemoryStore:
             ).fetchall()
         return {str(row["key"]) for row in rows}
 
+    def _cooldown_bypass_reason(
+        self,
+        content: str,
+        score: float,
+        query: str,
+    ) -> str | None:
+        bypass = float(self.config.inject_cooldown_bypass_score)
+        if score >= bypass:
+            return "score"
+        if query and lexical_overlap(query, content) > 0:
+            return "overlap"
+        return None
+
+    def _filter_by_score(
+        self,
+        ranked: list[tuple[str, tuple[str, float]]],
+        query: str,
+    ) -> list[tuple[str, str, float]]:
+        min_score = float(self.config.min_score)
+        no_ov = float(self.config.min_score_no_overlap)
+        passed: list[tuple[str, str, float]] = []
+        for key, (content, score) in ranked:
+            if not content:
+                continue
+            overlap = lexical_overlap(query, content)
+            floor = min_score if overlap > 0 else no_ov
+            if score >= floor:
+                passed.append((key, content, score))
+        return passed
+
     def _drop_cooled_entries(
         self,
         passed: list[tuple[str, str, float]],
         *,
         apply_inject_cooldown: bool,
+        query: str = "",
     ) -> list[tuple[str, str, float]]:
         if not apply_inject_cooldown or not passed:
             return passed
@@ -392,13 +458,28 @@ class MemoryStore:
         )
         if not cooled:
             return passed
-        remaining = [(k, c, s) for k, c, s in passed if k not in cooled]
-        logger.info(
-            "memory retrieve cooldown skipped keys=%s remaining=%d cooldown_sec=%.0f",
-            sorted(cooled),
-            len(remaining),
-            cooldown,
-        )
+        remaining: list[tuple[str, str, float]] = []
+        skipped: list[str] = []
+        bypassed: list[tuple[str, str]] = []
+        for key, content, score in passed:
+            if key not in cooled:
+                remaining.append((key, content, score))
+                continue
+            reason = self._cooldown_bypass_reason(content, score, query)
+            if reason:
+                remaining.append((key, content, score))
+                bypassed.append((key, reason))
+            else:
+                skipped.append(key)
+        if skipped or bypassed:
+            logger.info(
+                "memory retrieve cooldown skipped keys=%s remaining=%d "
+                "cooldown_sec=%.0f bypass=%s",
+                sorted(skipped),
+                len(remaining),
+                cooldown,
+                bypassed,
+            )
         return remaining
 
     def _fts_only_entries(
@@ -430,9 +511,15 @@ class MemoryStore:
             if not content:
                 continue
             passed.append((key, content, 1.0 - index * 0.01))
+        passed = self._filter_by_score(
+            [(key, (content, score)) for key, content, score in passed],
+            query,
+        )
+        pre_scores = _preview_scored(passed)
         passed = self._drop_cooled_entries(
             passed,
             apply_inject_cooldown=apply_inject_cooldown,
+            query=query,
         )[:top_k]
         categories = self._categories_for_keys([key for key, _, _ in passed])
         entries = [
@@ -445,9 +532,11 @@ class MemoryStore:
             for key, content, score in passed
         ]
         logger.info(
-            "memory retrieve query=%r fts-only hits=%d",
+            "memory retrieve query=%r fts-only hits=%d pre_scores=%s items=%s",
             query,
             len(entries),
+            pre_scores,
+            [e["content"] for e in entries],
         )
         return entries
 
@@ -686,7 +775,6 @@ class MemoryStore:
 
         top_k = max(1, int(top_k))
         candidate_k = max(top_k, int(self.config.candidate_top_k))
-        min_score = float(self.config.min_score)
         clock = now or datetime.now()
 
         try:
@@ -734,15 +822,21 @@ class MemoryStore:
             merged = orig_merged
 
         ranked = sorted(merged.items(), key=lambda item: item[1][1], reverse=True)
-        passed = [
-            (key, content, score)
-            for key, (content, score) in ranked
-            if score >= min_score and content
+        passed = self._filter_by_score(ranked, query)
+        pre_scores = _preview_scored(passed)
+        cooled_keys = [
+            key
+            for key, _, _ in passed
         ]
         passed = self._drop_cooled_entries(
             passed,
             apply_inject_cooldown=apply_inject_cooldown,
-        )[:top_k]
+            query=query,
+        )
+        dropped_cooled = [
+            key for key in cooled_keys if key not in {k for k, _, _ in passed}
+        ]
+        passed = passed[:top_k]
 
         categories = self._categories_for_keys([key for key, _, _ in passed])
         entries = [
@@ -757,7 +851,7 @@ class MemoryStore:
         logger.info(
             "memory retrieve query=%r time_query=%r fts_keys=%d timed_fts_keys=%d "
             "vec_hits=%d timed_vec_hits=%d merged=%d hits=%d min_score=%.3f "
-            "scores=%s items=%s",
+            "min_score_no_overlap=%.3f pre_scores=%s cooled=%s scores=%s items=%s",
             query,
             timed_query or None,
             fts_n,
@@ -766,7 +860,10 @@ class MemoryStore:
             timed_vec_n,
             len(merged),
             len(entries),
-            min_score,
+            float(self.config.min_score),
+            float(self.config.min_score_no_overlap),
+            pre_scores,
+            dropped_cooled,
             [(round(e["score"], 3), e["content"][:40]) for e in entries],
             [e["content"] for e in entries],
         )

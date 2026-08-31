@@ -178,7 +178,7 @@ Planner 只看见【关系气候】档位与【建议姿态】，禁止下发 A/
 
 `FIXED_MUST_NOT` 仍在 `prompts.py`，V2.4 **不再注入**。
 
-`build_planner_user_message()` 按顺序拼：可选 `climate_block` → `【当前时间】`（与记忆抽取同一格式，如 `2026年8月24日 星期一 10:14`）→ `【长期记忆】` → `【相关知识】` → `【近期对话】` → `【老师本轮消息】` → 收尾「若有【关系气候】，按建议姿态写草稿」。写入 Planner 的记忆按 key 冷却，默认 1 小时内不重复注入（`memory.inject_cooldown_sec`）；抽取侧检索不受影响。
+`build_planner_user_message()` 按顺序拼：可选 `climate_block` → `【当前时间】`（与记忆抽取同一格式，如 `2026年8月24日 星期一 10:14`）→ `【长期记忆】` → `【相关知识】` → `【近期对话】` → `【老师本轮消息】` → 收尾「若有【关系气候】，按建议姿态写草稿」。写入 Planner 的记忆按 key 冷却，默认 1 小时内不重复注入（`memory.inject_cooldown_sec`）；老师本轮对某条记忆强匹配（高分或词汇重叠）时绕过该冷却。抽取侧检索不受冷却影响。
 
 `【老师本轮消息】` **按来源分套：**
 
@@ -313,7 +313,7 @@ WebSocket 连接并发送 `connected` 后，若 `proactive.welcome.enabled` 为�
 | ------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | 节日问候    | 公历节假日 / 农历年表 / 老师生日                 | 当天第一次上线欢迎直接换成祝福，整天只说一次；凌晨/深夜先祝福再跟一句休息提醒；tick 仅在欢迎没说过时兜底；`depart` 时 tick 不说、欢迎仍可换；历史 `【节日】`；回写 `greeted`               |
 | 空闲轻搭话   | 老师安静 15 分钟；两次搭话间隔默认 30 分钟；每天最多 3 次  | 欢迎/照料之后只需再等 `after_sec`，不占用搭话冷却；深夜/凌晨不闲聊；上一轮是 `depart` 不闲聊；仅 `secure_play` / `steady` 可开口；历史 `【搭话】`；不检索记忆             |
-| goal 回访 | 老师安静 5 分钟后；每条 goal 冷却 6 小时；每天最多 1 次 | 扫记忆 `category=goal`，轻轻提起最久未回访的一条；不催、不盘问、不编造进展；老师说「先别提」等则 mute 上一条 7 天；休息时段 / `depart` 不回访；气候闸与空闲相同；历史 `【回访】`；直接注入该条记忆 |
+| goal 回访 | 老师安静 5 分钟后；不重要的 goal 每条冷却 6 小时、每天最多 1 次；content 里日期过期/当天/36 小时内则视为重要，绕过 6 小时与每日上限，改走 30 分钟短间隔 | 扫记忆 `category=goal`，重要优先，否则轻轻提起最久未回访的一条；不催、不盘问、不编造进展；老师说「先别提」等则 mute 上一条 7 天；休息时段 / `depart` 不回访；气候闸与空闲相同；历史 `【回访】`；直接注入该条记忆 |
 | 午饭照料    | 12:00–12:30，每天一次                    | 短提醒吃饭，不催；`cling_risk` 更短；可检索作息记忆；欢迎（及任何已写入 `last_proactive_at` 的主动开口）之后再等 `idle.after_sec`；窗口内等待时不改发搭话或回访             |
 | 睡觉照料    | 23:00–23:20，每天一次                    | 提醒休息；允许在休息时段触发；历史 `【提醒】`；与午饭相同，相对欢迎再等 `idle.after_sec`；节日欢迎里的休息补发仍同一轮发出、不等间隔                                          |
 | 同轮补充    | Planner `followup_ok`（按「能否扩展」）      | 仅用户 chat 双模型路径、首句成功后最多再扩 1 句；本地回落 / 欢迎 / idle / care / goal / festival 不续说；历史 `【补充】`                                  |
@@ -349,7 +349,7 @@ python scripts/ingest_knowledge.py --rebuild
 1. 冒烟检索：`python scripts/test_knowledge_rag.py`；时间感知查询单测（不加载 BGE）：`python scripts/test_query_time.py`
 2. 在 `config.yaml` 设 `knowledge.enabled: true` 后重启后端
 
-对话主路径里记忆与知识检索共用一轮 BGE：同时编码老师原文和带当前时间的附带查询（相对日期会先展开成与记忆写入相同的绝对日期）。两路召回按 key / 标题合并后截断 `top_k`。写入 Planner 的记忆命中按 key 冷却，默认 `memory.inject_cooldown_sec: 3600` 内不重复注入，空缺由下一名候选补上；抽取器看已有记忆时不走该冷却。知识命中（过滤后的 lore 文本）可按 query 向量近义复用，默认 `query_cache_min_cosine: 0.92`，缓存按自然日区分以免跨日复用带日期的命中；`ingest` / `--rebuild` 会清空该缓存。不缓存 Planner 草稿或最终台词。当前时间同时用于检索附带查询，并以 `【当前时间】` 写入 Planner user 消息（不写入 Renderer）。
+对话主路径里记忆与知识检索共用一轮 BGE：同时编码老师原文和带当前时间的附带查询（相对日期会先展开成与记忆写入相同的绝对日期）。两路召回按 key / 标题合并后截断 `top_k`。写入 Planner 的记忆命中按 key 冷却，默认 `memory.inject_cooldown_sec: 3600` 内不重复注入，空缺由下一名候选补上；本轮强匹配（`inject_cooldown_bypass_score` 或与老师原文有词汇重叠）永久绕过该冷却。无词汇重叠时用更高的 `min_score_no_overlap`。抽取器看已有记忆时不走该冷却。知识命中（过滤后的 lore 文本）可按 query 向量近义复用，默认 `query_cache_min_cosine: 0.92`，缓存按自然日区分以免跨日复用带日期的命中；`ingest` / `--rebuild` 会清空该缓存。不缓存 Planner 草稿或最终台词。当前时间同时用于检索附带查询，并以 `【当前时间】` 写入 Planner user 消息（不写入 Renderer）。
 
 ## 配置
 
@@ -455,9 +455,11 @@ python scripts/ingest_knowledge.py --rebuild
 | `collection`            | `arona_memory`          | Chroma collection 名                      |
 | `retrieve_top_k`        | `3`                     | 对话注入的记忆条数上限                              |
 | `candidate_top_k`       | `10`                    | 混合检索（FTS + 向量）的候选数                       |
-| `min_score`             | `0.35`                  | 记忆召回相似度下限                                |
+| `min_score`             | `0.35`                  | 与查询有词汇重叠时的记忆召回相似度下限                     |
+| `min_score_no_overlap`  | `0.60`                  | 无词汇重叠时的更高相似度下限                              |
 | `max_inject_chars`      | `400`                   | 本地回落注入字符硬上限；与 `token_budget.memory` 取较小值 |
 | `inject_cooldown_sec`   | `3600`                  | 同一 key 写入 Planner 的冷却秒数；`0` 关闭。抽取侧检索不受影响 |
+| `inject_cooldown_bypass_score` | `0.55`           | 达到该分或与老师原文有词汇重叠时绕过注入冷却                    |
 | `extract_context_top_k` | `8`                     | 抽取时检索已有记忆的条数，供模型对照更新                     |
 | `reconcile_enabled`     | `true`                  | 写入后删除同类别、高相似的旧条目（`goal` 除外）              |
 | `reconcile_min_score`   | `0.82`                  | 调和删除的相似度下限                               |
@@ -586,8 +588,10 @@ python scripts/ingest_knowledge.py --rebuild
 | -------------------- | -------- | ------------------------- |
 | `enabled`            | `true`   | 是否回访记忆里的 `category=goal`  |
 | `min_after_user_sec` | `300`    | 老师安静多久后才可回访（秒）            |
-| `cooldown_sec`       | `21600`  | 同一条 goal 的回访冷却（秒，默认 6 小时） |
-| `mute_sec`           | `604800` | 老师说「先别提」后静音该条的秒数（默认 7 天）  |
+| `cooldown_sec`            | `21600`  | 不重要 goal 的回访冷却（秒，默认 6 小时） |
+| `important_horizon_hours` | `36`     | content 日期在过期/当天/该小时数内视为重要 |
+| `important_cooldown_sec`  | `1800`   | 重要 goal 的短间隔（秒，默认 30 分钟）   |
+| `mute_sec`                | `604800` | 老师说「先别提」后静音该条的秒数（默认 7 天）  |
 | `max_per_day`        | `1`      | 每天最多回访次数                  |
 
 

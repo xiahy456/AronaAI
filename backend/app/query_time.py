@@ -1,3 +1,17 @@
+# Copyright 2026 xia_hy456. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Current-time helpers for memory extraction and time-aware retrieval."""
 
 from __future__ import annotations
@@ -209,3 +223,76 @@ def mentions_query_clock(
 def cache_day_key(now: datetime | None = None) -> str:
     dt = now or datetime.now()
     return dt.date().isoformat()
+
+
+_CONTENT_DATE_RE = re.compile(r"(\d{4})年(\d{1,2})月(\d{1,2})日")
+_CONTENT_CLOCK_RE = re.compile(
+    r"(上午|下午|晚上|傍晚|中午)?\s*(\d{1,2})点(?:(\d{1,2})分)?"
+)
+_CLOCK_TAIL_CHARS = 16
+
+
+def _clock_hm(period: str | None, hour: int, minute: int) -> tuple[int, int]:
+    label = (period or "").strip()
+    if label in {"下午", "晚上", "傍晚"} and hour < 12:
+        hour += 12
+    elif label == "中午":
+        hour = 12
+    elif label == "上午" and hour == 12:
+        hour = 0
+    return min(max(hour, 0), 23), min(max(minute, 0), 59)
+
+
+def parse_content_datetimes(content: str) -> list[datetime]:
+    """Absolute datetimes written into memory content by the extractor."""
+    blob = content or ""
+    out: list[datetime] = []
+    seen: set[datetime] = set()
+    for match in _CONTENT_DATE_RE.finditer(blob):
+        try:
+            year = int(match.group(1))
+            month = int(match.group(2))
+            day = int(match.group(3))
+        except (TypeError, ValueError):
+            continue
+        hour, minute = 0, 0
+        tail = blob[match.end() : match.end() + _CLOCK_TAIL_CHARS]
+        clock = _CONTENT_CLOCK_RE.search(tail)
+        if clock is not None:
+            try:
+                hour, minute = _clock_hm(
+                    clock.group(1),
+                    int(clock.group(2)),
+                    int(clock.group(3) or 0),
+                )
+            except (TypeError, ValueError):
+                hour, minute = 0, 0
+        try:
+            value = datetime(year, month, day, hour, minute)
+        except ValueError:
+            continue
+        if value not in seen:
+            seen.add(value)
+            out.append(value)
+    return out
+
+
+def is_currently_important(
+    content: str,
+    now: datetime | None = None,
+    *,
+    horizon_hours: float = 36,
+) -> bool:
+    """True if content has a date that is overdue, today, or within horizon."""
+    dt = now or datetime.now()
+    events = parse_content_datetimes(content)
+    if not events:
+        return False
+    horizon = timedelta(hours=max(0.0, float(horizon_hours)))
+    today = dt.date()
+    for event in events:
+        if event.date() <= today:
+            return True
+        if event <= dt + horizon:
+            return True
+    return False

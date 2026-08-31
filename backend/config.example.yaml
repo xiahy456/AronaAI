@@ -54,8 +54,10 @@ memory:
   retrieve_top_k: 3
   candidate_top_k: 10
   min_score: 0.35
+  min_score_no_overlap: 0.60
   max_inject_chars: 400
   inject_cooldown_sec: 3600
+  inject_cooldown_bypass_score: 0.55
   extract_context_top_k: 8
   reconcile_enabled: true
   reconcile_min_score: 0.82
@@ -123,6 +125,8 @@ proactive:
     enabled: true
     min_after_user_sec: 300
     cooldown_sec: 21600
+    important_horizon_hours: 36
+    important_cooldown_sec: 1800
     mute_sec: 604800
     max_per_day: 1
   continue:

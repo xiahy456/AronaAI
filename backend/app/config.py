@@ -104,8 +104,10 @@ class MemoryConfig(BaseModel):
     retrieve_top_k: int = 3
     candidate_top_k: int = 10
     min_score: float = 0.35
+    min_score_no_overlap: float = 0.60
     max_inject_chars: int = 400
     inject_cooldown_sec: float = 3600
+    inject_cooldown_bypass_score: float = 0.55
     extract_context_top_k: int = 8
     reconcile_enabled: bool = True
     reconcile_min_score: float = 0.82
@@ -176,6 +178,8 @@ class GoalConfig(BaseModel):
     enabled: bool = True
     min_after_user_sec: float = 300
     cooldown_sec: float = 21600
+    important_horizon_hours: float = 36
+    important_cooldown_sec: float = 1800
     mute_sec: float = 604800
     max_per_day: int = 1
 

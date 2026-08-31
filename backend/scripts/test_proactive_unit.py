@@ -33,6 +33,7 @@ from app.proactive.festival import (  # noqa: E402
 from app.proactive.goal import (  # noqa: E402
     HISTORY_GOAL_MARKER,
     can_attempt_goal,
+    has_important_goal,
     select_goal,
     wants_goal_mute,
 )
@@ -397,6 +398,10 @@ def test_config_loads() -> None:
         _fail(f"mute_sec {cfg.proactive.goal.mute_sec}")
     if cfg.proactive.goal.max_per_day != 1:
         _fail(f"goal max_per_day {cfg.proactive.goal.max_per_day}")
+    if cfg.proactive.goal.important_horizon_hours != 36:
+        _fail(f"horizon {cfg.proactive.goal.important_horizon_hours}")
+    if cfg.proactive.goal.important_cooldown_sec != 1800:
+        _fail(f"important cooldown {cfg.proactive.goal.important_cooldown_sec}")
     if not cfg.proactive.continue_line.enabled:
         _fail("continue should default enabled")
     if cfg.proactive.continue_line.delay_sec != 2:
@@ -548,6 +553,96 @@ def test_goal_fire_rules() -> None:
     print("  ok")
 
 
+def test_goal_importance_cooldown() -> None:
+    print("== important goal bypasses 6h / daily cap ==")
+    now = datetime(2026, 8, 31, 14, 46, 0)
+    ticket = {
+        "key": "ticket",
+        "content": "老师2026年9月1日下午2点要订回深圳的车票",
+        "updated_at": 200.0,
+    }
+    trip = {
+        "key": "old_trip",
+        "content": "老师想去海边",
+        "updated_at": 100.0,
+    }
+    if not has_important_goal(
+        [ticket, trip], now, goal_mute={}, horizon_hours=36
+    ):
+        _fail("ticket should be important on Aug 31")
+    if has_important_goal(
+        [trip], now, goal_mute={}, horizon_hours=36
+    ):
+        _fail("undated trip should not be important")
+
+    if not can_attempt_goal(
+        now,
+        last_user_at=now - timedelta(seconds=400),
+        last_user_act="other",
+        goal_count=1,
+        min_after_user_sec=300,
+        max_per_day=1,
+        has_important=True,
+    ):
+        _fail("important goal should bypass daily cap")
+
+    hour_ago = (now - timedelta(hours=1)).isoformat(timespec="seconds")
+    picked = select_goal(
+        [trip, ticket],
+        now,
+        goal_last={"old_trip": hour_ago, "ticket": hour_ago},
+        goal_mute={},
+        cooldown_sec=21600,
+        important_horizon_hours=36,
+        important_cooldown_sec=1800,
+    )
+    if picked is None or picked["key"] != "ticket":
+        _fail(f"important ticket should beat 6h cooldown, got {picked}")
+
+    too_soon = (now - timedelta(seconds=600)).isoformat(timespec="seconds")
+    if (
+        select_goal(
+            [trip, ticket],
+            now,
+            goal_last={"old_trip": hour_ago, "ticket": too_soon},
+            goal_mute={},
+            cooldown_sec=21600,
+            important_horizon_hours=36,
+            important_cooldown_sec=1800,
+        )
+        is not None
+    ):
+        _fail("important cooldown 30min should still block")
+
+    mute_until = (now + timedelta(days=7)).isoformat(timespec="seconds")
+    picked = select_goal(
+        [trip, ticket],
+        now,
+        goal_last={},
+        goal_mute={"ticket": mute_until},
+        cooldown_sec=21600,
+        important_horizon_hours=36,
+        important_cooldown_sec=1800,
+    )
+    if picked is None or picked["key"] != "old_trip":
+        _fail(f"muted important ticket should fall back to trip, got {picked}")
+
+    picked = select_goal(
+        [trip, ticket],
+        now,
+        goal_last={},
+        goal_mute={},
+        cooldown_sec=21600,
+        important_horizon_hours=36,
+        important_cooldown_sec=1800,
+        goal_count=1,
+        max_per_day=1,
+    )
+    if picked is None or picked["key"] != "ticket":
+        _fail(f"daily cap should still allow important ticket, got {picked}")
+    print("  ok")
+
+
 def test_mute_last_goal_phrase(tmp: Path) -> None:
     print("== 先别提 mutes last goal key ==")
     if not wants_goal_mute("先别提这个了"):
@@ -642,6 +737,45 @@ def test_goal_after_welcome_not_blocked_by_idle(tmp: Path) -> None:
     )
     if still_goal is None or still_goal.kind != "goal":
         _fail(f"idle cooldown must not block goal, got {still_goal}")
+    print("  ok")
+
+
+def test_important_goal_bypasses_daily_cap_pick(tmp: Path) -> None:
+    print("== pick_motive important goal after daily cap ==")
+    idle_cfg = SimpleNamespace(
+        enabled=True, after_sec=900, cooldown_sec=1800, max_per_day=3
+    )
+    care_cfg = SimpleNamespace(
+        enabled=True,
+        lunch_start="12:00",
+        lunch_end="12:30",
+        sleep_start="23:00",
+        sleep_end="23:20",
+    )
+    sched = ProactiveScheduler(
+        tmp / "proactive_important_goal.json",
+        idle_cfg=idle_cfg,
+        care_cfg=care_cfg,
+        goal_cfg=_goal_cfg(),
+    )
+    now = datetime(2026, 8, 31, 14, 46, 0)
+    sched.note_user_activity(now - timedelta(seconds=400))
+    sched.mark_fired("goal", now - timedelta(hours=2), goal_key="old_trip")
+    picked = sched.pick_motive(
+        now,
+        last_user_act="other",
+        climate="secure_play",
+        goals=[
+            {"key": "old_trip", "content": "老师想去海边", "updated_at": 100.0},
+            {
+                "key": "ticket",
+                "content": "老师2026年9月1日下午2点要订回深圳的车票",
+                "updated_at": 200.0,
+            },
+        ],
+    )
+    if picked is None or picked.kind != "goal" or picked.goal_key != "ticket":
+        _fail(f"expected important ticket after daily cap, got {picked}")
     print("  ok")
 
 
@@ -858,6 +992,7 @@ def main() -> None:
     test_decide_proactive_policy()
     test_list_by_category()
     test_goal_fire_rules()
+    test_goal_importance_cooldown()
     test_followup_ok_default_and_gate()
     test_continue_renderer_split_and_skip()
     with tempfile.TemporaryDirectory() as tmp:
@@ -866,6 +1001,7 @@ def main() -> None:
         test_care_waits_after_welcome(Path(tmp))
         test_mute_last_goal_phrase(Path(tmp))
         test_goal_after_welcome_not_blocked_by_idle(Path(tmp))
+        test_important_goal_bypasses_daily_cap_pick(Path(tmp))
         test_festival_calendar_and_once(Path(tmp))
     test_hub_busy()
     test_config_loads()
