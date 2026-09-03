@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <strong>A non-interactive desktop AI based on Arona from <em>Blue Archive</em></strong>
+  <strong>A non-conversational desktop AI based on Arona from <em>Blue Archive</em></strong>
 </p>
 
 <p align="center">
-  The cloud handles planning and extraction; the local model handles persona and the immersive scene. Relationship tensors and proactive events form a rule-based control plane, so you live with Arona rather than chat with her.
+  The cloud handles planning and extraction; the local model handles persona and the immersive scene. Relationship vectors and proactive events form a rule-based control plane, so you live with Arona rather than chat with her.
 </p>
 
 <p align="center">
@@ -24,9 +24,9 @@
 
 ## 📖 Introduction
 
-**AronaAI** is a non-interactive desktop AI modeled after Arona from the game *Blue Archive*. In lore she is the OS administrator of the Shittim Chest: cheerful, enthusiastic, and always ready to help Sensei (the user).
+**AronaAI** is a non-conversational desktop AI modeled after Arona from the game *Blue Archive*. In lore she is the OS administrator of the Shittim Chest: cheerful, enthusiastic, and always ready to help Sensei (the user).
 
-The project combines AronaLM, a non-interactive design, intent-driven dialogue, text-to-speech (TTS), automatic speech recognition (ASR), and Spine 2D character animation, aiming for a cute, engaging, and complete desktop experience.
+The project combines AronaLM, a non-conversational design, intent-driven interaction, text-to-speech (TTS), automatic speech recognition (ASR), and Spine 2D character animation, aiming for a cute, engaging, and complete desktop experience.
 
 <p align="center">
   <img src="assets/running_example_2.png" alt="Running Example" width="600"/>
@@ -61,7 +61,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
 
 ### 🤖 AI Dialogue Engine
 - **Dual-model pipeline**: **Planner (DeepSeek) → intent planning → Renderer (AronaLM-Renderer-V2.x)**; if Planner is disabled or fails, the system falls back to the local path
-- **Relationship climate**: three scalars — trust / dependence / tension — form a tensor. User actions are classified by rules, then a lookup table updates the climate; climate zones decide whether Arona speaks, how she holds herself, or stays silent
+- **Relationship climate**: three scalars — trust / dependence / tension — form a vector. User actions are classified by rules, then a lookup table updates the climate; climate zones decide whether Arona speaks, how she holds herself, or stays silent
 - **Proactive behavior**: after a WebSocket connect, Arona greets and reminds by time of day; after a stretch of silence she checks in lightly; sparse follow-ups on unfinished plans in memory; when Planner allows it, she may add a line in the same turn
 - **AronaLM**: AronaLM-Renderer handles text rendering; when the dual-model pipeline is unavailable, the local single-model AronaLM-Generator takes over the full inference path
 - **Memory and knowledge are separate**: long-term user facts go to SQLite + FTS5 + Chroma; world-lore goes Markdown corpus → local BGE + Chroma RAG; they are never mixed, and each is injected into the prompt on demand
