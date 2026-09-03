@@ -16,7 +16,11 @@ sys.path.insert(0, str(BACKEND_DIR))
 
 from app.config import load_config  # noqa: E402
 from app.planner.prompts import build_planner_user_message  # noqa: E402
-from app.proactive.welcome import build_welcome_instruction  # noqa: E402
+from app.proactive.welcome import (  # noqa: E402
+    WELCOME_CLOSING_QUESTION,
+    WELCOME_CLOSING_STATEMENT,
+    build_welcome_instruction,
+)
 from app.proactive.slots import resolve_slot  # noqa: E402
 from app.relationship import (  # noqa: E402
     RelationshipEngine,
@@ -331,13 +335,23 @@ def test_intent_draft_gate() -> None:
 
 
 def test_welcome_forbids_ask() -> None:
-    print("== welcome forbids 想聊什么, allows light ask ==")
+    print("== welcome closing hint exclusive, memory query not system event ==")
     slot = resolve_slot(datetime(2026, 8, 13, 15, 0, 0))
+    question = build_welcome_instruction(
+        slot, first_in_slot=True, closing_hint=WELCOME_CLOSING_QUESTION
+    )
+    statement = build_welcome_instruction(
+        slot, first_in_slot=True, closing_hint=WELCOME_CLOSING_STATEMENT
+    )
+    if WELCOME_CLOSING_QUESTION not in question or WELCOME_CLOSING_STATEMENT in question:
+        _fail(f"question hint injection failed: {question}")
+    if WELCOME_CLOSING_STATEMENT not in statement or WELCOME_CLOSING_QUESTION in statement:
+        _fail(f"statement hint injection failed: {statement}")
     text = build_welcome_instruction(slot, first_in_slot=True)
-    if "想聊什么" not in text:
-        _fail("welcome instruction should forbid 想聊什么")
-    if "轻问" not in text:
-        _fail("welcome should allow a light opening question")
+    has_q = WELCOME_CLOSING_QUESTION in text
+    has_s = WELCOME_CLOSING_STATEMENT in text
+    if has_q == has_s:
+        _fail(f"random instruction should contain exactly one closing hint: {text}")
     if "【系统事件】" in WELCOME_MEMORY_QUERY:
         _fail("welcome memory query must not be the system event")
     print("  ok")

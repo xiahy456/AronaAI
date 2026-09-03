@@ -51,9 +51,13 @@ from .scheduler import Motive, ProactiveScheduler, ProactiveState
 from .slots import REST_SLOTS, SLOT_LABELS, ResolvedSlot, SlotId, resolve_slot
 from .welcome import (
     HISTORY_USER_MARKER,
+    WELCOME_CLOSING_HINTS,
+    WELCOME_CLOSING_QUESTION,
+    WELCOME_CLOSING_STATEMENT,
     WELCOME_MEMORY_QUERY,
     WelcomeState,
     build_welcome_instruction,
+    pick_welcome_closing_hint,
     resolve_welcome_context,
 )
 
@@ -75,6 +79,9 @@ __all__ = [
     "SLOT_LABELS",
     "SlotId",
     "TICK_SEC",
+    "WELCOME_CLOSING_HINTS",
+    "WELCOME_CLOSING_QUESTION",
+    "WELCOME_CLOSING_STATEMENT",
     "WELCOME_MEMORY_QUERY",
     "WelcomeState",
     "build_care_instruction",
@@ -88,6 +95,7 @@ __all__ = [
     "match_festival",
     "needs_rest_followup",
     "parse_birthday_md",
+    "pick_welcome_closing_hint",
     "in_window",
     "resolve_slot",
     "resolve_welcome_context",

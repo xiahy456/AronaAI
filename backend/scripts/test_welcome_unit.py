@@ -16,6 +16,9 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND_DIR))
 
 from app.proactive import (  # noqa: E402
+    WELCOME_CLOSING_HINTS,
+    WELCOME_CLOSING_QUESTION,
+    WELCOME_CLOSING_STATEMENT,
     WelcomeState,
     build_welcome_instruction,
     resolve_slot,
@@ -148,11 +151,39 @@ def test_build_welcome_instruction() -> None:
     print("  ok")
 
 
+def test_welcome_closing_hint() -> None:
+    print("== welcome closing hint 50/50 ==")
+    morning = resolve_slot(datetime(2026, 8, 13, 7, 0, 0))
+    for hint in WELCOME_CLOSING_HINTS:
+        text = build_welcome_instruction(
+            morning, first_in_slot=True, closing_hint=hint
+        )
+        other = (
+            WELCOME_CLOSING_STATEMENT
+            if hint == WELCOME_CLOSING_QUESTION
+            else WELCOME_CLOSING_QUESTION
+        )
+        if hint not in text:
+            _fail(f"injected hint missing: {text}")
+        if other in text:
+            _fail(f"other hint should not appear: {text}")
+        if "可以加一句轻问帮老师开场，或使用陈述句收尾。" in text:
+            _fail(f"legacy combined hint should be gone: {text}")
+
+    text = build_welcome_instruction(morning, first_in_slot=True)
+    has_q = WELCOME_CLOSING_QUESTION in text
+    has_s = WELCOME_CLOSING_STATEMENT in text
+    if has_q == has_s:
+        _fail(f"random instruction should contain exactly one closing hint: {text}")
+    print("  ok")
+
+
 def main() -> None:
     test_resolve_slot_hours()
     test_welcome_state_same_slot_and_cross_day()
     test_welcome_state_persists_across_reload()
     test_build_welcome_instruction()
+    test_welcome_closing_hint()
     print("ALL PASS")
 
 

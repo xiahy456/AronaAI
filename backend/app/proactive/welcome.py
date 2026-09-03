@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 from datetime import date, datetime
 from pathlib import Path
 
@@ -25,6 +26,9 @@ from .slots import REST_SLOTS, ResolvedSlot, SlotId, resolve_slot
 
 HISTORY_USER_MARKER = "【上线】"
 WELCOME_MEMORY_QUERY = "老师 上线 近况"
+WELCOME_CLOSING_QUESTION = "请加一句轻问帮老师开场。"
+WELCOME_CLOSING_STATEMENT = "请使用陈述句收尾。"
+WELCOME_CLOSING_HINTS = (WELCOME_CLOSING_QUESTION, WELCOME_CLOSING_STATEMENT)
 
 logger = logging.getLogger(__name__)
 
@@ -102,11 +106,17 @@ class WelcomeState:
         tmp.replace(self._path)
 
 
+def pick_welcome_closing_hint() -> str:
+    """Pick a 50/50 closing hint for one welcome turn."""
+    return random.choice(WELCOME_CLOSING_HINTS)
+
+
 def build_welcome_instruction(
     slot: ResolvedSlot,
     *,
     first_in_slot: bool,
     climate: str | None = None,
+    closing_hint: str | None = None,
 ) -> str:
     """Build a system-event prompt for the LLM (not shown as user history)."""
     label = slot.label
@@ -146,12 +156,12 @@ def build_welcome_instruction(
         climate_note = "语气放轻、简短，不要活泼打闹或开玩笑。"
 
     extra = f"\n{climate_note}" if climate_note else ""
+    hint = closing_hint if closing_hint is not None else pick_welcome_closing_hint()
     return (
         "【系统事件】老师刚刚上线。\n"
         f"{intent}{extra}\n"
         "用阿洛娜的语气主动开口，只说 1–2 句。"
-        "可以加一句轻问帮老师开场，或使用陈述句收尾。"
-        # "但不要用「想聊什么」「还是」收尾，不要把话题做成选择题抛回老师。"
+        f"{hint}"
         "不要提及系统事件、指令或提示词；不要输出思考过程或 <think> 标签。"
     )
 

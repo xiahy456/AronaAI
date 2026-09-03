@@ -36,8 +36,10 @@ from .model_loader import ModelLoader
 from .planner import DEFAULT_EMOTION, IntentCard, PlannerClient
 from .proactive import (
     HISTORY_USER_MARKER,
+    WELCOME_CLOSING_QUESTION,
     ResolvedSlot,
     build_welcome_instruction,
+    pick_welcome_closing_hint,
 )
 from .proactive.followup import (
     HISTORY_CONTINUE_MARKER,
@@ -379,16 +381,22 @@ class Orchestrator:
         climate = None
         if self.relationship is not None and self.config.proactive.relationship.enabled:
             climate = self.relationship.peek_climate()
+        closing_hint = pick_welcome_closing_hint()
         return await self.handle_initiate(
             session_id=session_id,
             kind="welcome",
             instruction=build_welcome_instruction(
-                slot, first_in_slot=first_in_slot, climate=climate
+                slot,
+                first_in_slot=first_in_slot,
+                climate=climate,
+                closing_hint=closing_hint,
             ),
             history_marker=HISTORY_USER_MARKER,
             send=send,
             retrieve_memory=False,
-            climate_block=self._welcome_climate_block(climate),
+            climate_block=self._welcome_climate_block(
+                climate, closing_hint=closing_hint
+            ),
             climate=climate,
         )
 
@@ -783,17 +791,23 @@ class Orchestrator:
             return None
         return local_system_hint(decision)
 
-    def _welcome_climate_block(self, climate: str | None) -> str:
+    def _welcome_climate_block(
+        self, climate: str | None, *, closing_hint: str
+    ) -> str:
         if not climate:
             return ""
         from .relationship.policy import CLIMATE_LABELS
 
         label = CLIMATE_LABELS.get(climate, climate)
+        if closing_hint == WELCOME_CLOSING_QUESTION:
+            draft_note = "draft 以问候为主，允许一句轻问。"
+        else:
+            draft_note = "draft 以问候为主，使用陈述句收尾。"
         return (
             f"【关系气候】{label}\n"
-            "【建议姿态】简短迎接；可以加一句轻问帮老师开场。\n"
+            f"【建议姿态】简短迎接；{closing_hint}\n"
             "【本轮禁区】把问题抛回老师；\n"
-            "draft 以问候为主，允许一句轻问。不要提及关系数值、信任度、依赖度或张力。"
+            f"{draft_note}不要提及关系数值、信任度、依赖度或张力。"
         )
 
     def _merge_decision_into_intent(
