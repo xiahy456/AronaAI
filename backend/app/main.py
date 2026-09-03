@@ -107,7 +107,7 @@ def create_app() -> FastAPI:
         config,
         orchestrator,
         conversations,
-        welcome=WelcomeState(),
+        welcome=WelcomeState(config.welcome_abs_path),
         hub=hub,
         scheduler=scheduler,
     )

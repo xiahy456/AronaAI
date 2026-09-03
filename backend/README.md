@@ -526,9 +526,10 @@ python scripts/ingest_knowledge.py --rebuild
 #### `welcome`
 
 
-| 配置项       | 默认     | 说明                            |
-| --------- | ------ | ----------------------------- |
-| `enabled` | `true` | WebSocket `connected` 后是否主动问候 |
+| 配置项            | 默认                         | 说明                                          |
+| -------------- | -------------------------- | ------------------------------------------- |
+| `enabled`      | `true`                     | WebSocket `connected` 后是否主动问候               |
+| `persist_path` | `data/memory/welcome.json` | 本时段已问候标记落盘路径，重启后同一时段再次上线不再重复说「下午好」等时段问候 |
 
 
 

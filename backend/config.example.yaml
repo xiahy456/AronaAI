@@ -95,6 +95,7 @@ listen:
 proactive:
   welcome:
     enabled: true
+    persist_path: "data/memory/welcome.json"
   relationship:
     enabled: true
     persist_path: "data/memory/relationship.json"

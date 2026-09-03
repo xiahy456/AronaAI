@@ -6,8 +6,10 @@ Run from backend/:
 
 from __future__ import annotations
 
+import json
 import sys
-from datetime import datetime
+import tempfile
+from datetime import datetime, timedelta
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -78,6 +80,39 @@ def test_welcome_state_same_slot_and_cross_day() -> None:
     print("  ok")
 
 
+def test_welcome_state_persists_across_reload() -> None:
+    print("== WelcomeState persist / reload / prune ==")
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "welcome.json"
+        now = datetime.now().replace(minute=0, second=0, microsecond=0)
+        state = WelcomeState(path)
+        slot, first = resolve_welcome_context(state, now)
+        if not first:
+            _fail("expected first greeting before mark")
+        state.mark_period_greeted(slot.date_key, slot.slot_id)
+
+        reloaded = WelcomeState(path)
+        slot2, first2 = resolve_welcome_context(reloaded, now)
+        if first2 or slot2.slot_id != slot.slot_id:
+            _fail(
+                f"reload should keep same-slot greeted, got first={first2} slot={slot2.slot_id}"
+            )
+
+        tomorrow = now + timedelta(days=1)
+        slot3, first3 = resolve_welcome_context(reloaded, tomorrow)
+        if not first3:
+            _fail("next-day same clock should be first again")
+
+        stale = datetime(2020, 1, 1, 15, 0, 0)
+        stale_slot = resolve_slot(stale)
+        reloaded.mark_period_greeted(stale_slot.date_key, stale_slot.slot_id)
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        for item in raw.get("period_greeted") or []:
+            if item and item[0] == "2020-01-01":
+                _fail(f"stale date should be pruned on save: {raw}")
+    print("  ok")
+
+
 def test_build_welcome_instruction() -> None:
     print("== build_welcome_instruction intents ==")
     late = resolve_slot(datetime(2026, 8, 13, 2, 0, 0))
@@ -116,6 +151,7 @@ def test_build_welcome_instruction() -> None:
 def main() -> None:
     test_resolve_slot_hours()
     test_welcome_state_same_slot_and_cross_day()
+    test_welcome_state_persists_across_reload()
     test_build_welcome_instruction()
     print("ALL PASS")
 

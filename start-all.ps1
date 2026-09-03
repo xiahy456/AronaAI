@@ -10,6 +10,9 @@
   4) Keep this script alive and accept commands to stop/start/restart one
      service, or stop all and exit. Ctrl+C also stops all tracked process trees.
 
+  Before each start, leftover listeners on the backend / GPT-SoVITS ports are
+  killed (process tree), and leftover desktop client processes are stopped.
+
   Ready signals (case-insensitive substring match):
     - "启动完毕"
     - "startup complete"   (covers uvicorn "Application startup complete.")
@@ -29,6 +32,13 @@
 .PARAMETER TtsRestartCooldownSec
   Passed to GPT-SoVITS watchdog (restart cooldown). Default: 90
 
+.PARAMETER BackendPort
+  Backend listen port to clear before start. 0 = read from backend/config.yaml
+  (then config.example.yaml). Fallback: 20456.
+
+.PARAMETER GptPort
+  GPT-SoVITS listen port to clear before start. 0 = 9880.
+
 .EXAMPLE
   .\start-all.ps1
   .\start-all.ps1 -CondaEnv arona -TimeoutSec 900
@@ -45,7 +55,9 @@ param(
     [int]$TimeoutSec = 600,
     [string]$FrontendExe = "",
     [int]$TtsStallSec = 60,
-    [int]$TtsRestartCooldownSec = 90
+    [int]$TtsRestartCooldownSec = 90,
+    [int]$BackendPort = 0,
+    [int]$GptPort = 0
 )
 
 $ErrorActionPreference = "Stop"
@@ -64,6 +76,8 @@ $script:FrontendInfo = $null
 $script:BackendLog = $null
 $script:GptLog = $null
 $script:GptWatchdogLog = $null
+$script:ResolvedBackendPort = 0
+$script:ResolvedGptPort = 0
 
 function Write-Step {
     param([string]$Message, [ConsoleColor]$Color = [ConsoleColor]::Cyan)
@@ -218,6 +232,250 @@ function Stop-TrackedProcessTree {
         }
     } catch {
         # Process may already be gone.
+    }
+}
+
+function Get-YamlServerPort {
+    param([string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) { return $null }
+    try {
+        $text = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+    } catch {
+        return $null
+    }
+    if ([string]::IsNullOrWhiteSpace($text)) { return $null }
+    if ($text -match '(?ms)^server:\s*\r?\n(?:[ \t]+[^\r\n]+\r?\n)*?[ \t]+port:\s*(\d+)') {
+        return [int]$Matches[1]
+    }
+    return $null
+}
+
+function Resolve-BackendListenPort {
+    if ($BackendPort -gt 0) { return $BackendPort }
+    $fromUser = Get-YamlServerPort -Path (Join-Path $script:BackendDir "config.yaml")
+    if ($fromUser -gt 0) { return $fromUser }
+    $fromExample = Get-YamlServerPort -Path (Join-Path $script:BackendDir "config.example.yaml")
+    if ($fromExample -gt 0) { return $fromExample }
+    return 20456
+}
+
+function Resolve-GptListenPort {
+    if ($GptPort -gt 0) { return $GptPort }
+    return 9880
+}
+
+function Get-ProtectedPids {
+    $set = @{}
+    $set[[int]$PID] = $true
+    foreach ($p in @($script:BackendProc, $script:GptProc, $script:FrontendProc)) {
+        if ($null -eq $p) { continue }
+        try {
+            $p.Refresh()
+            if (-not $p.HasExited) { $set[[int]$p.Id] = $true }
+        } catch {}
+    }
+    return $set
+}
+
+function Get-ListeningPids {
+    param([int]$Port)
+
+    if ($Port -le 0) { return @() }
+    $pids = @()
+
+    try {
+        $conns = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
+        foreach ($c in $conns) {
+            $id = [int]$c.OwningProcess
+            if ($id -gt 4) { $pids += $id }
+        }
+    } catch {}
+
+    if ($pids.Count -eq 0) {
+        try {
+            $lines = & netstat.exe -ano -p TCP 2>$null
+        } catch {
+            $lines = @()
+        }
+        foreach ($line in @($lines)) {
+            if ($line -match '^\s*TCP\s+(\S+)\s+\S+\s+LISTENING\s+(\d+)\s*$') {
+                $local = $Matches[1]
+                $id = [int]$Matches[2]
+                if ($id -gt 4 -and $local -match (":$Port`$")) {
+                    $pids += $id
+                }
+            }
+        }
+    }
+
+    return @($pids | Select-Object -Unique)
+}
+
+function Get-ProcessTreeRoot {
+    param([int]$ProcessId)
+
+    $systemParents = @(
+        "explorer.exe", "services.exe", "svchost.exe", "wininit.exe",
+        "winlogon.exe", "csrss.exe", "smss.exe", "lsass.exe",
+        "System", "Idle"
+    )
+    $current = [int]$ProcessId
+    $visited = @{}
+    $selfPid = [int]$PID
+
+    while ($current -gt 0) {
+        if ($visited.ContainsKey($current)) { break }
+        $visited[$current] = $true
+
+        $proc = $null
+        try {
+            $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$current" -ErrorAction SilentlyContinue
+        } catch {
+            break
+        }
+        if (-not $proc) { break }
+
+        $parentId = [int]$proc.ParentProcessId
+        if ($parentId -le 0 -or $parentId -eq $current) { break }
+        if ($parentId -eq $selfPid) { break }
+
+        $parent = $null
+        try {
+            $parent = Get-CimInstance Win32_Process -Filter "ProcessId=$parentId" -ErrorAction SilentlyContinue
+        } catch {
+            break
+        }
+        if (-not $parent) { break }
+        if ($systemParents -contains $parent.Name) { break }
+
+        $current = $parentId
+    }
+
+    return $current
+}
+
+function Stop-ProcessTreeById {
+    param(
+        [int]$ProcessId,
+        [string]$Label = "process"
+    )
+
+    $p = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+    if ($p) {
+        Stop-TrackedProcessTree -Process $p -Label $Label
+        return
+    }
+
+    $taskkill = Get-Command taskkill -ErrorAction SilentlyContinue
+    if ($taskkill) {
+        Write-Host ("  Stopping {0} (PID {1}) and child processes ..." -f $Label, $ProcessId) -ForegroundColor Yellow
+        & taskkill.exe /PID $ProcessId /T /F 2>$null | Out-Null
+    } else {
+        Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Wait-PortFree {
+    param(
+        [int]$Port,
+        [int]$TimeoutSec = 3
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    while ((Get-Date) -lt $deadline) {
+        $left = @(Get-ListeningPids -Port $Port)
+        $skip = Get-ProtectedPids
+        $foreign = @($left | Where-Object { -not $skip.ContainsKey([int]$_) })
+        if ($foreign.Count -eq 0) { return $true }
+        Start-Sleep -Milliseconds 200
+    }
+
+    $still = @(Get-ListeningPids -Port $Port)
+    $skip = Get-ProtectedPids
+    $foreign = @($still | Where-Object { -not $skip.ContainsKey([int]$_) })
+    if ($foreign.Count -gt 0) {
+        Write-Host ("  Port {0} still in use after cleanup (PIDs: {1})." -f $Port, ($foreign -join ", ")) -ForegroundColor Yellow
+        return $false
+    }
+    return $true
+}
+
+function Stop-ListenersOnPort {
+    param(
+        [int]$Port,
+        [string]$Label
+    )
+
+    if ($Port -le 0) { return $false }
+
+    $listenPids = @(Get-ListeningPids -Port $Port)
+    if ($listenPids.Count -eq 0) { return $false }
+
+    $skipIds = Get-ProtectedPids
+    $rootsToKill = @{}
+    foreach ($listenPid in $listenPids) {
+        $id = [int]$listenPid
+        if ($skipIds.ContainsKey($id)) { continue }
+        $root = [int](Get-ProcessTreeRoot -ProcessId $id)
+        if ($root -le 0 -or $skipIds.ContainsKey($root) -or $root -eq [int]$PID) { continue }
+        $rootsToKill[$root] = $id
+    }
+
+    if ($rootsToKill.Count -eq 0) { return $false }
+
+    Write-Host ("  Leftover {0} listening on port {1}." -f $Label, $Port) -ForegroundColor Yellow
+    foreach ($rootId in @($rootsToKill.Keys)) {
+        $name = "?"
+        try {
+            $p = Get-Process -Id $rootId -ErrorAction SilentlyContinue
+            if ($p) { $name = $p.ProcessName }
+        } catch {}
+        $listenId = $rootsToKill[$rootId]
+        $detail = if ($listenId -ne $rootId) {
+            "{0} tree root PID {1} ({2}), listener PID {3}" -f $Label, $rootId, $name, $listenId
+        } else {
+            "{0} PID {1} ({2})" -f $Label, $rootId, $name
+        }
+        Stop-ProcessTreeById -ProcessId $rootId -Label $detail
+    }
+
+    Wait-PortFree -Port $Port -TimeoutSec 3 | Out-Null
+    return $true
+}
+
+function Stop-LeftoverFrontend {
+    $protected = Get-ProtectedPids
+    $names = @("AronaAI_WindowsClient.exe", "AronaAI_Spine_WindowsClient.exe")
+    $candidates = @()
+    try {
+        $candidates = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+                $names -contains $_.Name
+            })
+    } catch {}
+
+    $toKill = @($candidates | Where-Object {
+            -not $protected.ContainsKey([int]$_.ProcessId)
+        })
+    if ($toKill.Count -eq 0) { return $false }
+
+    Write-Host "  Leftover frontend process(es) found." -ForegroundColor Yellow
+    foreach ($proc in $toKill) {
+        $label = "Frontend PID {0} ({1})" -f $proc.ProcessId, $proc.Name
+        Stop-ProcessTreeById -ProcessId ([int]$proc.ProcessId) -Label $label
+    }
+    Start-Sleep -Milliseconds 400
+    return $true
+}
+
+function Clear-StaleServices {
+    Write-Step "Checking for leftover processes ..." Yellow
+    $killed = $false
+    if (Stop-ListenersOnPort -Port $script:ResolvedBackendPort -Label "Backend") { $killed = $true }
+    if (Stop-ListenersOnPort -Port $script:ResolvedGptPort -Label "GPT-SoVITS") { $killed = $true }
+    if (Stop-LeftoverFrontend) { $killed = $true }
+    if (-not $killed) {
+        Write-Host "  None found." -ForegroundColor DarkGray
     }
 }
 
@@ -466,6 +724,7 @@ function Start-BackendService {
         Write-Host ("  Backend is already running (PID {0})." -f ($script:BackendProc).Id) -ForegroundColor Yellow
         return $false
     }
+    [void](Stop-ListenersOnPort -Port $script:ResolvedBackendPort -Label "Backend")
     Write-Step "Starting backend ..."
     $script:BackendProc = Start-ServiceWindow `
         -Title "AronaAI Backend" `
@@ -481,6 +740,7 @@ function Start-GptService {
         Write-Host ("  GPT-SoVITS is already running (PID {0})." -f ($script:GptProc).Id) -ForegroundColor Yellow
         return $false
     }
+    [void](Stop-ListenersOnPort -Port $script:ResolvedGptPort -Label "GPT-SoVITS")
     Write-Step "Starting GPT-SoVITS ..."
     # Clear API log so Wait-ServicesReady does not see a stale ready signal.
     if (Test-Path -LiteralPath $script:GptLog) {
@@ -507,6 +767,7 @@ function Start-FrontendService {
         Write-Host ("  Frontend is already running (PID {0})." -f ($script:FrontendProc).Id) -ForegroundColor Yellow
         return $false
     }
+    [void](Stop-LeftoverFrontend)
     Write-Step "Starting frontend ..."
     $script:FrontendProc = Start-Process -FilePath ($script:FrontendInfo).Exe `
         -WorkingDirectory ($script:FrontendInfo).WorkDir `
@@ -690,6 +951,8 @@ $script:FrontendInfo = Resolve-Frontend -Explicit $FrontendExe
 $script:BackendLog = Join-Path $LogDir "backend.log"
 $script:GptLog = Join-Path $LogDir "gpt-sovits.log"
 $script:GptWatchdogLog = Join-Path $LogDir "gpt-sovits-watchdog.log"
+$script:ResolvedBackendPort = Resolve-BackendListenPort
+$script:ResolvedGptPort = Resolve-GptListenPort
 
 Write-Step "AronaAI start-all"
 Write-Host "  Root:        $Root"
@@ -697,6 +960,8 @@ Write-Host "  Conda:       $($script:Conda)"
 Write-Host "  CondaEnv:    $CondaEnv"
 Write-Host ("  Frontend:    {0}" -f ($script:FrontendInfo).Exe)
 Write-Host ("  FrontendCwd: {0}" -f ($script:FrontendInfo).WorkDir)
+Write-Host "  BackendPort: $($script:ResolvedBackendPort)"
+Write-Host "  GptPort:     $($script:ResolvedGptPort)"
 Write-Host "  Logs:        $LogDir"
 Write-Host "  Timeout:     ${TimeoutSec}s for backend + GPT-SoVITS"
 
@@ -708,6 +973,7 @@ if (-not (Test-Path -LiteralPath $GptRuntimePy)) {
 
 # ---- 1) Backend + GPT-SoVITS in parallel ----
 try {
+    Clear-StaleServices
     Write-Step "Starting backend and GPT-SoVITS in parallel ..."
     [void](Start-BackendService)
     [void](Start-GptService)

@@ -156,6 +156,7 @@ class LoggingConfig(BaseModel):
 
 class WelcomeConfig(BaseModel):
     enabled: bool = True
+    persist_path: str = "data/memory/welcome.json"
 
 
 class IdleConfig(BaseModel):
@@ -270,6 +271,10 @@ class AppConfig(BaseModel):
     @property
     def relationship_abs_path(self) -> Path:
         return self.resolve_path(self.proactive.relationship.persist_path)
+
+    @property
+    def welcome_abs_path(self) -> Path:
+        return self.resolve_path(self.proactive.welcome.persist_path)
 
     @property
     def proactive_abs_path(self) -> Path:
