@@ -18,6 +18,7 @@ from .care import (
     CARE_MEMORY_QUERY,
     HISTORY_CARE_MARKER,
     build_care_instruction,
+    care_planner_declined,
     in_window,
     should_fire_care,
 )
@@ -85,6 +86,7 @@ __all__ = [
     "WELCOME_MEMORY_QUERY",
     "WelcomeState",
     "build_care_instruction",
+    "care_planner_declined",
     "build_continue_instruction",
     "build_festival_instruction",
     "build_goal_instruction",

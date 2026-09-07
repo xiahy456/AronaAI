@@ -21,9 +21,10 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 AbortCheck = Callable[[], bool]
+InitiateResult = Literal["sent", "declined", "failed"]
 
 from .config import AppConfig
 from .conversation import ConversationManager
@@ -39,6 +40,7 @@ from .proactive import (
     WELCOME_CLOSING_QUESTION,
     ResolvedSlot,
     build_welcome_instruction,
+    care_planner_declined,
     pick_welcome_closing_hint,
 )
 from .proactive.followup import (
@@ -382,7 +384,7 @@ class Orchestrator:
         if self.relationship is not None and self.config.proactive.relationship.enabled:
             climate = self.relationship.peek_climate()
         closing_hint = pick_welcome_closing_hint()
-        return await self.handle_initiate(
+        result = await self.handle_initiate(
             session_id=session_id,
             kind="welcome",
             instruction=build_welcome_instruction(
@@ -399,6 +401,7 @@ class Orchestrator:
             ),
             climate=climate,
         )
+        return result == "sent"
 
     async def handle_initiate(
         self,
@@ -415,8 +418,12 @@ class Orchestrator:
         climate: str | None = None,
         decision: Decision | None = None,
         continue_previous: str | None = None,
-    ) -> bool:
-        """Generate a system-event line (welcome / idle / care / goal / continue). Returns True on success."""
+    ) -> InitiateResult:
+        """Generate a system-event line (welcome / idle / care / goal / continue).
+
+        sent: a line was pushed. declined: lunch/sleep Planner refused (no fallback).
+        failed: generate miss; caller may retry.
+        """
         user_text = instruction
         start = time.perf_counter()
         begin_trace(started_at=start)
@@ -500,6 +507,17 @@ class Orchestrator:
                 intent is not None,
                 time.perf_counter() - t0,
             )
+            if intent is not None and care_planner_declined(
+                kind, reply_ok=intent.reply_ok
+            ):
+                self.stats["planner_hits"] += 1
+                logger.info(
+                    "initiate declined session=%s kind=%s reason=reply_ok_false",
+                    session_id,
+                    kind,
+                )
+                reset_trace()
+                return "declined"
             if intent is not None and not intent.reply_ok:
                 if not intent.to_renderer_draft():
                     logger.info(
@@ -543,7 +561,7 @@ class Orchestrator:
                 "initiate empty response session=%s kind=%s", session_id, kind
             )
             reset_trace()
-            return False
+            return "failed"
 
         if kind == "continue" and too_similar(continue_previous or "", full):
             logger.info(
@@ -553,7 +571,7 @@ class Orchestrator:
                 full,
             )
             reset_trace()
-            return False
+            return "failed"
 
         await send(
             msg_chat_response(
@@ -596,7 +614,7 @@ class Orchestrator:
             time.perf_counter() - start,
             full,
         )
-        return True
+        return "sent"
 
     async def _compose_reply(
         self,

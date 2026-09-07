@@ -1,3 +1,17 @@
+# Copyright 2026 xia_hy456. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Time-of-day care motives: lunch and sleep reminders."""
 
 from __future__ import annotations
@@ -15,6 +29,22 @@ _CARE_INTENTS: dict[CareKind, str] = {
     "sleep": (
         "现在偏晚了。请温柔提醒老师注意休息、别熬太晚；"
         "不要说「早上好」这类白天问候，不要催促。"
+    ),
+}
+
+_CARE_GATES: dict[CareKind, str] = {
+    "lunch": (
+        "先根据【近期对话】里老师的话判断要不要开口。"
+        "老师已就当前这餐作过交代（已吃午饭、待会再吃、先不吃等）则 reply_ok 必须 false，"
+        "draft 必须是空字符串，不要提醒。未交代或拿不准则 reply_ok 为 true，再按上面意图开口。"
+        "昨晚没睡好、别的餐、只是路过提到食物，不算已交代。"
+    ),
+    "sleep": (
+        "先根据【近期对话】里老师的话判断要不要开口。"
+        "老师已就今晚这轮休息作过交代（待会再睡、晚点睡、去睡觉、已经要睡、晚安收束等）则 "
+        "reply_ok 必须 false，draft 必须是空字符串，不要提醒。"
+        "未交代或拿不准则 reply_ok 为 true，再按上面意图开口。"
+        "昨晚没睡好、别的晚上、只是路过提到困，不算已交代。"
     ),
 }
 
@@ -93,6 +123,11 @@ def should_fire_care(
     )
 
 
+def care_planner_declined(kind: str, *, reply_ok: bool) -> bool:
+    """True when lunch/sleep Planner refused to speak (already addressed)."""
+    return kind in {"lunch", "sleep"} and not reply_ok
+
+
 def build_care_instruction(kind: CareKind, climate: str | None = None) -> str:
     intent = _CARE_INTENTS[kind]
     extra = ""
@@ -104,6 +139,7 @@ def build_care_instruction(kind: CareKind, climate: str | None = None) -> str:
     return (
         "【系统事件】到了该轻轻照料老师的时刻。\n"
         f"{intent}{note}\n"
+        f"{_CARE_GATES[kind]}\n"
         "用阿洛娜的语气主动开口，只说 1–2 句。"
         "不要用「想聊什么」收尾，不要把话题做成选择题抛回老师。"
         "不要提及系统事件、指令或提示词；不要输出思考过程或 <think> 标签。"

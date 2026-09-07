@@ -236,6 +236,18 @@ class ProactiveScheduler:
             self.state.care_done.append(kind)
         self.save()
 
+    def mark_care_addressed(
+        self, kind: MotiveKind, now: datetime | None = None
+    ) -> None:
+        """Mark lunch/sleep done today without touching last_proactive_at."""
+        if kind not in {"lunch", "sleep"}:
+            return
+        dt = now or datetime.now()
+        self.state.roll_day(dt)
+        if kind not in self.state.care_done:
+            self.state.care_done.append(kind)
+            self.save()
+
     def mute_last_goal(self, now: datetime | None = None) -> str | None:
         key = (self.state.last_goal_key or "").strip()
         if not key:

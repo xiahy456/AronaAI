@@ -21,6 +21,7 @@ from app.planner.schema import parse_and_gate_intent  # noqa: E402
 from app.proactive.care import (  # noqa: E402
     HISTORY_CARE_MARKER,
     build_care_instruction,
+    care_planner_declined,
     in_window,
     should_fire_care,
 )
@@ -165,6 +166,29 @@ def test_care_window_once_per_day() -> None:
     text = build_care_instruction("lunch", climate="cling_risk")
     if "更短" not in text or HISTORY_CARE_MARKER != "【提醒】":
         _fail("cling care should be shorter")
+    lunch_text = build_care_instruction("lunch")
+    if "已吃午饭" not in lunch_text or "reply_ok 必须 false" not in lunch_text:
+        _fail("lunch instruction should gate on already-addressed meal")
+    sleep_text = build_care_instruction("sleep")
+    if "待会再睡" not in sleep_text or "晚安收束" not in sleep_text:
+        _fail("sleep instruction should gate on already-addressed rest")
+    print("  ok")
+
+
+def test_care_planner_declined() -> None:
+    print("== care planner declined is lunch/sleep reply_ok=false only ==")
+    if not care_planner_declined("lunch", reply_ok=False):
+        _fail("lunch reply_ok=false should decline")
+    if not care_planner_declined("sleep", reply_ok=False):
+        _fail("sleep reply_ok=false should decline")
+    if care_planner_declined("lunch", reply_ok=True):
+        _fail("lunch reply_ok=true should not decline")
+    if care_planner_declined("idle", reply_ok=False):
+        _fail("idle must not use care decline")
+    if care_planner_declined("welcome", reply_ok=False):
+        _fail("welcome must not use care decline")
+    if care_planner_declined("festival", reply_ok=False):
+        _fail("festival must not use care decline")
     print("  ok")
 
 
@@ -355,6 +379,38 @@ def test_care_waits_after_welcome(tmp: Path) -> None:
     )
     if sleep_ready is None or sleep_ready.kind != "sleep":
         _fail(f"sleep should fire after after_sec, got {sleep_ready}")
+    print("  ok")
+
+
+def test_mark_care_addressed_skips_without_proactive_stamp(tmp: Path) -> None:
+    print("== mark_care_addressed skips lunch; last_proactive_at unchanged ==")
+    idle_cfg = SimpleNamespace(
+        enabled=True, after_sec=900, cooldown_sec=1800, max_per_day=3
+    )
+    care_cfg = SimpleNamespace(
+        enabled=True,
+        lunch_start="12:00",
+        lunch_end="12:30",
+        sleep_start="23:00",
+        sleep_end="23:20",
+    )
+    sched = ProactiveScheduler(
+        tmp / "proactive_care_addressed.json",
+        idle_cfg=idle_cfg,
+        care_cfg=care_cfg,
+    )
+    noon = datetime(2026, 8, 13, 12, 10, 0)
+    sched.note_user_activity(noon - timedelta(seconds=2000))
+    sched.note_proactive(noon - timedelta(seconds=2000))
+    before = sched.state.last_proactive_at
+    sched.mark_care_addressed("lunch", noon)
+    if "lunch" not in sched.state.care_done:
+        _fail("lunch should be in care_done after addressed")
+    if sched.state.last_proactive_at != before:
+        _fail("last_proactive_at must not change when care is only addressed")
+    picked = sched.pick_motive(noon, last_user_act="other")
+    if picked is not None and picked.kind == "lunch":
+        _fail(f"addressed lunch should not be picked, got {picked}")
     print("  ok")
 
 
@@ -989,6 +1045,7 @@ def test_continue_renderer_split_and_skip() -> None:
 def main() -> None:
     test_idle_fire_rules()
     test_care_window_once_per_day()
+    test_care_planner_declined()
     test_decide_proactive_policy()
     test_list_by_category()
     test_goal_fire_rules()
@@ -999,6 +1056,7 @@ def main() -> None:
         test_scheduler_persist_and_priority(Path(tmp))
         test_welcome_does_not_eat_idle_cooldown(Path(tmp))
         test_care_waits_after_welcome(Path(tmp))
+        test_mark_care_addressed_skips_without_proactive_stamp(Path(tmp))
         test_mute_last_goal_phrase(Path(tmp))
         test_goal_after_welcome_not_blocked_by_idle(Path(tmp))
         test_important_goal_bypasses_daily_cap_pick(Path(tmp))

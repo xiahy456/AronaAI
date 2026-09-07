@@ -126,12 +126,13 @@ def main() -> None:
     assert "温柔活泼" in PLANNER_SYSTEM
     assert "规划参谋" in PLANNER_SYSTEM
     assert '"draft"' in PLANNER_SYSTEM or "draft：" in PLANNER_SYSTEM
-    assert "想聊什么" in PLANNER_SYSTEM
     assert "reply_ok" in PLANNER_SYSTEM
     assert "默认 true" in PLANNER_SYSTEM
     assert "没点名" in PLANNER_SYSTEM
     assert "打电话" in PLANNER_SYSTEM
-    assert "拿不准时选 true" in PLANNER_SYSTEM
+    assert "午饭或睡觉的【系统事件】" in PLANNER_SYSTEM
+    assert "系统事件照料拿不准是否已交代时选 true" in PLANNER_SYSTEM
+    assert "老师本人发言拿不准时选 true" in PLANNER_SYSTEM
     assert "user_act" in PLANNER_SYSTEM
     assert "【当前时间】" in PLANNER_SYSTEM
     assert "禁止把完整公历年月日念出来" in PLANNER_SYSTEM
@@ -154,6 +155,15 @@ def main() -> None:
     assert "must_say" not in user_msg
     assert "先判断 reply_ok" in user_msg
     assert "拿不准是否对阿洛娜说时 reply_ok 选 true" in user_msg
+
+    from app.proactive.care import build_care_instruction
+
+    lunch_ins = build_care_instruction("lunch")
+    assert "已吃午饭" in lunch_ins
+    assert "reply_ok 必须 false" in lunch_ins
+    sleep_ins = build_care_instruction("sleep")
+    assert "待会再睡" in sleep_ins
+    assert "晚安收束" in sleep_ins
 
     long_a = "设定甲" * 10
     long_b = "设定乙" * 10

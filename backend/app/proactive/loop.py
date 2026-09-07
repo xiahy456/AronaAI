@@ -1,3 +1,17 @@
+# Copyright 2026 xia_hy456. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Process-level ticker: pick at most one motive and push to an idle session."""
 
 from __future__ import annotations
@@ -45,7 +59,7 @@ async def deliver_festival(
 ) -> bool:
     """Send festival line; in REST_SLOTS follow with a rest reminder. Marks on success."""
     extra = [hit.extra_memory] if hit.extra_memory else []
-    ok = await state.orchestrator.handle_initiate(
+    result = await state.orchestrator.handle_initiate(
         session_id=session_id,
         kind="festival",
         instruction=build_festival_instruction(hit, climate),
@@ -55,7 +69,7 @@ async def deliver_festival(
         climate=climate,
         decision=decision,
     )
-    if not ok:
+    if result != "sent":
         logger.warning(
             "festival generate failed session=%s id=%s (not marked)",
             session_id,
@@ -69,7 +83,7 @@ async def deliver_festival(
         needs_rest_followup(now)
         and "sleep" not in state.scheduler.state.care_done
     ):
-        rest_ok = await state.orchestrator.handle_initiate(
+        rest_result = await state.orchestrator.handle_initiate(
             session_id=session_id,
             kind="sleep",
             instruction=build_care_instruction("sleep", climate),
@@ -80,9 +94,12 @@ async def deliver_festival(
             climate=climate,
             decision=decision,
         )
-        if rest_ok:
+        if rest_result == "sent":
             state.scheduler.mark_fired("sleep", now)
             logger.info("festival rest followup session=%s", session_id)
+        elif rest_result == "declined":
+            state.scheduler.mark_care_addressed("sleep", now)
+            logger.info("festival rest followup declined session=%s", session_id)
         else:
             logger.warning(
                 "festival rest followup failed session=%s (festival kept)",
@@ -169,7 +186,7 @@ async def tick_once(state: "AppState", now: datetime | None = None) -> bool:
                 decision=decision,
             )
 
-        ok = await state.orchestrator.handle_initiate(
+        result = await state.orchestrator.handle_initiate(
             session_id=session_id,
             kind=motive.kind,
             instruction=motive.instruction,
@@ -184,15 +201,21 @@ async def tick_once(state: "AppState", now: datetime | None = None) -> bool:
     finally:
         state.hub.set_busy(session_id, False)
 
-    if ok:
+    if result == "sent":
         state.scheduler.mark_fired(motive.kind, dt, goal_key=motive.goal_key)
         logger.info(
             "proactive fired session=%s kind=%s", session_id, motive.kind
         )
-    else:
-        logger.warning(
-            "proactive generate failed session=%s kind=%s (not marked)",
-            session_id,
-            motive.kind,
+        return True
+    if result == "declined":
+        state.scheduler.mark_care_addressed(motive.kind, dt)
+        logger.info(
+            "proactive declined session=%s kind=%s", session_id, motive.kind
         )
-    return ok
+        return False
+    logger.warning(
+        "proactive generate failed session=%s kind=%s (not marked)",
+        session_id,
+        motive.kind,
+    )
+    return False
