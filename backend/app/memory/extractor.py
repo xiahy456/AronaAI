@@ -1,3 +1,17 @@
+# Copyright 2026 xia_hy456. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Async DeepSeek memory extraction queue."""
 
 from __future__ import annotations
@@ -44,9 +58,10 @@ EXTRACT_SYSTEM = """你是记忆抽取助手。根据「用户（老师）」与
   - 无时间含义的稳定事实（名字、偏好、生日本身）不要硬加抽取当日
   - 无明确起止的周期性习惯保留周期表述（如「老师每周五加班」），不要压成某一天；若周期带有明确时段（如下周每天），则写成日期区间并保留周期
 - 若提供了【已有相关记忆】：
-  - 同主题新事实与旧记忆冲突时：upsert 新内容，并对旧 key 输出 op=delete（若新事实复用同一 key 则只需 upsert）
+  - 同主题新事实与旧记忆冲突时必须二选一：复用旧 key 做 upsert，或对旧 key 输出 op=delete 后再 upsert 新 key。禁止让冲突的旧记忆继续存在。
   - 优先复用已有记忆的 key；仅当主题全新时才新建 key
-  - goal：对话表明该计划已执行、正在执行或已取消时，对该 goal 的 key 输出 op=delete，不要再 upsert
+  - 对照集里出现的同主题旧条目，若本轮要写入新事实，必须在输出中点名（upsert 或 delete），不要默不作声地另开一条
+  - goal：对话表明该计划已执行、正在执行或已取消时，对该 goal 的 key 输出 op=delete，不要再 upsert。对照集里的过期/已完成 goal 必须 delete
 - 高频稳定 key（若适用请直接使用）：user_name、preference_color、user_birthday
 - 只记录与用户（老师）相关的记忆；例如「老师喜欢蓝色」
 - 记忆必须来自于用户（老师）所述。对于阿洛娜口述的老师记忆，除非得到老师肯定，否则判定为无效。
@@ -160,17 +175,27 @@ class MemoryExtractor:
                 pass
             self._worker_task = None
 
-    async def enqueue(self, *, transcript: str, user_text: str) -> None:
+    async def enqueue(
+        self,
+        *,
+        transcript: str,
+        user_text: str,
+        user_turns: list[str] | None = None,
+    ) -> None:
         if not self.config.enabled:
             logger.info("memory extractor disabled; skip enqueue")
             return
         qsize = self._queue.qsize() + 1
+        turns = [str(t).strip() for t in (user_turns or []) if str(t).strip()]
         logger.info(
-            "memory extract queued qsize=%d user_text=%r",
+            "memory extract queued qsize=%d user_text=%r user_turns=%d",
             qsize,
             user_text,
+            len(turns),
         )
-        await self._queue.put({"transcript": transcript, "user_text": user_text})
+        await self._queue.put(
+            {"transcript": transcript, "user_text": user_text, "user_turns": turns}
+        )
 
     def _reset_daily_if_needed(self) -> None:
         today = time.strftime("%Y-%m-%d")
@@ -192,27 +217,116 @@ class MemoryExtractor:
             finally:
                 self._queue.task_done()
 
-    def _load_extract_context(self, user_text: str, transcript: str) -> list[dict[str, Any]]:
-        query = (user_text or "").strip() or (transcript or "").strip()
-        if not query:
-            return []
+    def _load_extract_context(
+        self,
+        user_text: str,
+        user_turns: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        queries: list[str] = []
+        seen_q: set[str] = set()
+        for text in user_turns or []:
+            query = (text or "").strip()
+            if query and query not in seen_q:
+                seen_q.add(query)
+                queries.append(query)
+        fallback = (user_text or "").strip()
+        if not queries and fallback:
+            queries = [fallback]
+
+        by_key: dict[str, dict[str, Any]] = {}
         top_k = max(1, int(self.memory_config.extract_context_top_k))
+        embeddings: list[list[float]] | None = None
+        if queries:
+            try:
+                embeddings = self.store.encode_queries(queries)
+            except Exception:
+                logger.exception("Failed to encode extract context queries")
+                embeddings = None
+            for index, query in enumerate(queries):
+                embedding = None
+                if embeddings is not None and index < len(embeddings):
+                    embedding = embeddings[index]
+                try:
+                    hits = self.store.retrieve_entries(
+                        query,
+                        top_k,
+                        query_embedding=embedding,
+                        apply_inject_cooldown=False,
+                        apply_score_filter=False,
+                        include_time=True,
+                    )
+                except Exception:
+                    logger.exception("Failed to load extract context memories query=%r", query)
+                    hits = []
+                for hit in hits:
+                    key = str(hit.get("key") or "").strip()
+                    if not key:
+                        continue
+                    prev = by_key.get(key)
+                    if prev is None or float(hit.get("score") or 0.0) > float(
+                        prev.get("score") or 0.0
+                    ):
+                        by_key[key] = dict(hit)
+
         try:
-            return self.store.retrieve_entries(query, top_k)
+            for goal in self.store.list_by_category("goal"):
+                key = str(goal.get("key") or "").strip()
+                content = str(goal.get("content") or "").strip()
+                if not key or not content:
+                    continue
+                if key not in by_key:
+                    by_key[key] = {
+                        "key": key,
+                        "content": content,
+                        "category": "goal",
+                        "score": 1.0,
+                    }
+                by_key[key]["pinned"] = True
         except Exception:
-            logger.exception("Failed to load extract context memories")
-            return []
+            logger.exception("Failed to pin goal memories for extract context")
+
+        try:
+            for entry in self.store.get_entries(sorted(_HOT_KEYS)):
+                key = str(entry.get("key") or "").strip()
+                if not key:
+                    continue
+                if key not in by_key:
+                    by_key[key] = dict(entry)
+                by_key[key]["pinned"] = True
+        except Exception:
+            logger.exception("Failed to pin hot-key memories for extract context")
+
+        pinned = [item for item in by_key.values() if item.get("pinned")]
+        rest = [item for item in by_key.values() if not item.get("pinned")]
+        rest.sort(key=lambda item: float(item.get("score") or 0.0), reverse=True)
+        max_items = max(1, int(self.memory_config.extract_context_max_items))
+        leftover_slots = max(0, max_items - len(pinned))
+        selected = pinned + rest[:leftover_slots]
+        for item in selected:
+            item.pop("pinned", None)
+        logger.info(
+            "extract context queries=%d hits=%d pinned=%d items=%s",
+            len(queries),
+            len(selected),
+            len(pinned),
+            [(e.get("key"), str(e.get("content") or "")[:40]) for e in selected],
+        )
+        return selected
 
     async def _process(self, job: dict[str, Any]) -> None:
         transcript = job.get("transcript") or ""
         user_text = job.get("user_text") or ""
+        user_turns = job.get("user_turns") or []
+        if not isinstance(user_turns, list):
+            user_turns = []
         logger.info(
-            "memory extract start user_text=%r transcript_chars=%d",
+            "memory extract start user_text=%r user_turns=%d transcript_chars=%d",
             user_text,
+            len(user_turns),
             len(transcript),
         )
 
-        existing = self._load_extract_context(user_text, transcript)
+        existing = self._load_extract_context(user_text, user_turns)
         memories: list[dict[str, Any]] = []
         used_api = False
 
@@ -245,7 +359,7 @@ class MemoryExtractor:
                 logger.info("regex fallback found no memories")
 
         source = "deepseek" if used_api else "regex"
-        self._apply(memories, source=source)
+        self._apply(memories, source=source, existing=existing)
         logger.info(
             "memory extract done source=%s applied=%d",
             source,
@@ -269,7 +383,7 @@ class MemoryExtractor:
                 {"role": "user", "content": user_payload},
             ],
             "temperature": 0.1,
-            "max_tokens": 512,
+            "max_tokens": 1024,
             "response_format": {"type": "json_object"},
             # DeepSeek V4: disable thinking for extraction
             "thinking": {"type": "disabled"},
@@ -384,20 +498,20 @@ class MemoryExtractor:
         content: str,
         category: str | None,
         source: str,
-    ) -> None:
+    ) -> str:
         cfg = self.memory_config
         cat = (category or "other").strip() or "other"
 
         if not cfg.dedup_enabled or cat == "goal":
             self.store.upsert(key, content, category=category, source=source)
             self._reconcile_after_upsert(key, content, category)
-            return
+            return key
 
         candidates = self._collect_dedup_candidates(content, category=cat, new_key=key)
         if not candidates:
             self.store.upsert(key, content, category=category, source=source)
             self._reconcile_after_upsert(key, content, category)
-            return
+            return key
 
         keep_key = _pick_keep_key(key, candidates)
         drop_keys = sorted(
@@ -422,8 +536,65 @@ class MemoryExtractor:
             content,
         )
         self._reconcile_after_upsert(keep_key, content, category)
+        return keep_key
 
-    def _apply(self, memories: list[dict[str, Any]], *, source: str) -> None:
+    def _drop_unaddressed_context_conflicts(
+        self,
+        existing: list[dict[str, Any]],
+        addressed_keys: set[str],
+        upserted: list[dict[str, Any]],
+    ) -> None:
+        min_score = float(self.memory_config.extract_conflict_min_score)
+        if min_score <= 0 or not existing or not upserted:
+            return
+        leftover = [
+            item
+            for item in existing
+            if str(item.get("key") or "").strip()
+            and str(item.get("key") or "").strip() not in addressed_keys
+        ]
+        if not leftover:
+            return
+        for item in upserted:
+            content = str(item.get("content") or "").strip()
+            if not content:
+                continue
+            cat = _category_of(item)
+            same_cat = [
+                candidate
+                for candidate in leftover
+                if _category_of(candidate) == cat
+                and str(candidate.get("key") or "").strip() not in addressed_keys
+            ]
+            if not same_cat:
+                continue
+            try:
+                scored = self.store.document_similarities(content, same_cat)
+            except Exception:
+                logger.exception(
+                    "extract conflict score failed content=%r",
+                    content[:80],
+                )
+                continue
+            for key, score in scored:
+                if not key or key in addressed_keys or score < min_score:
+                    continue
+                logger.info(
+                    "extract conflict delete key=%s because of upsert=%s score=%.3f",
+                    key,
+                    item.get("key"),
+                    score,
+                )
+                self.store.delete(key)
+                addressed_keys.add(key)
+
+    def _apply(
+        self,
+        memories: list[dict[str, Any]],
+        *,
+        source: str,
+        existing: list[dict[str, Any]] | None = None,
+    ) -> None:
         normalized: list[dict[str, Any]] = []
         for raw in memories:
             item = normalize_memory_item(raw)
@@ -456,6 +627,8 @@ class MemoryExtractor:
                     continue
             normalized.append(item)
 
+        addressed: set[str] = set()
+        upserted: list[dict[str, Any]] = []
         for item in _collapse_batch_upserts(normalized):
             op = str(item.get("op") or "upsert").lower()
             key = str(item.get("key") or "").strip()
@@ -469,10 +642,27 @@ class MemoryExtractor:
                 continue
             if op == "delete":
                 self.store.delete(key)
+                addressed.add(key)
             elif op == "upsert" and content:
-                self._upsert_with_dedup(
+                keep_key = self._upsert_with_dedup(
                     key=key,
                     content=content,
                     category=category,
                     source=source,
                 )
+                addressed.add(key)
+                if keep_key:
+                    addressed.add(keep_key)
+                upserted.append(
+                    {
+                        "op": "upsert",
+                        "key": keep_key or key,
+                        "content": content,
+                        "category": category,
+                    }
+                )
+        self._drop_unaddressed_context_conflicts(
+            existing or [],
+            addressed,
+            upserted,
+        )

@@ -915,5 +915,10 @@ class Orchestrator:
             buffer_turns,
             preview(transcript, 300),
         )
-        await self.extractor.enqueue(transcript=transcript, user_text=user_text)
+        user_turns = self.conversations.extract_buffer_user_texts(session_id)
+        await self.extractor.enqueue(
+            transcript=transcript,
+            user_text=user_text,
+            user_turns=user_turns,
+        )
         self.conversations.clear_extract_buffer(session_id)

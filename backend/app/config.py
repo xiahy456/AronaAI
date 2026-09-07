@@ -109,6 +109,8 @@ class MemoryConfig(BaseModel):
     inject_cooldown_sec: float = 3600
     inject_cooldown_bypass_score: float = 0.55
     extract_context_top_k: int = 8
+    extract_context_max_items: int = 24
+    extract_conflict_min_score: float = 0.70
     reconcile_enabled: bool = True
     reconcile_min_score: float = 0.82
     reconcile_top_k: int = 5

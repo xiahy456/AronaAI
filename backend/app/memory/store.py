@@ -488,6 +488,7 @@ class MemoryStore:
         top_k: int,
         *,
         apply_inject_cooldown: bool,
+        apply_score_filter: bool = True,
     ) -> list[dict[str, Any]]:
         """SQLite FTS retrieve used when BGE / Chroma is unavailable."""
         candidate_k = max(top_k, int(self.config.candidate_top_k))
@@ -511,10 +512,15 @@ class MemoryStore:
             if not content:
                 continue
             passed.append((key, content, 1.0 - index * 0.01))
-        passed = self._filter_by_score(
-            [(key, (content, score)) for key, content, score in passed],
-            query,
-        )
+        ranked = [(key, (content, score)) for key, content, score in passed]
+        if apply_score_filter:
+            passed = self._filter_by_score(ranked, query)
+        else:
+            passed = [
+                (key, content, score)
+                for key, (content, score) in ranked
+                if content
+            ]
         pre_scores = _preview_scored(passed)
         passed = self._drop_cooled_entries(
             passed,
@@ -763,6 +769,7 @@ class MemoryStore:
         query_embedding: list[float] | None = None,
         *,
         apply_inject_cooldown: bool = False,
+        apply_score_filter: bool = True,
         include_time: bool = True,
         time_query: str | None = None,
         time_query_embedding: list[float] | None = None,
@@ -793,6 +800,7 @@ class MemoryStore:
                 query,
                 top_k,
                 apply_inject_cooldown=apply_inject_cooldown,
+                apply_score_filter=apply_score_filter,
             )
         except Exception:
             logger.exception("Memory retrieve backend init failed; falling back to FTS")
@@ -800,6 +808,7 @@ class MemoryStore:
                 query,
                 top_k,
                 apply_inject_cooldown=apply_inject_cooldown,
+                apply_score_filter=apply_score_filter,
             )
 
         orig_merged, fts_n, vec_n = self._hybrid_score_map(
@@ -822,7 +831,14 @@ class MemoryStore:
             merged = orig_merged
 
         ranked = sorted(merged.items(), key=lambda item: item[1][1], reverse=True)
-        passed = self._filter_by_score(ranked, query)
+        if apply_score_filter:
+            passed = self._filter_by_score(ranked, query)
+        else:
+            passed = [
+                (key, content, score)
+                for key, (content, score) in ranked
+                if content
+            ]
         pre_scores = _preview_scored(passed)
         cooled_keys = [
             key
@@ -851,7 +867,8 @@ class MemoryStore:
         logger.info(
             "memory retrieve query=%r time_query=%r fts_keys=%d timed_fts_keys=%d "
             "vec_hits=%d timed_vec_hits=%d merged=%d hits=%d min_score=%.3f "
-            "min_score_no_overlap=%.3f pre_scores=%s cooled=%s scores=%s items=%s",
+            "min_score_no_overlap=%.3f score_filter=%s pre_scores=%s cooled=%s "
+            "scores=%s items=%s",
             query,
             timed_query or None,
             fts_n,
@@ -862,6 +879,7 @@ class MemoryStore:
             len(entries),
             float(self.config.min_score),
             float(self.config.min_score_no_overlap),
+            apply_score_filter,
             pre_scores,
             dropped_cooled,
             [(round(e["score"], 3), e["content"][:40]) for e in entries],
@@ -886,6 +904,7 @@ class MemoryStore:
             top_k,
             query_embedding=query_embedding,
             apply_inject_cooldown=apply_inject_cooldown,
+            apply_score_filter=True,
             include_time=include_time,
             time_query=time_query,
             time_query_embedding=time_query_embedding,
@@ -1032,4 +1051,72 @@ class MemoryStore:
                     "updated_at": float(row["updated_at"] or 0.0),
                 }
             )
+        return out
+
+    def get_entries(self, keys: list[str]) -> list[dict[str, Any]]:
+        """Return stored memories for the given keys (SQLite is source of truth)."""
+        cleaned = [str(key or "").strip() for key in keys]
+        cleaned = [key for key in cleaned if key]
+        if not cleaned:
+            return []
+        placeholders = ",".join("?" * len(cleaned))
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"SELECT key, content, category FROM memories WHERE key IN ({placeholders})",
+                cleaned,
+            ).fetchall()
+        by_key = {str(row["key"]): row for row in rows}
+        out: list[dict[str, Any]] = []
+        for key in cleaned:
+            row = by_key.get(key)
+            if row is None:
+                continue
+            content = str(row["content"] or "").strip()
+            if not content:
+                continue
+            out.append(
+                {
+                    "key": key,
+                    "content": content,
+                    "category": str(row["category"] or "").strip() or "other",
+                    "score": 1.0,
+                }
+            )
+        return out
+
+    def document_similarities(
+        self,
+        content: str,
+        candidates: list[dict[str, Any]],
+    ) -> list[tuple[str, float]]:
+        """Document-space cosine of content vs each candidate (for extract conflict cleanup)."""
+        query = (content or "").strip()
+        if not query or not candidates:
+            return []
+        texts = [query]
+        keys: list[str] = []
+        bodies: list[str] = []
+        seen: set[str] = set()
+        for item in candidates:
+            key = str(item.get("key") or "").strip()
+            body = str(item.get("content") or "").strip()
+            if not key or not body or key in seen:
+                continue
+            seen.add(key)
+            keys.append(key)
+            bodies.append(body)
+        if not keys:
+            return []
+        try:
+            encoder = self._ensure_encoder()
+            embeddings = encoder.encode_documents(texts + bodies)
+        except Exception:
+            logger.exception("document_similarities encode failed content=%r", query[:80])
+            return []
+        if len(embeddings) != 1 + len(keys):
+            return []
+        query_emb = embeddings[0]
+        out: list[tuple[str, float]] = []
+        for key, emb in zip(keys, embeddings[1:]):
+            out.append((key, _cosine(query_emb, emb)))
         return out

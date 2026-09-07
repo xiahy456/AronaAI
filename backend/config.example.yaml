@@ -59,6 +59,8 @@ memory:
   inject_cooldown_sec: 3600
   inject_cooldown_bypass_score: 0.55
   extract_context_top_k: 8
+  extract_context_max_items: 24
+  extract_conflict_min_score: 0.70
   reconcile_enabled: true
   reconcile_min_score: 0.82
   reconcile_top_k: 5

@@ -349,7 +349,7 @@ python scripts/ingest_knowledge.py --rebuild
 1. 冒烟检索：`python scripts/test_knowledge_rag.py`；时间感知查询单测（不加载 BGE）：`python scripts/test_query_time.py`
 2. 在 `config.yaml` 设 `knowledge.enabled: true` 后重启后端
 
-对话主路径里记忆与知识检索共用一轮 BGE：同时编码老师原文和带当前时间的附带查询（相对日期会先展开成与记忆写入相同的绝对日期）。两路召回按 key / 标题合并后截断 `top_k`。写入 Planner 的记忆命中按 key 冷却，默认 `memory.inject_cooldown_sec: 3600` 内不重复注入，空缺由下一名候选补上；本轮强匹配（`inject_cooldown_bypass_score` 或与老师原文有词汇重叠）永久绕过该冷却。无词汇重叠时用更高的 `min_score_no_overlap`。抽取器看已有记忆时不走该冷却。知识命中（过滤后的 lore 文本）可按 query 向量近义复用，默认 `query_cache_min_cosine: 0.92`，缓存按自然日区分以免跨日复用带日期的命中；`ingest` / `--rebuild` 会清空该缓存。不缓存 Planner 草稿或最终台词。当前时间同时用于检索附带查询，并以 `【当前时间】` 写入 Planner user 消息（不写入 Renderer）。
+对话主路径里记忆与知识检索共用一轮 BGE：同时编码老师原文和带当前时间的附带查询（相对日期会先展开成与记忆写入相同的绝对日期）。两路召回按 key / 标题合并后截断 `top_k`。写入 Planner 的记忆命中按 key 冷却，默认 `memory.inject_cooldown_sec: 3600` 内不重复注入，空缺由下一名候选补上；本轮强匹配（`inject_cooldown_bypass_score` 或与老师原文有词汇重叠）永久绕过该冷却。无词汇重叠时用更高的 `min_score_no_overlap`。抽取器对照已有记忆时不走该冷却，也不走注入用的分数门槛：按缓冲里每一轮老师消息做宽松召回后合并，并钉上全部 `goal` 与热 key（`user_name` / `preference_color` / `user_birthday`）。知识命中（过滤后的 lore 文本）可按 query 向量近义复用，默认 `query_cache_min_cosine: 0.92`，缓存按自然日区分以免跨日复用带日期的命中；`ingest` / `--rebuild` 会清空该缓存。不缓存 Planner 草稿或最终台词。当前时间同时用于检索附带查询，并以 `【当前时间】` 写入 Planner user 消息（不写入 Renderer）。
 
 ## 配置
 
@@ -460,7 +460,9 @@ python scripts/ingest_knowledge.py --rebuild
 | `max_inject_chars`      | `400`                   | 本地回落注入字符硬上限；与 `token_budget.memory` 取较小值 |
 | `inject_cooldown_sec`   | `3600`                  | 同一 key 写入 Planner 的冷却秒数；`0` 关闭。抽取侧检索不受影响 |
 | `inject_cooldown_bypass_score` | `0.55`           | 达到该分或与老师原文有词汇重叠时绕过注入冷却                    |
-| `extract_context_top_k` | `8`                     | 抽取时检索已有记忆的条数，供模型对照更新                     |
+| `extract_context_top_k` | `8`                     | 抽取时每一轮老师消息的召回条数                          |
+| `extract_context_max_items` | `24`                | 多轮召回合并后的对照集上限；`goal` 与热 key 不被截掉         |
+| `extract_conflict_min_score` | `0.70`            | 仅清理对照集中未被模型点名的同主题冲突（含 goal）            |
 | `reconcile_enabled`     | `true`                  | 写入后删除同类别、高相似的旧条目（`goal` 除外）              |
 | `reconcile_min_score`   | `0.82`                  | 调和删除的相似度下限                               |
 | `reconcile_top_k`       | `5`                     | 调和 / 去重时的相似检索条数                          |

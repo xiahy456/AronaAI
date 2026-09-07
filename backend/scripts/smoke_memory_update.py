@@ -25,6 +25,7 @@ for _stream in (sys.stdout, sys.stderr):
         pass
 
 from app.config import load_config  # noqa: E402
+from app.conversation import ConversationManager  # noqa: E402
 from app.memory.extractor import MemoryExtractor, _format_existing_memories, format_extract_now  # noqa: E402
 from app.memory.fallback import regex_extract_memories  # noqa: E402
 from app.memory.normalize import normalize_memory_item  # noqa: E402
@@ -396,6 +397,216 @@ def test_inject_cooldown() -> None:
         store._client = None
 
 
+def test_extract_buffer_user_texts() -> None:
+    print("== extract buffer user texts ==")
+    cm = ConversationManager()
+    cm.append_extract_buffer("s", "user", "我现在喜欢黄色了")
+    cm.append_extract_buffer("s", "assistant", "了解")
+    cm.append_extract_buffer("s", "user", "今天天气真好")
+    texts = cm.extract_buffer_user_texts("s")
+    if texts != ["我现在喜欢黄色了", "今天天气真好"]:
+        _fail(f"expected both user turns, got {texts}")
+    print("  extract_buffer_user_texts ok")
+
+
+def test_extract_multi_turn_context() -> None:
+    print("== extract multi-turn loose context ==")
+    cfg = load_config()
+    store, _tmp = _make_store(cfg)
+    try:
+        store.upsert(
+            "preference_color",
+            "老师喜欢粉色",
+            category="preference",
+            source="seed",
+        )
+        store.upsert(
+            "location_beijing",
+            "老师住在北京",
+            category="profile",
+            source="seed",
+        )
+        store.upsert(
+            "user_name",
+            "老师的名字是Sensei",
+            category="profile",
+            source="seed",
+        )
+        store.upsert(
+            "goal_hospital",
+            "老师2026年9月1日下午2点要去医院",
+            category="goal",
+            source="seed",
+        )
+        extractor = MemoryExtractor(store, cfg.memory.extractor)
+        greeting = "今天天气真好啊"
+        chat_hits = store.retrieve_entries(
+            greeting,
+            top_k=8,
+            apply_score_filter=True,
+        )
+        chat_keys = {str(e.get("key")) for e in chat_hits}
+        if "preference_color" in chat_keys or "location_beijing" in chat_keys:
+            _fail(f"greeting must not inject color/location via score filter, got {chat_keys}")
+
+        last_only = extractor._load_extract_context(greeting, [greeting])
+        last_keys = {str(e.get("key")) for e in last_only}
+        if "user_name" not in last_keys or "goal_hospital" not in last_keys:
+            _fail(f"hot key and goals must be pinned, got {last_keys}")
+
+        ctx = extractor._load_extract_context(
+            greeting,
+            ["我现在喜欢黄色了", "我搬家到上海了", greeting],
+        )
+        keys = {str(e.get("key")) for e in ctx}
+        if "preference_color" not in keys:
+            _fail(f"multi-turn extract should recall color, got {keys}")
+        if "location_beijing" not in keys:
+            _fail(f"multi-turn extract should recall beijing home, got {keys}")
+        if "goal_hospital" not in keys or "user_name" not in keys:
+            _fail(f"pinned goal/name missing, got {keys}")
+        print(f"  multi-turn context ok: {keys}")
+    finally:
+        store._collection = None
+        store._client = None
+
+
+def test_extract_conflict_cleanup() -> None:
+    print("== extract unaddressed conflict cleanup ==")
+    cfg = load_config()
+    store, _tmp = _make_store(cfg)
+    try:
+        extractor = MemoryExtractor(store, cfg.memory.extractor)
+        store.upsert(
+            "location_beijing",
+            "老师住在北京",
+            category="profile",
+            source="seed",
+        )
+        existing = [
+            {
+                "key": "location_beijing",
+                "content": "老师住在北京",
+                "category": "profile",
+                "score": 0.9,
+            }
+        ]
+        extractor._apply(
+            [
+                {
+                    "op": "upsert",
+                    "key": "location_shanghai",
+                    "content": "老师住在上海",
+                    "category": "profile",
+                }
+            ],
+            source="smoke",
+            existing=existing,
+        )
+        rows = _list_rows(store)
+        if "location_beijing" in rows:
+            _fail(f"unaddressed beijing should be deleted, rows={rows}")
+        if "location_shanghai" not in rows:
+            _fail(f"expected shanghai upsert, rows={rows}")
+        print(f"  location conflict ok: {rows}")
+
+        store2, _tmp2 = _make_store(cfg)
+        try:
+            extractor2 = MemoryExtractor(store2, cfg.memory.extractor)
+            store2.upsert(
+                "pref_banana",
+                "老师喜欢香蕉",
+                category="preference",
+                source="seed",
+            )
+            store2.upsert(
+                "pref_strawberry",
+                "老师喜欢草莓",
+                category="preference",
+                source="seed",
+            )
+            both = [
+                {
+                    "key": "pref_banana",
+                    "content": "老师喜欢香蕉",
+                    "category": "preference",
+                    "score": 0.9,
+                },
+                {
+                    "key": "pref_strawberry",
+                    "content": "老师喜欢草莓",
+                    "category": "preference",
+                    "score": 0.9,
+                },
+            ]
+            extractor2._apply(
+                [
+                    {
+                        "op": "upsert",
+                        "key": "pref_banana",
+                        "content": "老师喜欢香蕉",
+                        "category": "preference",
+                    },
+                    {
+                        "op": "upsert",
+                        "key": "pref_strawberry",
+                        "content": "老师喜欢草莓",
+                        "category": "preference",
+                    },
+                ],
+                source="smoke",
+                existing=both,
+            )
+            rows2 = _list_rows(store2)
+            if "pref_banana" not in rows2 or "pref_strawberry" not in rows2:
+                _fail(f"both addressed prefs must remain, rows={rows2}")
+            print(f"  distinct prefs kept ok: {rows2}")
+        finally:
+            store2._collection = None
+            store2._client = None
+
+        store3, _tmp3 = _make_store(cfg)
+        try:
+            extractor3 = MemoryExtractor(store3, cfg.memory.extractor)
+            store3.upsert(
+                "goal_walk",
+                "老师打算和阿洛娜出去散步",
+                category="goal",
+                source="seed",
+            )
+            extractor3._apply(
+                [
+                    {
+                        "op": "upsert",
+                        "key": "goal_walk_v2",
+                        "content": "老师打算和阿洛娜去散步",
+                        "category": "goal",
+                    }
+                ],
+                source="smoke",
+                existing=[
+                    {
+                        "key": "goal_walk",
+                        "content": "老师打算和阿洛娜出去散步",
+                        "category": "goal",
+                        "score": 1.0,
+                    }
+                ],
+            )
+            rows3 = _list_rows(store3)
+            if "goal_walk" in rows3:
+                _fail(f"unaddressed similar goal should be deleted, rows={rows3}")
+            if "goal_walk_v2" not in rows3:
+                _fail(f"expected new goal upsert, rows={rows3}")
+            print(f"  goal conflict ok: {rows3}")
+        finally:
+            store3._collection = None
+            store3._client = None
+    finally:
+        store._collection = None
+        store._client = None
+
+
 def main() -> None:
     test_normalize_and_regex()
     test_format_context()
@@ -403,6 +614,9 @@ def main() -> None:
     test_reconcile_color_and_goal_delete()
     test_semantic_and_exact_dedup()
     test_inject_cooldown()
+    test_extract_buffer_user_texts()
+    test_extract_multi_turn_context()
+    test_extract_conflict_cleanup()
     print("ALL SMOKE CHECKS PASSED")
 
 
