@@ -133,6 +133,8 @@ def main() -> None:
     assert "午饭或睡觉的【系统事件】" in PLANNER_SYSTEM
     assert "系统事件照料拿不准是否已交代时选 true" in PLANNER_SYSTEM
     assert "老师本人发言拿不准时选 true" in PLANNER_SYSTEM
+    assert "draft 只写吃饭或休息提醒" in PLANNER_SYSTEM
+    assert "还在想某某" in PLANNER_SYSTEM
     assert "user_act" in PLANNER_SYSTEM
     assert "【当前时间】" in PLANNER_SYSTEM
     assert "禁止把完整公历年月日念出来" in PLANNER_SYSTEM
@@ -161,9 +163,13 @@ def main() -> None:
     lunch_ins = build_care_instruction("lunch")
     assert "已吃午饭" in lunch_ins
     assert "reply_ok 必须 false" in lunch_ins
+    assert "正在聊" in lunch_ins
+    assert "还在想" in lunch_ins
     sleep_ins = build_care_instruction("sleep")
     assert "待会再睡" in sleep_ins
     assert "晚安收束" in sleep_ins
+    assert "正在聊" in sleep_ins
+    assert "还在想" in sleep_ins
 
     long_a = "设定甲" * 10
     long_b = "设定乙" * 10

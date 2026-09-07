@@ -169,9 +169,13 @@ def test_care_window_once_per_day() -> None:
     lunch_text = build_care_instruction("lunch")
     if "已吃午饭" not in lunch_text or "reply_ok 必须 false" not in lunch_text:
         _fail("lunch instruction should gate on already-addressed meal")
+    if "正在聊" not in lunch_text or "还在想" not in lunch_text:
+        _fail("lunch instruction should ban citing the current topic")
     sleep_text = build_care_instruction("sleep")
     if "待会再睡" not in sleep_text or "晚安收束" not in sleep_text:
         _fail("sleep instruction should gate on already-addressed rest")
+    if "正在聊" not in sleep_text or "还在想" not in sleep_text:
+        _fail("sleep instruction should ban citing the current topic")
     print("  ok")
 
 
