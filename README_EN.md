@@ -26,7 +26,7 @@
 
 **AronaAI** is a non-conversational desktop AI modeled after Arona from the game *Blue Archive*. In lore she is the OS administrator of the Shittim Chest: cheerful, enthusiastic, and always ready to help Sensei (the user).
 
-The project combines AronaLM, a non-conversational design, intent-driven interaction, text-to-speech (TTS), automatic speech recognition (ASR), and Spine 2D character animation, aiming for a cute, engaging, and complete desktop experience.
+The project wires **Planner → AronaLM Renderer**, relationship climate, proactive events, long-term memory, world-lore RAG, continuous-dictation turn routing, screen-capture input, text-to-speech (TTS), automatic speech recognition (ASR), and Spine 2D character animation into one desktop pipeline, so Arona stays on your screen instead of inside a chat box.
 
 <p align="center">
   <img src="assets/running_example_2.png" alt="Running Example" width="600"/>
@@ -47,6 +47,7 @@ arona-ai/
 ├── gpt-sovits/                           # GPT-SoVITS TTS
 ├── llm/aronaLM/finetune/                 # AronaLM fine-tune (not actually a large model… I wrote that wrong earlier and still haven't changed it)
 ├── models/                               # Local model weights (download yourself)
+├── docs/                                 # Architecture, hot-word lists, and other docs
 ├── assets/                               # Project assets
 ├── start-all.bat                         # Windows one-click local start for all services
 ├── pack-client.ps1                       # pack the desktop client
@@ -59,21 +60,34 @@ See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
 
 ## ✨ Core Features
 
-### 🤖 AI Dialogue Engine
-- **Dual-model pipeline**: **Planner (DeepSeek) → intent planning → Renderer (AronaLM-Renderer-V2.x)**; if Planner is disabled or fails, the system falls back to the local path
+### 🤖 AI Engine
+
+- **Dual-model pipeline**: **Planner → intent planning → Renderer (AronaLM-Renderer-V2.x)**. If Planner is disabled or fails, the system falls back to the local path
 - **Relationship climate**: three scalars — trust / dependence / tension — form a vector. User actions are classified by rules, then a lookup table updates the climate; climate zones decide whether Arona speaks, how she holds herself, or stays silent
 - **Proactive behavior**: after a WebSocket connect, Arona greets and reminds by time of day; after a stretch of silence she checks in lightly; sparse follow-ups on unfinished plans in memory; when Planner allows it, she may add a line in the same turn
+- **Screen vision**: when image input is enabled, text or voice submits attach a JPEG of the screen under the cursor; Planner reads the screen in that turn when it needs the information
+- **Continuous dictation**: ASR fragments go into a buffer first and are submitted after silence; a rule plus a short-timeout LLM router decides ignore / wait / reply
 - **AronaLM**: AronaLM-Renderer handles text rendering; when the dual-model pipeline is unavailable, the local single-model AronaLM-Generator takes over the full inference path
 - **Memory and knowledge are separate**: long-term user facts go to SQLite + FTS5 + Chroma; world-lore goes Markdown corpus → local BGE + Chroma RAG; they are never mixed, and each is injected into the prompt on demand
 - **Intermediate result cache**: world-lore near-synonym retrieval can reuse lore hits; the Renderer reuses a fixed system-prefix KV cache
 - **Async memory extraction**: the main dialogue path is not blocked; DeepSeek JSON extraction (with a daily quota and buffered batches) falls back to regex if the call fails or no API key is set
 - **Bounded context**: multi-turn history truncation + memory / knowledge / history token budgets keep the context from ballooning
 
-### 🖥️ Desktop Client & Voice Services
-- **Spine 2D animation**: Arona character animation via Spine
-- **Qt UI**: Windows desktop app in Qt/C++, talking to the backend over WebSocket
-- **Voice interaction**: voice synthesis through GPT-SoVITS and voice recognition through Tencent Cloud ASR
-- **Global hotkeys**: customizable shortcuts
+### 🖥️ Desktop Client & Voice
+
+- **Spine 2D animation**: Arona's character art and touch interaction
+- **Qt UI**: Windows desktop app talking to the backend over WebSocket; the system tray can show/hide the window and toggle click-through and screenshot input
+- **Text input**: a global hotkey pops up a multi-line input box; Enter sends
+- **Click-through**: the desktop pet can be clicked through so it does not block windows underneath
+- **Voice interaction**: GPT-SoVITS for synthesis; Tencent Cloud real-time ASR; speaking can interrupt voice that is currently playing
+- **Global hotkeys** (all of these can be changed in `config.json`):
+
+| Default hotkey | Action |
+|----------------|--------|
+| `Ctrl+Alt+V` | Toggle voice input |
+| `Ctrl+Alt+C` | Toggle click-through |
+| `Ctrl+Alt+T` | Open text input |
+| `Ctrl+Alt+X` | Toggle screen-capture input |
 
 ---
 
@@ -87,18 +101,19 @@ Download the packaged portable backend from the [Releases](https://github.com/xi
 
 2. After extracting, edit `config.yaml` in the directory and fill in at least these keys:
 
-   - `planner.api_key` / `memory.extractor.api_key`: replace `YOUR_DEEPSEEK_API_KEY` with your DeepSeek API Key (**required**). Without a key, or with `planner.enabled` off, the backend falls back to the local single model; memory extraction without a key uses the regex fallback
-   - `model.enabled`: whether to enable Arona-Renderer rendering correction; `true` enables it, `false` disables it (Planner draft only). Place the GGUF only when this is enabled. **Disabled by default**
-   - `knowledge.enabled`: whether to enable world-lore RAG. The zip already has the corpus ingested, and this is **enabled by default**
+   - `planner.api_key` / `memory.extractor.api_key`: replace `YOUR_DEEPSEEK_API_KEY` with your DeepSeek API Key. **Planner requires a key**; without a key, or with `planner.enabled` off, the backend falls back to the local single model. Memory extraction without a key uses the regex fallback. When a screenshot is attached, Planner uses `planner.vision_model` (default `deepseek-v4-flash-vision-exp`)
+   - `model.enabled`: whether to enable Arona-Renderer rendering correction; `true` enables it, `false` uses the Planner draft only. Place the GGUF only when this is enabled. **Disabled by default**
+   - `knowledge.enabled`: whether to enable world-lore RAG. Official zip packages that already have the corpus ingested keep this **enabled by default**; the sample config for running from source is `false` until you ingest the corpus
 
 3. Place models under `models/` in the extracted directory as needed (paths are already set in the bundled `config.yaml`; see the bundled `models/README.txt` or [`models/README.md`](models/README.md)):
+
    - When Renderer is enabled: `models/AronaLM-Renderer-V2.4/AronaLM-Renderer-V2.4.Q4_K_M.gguf`
 
 4. Double-click `AronaAI_Backend.bat` to start. Set the desktop client's `websocket_url` to `ws://127.0.0.1:20456/ws` (this is already the default).
 
 > **System requirements**: Windows 10 / 11 x64. If it fails to start, run the bundled `vc_redist.x64.exe` first. Renderer GPU layers need an NVIDIA GPU and a reasonably recent driver. Do not extract a new version over a directory you are already using (unless you do not need to keep memory); runtime data lives in `data/memory/` and `logs/`.
 
-Full field docs and running from source (conda / `python -m app.main`) are in [`backend/README.md`](backend/README.md).
+Full field docs and running from source (conda env `shittim-chest` / `python -m app.main`) are in [`backend/README.md`](backend/README.md).
 
 ### Client
 
@@ -110,20 +125,20 @@ Download the packaged client from the [Releases](https://github.com/xiahy456/Aro
 ```json
 {
   "aronalm": {
-    "websocket_url": "ws://your.aronalm.ip:20456/ws" // your AronaLM backend WebSocket URL
+    "websocket_url": "ws://127.0.0.1:20456/ws"
   },
   "tts": {
-    "host": "your.gpt.sovits.ip" // your GPT-SoVITS host
+    "host": "your.gpt.sovits.ip"
   },
   "tencent_speech_recognizer": {
-    "secret_id": "${TENCENT_SECRET_ID}", // Tencent Cloud real-time ASR SecretId (env-var placeholders allowed)
-    "secret_key": "${TENCENT_SECRET_KEY}",  // Tencent Cloud real-time ASR SecretKey (env-var placeholders allowed)
-    "app_id": "${TENCENT_APP_ID}" // Tencent Cloud real-time ASR AppId
+    "secret_id": "${TENCENT_SECRET_ID}",
+    "secret_key": "${TENCENT_SECRET_KEY}",
+    "app_id": "${TENCENT_APP_ID}"
   }
 }
 ```
 
-Full field docs: [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md). Building the client from source is also covered there.
+For a remote setup, change `websocket_url` / `tts.host` to the corresponding IPs. Full field docs and building from source are in [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md).
 
 > **Note**: Upload [`docs/hot_word.txt`](docs/hot_word.txt) as a hot-word list in Tencent Cloud ASR and set it as the default hot-word list.
 
@@ -168,13 +183,13 @@ cd gpt-sovits
 
 - **Blue Archive (ブルーアーカイブ)** — where all miracles begin (https://bluearchive-cn.com/)
 - **Spine** — 2D animation engine (https://esotericsoftware.com/)
-- **Kivo Wiki** — Game assets and Blueaka font (https://kivo.wiki/)
+- **Kivo Wiki** — in-game assets and Blueaka font (https://kivo.wiki/)
 - **Qt** — cross-platform GUI framework (https://www.qt.io/)
 - **llama.cpp / llama-cpp-python** — local GGUF inference (https://github.com/ggml-org/llama.cpp)
 - **Qwen3-1.7B** — fine-tune base model (https://huggingface.co/Qwen/Qwen3-1.7B)
 - **Unsloth** — efficient QLoRA fine-tuning (https://unsloth.ai/)
 - **ChromaDB** — vector database (https://www.trychroma.com/products/chromadb)
-- **DeepSeek** — Planner intent planning and memory extraction API (https://www.deepseek.com/)
+- **DeepSeek** — Planner intent planning, vision screen-reading, and memory extraction API (https://www.deepseek.com/)
 - **GPT-SoVITS** — speech synthesis (https://github.com/RVC-Boss/GPT-SoVITS)
 - **Tencent Cloud ASR** — online speech recognition (https://cloud.tencent.com/product/asr)
 - **bge-small-zh-v1.5** — text embedding model (https://huggingface.co/BAAI/bge-small-zh-v1.5)
