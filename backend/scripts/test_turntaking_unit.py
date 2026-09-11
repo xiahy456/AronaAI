@@ -44,6 +44,7 @@ def main() -> None:
     assert buf.joined() == "关麦前这句"
     assert buf.drain() == "关麦前这句"
     assert buf.joined() == ""
+    assert buf.pop_image() is None
 
     # next listen session starts clean
     buf.set_listening(True)
@@ -60,6 +61,24 @@ def main() -> None:
     assert flushed == "已final未满静音"
     assert buf.joined() == ""
     assert buf.listening is False
+
+    from app.image_input import ImagePayload
+
+    jpeg = b"\xff\xd8\xff" + b"\x00" * 32
+    img1 = ImagePayload(mime="image/jpeg", data=jpeg + b"1")
+    img2 = ImagePayload(mime="image/jpeg", data=jpeg + b"2")
+    buf.set_listening(True)
+    assert buf.push(text="第一句", speaker="teacher", image=img1) is not None
+    assert buf.push(text="第二句", speaker="teacher", image=img2) is not None
+    assert buf.pop_image() is img2
+    assert buf.drain() == "第一句第二句"
+    assert buf.pop_image() is None
+
+    buf.set_listening(True)
+    assert buf.push(text="残留图", speaker="teacher", image=img1) is not None
+    buf.set_listening(True)
+    assert buf.joined() == ""
+    assert buf.pop_image() is None
 
     assert looks_incomplete("那个然后")
     assert looks_incomplete("就是")

@@ -1,14 +1,11 @@
 /*
- Copyright xia_hy456. All rights reserved.
-
- @Author: xia_hy456
- @Date: 2026/3/14 22:15:53
+ Copyright 2026 xia_hy456. All rights reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
 
-      https://www.apache.org/licenses/LICENSE-2.0
+	  https://www.apache.org/licenses/LICENSE-2.0
 
  Unless required by applicable law or agreed to in writing, software
  distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,9 +16,12 @@
 
 #include <SystemTray.h>
 #include "SettingsWidget.h"
+#include "MainController.h"
+#include <QSignalBlocker>
 
-SystemTray::SystemTray(MainWidget* mainWidget)
+SystemTray::SystemTray(MainWidget* mainWidget, MainController* mainController)
     : m_mainWidget(mainWidget)
+	, m_mainController(mainController)
 	, m_settingsWidget(nullptr)
 {
     // 检查系统是否支持托盘图标
@@ -36,6 +36,8 @@ SystemTray::SystemTray(MainWidget* mainWidget)
     m_operateSettingsWidget_showOrHide = new QAction(GET_STRING_FROM_JSON(_global_dict, "application_data", "showOrHide_settings_widget"));
     m_ableEdit = new QAction(GET_STRING_FROM_JSON(_global_dict, "application_data", "able_edit"));
     m_unableEdit = new QAction(GET_STRING_FROM_JSON(_global_dict, "application_data", "unable_edit"));
+    m_imageInput = new QAction(GET_STRING_FROM_JSON(_global_dict, "application_data", "image_input_toggle"));
+    m_imageInput->setCheckable(true);
     m_quitAction = new QAction(GET_STRING_FROM_JSON(_global_dict, "application_data", "quit"));
 
     // 连接动作的信号到对应的槽函数
@@ -44,6 +46,17 @@ SystemTray::SystemTray(MainWidget* mainWidget)
     connect(m_ableEdit, &QAction::triggered, this, &SystemTray::ableEdit);
     connect(m_unableEdit, &QAction::triggered, this, &SystemTray::unableEdit);
     connect(m_quitAction, &QAction::triggered, qApp, &QApplication::quit);
+    if (m_mainController) {
+        m_imageInput->setChecked(m_mainController->isImageInputEnabled());
+        connect(m_imageInput, &QAction::toggled, m_mainController, &MainController::setImageInputEnabled);
+        connect(m_mainController, &MainController::imageInputChanged, this, [this](bool enabled) {
+            if (!m_imageInput) {
+                return;
+            }
+            const QSignalBlocker blocker(m_imageInput);
+            m_imageInput->setChecked(enabled);
+        });
+    }
 
     // 创建托盘图标和菜单
     m_trayIconMenu = new QMenu();
@@ -51,6 +64,7 @@ SystemTray::SystemTray(MainWidget* mainWidget)
     m_trayIconMenu->addAction(m_operateSettingsWidget_showOrHide);
     m_trayIconMenu->addAction(m_ableEdit);
     m_trayIconMenu->addAction(m_unableEdit);
+    m_trayIconMenu->addAction(m_imageInput);
     m_trayIconMenu->addSeparator(); // 添加分隔线
     m_trayIconMenu->addAction(m_quitAction);
 

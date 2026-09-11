@@ -11,6 +11,7 @@
     "mouse_event_transparent": true,
     "qhotkey_path": "QHotkey",
     "open_setting_widget": false,
+    "image_input": true,
     "text_box_path": "Assets/ProgramAssets/TextBox.png",
     "push_button_path": "Assets/ProgramAssets/PushButton.png",
     "settings_bg_path": "Assets/ProgramAssets/SettingsMainBGWidget.png",
@@ -72,7 +73,8 @@
   "short_cut_key": {
     "switch_audio_input": "Ctrl+Alt+V",
     "switch_mouse_transparent": "Ctrl+Alt+C",
-    "show_user_input": "Ctrl+Alt+T"
+    "show_user_input": "Ctrl+Alt+T",
+    "switch_image_input": "Ctrl+Alt+X"
   },
   "tencent_speech_recognizer": {
     "secret_id": "${TENCENT_SECRET_ID}",

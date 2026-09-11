@@ -1,8 +1,5 @@
 /*
- Copyright xia_hy456. All rights reserved.
-
- @Author: xia_hy456
- @Date: 2026/3/14 22:15:53
+ Copyright 2026 xia_hy456. All rights reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -32,13 +29,15 @@
 
 #include "GlobalInclude.h"
 
+class MainController;
+
 class SystemTray : public QObject 
 {
 	Q_OBJECT
 
 public:
 	// 构造函数
-	SystemTray(MainWidget* mainWidget);
+	SystemTray(MainWidget* mainWidget, MainController* mainController = nullptr);
 	// 析构函数
 	~SystemTray();
 
@@ -57,6 +56,7 @@ private:
 	void ensureSettingsWidget();
 
 	MainWidget* m_mainWidget;	// mainWidget主界面对象的引用
+	MainController* m_mainController = nullptr;
 	QWidget* m_settingsWidget = nullptr;	// settingsWidget设置界面（首次打开时创建）
 	QSystemTrayIcon* m_trayIcon = nullptr;	// 系统托盘图标对象
 	QMenu* m_trayIconMenu = nullptr;	// 托盘图标关联的菜单
@@ -65,6 +65,7 @@ private:
 	QAction* m_operateSettingsWidget_showOrHide = nullptr;	// 显示/隐藏设置界面
 	QAction* m_ableEdit = nullptr;	// 可操作主菜单
 	QAction* m_unableEdit = nullptr;	// 不可操作主菜单
+	QAction* m_imageInput = nullptr;	// 启用图片输入
 	QAction* m_quitAction = nullptr;	// 退出程序
 };
 

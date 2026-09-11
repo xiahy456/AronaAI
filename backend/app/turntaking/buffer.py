@@ -21,6 +21,8 @@ from dataclasses import dataclass, field
 
 from .speaker import is_teacher_speaker, normalize_speaker
 
+from ..image_input import ImagePayload
+
 
 @dataclass
 class TranscriptSegment:
@@ -36,11 +38,13 @@ class TurnBuffer:
         self.listening: bool = False
         self.last_arona_at: float = 0.0
         self._segments: list[TranscriptSegment] = []
+        self.latest_image: ImagePayload | None = None
 
     def set_listening(self, on: bool) -> None:
         self.listening = bool(on)
         if on:
             self._segments.clear()
+            self.latest_image = None
 
     def note_arona_spoke(self, when: float | None = None) -> None:
         self.last_arona_at = float(when if when is not None else time.time())
@@ -58,6 +62,7 @@ class TurnBuffer:
         speaker: object = "teacher",
         segment_id: str = "",
         silence_ms: int = 0,
+        image: ImagePayload | None = None,
     ) -> TranscriptSegment | None:
         cleaned = (text or "").strip()
         if not cleaned:
@@ -72,6 +77,8 @@ class TurnBuffer:
             silence_ms=max(0, int(silence_ms or 0)),
         )
         self._segments.append(segment)
+        if image is not None:
+            self.latest_image = image
         return segment
 
     def prepend(self, text: str) -> None:
@@ -96,8 +103,14 @@ class TurnBuffer:
         self._segments.clear()
         return text
 
+    def pop_image(self) -> ImagePayload | None:
+        image = self.latest_image
+        self.latest_image = None
+        return image
+
     def clear(self) -> None:
         self._segments.clear()
+        self.latest_image = None
 
     def __len__(self) -> int:
         return len(self._segments)

@@ -53,6 +53,9 @@ public:
 	void toggleMouseTransparent();
 	// 呼出用户文本输入界面
 	void showUserInput();
+	bool isImageInputEnabled() const;
+	void toggleImageInput();
+	void setImageInputEnabled(bool enabled);
 	// 启动遮罩已关闭，冲刷待播欢迎语
 	void onSplashClosed();
 	// 遮罩信号接好后再连后端，避免连接失败早于槽绑定
@@ -60,6 +63,7 @@ public:
 
 signals:
 	void welcomePlaybackReady();
+	void imageInputChanged(bool enabled);
 
 private slots:
 	// TTS工作完毕
@@ -113,6 +117,7 @@ private:
 	void processInputText(const QString& text);
 	void sendTranscriptToBackend(const QString& text);
 	void flushPendingTranscript();
+	QString maybeCaptureScreenBase64() const;
 	void interruptOutput();
 	void presentOutput(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion);
 	void presentOutputError(const QString& text, const QString& emotion);

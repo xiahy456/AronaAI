@@ -129,6 +129,7 @@ class PlannerConfig(BaseModel):
     timeout_sec: float = 20
     temperature: float = 0.3
     max_tokens: int = 512
+    vision_model: str = "deepseek-v4-flash-vision-exp"
     router_enabled: bool = False
     router_timeout_sec: float = 3.0
     router_max_tokens: int = 64

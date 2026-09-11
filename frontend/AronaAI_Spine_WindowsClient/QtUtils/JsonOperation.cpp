@@ -1,14 +1,11 @@
 /*
- Copyright xia_hy456. All rights reserved.
-
- @Author: xia_hy456
- @Date: 2026/3/14 22:15:53
+ Copyright 2026 xia_hy456. All rights reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
 
-      https://www.apache.org/licenses/LICENSE-2.0
+	  https://www.apache.org/licenses/LICENSE-2.0
 
  Unless required by applicable law or agreed to in writing, software
  distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,6 +22,7 @@ JsonOperation::JsonOperation()
 }
 
 JsonOperation::JsonOperation(QString file_path)
+	: m_filePath(file_path)
 {
 	// 打开文件
 	QFile file(file_path);
@@ -260,4 +258,22 @@ bool JsonOperation::setBoolInJson(QString jsonKey, QString valueKey, bool value)
     m_jsonObj.insert(jsonKey, targetObj);
 
     return true;
+}
+
+bool JsonOperation::save() const
+{
+	if (m_filePath.isEmpty()) {
+		ERROR_DEBUG_OUTPUT("[Json Operation]No file path to save");
+		return false;
+	}
+	QFile file(m_filePath);
+	if (!file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+		ERROR_DEBUG_OUTPUT("[Json Operation]Failed to save file: " + m_filePath);
+		return false;
+	}
+	const QJsonDocument doc(m_jsonObj);
+	file.write(doc.toJson(QJsonDocument::Indented));
+	file.close();
+	FINE_DEBUG_OUTPUT("[Json Operation]Saved file: " + m_filePath);
+	return true;
 }

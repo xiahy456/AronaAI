@@ -98,6 +98,7 @@ def build_planner_user_message(
     knowledge: list[str],
     climate_block: str = "",
     now: datetime | None = None,
+    has_screenshot: bool = False,
 ) -> str:
     mem_block = "（无）"
     if memories:
@@ -123,6 +124,16 @@ def build_planner_user_message(
     if (climate_block or "").strip():
         climate_section = f"{climate_block.strip()}\n\n"
 
+    closing = (
+        "注意：先判断 reply_ok，再写 draft。拿不准是否对阿洛娜说时 reply_ok 选 true。\n"
+        "若 reply_ok 为 true 且有【关系气候】，按建议姿态写草稿。\n"
+    )
+    if has_screenshot:
+        closing += (
+            "本轮附带老师电脑屏幕截图。仅在回答需要屏幕上可见信息时取用截图内容；"
+            "与本轮无关的屏幕内容不要主动复述。\n"
+        )
+    closing += "请输出唯一 JSON 对象。"
     return (
         f"{climate_section}"
         f"{format_extract_now(now)}\n\n"
@@ -130,7 +141,5 @@ def build_planner_user_message(
         f"【相关知识】\n{know_block}\n\n"
         f"【近期对话】\n{hist_block}\n\n"
         f"【老师本轮消息】\n{user_text.strip()}\n\n"
-        "注意：先判断 reply_ok，再写 draft。拿不准是否对阿洛娜说时 reply_ok 选 true。\n"
-        "若 reply_ok 为 true 且有【关系气候】，按建议姿态写草稿。\n"
-        "请输出唯一 JSON 对象。"
+        f"{closing}"
     )

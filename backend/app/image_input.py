@@ -1,0 +1,193 @@
+# Copyright 2026 xia_hy456. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Optional screenshot payloads on chat / transcript messages."""
+
+from __future__ import annotations
+
+import base64
+import json
+import logging
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+MAX_IMAGE_BYTES = 4 * 1024 * 1024
+SCREENSHOT_KEEP = 8
+_JPEG_MAGIC = b"\xff\xd8\xff"
+_PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+_ALLOWED_MIME = {
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/png": ".png",
+}
+
+
+@dataclass(frozen=True)
+class ImagePayload:
+    mime: str
+    data: bytes
+
+    def data_url(self) -> str:
+        encoded = base64.b64encode(self.data).decode("ascii")
+        return f"data:{self.mime};base64,{encoded}"
+
+
+def _normalize_mime(raw: str) -> str | None:
+    mime = (raw or "").strip().lower()
+    if mime == "image/jpg":
+        mime = "image/jpeg"
+    if mime in _ALLOWED_MIME:
+        return mime
+    return None
+
+
+def _infer_mime(data: bytes) -> str | None:
+    if data.startswith(_JPEG_MAGIC):
+        return "image/jpeg"
+    if data.startswith(_PNG_MAGIC):
+        return "image/png"
+    return None
+
+
+def _decode_base64(raw: str) -> bytes | None:
+    text = (raw or "").strip()
+    if not text:
+        return None
+    marker = "base64,"
+    if marker in text:
+        text = text.split(marker, 1)[1]
+    try:
+        return base64.b64decode(text, validate=False)
+    except Exception:
+        return None
+
+
+def parse_optional_image(message: dict[str, Any] | None) -> ImagePayload | None:
+    """Parse and validate an optional `image` object from a WS JSON payload."""
+    if not isinstance(message, dict):
+        return None
+    blob = message.get("image")
+    if blob is None:
+        return None
+    if not isinstance(blob, dict):
+        logger.warning("image ignored reason=not_object")
+        return None
+    encoded = blob.get("data")
+    if not isinstance(encoded, str) or not encoded.strip():
+        logger.warning("image ignored reason=missing_data")
+        return None
+    data = _decode_base64(encoded)
+    if data is None:
+        logger.warning("image ignored reason=invalid_base64")
+        return None
+    if len(data) > MAX_IMAGE_BYTES:
+        logger.warning("image ignored reason=too_large bytes=%d", len(data))
+        return None
+    mime = _normalize_mime(str(blob.get("mime") or blob.get("mime_type") or ""))
+    inferred = _infer_mime(data)
+    if inferred is None:
+        logger.warning("image ignored reason=unknown_format")
+        return None
+    if mime is None:
+        mime = inferred
+    elif mime != inferred:
+        logger.warning("image ignored reason=mime_mismatch declared=%s inferred=%s", mime, inferred)
+        return None
+    return ImagePayload(mime=mime, data=data)
+
+
+def redact_image_fields(value: Any) -> Any:
+    """Replace bulky image bytes / data URLs with placeholders for logs."""
+    if isinstance(value, dict):
+        redacted: dict[str, Any] = {}
+        for key, item in value.items():
+            if key in {"data", "base64"} and isinstance(item, str) and len(item) > 24:
+                redacted[key] = f"[redacted {len(item)} chars]"
+            elif key in {"url", "image_url"}:
+                redacted[key] = redact_image_fields(item)
+            else:
+                redacted[key] = redact_image_fields(item)
+        if "url" in redacted and isinstance(redacted["url"], str):
+            url = redacted["url"]
+            if url.startswith("data:") and len(url) > 24:
+                redacted["url"] = f"[redacted data_url {len(url)} chars]"
+        return redacted
+    if isinstance(value, list):
+        return [redact_image_fields(item) for item in value]
+    if isinstance(value, str) and value.startswith("data:image") and len(value) > 24:
+        return f"[redacted data_url {len(value)} chars]"
+    return value
+
+
+def redact_request_json(raw: str | None) -> str | None:
+    if raw is None:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return raw
+    return json.dumps(redact_image_fields(parsed), ensure_ascii=False)
+
+
+def screenshot_files(directory: Path) -> list[Path]:
+    if not directory.exists():
+        return []
+    files: list[Path] = []
+    for path in directory.iterdir():
+        if not path.is_file():
+            continue
+        if not path.name.startswith("screenshot_"):
+            continue
+        if path.suffix.lower() not in {".jpg", ".jpeg", ".png"}:
+            continue
+        files.append(path)
+    files.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+    return files
+
+
+def prune_screenshots(directory: Path, keep: int = SCREENSHOT_KEEP) -> list[Path]:
+    kept = screenshot_files(directory)
+    removed: list[Path] = []
+    for old in kept[keep:]:
+        try:
+            old.unlink(missing_ok=True)
+            removed.append(old)
+        except OSError as exc:
+            logger.warning("screenshot prune failed path=%s err=%s", old, exc)
+    return kept[:keep]
+
+
+def save_screenshot(
+    directory: Path,
+    payload: ImagePayload,
+    keep: int = SCREENSHOT_KEEP,
+) -> Path | None:
+    directory.mkdir(parents=True, exist_ok=True)
+    ext = _ALLOWED_MIME.get(payload.mime, ".jpg")
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+    path = directory / f"screenshot_{stamp}{ext}"
+    if path.exists():
+        path = directory / f"screenshot_{stamp}_{len(payload.data)}{ext}"
+    try:
+        path.write_bytes(payload.data)
+    except OSError as exc:
+        logger.warning("screenshot save failed path=%s err=%s", path, exc)
+        return None
+    prune_screenshots(directory, keep=keep)
+    logger.info("screenshot saved path=%s bytes=%d", path.name, len(payload.data))
+    return path

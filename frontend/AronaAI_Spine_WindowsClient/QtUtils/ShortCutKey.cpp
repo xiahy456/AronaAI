@@ -1,8 +1,5 @@
 /*
- Copyright xia_hy456. All rights reserved.
-
- @Author: xia_hy456
- @Date: 2026/3/14 22:15:53
+ Copyright 2026 xia_hy456. All rights reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -26,6 +23,11 @@ ShortCutKey::ShortCutKey(MainController* mainController)
 	m_switchAudioInput = new QHotkey(QKeySequence(GET_STRING_FROM_JSON(_global_config, "short_cut_key", "switch_audio_input")), true, this);
 	m_switchMouseTransparent = new QHotkey(QKeySequence(GET_STRING_FROM_JSON(_global_config, "short_cut_key", "switch_mouse_transparent")), true, this);
 	m_showUserInput = new QHotkey(QKeySequence(GET_STRING_FROM_JSON(_global_config, "short_cut_key", "show_user_input")), true, this);
+	QString switchImageInputSeq = GET_STRING_FROM_JSON(_global_config, "short_cut_key", "switch_image_input");
+	if (switchImageInputSeq.isEmpty()) {
+		switchImageInputSeq = QStringLiteral("Ctrl+Alt+X");
+	}
+	m_switchImageInput = new QHotkey(QKeySequence(switchImageInputSeq), true, this);
 
 	// 注册结果日志
 	if (m_switchAudioInput->isRegistered()) FINE_DEBUG_OUTPUT("[Short Cut Key]Key 'Switch Audio Input' registered succeed! Registered to: "
@@ -40,11 +42,16 @@ ShortCutKey::ShortCutKey(MainController* mainController)
 		+ GET_STRING_FROM_JSON(_global_config, "short_cut_key", "show_user_input"));
 	else ERROR_DEBUG_OUTPUT("[Short Cut Key]Key 'Show User Input' registered failed! It might be occupied! Registered to:"
 		+ GET_STRING_FROM_JSON(_global_config, "short_cut_key", "show_user_input"));
+	if (m_switchImageInput->isRegistered()) FINE_DEBUG_OUTPUT("[Short Cut Key]Key 'Switch Image Input' registered succeed! Registered to: "
+		+ switchImageInputSeq);
+	else ERROR_DEBUG_OUTPUT("[Short Cut Key]Key 'Switch Image Input' registered failed! It might be occupied! Registered to:"
+		+ switchImageInputSeq);
 
 	// 连接信号
 	connect(m_switchAudioInput, &QHotkey::activated, this, &ShortCutKey::onSwitchAudioInput);
 	connect(m_switchMouseTransparent, &QHotkey::activated, this, &ShortCutKey::onSwitchMouseTransparent);
 	connect(m_showUserInput, &QHotkey::activated, this, &ShortCutKey::onShowUserInput);
+	connect(m_switchImageInput, &QHotkey::activated, this, &ShortCutKey::onSwitchImageInput);
 
 }
 
@@ -76,5 +83,11 @@ void ShortCutKey::onShowUserInput()
 {
 	FINE_DEBUG_OUTPUT("[Short Cut Key]Key 'Show User Input' activated!");
 	m_mainController->showUserInput();
+}
+
+void ShortCutKey::onSwitchImageInput()
+{
+	FINE_DEBUG_OUTPUT("[Short Cut Key]Key 'Switch Image Input' activated!");
+	m_mainController->toggleImageInput();
 }
 

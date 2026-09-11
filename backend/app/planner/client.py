@@ -1,3 +1,17 @@
+# Copyright 2026 xia_hy456. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """OpenAI-compatible planner client (separate from memory extractor)."""
 
 from __future__ import annotations
@@ -8,6 +22,7 @@ from typing import Any
 import httpx
 
 from ..config import PlannerConfig
+from ..image_input import ImagePayload, redact_image_fields
 from ..logging_utils import update_trace
 from .prompts import PLANNER_SYSTEM, build_planner_user_message
 from .schema import IntentCard, parse_and_gate_intent
@@ -36,31 +51,46 @@ class PlannerClient:
         memories: list[str],
         knowledge: list[str],
         climate_block: str = "",
+        image: ImagePayload | None = None,
     ) -> IntentCard | None:
         if not self.enabled:
             logger.info("planner skipped reason=disabled_or_no_key")
             return None
 
         url = self.config.base_url.rstrip("/") + "/chat/completions"
+        has_image = image is not None
         user_payload = build_planner_user_message(
             user_text=user_text,
             history=history,
             memories=memories,
             knowledge=knowledge,
             climate_block=climate_block,
+            has_screenshot=has_image,
         )
+        if image is not None:
+            model = (self.config.vision_model or "").strip() or self.config.model
+            user_content: str | list[dict[str, Any]] = [
+                {"type": "text", "text": user_payload},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": image.data_url()},
+                },
+            ]
+        else:
+            model = self.config.model
+            user_content = user_payload
         payload: dict[str, Any] = {
-            "model": self.config.model,
+            "model": model,
             "messages": [
                 {"role": "system", "content": PLANNER_SYSTEM},
-                {"role": "user", "content": user_payload},
+                {"role": "user", "content": user_content},
             ],
             "temperature": self.config.temperature,
             "max_tokens": self.config.max_tokens,
             "response_format": {"type": "json_object"},
             "thinking": {"type": "disabled"},
         }
-        update_trace(planner_prompt=payload["messages"])
+        update_trace(planner_prompt=redact_image_fields(payload["messages"]))
         headers = {
             "Authorization": f"Bearer {self.config.api_key}",
             "Content-Type": "application/json",
@@ -79,7 +109,8 @@ class PlannerClient:
                 logger.warning("planner parse/gate failed raw=%s", content)
                 return None
             logger.info(
-                "planner ok emotion=%s reply_ok=%s user_act=%s followup_ok=%s",
+                "planner ok model=%s emotion=%s reply_ok=%s user_act=%s followup_ok=%s",
+                model,
                 card.arona_emotion,
                 card.reply_ok,
                 card.user_act,

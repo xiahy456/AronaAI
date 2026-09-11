@@ -1,4 +1,19 @@
-// WebSocketController.cpp
+/*
+ Copyright 2026 xia_hy456. All rights reserved.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+	  https://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+
 #include "WebSocketController.h"
 #include <QDebug>
 #include <QJsonArray>
@@ -157,7 +172,7 @@ void WebSocketController::setAutoReconnect(bool enabled)
 // ========== 消息发送实现 ==========
 
 void WebSocketController::sendChatMessage(const QString& content,
-    bool useRag, bool useMemory)
+    bool useRag, bool useMemory, const QString& imageBase64)
 {
     QJsonObject message;
     message["type"] = "chat";
@@ -167,6 +182,12 @@ void WebSocketController::sendChatMessage(const QString& content,
     options["use_rag"] = useRag;
     options["use_memory"] = useMemory;
     message["options"] = options;
+    if (!imageBase64.isEmpty()) {
+        QJsonObject image;
+        image["mime"] = QStringLiteral("image/jpeg");
+        image["data"] = imageBase64;
+        message["image"] = image;
+    }
 
     sendMessage(message);
 }
@@ -179,7 +200,8 @@ void WebSocketController::sendListenState(bool listening)
     sendMessage(message);
 }
 
-void WebSocketController::sendTranscript(const QString& text, const QString& segmentId, int silenceMs)
+void WebSocketController::sendTranscript(const QString& text, const QString& segmentId, int silenceMs,
+    const QString& imageBase64)
 {
     QJsonObject message;
     message["type"] = "transcript";
@@ -188,6 +210,12 @@ void WebSocketController::sendTranscript(const QString& text, const QString& seg
     message["is_final"] = true;
     message["segment_id"] = segmentId;
     message["silence_ms"] = silenceMs;
+    if (!imageBase64.isEmpty()) {
+        QJsonObject image;
+        image["mime"] = QStringLiteral("image/jpeg");
+        image["data"] = imageBase64;
+        message["image"] = image;
+    }
     sendMessage(message);
 }
 

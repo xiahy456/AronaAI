@@ -16,7 +16,10 @@
 
 #include "MainController.h"
 #include "SpokenTextSplitter.h"
+#include "ScreenCapture.h"
+#include <QList>
 #include <QTimer>
+#include <QWidget>
 
 MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer, WebSocketController* webSocketController, UserInputWidget* userInputWidget)
     : m_mainWidget(mainWidget)
@@ -363,6 +366,50 @@ void MainController::showUserInput()
     FINE_DEBUG_OUTPUT("[Main Controller] User input widget shown");
 }
 
+bool MainController::isImageInputEnabled() const
+{
+    return GET_BOOL_FROM_JSON(_global_config, "settings", "image_input");
+}
+
+void MainController::toggleImageInput()
+{
+    setImageInputEnabled(!isImageInputEnabled());
+}
+
+void MainController::setImageInputEnabled(bool enabled)
+{
+    if (isImageInputEnabled() == enabled) {
+        emit imageInputChanged(enabled);
+        return;
+    }
+    SET_BOOL_TO_JSON(_global_config, "settings", "image_input", enabled);
+    if (_global_config && !_global_config->save()) {
+        ERROR_DEBUG_OUTPUT("[Main Controller] Failed to persist image_input to config.json");
+    }
+    FINE_DEBUG_OUTPUT(QString("[Main Controller] Image input toggled to: %1")
+        .arg(enabled ? "true" : "false"));
+    emit imageInputChanged(enabled);
+}
+
+QString MainController::maybeCaptureScreenBase64() const
+{
+    if (!isImageInputEnabled()) {
+        return {};
+    }
+    QList<QWidget*> exclude;
+    if (m_mainWidget) {
+        exclude << m_mainWidget;
+    }
+    if (m_userInputWidget && m_userInputWidget->isVisible()) {
+        exclude << m_userInputWidget;
+    }
+    const QString imageBase64 = ScreenCapture::grabJpegBase64(exclude);
+    if (imageBase64.isEmpty()) {
+        ERROR_DEBUG_OUTPUT("[Main Controller] Screenshot failed, send text only");
+    }
+    return imageBase64;
+}
+
 void MainController::onAudioError(const QString& error)
 {
     ERROR_DEBUG_OUTPUT("[Audio Input Processing]Audio error!");
@@ -431,7 +478,8 @@ void MainController::sendTranscriptToBackend(const QString& text)
     m_webSocketController->sendTranscript(
         text,
         QString::number(m_transcriptSeq),
-        0);
+        0,
+        maybeCaptureScreenBase64());
     m_lastSentTranscript = text;
 }
 
@@ -501,7 +549,7 @@ void MainController::processInputText(const QString& text)
     m_userTurnTimer.restart();
     m_measuringUserTurn = true;
 
-    m_webSocketController->sendChatMessage(trimmed, useRag, useMemory);
+    m_webSocketController->sendChatMessage(trimmed, useRag, useMemory, maybeCaptureScreenBase64());
 
     FINE_DEBUG_OUTPUT("[Main Controller] Sent to AI service: " + trimmed.left(50) + "...");
 }

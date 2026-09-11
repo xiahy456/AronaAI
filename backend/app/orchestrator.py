@@ -28,6 +28,7 @@ InitiateResult = Literal["sent", "declined", "failed"]
 
 from .config import AppConfig
 from .conversation import ConversationManager
+from .image_input import ImagePayload
 from .knowledge import KnowledgeRetriever
 from .logging_utils import begin_trace, preview, preview_list, reset_trace, update_trace
 from .memory.extractor import MemoryExtractor
@@ -112,6 +113,7 @@ class Orchestrator:
         started_at: float | None = None,
         abort_check: AbortCheck | None = None,
         on_committed: Callable[[], None] | None = None,
+        image: ImagePayload | None = None,
     ) -> bool:
         def _aborted() -> bool:
             return abort_check is not None and abort_check()
@@ -160,6 +162,15 @@ class Orchestrator:
             use_memory,
             user_text,
         )
+        if image is not None:
+            logger.info(
+                "planner input 包含文本与图片 session=%s bytes=%d mime=%s",
+                session_id,
+                len(image.data),
+                image.mime,
+            )
+        else:
+            logger.info("planner input 只含文本 session=%s", session_id)
 
         need_rag = use_rag and self.knowledge.enabled
         query_embedding: list[float] | None = None
@@ -275,6 +286,7 @@ class Orchestrator:
                 memories=memories,
                 knowledge=knowledge_chunks,
                 climate_block=self._climate_block(decision),
+                image=image,
             )
             logger.info(
                 "planner session=%s ok=%s latency=%.3fs",

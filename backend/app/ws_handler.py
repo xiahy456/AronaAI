@@ -28,6 +28,12 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from .config import AppConfig
 from .conversation import ConversationManager
+from .image_input import (
+    ImagePayload,
+    parse_optional_image,
+    redact_request_json,
+    save_screenshot,
+)
 from .input_filter import (
     ASR_FALLBACK_EMOTION,
     ASR_FALLBACK_REPLY,
@@ -155,12 +161,23 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
             except asyncio.CancelledError:
                 pass
 
+    async def _persist_screenshot(image: ImagePayload) -> None:
+        try:
+            await asyncio.to_thread(
+                save_screenshot,
+                state.config.logging_dir_abs_path,
+                image,
+            )
+        except Exception:
+            logger.warning("screenshot persist failed session=%s", session_id, exc_info=True)
+
     async def _run_chat(
         content: str,
         options: dict[str, Any],
         request_json: str | None,
         started_at: float | None,
         abort_check: Any | None = None,
+        image: ImagePayload | None = None,
     ) -> None:
         state.hub.set_busy(session_id, True)
         if state.scheduler is not None:
@@ -179,6 +196,7 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                 started_at=started_at,
                 abort_check=abort_check,
                 on_committed=_clear_inflight,
+                image=image,
             )
             if inflight_user:
                 turn_buffer.prepend(inflight_user)
@@ -217,6 +235,7 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         commit_task = None
         if not force and not turn_buffer.listening:
             return
+        image = turn_buffer.pop_image()
         drained = turn_buffer.drain()
         if not drained or is_unusable_user_text(drained):
             logger.info(
@@ -226,14 +245,23 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
             )
             return
         wait_extended = False
-        logger.info("listen commit session=%s text=%r", session_id, drained)
+        logger.info(
+            "listen commit session=%s has_image=%s text=%r",
+            session_id,
+            image is not None,
+            drained,
+        )
         if chat_task is not None and not chat_task.done():
             await _interrupt_generation(restore_inflight=True)
         my_id = generation_id
         inflight_user = drained
         started = time.perf_counter()
         request_json = json.dumps(
-            {"type": "transcript", "content": drained},
+            {
+                "type": "transcript",
+                "content": drained,
+                "has_image": image is not None,
+            },
             ensure_ascii=False,
         )
         chat_task = asyncio.create_task(
@@ -243,6 +271,7 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                 request_json,
                 started,
                 lambda: generation_id != my_id,
+                image,
             )
         )
 
@@ -418,10 +447,14 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                     options = data.get("options") or {}
                     if not isinstance(options, dict):
                         options = {}
+                    image = parse_optional_image(data)
                     logger.info(
-                        "WS chat recv session=%s options=%s content=%r",
+                        "WS chat recv session=%s options=%s has_image=%s bytes=%s "
+                        "content=%r",
                         session_id,
                         options,
+                        image is not None,
+                        len(image.data) if image is not None else 0,
                         content,
                     )
                     if is_unusable_user_text(str(content)):
@@ -433,7 +466,7 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                         )
                         begin_trace(
                             started_at=chat_recv_at,
-                            request_json=raw,
+                            request_json=redact_request_json(raw),
                         )
                         await send(
                             msg_chat_response(
@@ -444,12 +477,16 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                             )
                         )
                         continue
+                    if image is not None:
+                        asyncio.create_task(_persist_screenshot(image))
                     chat_task = asyncio.create_task(
                         _run_chat(
                             str(content),
                             options,
-                            raw,
+                            redact_request_json(raw),
                             chat_recv_at,
+                            None,
+                            image,
                         )
                     )
                 elif msg_type == TYPE_LISTEN_STATE:
@@ -488,14 +525,17 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                     is_final = bool(data.get("is_final", True))
                     silence_ms = int(data.get("silence_ms") or 0)
                     segment_id = str(data.get("segment_id") or "")
+                    image = parse_optional_image(data)
                     logger.info(
                         "WS transcript session=%s final=%s speaker=%s silence_ms=%s "
-                        "segment=%s content=%r",
+                        "segment=%s has_image=%s bytes=%s content=%r",
                         session_id,
                         is_final,
                         speaker,
                         silence_ms,
                         segment_id,
+                        image is not None,
+                        len(image.data) if image is not None else 0,
                         text,
                     )
                     if not turn_buffer.listening:
@@ -527,7 +567,10 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                         speaker=speaker,
                         segment_id=segment_id,
                         silence_ms=silence_ms,
+                        image=image,
                     )
+                    if image is not None:
+                        asyncio.create_task(_persist_screenshot(image))
                     _schedule_commit()
                 elif msg_type == TYPE_INTERRUPT:
                     logger.info("WS interrupt session=%s", session_id)

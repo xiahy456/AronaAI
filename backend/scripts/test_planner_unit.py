@@ -51,6 +51,7 @@ def main() -> None:
     assert "user_act" not in card.to_renderer_dict()
 
     cfg = load_config()
+    assert cfg.planner.vision_model == "deepseek-v4-flash-vision-exp"
     hist = [
         {"role": "user", "content": "上一轮老师"},
         {"role": "assistant", "content": "上一轮阿洛娜"},
@@ -134,7 +135,6 @@ def main() -> None:
     assert "系统事件照料拿不准是否已交代时选 true" in PLANNER_SYSTEM
     assert "老师本人发言拿不准时选 true" in PLANNER_SYSTEM
     assert "draft 只写吃饭或休息提醒" in PLANNER_SYSTEM
-    assert "还在想某某" in PLANNER_SYSTEM
     assert "user_act" in PLANNER_SYSTEM
     assert "【当前时间】" in PLANNER_SYSTEM
     assert "禁止把完整公历年月日念出来" in PLANNER_SYSTEM
@@ -157,6 +157,20 @@ def main() -> None:
     assert "must_say" not in user_msg
     assert "先判断 reply_ok" in user_msg
     assert "拿不准是否对阿洛娜说时 reply_ok 选 true" in user_msg
+    assert "电脑屏幕截图" not in user_msg
+
+    vision_msg = build_planner_user_message(
+        user_text="屏幕上是什么？",
+        history=[],
+        memories=[],
+        knowledge=[],
+        now=frozen,
+        has_screenshot=True,
+    )
+    assert "电脑屏幕截图" in vision_msg
+    assert "仅在回答需要屏幕上可见信息时取用" in vision_msg
+    assert "先判断 reply_ok" in vision_msg
+    assert "请输出唯一 JSON 对象。" in vision_msg
 
     from app.proactive.care import build_care_instruction
 

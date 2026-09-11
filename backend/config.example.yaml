@@ -85,6 +85,7 @@ planner:
   timeout_sec: 20
   temperature: 0.3
   max_tokens: 512
+  vision_model: "deepseek-v4-flash-vision-exp"
   router_enabled: true
   router_timeout_sec: 3
   router_max_tokens: 64

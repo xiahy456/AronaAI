@@ -14,6 +14,7 @@
     "showOrHide_settings_widget": "显示/隐藏设置界面",
     "able_edit": "允许互动",
     "unable_edit": "禁止互动（穿透点击）",
+    "image_input_toggle": "启用图片输入",
     "quit": "退出",
     "basic_settings_button_name": "基础设置",
     "arona_lm_settings_button_name": "AronaLM设置",

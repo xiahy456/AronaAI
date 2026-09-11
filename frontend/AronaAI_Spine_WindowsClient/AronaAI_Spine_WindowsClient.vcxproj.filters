@@ -356,6 +356,9 @@
     <ClCompile Include="QtUtils\JsonOperation.cpp">
       <Filter>QtUtils</Filter>
     </ClCompile>
+    <ClCompile Include="QtUtils\ScreenCapture.cpp">
+      <Filter>QtUtils</Filter>
+    </ClCompile>
     <ClCompile Include="QtMainFile\GlobalVariables.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -704,6 +707,9 @@
       <Filter>QtUtils</Filter>
     </ClInclude>
     <ClInclude Include="QtUtils\JsonOperation.h">
+      <Filter>QtUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="QtUtils\ScreenCapture.h">
       <Filter>QtUtils</Filter>
     </ClInclude>
     <ClInclude Include="QtMainFile\GlobalVariables.h">

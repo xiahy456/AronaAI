@@ -1,8 +1,5 @@
 /*
- Copyright xia_hy456. All rights reserved.
-
- @Author: xia_hy456
- @Date: 2026/3/14 22:15:53
+ Copyright 2026 xia_hy456. All rights reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -87,8 +84,14 @@ public:
 	bool setStringInJson(QString jsonKey, QString valueKey, QString value);
 	bool setBoolInJson(QString jsonKey, QString valueKey, bool value);
 
+	// 写回构造时打开的 JSON 文件（内存构造则失败）
+	bool save() const;
+
 	// JSON对象引用
 	QJsonObject m_jsonObj;
+
+private:
+	QString m_filePath;
 
 };
 

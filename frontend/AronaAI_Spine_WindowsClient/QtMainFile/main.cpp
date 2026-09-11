@@ -1,8 +1,5 @@
 /*
- Copyright xia_hy456. All rights reserved.
-
- @Author: xia_hy456
- @Date: 2026/3/14 22:15:53
+ Copyright 2026 xia_hy456. All rights reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -162,7 +159,7 @@ int main(int argc, char *argv[])
 	ShortCutKey* shortCutKey = new ShortCutKey(mainController);
 
     // 创建系统托盘（启动即加载；设置窗口首次打开时再创建）
-    SystemTray* systemTray = new SystemTray(mainWidget);
+    SystemTray* systemTray = new SystemTray(mainWidget, mainController);
 
     // 输出信息必要类实例化完毕，准备启动应用程序事件循环
     FINE_DEBUG_OUTPUT("[Qt Operation]Necessary class instantiation complete! Starting application loop...");
