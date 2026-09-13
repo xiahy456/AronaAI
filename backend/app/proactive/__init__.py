@@ -36,6 +36,7 @@ from .goal import (
     build_goal_instruction,
     can_attempt_goal,
     has_important_goal,
+    last_any_goal_at,
     select_goal,
     wants_goal_mute,
 )
@@ -94,6 +95,7 @@ __all__ = [
     "build_welcome_instruction",
     "can_attempt_goal",
     "has_important_goal",
+    "last_any_goal_at",
     "match_festival",
     "needs_rest_followup",
     "parse_birthday_md",

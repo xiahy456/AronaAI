@@ -115,8 +115,8 @@ proactive:
     baseline_tension: 0.25
   idle:
     enabled: true
-    after_sec: 900
-    cooldown_sec: 1800
+    after_sec: 1800
+    cooldown_sec: 3600
     max_per_day: 3
   care:
     enabled: true

@@ -41,6 +41,17 @@ def _parse_iso(value: str) -> datetime | None:
         return None
 
 
+def last_any_goal_at(goal_last: dict[str, str]) -> datetime | None:
+    latest: datetime | None = None
+    for stamp in goal_last.values():
+        parsed = _parse_iso(str(stamp or ""))
+        if parsed is None:
+            continue
+        if latest is None or parsed > latest:
+            latest = parsed
+    return latest
+
+
 def _is_muted(key: str, now: datetime, goal_mute: dict[str, str]) -> bool:
     mute_until = _parse_iso(str(goal_mute.get(key) or ""))
     return mute_until is not None and now < mute_until
@@ -85,6 +96,8 @@ def can_attempt_goal(
     min_after_user_sec: float,
     max_per_day: int,
     has_important: bool = False,
+    last_goal_at: datetime | None = None,
+    min_gap_sec: float = 0,
 ) -> bool:
     if last_user_act == "depart":
         return False
@@ -96,6 +109,9 @@ def can_attempt_goal(
         return False
     if (now - last_user_at).total_seconds() < min_after_user_sec:
         return False
+    if last_goal_at is not None and float(min_gap_sec) > 0:
+        if (now - last_goal_at).total_seconds() < float(min_gap_sec):
+            return False
     return True
 
 

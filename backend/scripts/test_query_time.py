@@ -128,7 +128,10 @@ def test_content_importance() -> None:
         _fail("Aug 20 should not treat Sept 1 ticket as important")
     overdue = datetime(2026, 9, 2, 10, 0)
     if not is_currently_important(ticket, overdue, horizon_hours=36):
-        _fail("day after booking should still be important")
+        _fail("overdue within horizon should still be important")
+    stale = datetime(2026, 9, 3, 10, 0)
+    if is_currently_important(ticket, stale, horizon_hours=36):
+        _fail("overdue beyond horizon should not be important")
     if is_currently_important("老师想去海边", ask_now, horizon_hours=36):
         _fail("undated goal should not be important")
     nap = "老师2026年8月24日下午4点睡到晚上7点"

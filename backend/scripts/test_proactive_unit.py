@@ -35,6 +35,7 @@ from app.proactive.goal import (  # noqa: E402
     HISTORY_GOAL_MARKER,
     can_attempt_goal,
     has_important_goal,
+    last_any_goal_at,
     select_goal,
     wants_goal_mute,
 )
@@ -478,6 +479,8 @@ def _goal_cfg(**overrides: object) -> SimpleNamespace:
         "cooldown_sec": 21600,
         "mute_sec": 604800,
         "max_per_day": 1,
+        "important_horizon_hours": 36,
+        "important_cooldown_sec": 1800,
     }
     base.update(overrides)
     return SimpleNamespace(**base)
@@ -610,6 +613,40 @@ def test_goal_fire_rules() -> None:
         _fail("both cooling should pick none")
     if HISTORY_GOAL_MARKER != "【回访】":
         _fail("goal history marker")
+
+    quiet = now - timedelta(seconds=400)
+    if not can_attempt_goal(
+        now,
+        last_user_at=quiet,
+        last_user_act="other",
+        goal_count=0,
+        min_after_user_sec=300,
+        max_per_day=1,
+        has_important=True,
+        last_goal_at=now - timedelta(seconds=1800),
+        min_gap_sec=1800,
+    ):
+        _fail("global gap exactly 1800s should allow")
+    if can_attempt_goal(
+        now,
+        last_user_at=quiet,
+        last_user_act="other",
+        goal_count=0,
+        min_after_user_sec=300,
+        max_per_day=1,
+        has_important=True,
+        last_goal_at=now - timedelta(seconds=30),
+        min_gap_sec=1800,
+    ):
+        _fail("global gap should block another goal 30s later")
+    latest = last_any_goal_at(
+        {
+            "old_trip": (now - timedelta(hours=1)).isoformat(timespec="seconds"),
+            "ticket": now.isoformat(timespec="seconds"),
+        }
+    )
+    if latest != now:
+        _fail(f"last_any_goal_at should pick latest stamp, got {latest}")
     print("  ok")
 
 
@@ -700,6 +737,32 @@ def test_goal_importance_cooldown() -> None:
     )
     if picked is None or picked["key"] != "ticket":
         _fail(f"daily cap should still allow important ticket, got {picked}")
+
+    soon_after = datetime(2026, 9, 1, 20, 0, 0)
+    if not has_important_goal(
+        [ticket], soon_after, goal_mute={}, horizon_hours=36
+    ):
+        _fail("ticket overdue within horizon should stay important")
+    stale_now = datetime(2026, 9, 10, 15, 0, 0)
+    if has_important_goal(
+        [ticket, trip], stale_now, goal_mute={}, horizon_hours=36
+    ):
+        _fail("ticket overdue beyond horizon should not be important")
+    if (
+        select_goal(
+            [ticket, trip],
+            stale_now,
+            goal_last={},
+            goal_mute={},
+            cooldown_sec=21600,
+            important_horizon_hours=36,
+            important_cooldown_sec=1800,
+            goal_count=1,
+            max_per_day=1,
+        )
+        is not None
+    ):
+        _fail("daily cap should block overdue-beyond-horizon ticket")
     print("  ok")
 
 
@@ -836,6 +899,99 @@ def test_important_goal_bypasses_daily_cap_pick(tmp: Path) -> None:
     )
     if picked is None or picked.kind != "goal" or picked.goal_key != "ticket":
         _fail(f"expected important ticket after daily cap, got {picked}")
+    print("  ok")
+
+
+def test_goal_global_gap_blocks_other_keys(tmp: Path) -> None:
+    print("== global gap blocks another goal 30s later ==")
+    idle_cfg = SimpleNamespace(
+        enabled=True, after_sec=900, cooldown_sec=1800, max_per_day=3
+    )
+    care_cfg = SimpleNamespace(
+        enabled=True,
+        lunch_start="12:00",
+        lunch_end="12:30",
+        sleep_start="23:00",
+        sleep_end="23:20",
+    )
+    sched = ProactiveScheduler(
+        tmp / "proactive_goal_gap.json",
+        idle_cfg=idle_cfg,
+        care_cfg=care_cfg,
+        goal_cfg=_goal_cfg(),
+    )
+    now = datetime(2026, 8, 31, 14, 46, 0)
+    goals = [
+        {
+            "key": "ticket",
+            "content": "老师2026年9月1日下午2点要订回深圳的车票",
+            "updated_at": 200.0,
+        },
+        {
+            "key": "meeting",
+            "content": "老师2026年9月1日晚上8点要开会",
+            "updated_at": 201.0,
+        },
+    ]
+    sched.note_user_activity(now - timedelta(seconds=400))
+    sched.mark_fired("goal", now - timedelta(seconds=30), goal_key="ticket")
+    blocked = sched.pick_motive(
+        now,
+        last_user_act="other",
+        climate="secure_play",
+        goals=goals,
+    )
+    if blocked is not None and blocked.kind == "goal":
+        _fail(f"second important goal should wait global gap, got {blocked}")
+
+    later = now + timedelta(seconds=1800)
+    picked = sched.pick_motive(
+        later,
+        last_user_act="other",
+        climate="secure_play",
+        goals=goals,
+    )
+    if picked is None or picked.kind != "goal" or picked.goal_key != "meeting":
+        _fail(f"after global gap should pick other important goal, got {picked}")
+    print("  ok")
+
+
+def test_stale_dated_goal_uses_daily_cap(tmp: Path) -> None:
+    print("== overdue beyond horizon uses daily cap ==")
+    idle_cfg = SimpleNamespace(
+        enabled=True, after_sec=900, cooldown_sec=1800, max_per_day=3
+    )
+    care_cfg = SimpleNamespace(
+        enabled=True,
+        lunch_start="12:00",
+        lunch_end="12:30",
+        sleep_start="23:00",
+        sleep_end="23:20",
+    )
+    sched = ProactiveScheduler(
+        tmp / "proactive_stale_goal.json",
+        idle_cfg=idle_cfg,
+        care_cfg=care_cfg,
+        goal_cfg=_goal_cfg(),
+    )
+    now = datetime(2026, 9, 10, 15, 0, 0)
+    sched.note_user_activity(now - timedelta(seconds=400))
+    sched.mark_fired("goal", now - timedelta(hours=2), goal_key="old_trip")
+    picked = sched.pick_motive(
+        now,
+        last_user_act="other",
+        climate="secure_play",
+        goals=[
+            {"key": "old_trip", "content": "老师想去海边", "updated_at": 100.0},
+            {
+                "key": "ticket",
+                "content": "老师2026年9月1日下午2点要订回深圳的车票",
+                "updated_at": 200.0,
+            },
+        ],
+    )
+    if picked is not None and picked.kind == "goal":
+        _fail(f"stale ticket should not bypass daily cap, got {picked}")
     print("  ok")
 
 
@@ -1064,6 +1220,8 @@ def main() -> None:
         test_mute_last_goal_phrase(Path(tmp))
         test_goal_after_welcome_not_blocked_by_idle(Path(tmp))
         test_important_goal_bypasses_daily_cap_pick(Path(tmp))
+        test_goal_global_gap_blocks_other_keys(Path(tmp))
+        test_stale_dated_goal_uses_daily_cap(Path(tmp))
         test_festival_calendar_and_once(Path(tmp))
     test_hub_busy()
     test_config_loads()

@@ -41,6 +41,7 @@ from .goal import (
     build_goal_instruction,
     can_attempt_goal,
     has_important_goal,
+    last_any_goal_at,
     select_goal,
 )
 from .idle import (
@@ -348,6 +349,8 @@ class ProactiveScheduler:
                 min_after_user_sec=float(self.goal_cfg.min_after_user_sec),
                 max_per_day=int(self.goal_cfg.max_per_day),
                 has_important=has_important,
+                last_goal_at=last_any_goal_at(self.state.goal_last),
+                min_gap_sec=important_cd,
             ):
                 selected = select_goal(
                     goals_list,

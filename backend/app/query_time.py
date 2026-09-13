@@ -283,16 +283,18 @@ def is_currently_important(
     *,
     horizon_hours: float = 36,
 ) -> bool:
-    """True if content has a date that is overdue, today, or within horizon."""
+    """True if content has a date today, within horizon, or overdue within horizon."""
     dt = now or datetime.now()
     events = parse_content_datetimes(content)
     if not events:
         return False
     horizon = timedelta(hours=max(0.0, float(horizon_hours)))
     today = dt.date()
+    earliest = dt - horizon
+    latest = dt + horizon
     for event in events:
-        if event.date() <= today:
+        if event.date() == today:
             return True
-        if event <= dt + horizon:
+        if earliest <= event <= latest:
             return True
     return False
