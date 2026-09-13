@@ -64,11 +64,12 @@
 	DebugManager::instance()->sendDebugMessage(QString(ERROR_PR) + _text, __FUNCTION__); \
 } while(0)
 
-// OpenGL初始化，启用抗锯齿和透明度支持
+// OpenGL初始化：半透明 overlay 用 2x MSAA，交换缓冲区对齐 vsync
 #define OPENGL_INITIALLIZE do { \
 	QSurfaceFormat format; \
 	format.setAlphaBufferSize(8); \
-	format.setSamples(4); \
+	format.setSamples(2); \
+	format.setSwapInterval(1); \
 	QSurfaceFormat::setDefaultFormat(format); \
 } while(0)
 

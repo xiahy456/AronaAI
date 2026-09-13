@@ -32,8 +32,11 @@
 #include <spine/MeshAttachment.h>
 #include <spine/Slot.h>
 #include <QDebug>
+#include <QHideEvent>
 #include <QMatrix4x4>
+#include <QShowEvent>
 #include <cmath>
+#include <cstddef>
 
 namespace {
     constexpr float kSpineOriginX = 110.0f;
@@ -63,27 +66,21 @@ namespace {
 
 QtSpineManager::QtSpineManager(QWidget* parent) : QOpenGLWidget(parent)
 {
-    // 窗口控件
-    this->setAttribute(Qt::WA_TranslucentBackground);	// 设置窗口背景透明
-    //this->setAttribute(Qt::WA_TransparentForMouseEvents, true); // 设置鼠标穿透点击
-    this->setWindowFlag(Qt::FramelessWindowHint);	// 设置无边框窗口
-    this->setWindowFlag(Qt::WindowStaysOnTopHint);	// 设置窗口始终在顶部
-    //this->setWindowFlag(Qt::ToolTip);	// 隐藏应用程序图标
-	//this->setWindowOpacity(0.5);    // 设置窗口半透明（0.0完全透明，1.0完全不透明）
-	this->setAutoFillBackground(false);   // 禁用自动填充背景，确保paintGL的背景颜色生效
-    this->resize(220 * WIDGET_ZOOM, 440 * WIDGET_ZOOM); // 设置窗口大小
+    // 作为 MainWidget 的子控件：透明背景即可，置顶/无边框只应由顶层窗口设置
+    this->setAttribute(Qt::WA_TranslucentBackground);
+    this->setAutoFillBackground(false);
+    this->resize(220 * WIDGET_ZOOM, 440 * WIDGET_ZOOM);
     refreshSpineViewTransform();
 
-    // 启动事件过滤器
     this->installEventFilter(this);
 
-    // 动画计时器
-    connect(&m_timer, &QTimer::timeout, this, &QtSpineManager::updateAnimation);
-    m_timer.start((int)(1000 / GET_INT_FROM_JSON(_global_config, "settings", "frame_rate")));
+    m_elapsedTimer.start();
+    m_renderLoopActive = true;
 }
 
 QtSpineManager::~QtSpineManager()
 {
+    m_renderLoopActive = false;
     makeCurrent();
 
     delete m_vbo;
@@ -160,81 +157,108 @@ void QtSpineManager::initializeGL()
     m_u_textureLoc = m_program->uniformLocation("u_texture");
     m_u_premultipliedLoc = m_program->uniformLocation("u_premultiplied");
 
-    // 创建VBO
+    // 创建VBO / VAO，顶点布局只绑定一次
     m_vbo = new QOpenGLBuffer(QOpenGLBuffer::VertexBuffer);
     m_vbo->create();
     m_vbo->setUsagePattern(QOpenGLBuffer::DynamicDraw);
 
-    // 创建VAO
     m_vao = new QOpenGLVertexArrayObject();
     m_vao->create();
+
+    m_vao->bind();
+    m_vbo->bind();
+    const size_t vertexSize = sizeof(SpineVertex);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)offsetof(SpineVertex, x));
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)offsetof(SpineVertex, u));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, vertexSize, (void*)offsetof(SpineVertex, r));
+    glEnableVertexAttribArray(2);
+    m_vbo->release();
+    m_vao->release();
 
     FINE_DEBUG_OUTPUT("[Spine Operation]OpenGL initialized successfully");
     m_glReady = true;
     emit glReady();
+    requestNextFrame();
 }
 
 void QtSpineManager::paintGL()
 {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    if (!m_skeleton || !m_program || !m_program->isLinked()) {
-        return;
+    updateAnimation();
+
+    if (m_skeleton && m_program && m_program->isLinked()) {
+        QMatrix4x4 projection;
+        const int w = width();
+        const int h = height();
+        projection.ortho(0, w, h, 0, -1, 1);
+
+        QMatrix4x4 transform;
+        transform.translate(m_spineX, m_spineY);
+        transform.scale(m_scale, -m_scale);
+
+        QMatrix4x4 matrix = projection * transform;
+
+        m_program->bind();
+        m_program->setUniformValue(m_u_matrixLoc, matrix);
+        m_program->setUniformValue(m_u_textureLoc, 0);
+
+        m_usedBatches = 0;
+
+        spine::Vector<spine::Slot*>& slots = m_skeleton->getDrawOrder();
+        for (size_t i = 0; i < slots.size(); ++i) {
+            spine::Slot* slot = slots[i];
+            if (!slot) continue;
+
+            spine::Attachment* attachment = slot->getAttachment();
+            if (!attachment) continue;
+
+            const spine::Color color = slot->getColor();
+
+            if (attachment->getRTTI().instanceOf(spine::RegionAttachment::rtti)) {
+                auto* regionAttachment = static_cast<spine::RegionAttachment*>(attachment);
+                collectRegionAttachmentVertices(regionAttachment, slot, color);
+            }
+            else if (attachment->getRTTI().instanceOf(spine::MeshAttachment::rtti)) {
+                auto* meshAttachment = static_cast<spine::MeshAttachment*>(attachment);
+                collectMeshAttachmentVertices(meshAttachment, slot, color);
+            }
+        }
+
+        flushBatches();
+        m_program->release();
     }
 
-    // 设置投影矩阵 - 移除视图变换，让骨骼在原始位置
-    QMatrix4x4 projection;
-    int w = width();
-    int h = height();
-
-    // 使用正交投影，Y轴向下以匹配屏幕坐标
-    projection.ortho(0, w, h, 0, -1, 1);
-
-    // 创建视图矩阵，用于移动整个Spine动画（与命中坐标共用 origin/scale）
-    refreshSpineViewTransform();
-    QMatrix4x4 transform;
-    transform.translate(m_spineX, m_spineY);
-    transform.scale(m_scale, -m_scale);
-
-    // 组合矩阵：最终位置 = 投影 * 视图
-    QMatrix4x4 matrix = projection * transform;
-
-    m_program->bind();
-    m_program->setUniformValue(m_u_matrixLoc, matrix);
-    m_program->setUniformValue(m_u_textureLoc, 0);
-
-    m_batches.clear();
-
-    // 收集所有顶点数据
-    spine::Vector<spine::Slot*>& slots_rev = m_skeleton->getSlots();
-    for (size_t i = 0; i < slots_rev.size(); ++i) {
-        spine::Slot* slot = slots_rev[i];
-        if (!slot) continue;
-
-        spine::Attachment* attachment = slot->getAttachment();
-        if (!attachment) continue;
-
-        spine::Color color = slot->getColor();
-
-        if (attachment->getRTTI().instanceOf(spine::RegionAttachment::rtti)) {
-            auto* regionAttachment = static_cast<spine::RegionAttachment*>(attachment);
-            collectRegionAttachmentVertices(regionAttachment, slot, color);
-        }
-        else if (attachment->getRTTI().instanceOf(spine::MeshAttachment::rtti)) {
-            auto* meshAttachment = static_cast<spine::MeshAttachment*>(attachment);
-            collectMeshAttachmentVertices(meshAttachment, slot, color);
-        }
-    }
-
-    // 渲染所有批次
-    flushBatches();
-
-    m_program->release();
+    requestNextFrame();
 }
 
 void QtSpineManager::resizeGL(int w, int h)
 {
     glViewport(0, 0, w, h);
+    m_cachedZoom = -1.0f;
+    refreshSpineViewTransform();
+}
+
+void QtSpineManager::showEvent(QShowEvent* event)
+{
+    QOpenGLWidget::showEvent(event);
+    m_renderLoopActive = true;
+    requestNextFrame();
+}
+
+void QtSpineManager::hideEvent(QHideEvent* event)
+{
+    m_renderLoopActive = false;
+    QOpenGLWidget::hideEvent(event);
+}
+
+void QtSpineManager::requestNextFrame()
+{
+    if (m_renderLoopActive) {
+        update();
+    }
 }
 
 void QtSpineManager::mousePressEvent(QMouseEvent* event)
@@ -277,22 +301,17 @@ void QtSpineManager::updateAnimation()
         return;
     }
 
-    // 使用QElapsedTimer计算时间差
-    float now = m_elapsedTimer.elapsed() / 1000.0f;
-    if (m_lastTime == 0.0f) {
-        m_lastTime = now;
-        m_elapsedTimer.start();
+    const qint64 nowNs = m_elapsedTimer.nsecsElapsed();
+    float deltaTime = static_cast<float>(nowNs - m_lastTimeNs) / 1000000000.0f;
+    m_lastTimeNs = nowNs;
+
+    if (deltaTime > 0.1f) {
+        deltaTime = 0.1f;
+    }
+    if (deltaTime <= 0.0f) {
         return;
     }
 
-    float deltaTime = now - m_lastTime;
-    m_lastTime = now;
-
-    // 限制最大deltaTime，避免卡顿时跳跃太大
-    if (deltaTime > 0.1f) deltaTime = 0.1f;
-    if (deltaTime < 0.001f) return; // 时间差太小就不更新
-
-    // 更新动画
     m_animationState->update(deltaTime);
     m_animationState->apply(*m_skeleton);
     if (m_patActive || m_patEnding) {
@@ -311,9 +330,6 @@ void QtSpineManager::updateAnimation()
         }
     }
     m_skeleton->updateWorldTransform(spine::Physics_Update);
-
-    // 请求重绘
-    update();
 }
 
 void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skelOrJsonPath)
@@ -350,8 +366,8 @@ void QtSpineManager::loadSpineFile(const QString& atlasPath, const QString& skel
 
     m_skeleton = new spine::Skeleton(m_skeletonData);
     m_animationStateData = new spine::AnimationStateData(m_skeletonData);
-    // 设置默认混合时间
-    m_animationStateData->setDefaultMix(GET_DOUBLE_FROM_JSON(_global_config, "spine", "animation_default_mix"));
+    m_defaultMix = static_cast<float>(GET_DOUBLE_FROM_JSON(_global_config, "spine", "animation_default_mix"));
+    m_animationStateData->setDefaultMix(m_defaultMix);
     m_animationState = new spine::AnimationState(m_animationStateData);
     m_skeleton->setToSetupPose();
     refreshSpineViewTransform();
@@ -373,15 +389,10 @@ void QtSpineManager::setAnimation(const QString& name, int track_idx, bool loop)
 
     spine::Animation* anim = m_skeletonData->findAnimation(name.toStdString().c_str());
     if (anim) {
-        // 设置动画为空
-        if (!m_animationState->getCurrent(track_idx)) {
-            m_animationState->setEmptyAnimation(track_idx, 0.0f); // 设置一个空动画，确保骨骼回到初始状态
-		}
-        // 启动动画
-        spine::TrackEntry* entry = m_animationState->addAnimation(track_idx, anim, loop, 0.0f); // 添加动画到队列，确保连续播放
-		// 设置混合时间
-		entry->setMixDuration(GET_DOUBLE_FROM_JSON(_global_config, "spine", "animation_default_mix"));
-        m_lastTime = 0;
+        spine::TrackEntry* entry = m_animationState->setAnimation(track_idx, anim, loop);
+        if (entry) {
+            entry->setMixDuration(m_defaultMix);
+        }
         FINE_DEBUG_OUTPUT("[Spine Operation]Set animation:" + name);
     }
     else {
@@ -392,9 +403,7 @@ void QtSpineManager::setAnimation(const QString& name, int track_idx, bool loop)
 void QtSpineManager::clearAnimation(int track_idx, float mix_duration)
 {
     if (!m_animationState) return;
-    //m_animationState->clearTrack(track_idx);
-	m_animationState->setEmptyAnimation(track_idx, mix_duration); // 设置一个空动画，确保骨骼回到初始状态
-    m_lastTime = 0;
+    m_animationState->setEmptyAnimation(track_idx, mix_duration);
     FINE_DEBUG_OUTPUT("[Spine Operation]Cleared animation on track:" + QString::number(track_idx));
 }
 
@@ -429,31 +438,18 @@ void QtSpineManager::collectMeshAttachmentVertices(spine::MeshAttachment* attach
     // 如果透明度为0，跳过渲染
     if (finalA <= 0.0f) return;
 
-    // 查找或创建批次
-    TextureBatch* batch = nullptr;
-    for (auto& b : m_batches) {
-        if (b.textureId == textureId) {
-            batch = &b;
-            break;
-        }
-    }
+    TextureBatch* batch = acquireBatch(textureId, premultiplied);
+    if (!batch) return;
 
-    if (!batch) {
-        TextureBatch newBatch;
-        newBatch.textureId = textureId;
-        newBatch.premultiplied = premultiplied;
-        m_batches.append(newBatch);
-        batch = &m_batches.last();
+    if (m_worldVertices.size() < static_cast<size_t>(numVertices)) {
+        m_worldVertices.resize(static_cast<size_t>(numVertices));
     }
-
-    // 计算世界坐标
-    std::vector<float> worldVertices(numVertices);
-    attachment->computeWorldVertices(*slot, 0, numVertices, worldVertices.data(), 0, 2);
+    attachment->computeWorldVertices(*slot, 0, numVertices, m_worldVertices.data(), 0, 2);
 
     int vertexCount = numVertices / 2;
-    int triangleCount = triangles.size() / 3;
+    int triangleCount = static_cast<int>(triangles.size() / 3);
+    batch->vertices.reserve(batch->vertices.size() + triangleCount * 3);
 
-    // 处理三角形
     for (int i = 0; i < triangleCount; ++i) {
         int baseIdx = i * 3;
         if (baseIdx + 2 >= (int)triangles.size()) break;
@@ -464,7 +460,6 @@ void QtSpineManager::collectMeshAttachmentVertices(spine::MeshAttachment* attach
 
         if (idx1 >= vertexCount || idx2 >= vertexCount || idx3 >= vertexCount) continue;
 
-        // 处理三个顶点
         int indices[3] = { idx1, idx2, idx3 };
         for (int j = 0; j < 3; ++j) {
             int idx = indices[j];
@@ -474,12 +469,10 @@ void QtSpineManager::collectMeshAttachmentVertices(spine::MeshAttachment* attach
             if (worldIdx + 1 >= numVertices || uvIdx + 1 >= (int)uvs.size()) continue;
 
             SpineVertex vertex;
-            vertex.x = worldVertices[worldIdx];
-            vertex.y = worldVertices[worldIdx + 1];
+            vertex.x = m_worldVertices[worldIdx];
+            vertex.y = m_worldVertices[worldIdx + 1];
             vertex.u = uvs[uvIdx];
             vertex.v = uvs[uvIdx + 1];
-
-            // 使用计算好的颜色
             vertex.r = finalR;
             vertex.g = finalG;
             vertex.b = finalB;
@@ -501,7 +494,7 @@ void QtSpineManager::collectRegionAttachmentVertices(spine::RegionAttachment* at
     const bool premultiplied = getTexturePremultiplied(attachment);
 
     float worldVertices[8];
-    attachment->computeWorldVertices(*slot, worldVertices, 0, 8);
+    attachment->computeWorldVertices(*slot, worldVertices, 0, 2);
 
     float uvs[8];
     for (int i = 0; i < 8; i++) {
@@ -522,28 +515,13 @@ void QtSpineManager::collectRegionAttachmentVertices(spine::RegionAttachment* at
     // 如果透明度为0，跳过渲染
     if (finalA <= 0.0f) return;
 
-    TextureBatch* batch = nullptr;
-    for (auto& b : m_batches) {
-        if (b.textureId == textureId) {
-            batch = &b;
-            break;
-        }
-    }
+    TextureBatch* batch = acquireBatch(textureId, premultiplied);
+    if (!batch) return;
 
-    if (!batch) {
-        TextureBatch newBatch;
-        newBatch.textureId = textureId;
-        newBatch.premultiplied = premultiplied;
-        m_batches.append(newBatch);
-        batch = &m_batches.last();
-    }
-
-    // 三角形1
+    batch->vertices.reserve(batch->vertices.size() + 6);
     batch->vertices.append({ worldVertices[0], worldVertices[1], uvs[0], uvs[1], finalR, finalG, finalB, finalA });
     batch->vertices.append({ worldVertices[2], worldVertices[3], uvs[2], uvs[3], finalR, finalG, finalB, finalA });
     batch->vertices.append({ worldVertices[4], worldVertices[5], uvs[4], uvs[5], finalR, finalG, finalB, finalA });
-
-    // 三角形2
     batch->vertices.append({ worldVertices[2], worldVertices[3], uvs[2], uvs[3], finalR, finalG, finalB, finalA });
     batch->vertices.append({ worldVertices[6], worldVertices[7], uvs[6], uvs[7], finalR, finalG, finalB, finalA });
     batch->vertices.append({ worldVertices[4], worldVertices[5], uvs[4], uvs[5], finalR, finalG, finalB, finalA });
@@ -551,58 +529,57 @@ void QtSpineManager::collectRegionAttachmentVertices(spine::RegionAttachment* at
 
 void QtSpineManager::flushBatches()
 {
-    if (m_batches.isEmpty()) return;
+    if (m_usedBatches <= 0 || !m_vbo || !m_vao) return;
 
-    m_vbo->bind();
     m_vao->bind();
+    m_vbo->bind();
 
-    // 设置顶点属性指针
-    size_t vertexSize = sizeof(SpineVertex);
-
-    // 位置属性 (2 floats)
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)offsetof(SpineVertex, x));
-    glEnableVertexAttribArray(0);
-
-    // 纹理坐标属性 (2 floats)
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, vertexSize, (void*)offsetof(SpineVertex, u));
-    glEnableVertexAttribArray(1);
-
-    // 颜色属性 (4 floats)
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, vertexSize, (void*)offsetof(SpineVertex, r));
-    glEnableVertexAttribArray(2);
-
-    int totalVertices = 0;
-    for (const auto& batch : m_batches) {
-        totalVertices += batch.vertices.size();
-    }
-
-    for (const auto& batch : m_batches) {
+    for (int i = 0; i < m_usedBatches; ++i) {
+        const TextureBatch& batch = m_batches[i];
         if (batch.vertices.isEmpty() || batch.textureId == 0) continue;
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, batch.textureId);
         m_program->setUniformValue(m_u_premultipliedLoc, batch.premultiplied ? 1 : 0);
 
-        // 设置纹理参数
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-        int dataSize = batch.vertices.size() * sizeof(SpineVertex);
-        m_vbo->allocate(batch.vertices.constData(), dataSize);
-
-        glDrawArrays(GL_TRIANGLES, 0, batch.vertices.size());
-
-        GLenum error = glGetError();
-        if (error != GL_NO_ERROR) {
-            ERROR_DEBUG_OUTPUT("[Spine Operation]OpenGL error:" + QString::number(error));
+        const int dataSize = batch.vertices.size() * static_cast<int>(sizeof(SpineVertex));
+        if (dataSize > m_vboAllocatedBytes) {
+            m_vboAllocatedBytes = dataSize + dataSize / 2;
+            m_vbo->allocate(m_vboAllocatedBytes);
         }
+        m_vbo->write(0, batch.vertices.constData(), dataSize);
+        glDrawArrays(GL_TRIANGLES, 0, batch.vertices.size());
     }
 
     m_vao->release();
     m_vbo->release();
-    m_batches.clear();
+}
+
+QtSpineManager::TextureBatch* QtSpineManager::acquireBatch(GLuint textureId, bool premultiplied)
+{
+    if (m_usedBatches > 0) {
+        TextureBatch& last = m_batches[m_usedBatches - 1];
+        if (last.textureId == textureId && last.premultiplied == premultiplied) {
+            return &last;
+        }
+    }
+
+    if (m_usedBatches < m_batches.size()) {
+        TextureBatch& batch = m_batches[m_usedBatches];
+        batch.textureId = textureId;
+        batch.premultiplied = premultiplied;
+        batch.vertices.clear();
+        ++m_usedBatches;
+        return &batch;
+    }
+
+    TextureBatch batch;
+    batch.textureId = textureId;
+    batch.premultiplied = premultiplied;
+    batch.vertices.reserve(4096);
+    m_batches.append(batch);
+    ++m_usedBatches;
+    return &m_batches.last();
 }
 
 void QtSpineManager::setAttachmentRelativeTransform(const QString& slotName, float offsetX, float offsetY, float rotation, float scaleX, float scaleY)
@@ -653,6 +630,10 @@ void QtSpineManager::setAttachmentRelativeTransform(const QString& slotName, flo
 void QtSpineManager::refreshSpineViewTransform()
 {
     const float zoom = static_cast<float>(WIDGET_ZOOM);
+    if (m_cachedZoom == zoom) {
+        return;
+    }
+    m_cachedZoom = zoom;
     m_spineX = kSpineOriginX * zoom;
     m_spineY = kSpineOriginY * zoom;
     m_scale = kSpineVisualScale * zoom;

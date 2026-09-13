@@ -29,7 +29,6 @@
 #include <QOpenGLShaderProgram>
 #include <QOpenGLBuffer>
 #include <QOpenGLVertexArrayObject>
-#include <QTimer>
 #include <QElapsedTimer>
 #include <QVector>
 #include <QOpenGLTexture>
@@ -38,10 +37,13 @@
 #include <QPoint>
 #include <QPointF>
 #include <QMouseEvent>
+#include <QShowEvent>
+#include <QHideEvent>
 #include <QCoreApplication>
 #include <QApplication>
 
 #include <memory>
+#include <vector>
 
 namespace spine {
     class SkeletonData;
@@ -93,25 +95,25 @@ protected:
     void initializeGL() override;
     void paintGL() override;
     void resizeGL(int w, int h) override;
+    void showEvent(QShowEvent* event) override;
+    void hideEvent(QHideEvent* event) override;
 
     // 重写鼠标事件
     void mousePressEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
 
-private slots:
-    // 更新动画
-    void updateAnimation();
-
 private:
-    // 辅助函数
+    void updateAnimation();
     GLuint getTextureId(spine::RegionAttachment* attachment);
     GLuint getTextureId(spine::MeshAttachment* attachment);
     bool getTexturePremultiplied(spine::RegionAttachment* attachment);
     bool getTexturePremultiplied(spine::MeshAttachment* attachment);
     void collectRegionAttachmentVertices(spine::RegionAttachment* attachment, spine::Slot* slot, const spine::Color& slotColor);
     void collectMeshAttachmentVertices(spine::MeshAttachment* attachment, spine::Slot* slot, const spine::Color& slotColor);
+    TextureBatch* acquireBatch(GLuint textureId, bool premultiplied);
     void flushBatches();
+    void requestNextFrame();
     void setAttachmentRelativeTransform(const QString& slotName, float offsetX, float offsetY, float rotation = 0.0f, float scaleX = 1.0f, float scaleY = 1.0f);
 
     void refreshSpineViewTransform();
@@ -141,10 +143,13 @@ private:
     float m_spineY = 0.0f;
     float m_scale = 1.0f;
 
-    // 定时器
-    QTimer m_timer;
+    // vsync 驱动的动画时钟（QElapsedTimer 只 start 一次）
     QElapsedTimer m_elapsedTimer;
-    float m_lastTime = 0.0f;
+    qint64 m_lastTimeNs = 0;
+    bool m_renderLoopActive = true;
+
+    float m_defaultMix = 0.2f;
+    float m_cachedZoom = -1.0f;
 
     // 摸头状态
     bool m_leftDown = false;
@@ -164,6 +169,7 @@ private:
     QOpenGLShaderProgram* m_program = nullptr;
     QOpenGLBuffer* m_vbo = nullptr;
     QOpenGLVertexArrayObject* m_vao = nullptr;
+    int m_vboAllocatedBytes = 0;
     bool m_glReady = false;
 
     // 统一变量位置
@@ -171,8 +177,10 @@ private:
     GLint m_u_textureLoc;
     GLint m_u_premultipliedLoc;
 
-    // 批次数据
+    // 批次数据（跨帧复用 QVector 容量）
     QVector<TextureBatch> m_batches;
+    int m_usedBatches = 0;
+    std::vector<float> m_worldVertices;
 };
 
 #endif // QTSPINEWIDGET_H
