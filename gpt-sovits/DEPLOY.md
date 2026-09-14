@@ -88,23 +88,6 @@ gpt-sovits/
 └── ref_audio/Arona/arona_academy_in_2.ogg
 ```
 
-`GPT_SoVITS/configs/tts_infer.yaml` 的 `custom` 段应指向上述两个权重（本机若已按项目配置过，一般不用改）：
-
-```yaml
-custom:
-  version: v2
-  t2s_weights_path: GPT_weights_v2/ALuoNa_cn-e15.ckpt
-  vits_weights_path: SoVITS_weights_v2/ALuoNa_cn_e16_s256.pth
-  device: cuda
-  is_half: true
-```
-
-参考音频对应文案必须与客户端 `tts.prompt_text` 一致：
-
-```text
-这里为您准备了各种课程和活动，请按您喜欢的方式安排日程吧！
-```
-
 路径一律相对 **GPT-SoVITS 进程工作目录**（即 `gpt-sovits/`），不要写成客户端本机路径。
 
 ### 3. 启动 API
