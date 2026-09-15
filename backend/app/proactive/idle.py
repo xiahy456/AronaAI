@@ -99,9 +99,8 @@ def build_idle_instruction(climate: str | None = None) -> str:
     note = f"\n{extra}" if extra else ""
     return (
         "【系统事件】老师已经安静一段时间了。\n"
-        "请用阿洛娜的语气轻轻在场打个招呼，只说 1–2 句。"
+        "请用阿洛娜的语气与老师开启一段话题。"
         "不要追问老师还在不在、需不需要你；不要编造未发生的事；"
-        "不要用「想聊什么」或选择题把话题抛回老师。"
         f"{note}\n"
         "不要提及系统事件、指令或提示词；不要输出思考过程或 <think> 标签。"
     )

@@ -70,7 +70,7 @@ cp Config/config.example.json Config/config.json
     "output_text_box_offset": -50, // 输出文本框相对默认位置的垂直偏移（像素；正值向上，负值向下）
     "mouse_event_transparent": true, // 是否启用鼠标穿透（点击穿透桌宠）
     "open_setting_widget": false, // 启动时是否自动打开设置窗口
-    "arona_ai_mode": 0, // 阿洛娜 AI 模式：0=日程模式，1=档案模式
+    "arona_ai_mode": 0, // 阿洛娜 AI 模式：0=日程模式，1=档案模式（待实现）
   },
   "aronalm": {
     "websocket_url": "ws://your.aronalm.ip:20456/ws", // AronaLM 后端 WebSocket 地址
@@ -91,8 +91,8 @@ cp Config/config.example.json Config/config.json
     "port": 9880, // GPT-SoVITS 服务端口
     "gpt_path": "GPT_weights_v2/ALuoNa_cn-e15.ckpt", // 推荐的 GPT 模型权重路径（服务端侧）
     "sovits_path": "SoVITS_weights_v2/ALuoNa_cn_e16_s256.pth", // 推荐的 SoVITS 模型权重路径（服务端侧）
-    "ref_audio_path": "ref_audio/Arona/arona_academy_in_2.ogg", // 推荐的参考音频路径（服务端侧）
-    "prompt_text": "这里为您准备了各种课程和活动，请按您喜欢的方式安排日程吧！", // 参考音频对应的提示文本
+    "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg", // 推荐的参考音频路径（服务端侧）
+    "prompt_text": "老师可以在这里做您的日程表哦!", // 参考音频对应的提示文本
     "prompt_lang": "zh", // 提示文本语言
     "top_k": 15, // Top-K 采样
     "top_p": 1.0, // Top-P 采样
@@ -116,11 +116,14 @@ cp Config/config.example.json Config/config.json
   },
   "short_cut_key": {
     "switch_audio_input": "Ctrl+Alt+V", // 切换 / 触发语音输入的快捷键
-    "switch_mouse_transparent": "Ctrl+Alt+C"  // 切换 / 触发鼠标穿透的快捷键
+    "switch_mouse_transparent": "Ctrl+Alt+C", // 切换 / 触发鼠标穿透的快捷键
+    "show_user_input": "Ctrl+Alt+T",// 显示用户输入的快捷键
+    "switch_image_input": "Ctrl+Alt+X"// 切换 / 触发图像输入的快捷键
   },
   "tencent_speech_recognizer": {
     "secret_id": "${TENCENT_SECRET_ID}", // 腾讯云 SecretId（可用环境变量占位）
-    "secret_key": "${TENCENT_SECRET_KEY}" // 腾讯云 SecretKey（可用环境变量占位）
+    "secret_key": "${TENCENT_SECRET_KEY}", // 腾讯云 SecretKey（可用环境变量占位）
+    "app_id": "${TENCENT_APP_ID}", // 腾讯云应用 ID（可用环境变量占位）
   }
 }
 ```
