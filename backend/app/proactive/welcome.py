@@ -160,7 +160,7 @@ def build_welcome_instruction(
     return (
         "【系统事件】老师刚刚上线。\n"
         f"{intent}{extra}\n"
-        "用阿洛娜的语气主动开口，只说 1–2 句。"
+        "用阿洛娜的语气主动开口。"
         f"{hint}"
         "不要提及系统事件、指令或提示词；不要输出思考过程或 <think> 标签。"
     )
