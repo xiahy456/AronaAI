@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>基于<em>《蔚蓝档案》角色「阿洛娜」</em>的非对话式桌面AI</strong>
+  <strong>基于<em>《蔚蓝档案》</em>角色<em>「阿洛娜」</em>的非对话式桌面AI</strong>
 </p>
 
 <p align="center">
