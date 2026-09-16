@@ -423,7 +423,7 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                 client=VisionClient(state.config.planner, cfg),
                 user_text=user_text,
                 run_id=cu_run_id,
-                max_steps=max(1, int(cfg.max_steps or 5)),
+                max_steps=max(1, int(cfg.max_steps or 8)),
             )
             await _send_agent_terminal(result, user_text=user_text, speak=True)
             sent_terminal = True
@@ -496,7 +496,10 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         try:
             try:
                 router = ComputerUseRouter(state.config.planner, cfg)
-                operate = await router.should_operate(content)
+                operate = await router.should_operate(
+                    content,
+                    history=state.conversations.get_history(session_id),
+                )
             except Exception:
                 logger.exception("computer_use route error session=%s", session_id)
                 operate = False

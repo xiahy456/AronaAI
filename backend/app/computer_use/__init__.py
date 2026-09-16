@@ -34,7 +34,13 @@ from .prompts import (
     HISTORY_COMPUTER_USE_MARKER,
     build_computer_use_instruction,
 )
-from .router import ComputerUseRouter, is_denied_computer_use, parse_route_decision
+from .router import (
+    ComputerUseRouter,
+    build_route_user_message,
+    format_route_history,
+    is_denied_computer_use,
+    parse_route_decision,
+)
 from .schema import (
     ACTION_WHITELIST,
     ComputerUseAction,
@@ -67,6 +73,8 @@ __all__ = [
     "ScreenGeometry",
     "VisionClient",
     "build_computer_use_instruction",
+    "build_route_user_message",
+    "format_route_history",
     "is_denied_computer_use",
     "is_probe_text",
     "parse_action",

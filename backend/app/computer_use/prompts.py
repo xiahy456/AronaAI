@@ -31,7 +31,8 @@ VISION_SYSTEM = """你是阿洛娜的电脑操作规划器。可以内部思考�
 - 看不清、会误点、超出短任务（多应用、填网页表单、拖拽、密码/UAC）立刻 done，不要猜。
 - done 必须带中文 summary，给阿洛娜向老师交代用，只写实际做了或为什么没做。
 - type 只用于当前已聚焦的输入框；key 的 combo 用 win、escape、enter、tab、ctrl+c 这种。
-- 打开开始菜单用 key combo="win"。
+- 打开一个应用：key combo="win" → 必要时短 wait（如 300ms）→ type 应用名 → key combo="enter"。再点正文 type。
+- 要开第二个应用立刻 done。
 可选 thought 只能作为 JSON 字段，不能写在对象外。
 示例：
 {"action":"key","combo":"win"}

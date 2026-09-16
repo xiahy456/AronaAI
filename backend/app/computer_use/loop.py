@@ -144,15 +144,16 @@ async def run_action_loop(
     wait_observation: WaitObservation,
     next_action: NextActionFn,
     abort_check: AbortCheck | None = None,
-    max_steps: int = 5,
+    max_steps: int = 8,
     run_id: str | None = None,
+    initial_observation: ComputerUseObservation | None = None,
 ) -> ProbeResult:
     """Drive one computer-use run. `done` is local and is not sent to the client."""
     rid = (run_id or "").strip() or str(uuid.uuid4())
     if max_steps < 1:
         return _fail_result(run_id=rid, completed=0, reason="max_steps")
 
-    last_obs: ComputerUseObservation | None = None
+    last_obs: ComputerUseObservation | None = initial_observation
     executed: list[ComputerUseAction] = []
     for index in range(1, max_steps + 1):
         if abort_check is not None and abort_check():

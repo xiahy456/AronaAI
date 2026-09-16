@@ -26,6 +26,8 @@ from .schema import extract_json_object
 
 logger = logging.getLogger(__name__)
 
+ROUTE_HISTORY_LIMIT = 4
+
 DENY_SUBSTRINGS = (
     "晚安",
     "早安",
@@ -43,10 +45,13 @@ DENY_SUBSTRINGS = (
 )
 
 ROUTER_SYSTEM = """你是桌面陪伴助手「阿洛娜」的电脑操作路由器。你不写台词，也不执行操作。
-判断老师这句话是不是在请阿洛娜立刻操作这台 Windows 电脑（短操作：开开始菜单、按快捷键、在当前输入框打几个字、点屏幕上已经能看清的大按钮）。
+结合【近期对话】和老师本段，判断是不是在请阿洛娜立刻操作这台 Windows 电脑。
 只输出一个 JSON 对象，不要 Markdown。
-computer_use 为 true 仅当：老师明确要求动手操作电脑，且任务短、不涉及聊天陪伴、不问感受。
-以下必须 false：问好、摸头、吃饭、想你、闲聊、提问、让阿洛娜说话、复杂多步/多应用、填表、密码、不确定。
+computer_use 为 true 仅当任务短、且是动手操作，例如：
+- 对当前已打开的窗口打几个字、点已经能看清的大按钮、按快捷键；
+- 或用开始菜单打开 **一个** 应用再打几个字（例如打开记事本写一句话）。
+上一轮已是【操作电脑】或阿洛娜刚交代过操作时，「写在记事本里 / 再写一段 / 继续」应倾向 true。
+以下必须 false：问好、摸头、吃饭、想你、闲聊、提问、只让阿洛娜说话、多应用切换、填网页表单、密码、不确定。
 拿不准必须 false。
 JSON：{"computer_use": false}"""
 
@@ -75,6 +80,38 @@ def parse_route_decision(raw: str | dict[str, Any] | None) -> bool:
     return False
 
 
+def format_route_history(
+    history: list[dict[str, str]] | None,
+    *,
+    limit: int = ROUTE_HISTORY_LIMIT,
+) -> str:
+    if not history:
+        return "（无）"
+    items = [item for item in history if isinstance(item, dict)][-max(1, limit) :]
+    lines: list[str] = []
+    for item in items:
+        role = str(item.get("role") or "").strip().lower()
+        content = str(item.get("content") or "").strip() or "（空）"
+        if role == "user":
+            lines.append(f"老师：{content}")
+        elif role == "assistant":
+            lines.append(f"阿洛娜：{content}")
+        else:
+            lines.append(content)
+    return "\n".join(lines) or "（无）"
+
+
+def build_route_user_message(
+    user_text: str | None,
+    history: list[dict[str, str]] | None = None,
+) -> str:
+    return (
+        f"【近期对话】\n{format_route_history(history)}\n"
+        f"【老师本段】{(user_text or '').strip()}\n"
+        "请输出唯一 JSON 对象。"
+    )
+
+
 class ComputerUseRouter:
     def __init__(self, planner: PlannerConfig, computer_use: ComputerUseConfig) -> None:
         self.planner = planner
@@ -89,7 +126,12 @@ class ComputerUseRouter:
             and key != "YOUR_DEEPSEEK_API_KEY"
         )
 
-    async def should_operate(self, user_text: str | None) -> bool:
+    async def should_operate(
+        self,
+        user_text: str | None,
+        *,
+        history: list[dict[str, str]] | None = None,
+    ) -> bool:
         text = (user_text or "").strip()
         if not text or is_denied_computer_use(text):
             logger.info("computer_use route deny text=%r", text)
@@ -99,14 +141,12 @@ class ComputerUseRouter:
             return False
         timeout = float(self.computer_use.route_timeout_sec or 3.0)
         url = self.planner.base_url.rstrip("/") + "/chat/completions"
+        user_payload = build_route_user_message(text, history)
         payload: dict[str, Any] = {
             "model": self.planner.model,
             "messages": [
                 {"role": "system", "content": ROUTER_SYSTEM},
-                {
-                    "role": "user",
-                    "content": f"【老师本段】{text}\n请输出唯一 JSON 对象。",
-                },
+                {"role": "user", "content": user_payload},
             ],
             "temperature": 0.0,
             "max_tokens": 64,

@@ -25,6 +25,8 @@ from app.computer_use import (  # noqa: E402
     ComputerUseRouter,
     ProbeResult,
     SchemaError,
+    build_route_user_message,
+    format_route_history,
     is_denied_computer_use,
     is_probe_text,
     parse_action,
@@ -540,6 +542,34 @@ def test_router_default_false() -> None:
     print("  ok")
 
 
+def test_format_route_history() -> None:
+    print("== format route history ==")
+    history = [
+        {"role": "user", "content": "【上线】"},
+        {"role": "assistant", "content": "欢迎回来"},
+        {"role": "user", "content": "【操作电脑】"},
+        {"role": "assistant", "content": "已经写好日期"},
+        {"role": "user", "content": "再写一篇介绍"},
+    ]
+    text = format_route_history(history)
+    if "【上线】" in text:
+        _fail("should keep only last 4 messages")
+    if "【操作电脑】" not in text:
+        _fail("should include computer-use marker")
+    if "已经写好日期" not in text:
+        _fail("should include last assistant line")
+    if format_route_history(None) != "（无）":
+        _fail("empty history should be placeholder")
+    msg = build_route_user_message("我是说写在记事本里啦", history)
+    if "【近期对话】" not in msg:
+        _fail("prompt should include history block")
+    if "我是说写在记事本里啦" not in msg:
+        _fail("prompt should include current text")
+    if "老师：【操作电脑】" not in msg:
+        _fail("prompt should label user turns")
+    print("  ok")
+
+
 # -- Vision JSON --
 
 def test_parse_vision_click_image_coords() -> None:
@@ -637,7 +667,7 @@ def test_agent_wait_then_done() -> None:
         send=send, wait_observation=wait_obs,
         client=fake,  # type: ignore[arg-type]
         user_text="按 Win 打开开始菜单",
-        run_id="agent-rid", max_steps=5,
+        run_id="agent-rid", max_steps=1,
     ))
     if not result.ok:
         _fail(f"ok={result.ok} reason={result.reason} summary={result.summary}")
@@ -652,11 +682,11 @@ def test_agent_wait_then_done() -> None:
     print("  ok")
 
 
-def test_agent_max_steps_truncates_sixth() -> None:
-    print("== agent max_steps truncates sixth ==")
+def test_agent_max_steps_truncates_ninth() -> None:
+    print("== agent max_steps truncates ninth ==")
     sent: list[dict[str, Any]] = []
     fake = _FakeVision(
-        [ComputerUseAction(action="wait", ms=0) for _ in range(8)]
+        [ComputerUseAction(action="wait", ms=300) for _ in range(12)]
     )
 
     async def send(payload: dict[str, Any]) -> None:
@@ -669,15 +699,17 @@ def test_agent_max_steps_truncates_sixth() -> None:
         send=send, wait_observation=wait_obs,
         client=fake,  # type: ignore[arg-type]
         user_text="帮我点按钮",
-        run_id="max5-rid", max_steps=5,
+        run_id="max8-rid", max_steps=8,
     ))
     if result.ok:
         _fail("ok should be False when truncated")
     if result.reason != "max_steps":
         _fail(f"reason={result.reason}")
-    if len(sent) != 5:
-        _fail(f"sent {len(sent)} actions, expected 5")
-    if result.steps_completed != 5:
+    if len(sent) != 9:
+        _fail(f"sent {len(sent)} actions, expected 1 bootstrap + 8 counted")
+    if sent[0]["action"] != "wait" or sent[0]["ms"] != 0 or sent[0]["step"] != 0:
+        _fail(f"bootstrap={sent[0]}")
+    if result.steps_completed != 8:
         _fail(f"steps_completed={result.steps_completed}")
     print("  ok")
 
@@ -802,12 +834,13 @@ def main() -> None:
         test_router_deny_words,
         test_router_parse_computer_use,
         test_router_default_false,
+        test_format_route_history,
         test_parse_vision_click_image_coords,
         test_parse_vision_done_requires_summary,
         test_parse_vision_rejects_unknown_action,
         test_parse_vision_last_json_after_thinking,
         test_agent_wait_then_done,
-        test_agent_max_steps_truncates_sixth,
+        test_agent_max_steps_truncates_ninth,
         test_run_action_loop_invalid_action,
         test_loop_recovers_after_type_when_no_json,
         test_agent_first_vision_none_fails,

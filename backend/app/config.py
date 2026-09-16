@@ -206,7 +206,7 @@ class ComputerUseConfig(BaseModel):
     probe_enabled: bool = True
     probe_token: str = "__cu_probe__"
     observation_timeout_sec: float = 8
-    max_steps: int = 5
+    max_steps: int = 8
     route_timeout_sec: float = 3
     vision_timeout_sec: float = 20
 
