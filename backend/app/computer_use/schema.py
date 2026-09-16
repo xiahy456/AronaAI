@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -28,6 +29,7 @@ ActionName = Literal[
     "click",
     "double_click",
     "right_click",
+    "middle_click",
     "drag",
     "right_drag",
     "scroll",
@@ -44,6 +46,7 @@ ACTION_WHITELIST = frozenset(
         "click",
         "double_click",
         "right_click",
+        "middle_click",
         "drag",
         "right_drag",
         "scroll",
@@ -59,12 +62,16 @@ POINTER_ACTIONS = frozenset(
         "click",
         "double_click",
         "right_click",
+        "middle_click",
         "drag",
         "right_drag",
         "scroll",
     }
 )
 DRAG_ACTIONS = frozenset({"drag", "right_drag"})
+SCROLL_DY_LIMIT = 8
+
+logger = logging.getLogger(__name__)
 
 
 class SchemaError(ValueError):
@@ -255,8 +262,20 @@ def _validate_action(action: ComputerUseAction) -> None:
             raise SchemaError(f"{action.action} requires x and y")
         if action.action in DRAG_ACTIONS and (action.x2 is None or action.y2 is None):
             raise SchemaError(f"{action.action} requires x2 and y2")
-        if action.action == "scroll" and action.dy is None:
-            raise SchemaError("scroll requires dy")
+        if action.action == "scroll":
+            if action.dy is None:
+                raise SchemaError("scroll requires dy")
+            notches = int(round(action.dy))
+            if notches == 0:
+                raise SchemaError("scroll requires non-zero dy")
+            clamped = max(-SCROLL_DY_LIMIT, min(SCROLL_DY_LIMIT, notches))
+            if clamped != notches:
+                logger.info(
+                    "computer_use scroll dy clamped from %s to %s",
+                    notches,
+                    clamped,
+                )
+            action.dy = float(clamped)
     elif action.action == "type":
         if not action.text:
             raise SchemaError("type requires text")

@@ -37,6 +37,7 @@ constexpr int kSettleMs = 16;
 constexpr int kDragMaxSteps = 24;
 constexpr int kDragStepMs = 8;
 constexpr int kDragPixelsPerStep = 40;
+constexpr int kScrollDyLimit = 8;
 
 #ifdef Q_OS_WIN
 WORD virtualKeyFromName(const QString& name)
@@ -337,6 +338,7 @@ bool ComputerUseExecutor::performAction(const QJsonObject& action, QString* erro
 		|| name == QLatin1String("click")
 		|| name == QLatin1String("double_click")
 		|| name == QLatin1String("right_click")
+		|| name == QLatin1String("middle_click")
 		|| name == QLatin1String("drag")
 		|| name == QLatin1String("right_drag")
 		|| name == QLatin1String("scroll")) {
@@ -407,6 +409,9 @@ bool ComputerUseExecutor::performAction(const QJsonObject& action, QString* erro
 		if (name == QLatin1String("right_click")) {
 			return sendMouseButton(MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, error);
 		}
+		if (name == QLatin1String("middle_click")) {
+			return sendMouseButton(MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, error);
+		}
 		if (name == QLatin1String("scroll")) {
 			if (!action.contains(QStringLiteral("dy")) || action.value(QStringLiteral("dy")).isNull()) {
 				if (error) {
@@ -473,12 +478,18 @@ bool ComputerUseExecutor::sendMouseButton(int downFlag, int upFlag, QString* err
 	if (downFlag == MOUSEEVENTF_RIGHTDOWN) {
 		m_rightDown = true;
 	}
+	if (downFlag == MOUSEEVENTF_MIDDLEDOWN) {
+		m_middleDown = true;
+	}
 	const UINT sent = SendInput(2, inputs, sizeof(INPUT));
 	if (downFlag == MOUSEEVENTF_LEFTDOWN) {
 		m_leftDown = false;
 	}
 	if (downFlag == MOUSEEVENTF_RIGHTDOWN) {
 		m_rightDown = false;
+	}
+	if (downFlag == MOUSEEVENTF_MIDDLEDOWN) {
+		m_middleDown = false;
 	}
 	if (sent != 2) {
 		if (error) {
@@ -509,12 +520,18 @@ bool ComputerUseExecutor::sendMouseDown(int downFlag, QString* error)
 	if (downFlag == MOUSEEVENTF_RIGHTDOWN) {
 		m_rightDown = true;
 	}
+	if (downFlag == MOUSEEVENTF_MIDDLEDOWN) {
+		m_middleDown = true;
+	}
 	if (SendInput(1, &input, sizeof(INPUT)) != 1) {
 		if (downFlag == MOUSEEVENTF_LEFTDOWN) {
 			m_leftDown = false;
 		}
 		if (downFlag == MOUSEEVENTF_RIGHTDOWN) {
 			m_rightDown = false;
+		}
+		if (downFlag == MOUSEEVENTF_MIDDLEDOWN) {
+			m_middleDown = false;
 		}
 		if (error) {
 			*error = QStringLiteral("sendinput_failed");
@@ -544,6 +561,9 @@ bool ComputerUseExecutor::sendMouseUp(int upFlag, QString* error)
 		}
 		if (upFlag == MOUSEEVENTF_RIGHTUP) {
 			m_rightDown = false;
+		}
+		if (upFlag == MOUSEEVENTF_MIDDLEUP) {
+			m_middleDown = false;
 		}
 		return true;
 	}
@@ -634,10 +654,17 @@ bool ComputerUseExecutor::sendDrag(int startX, int startY, int endX, int endY, i
 bool ComputerUseExecutor::sendScroll(int dy, QString* error)
 {
 #ifdef Q_OS_WIN
+	const int clamped = qBound(-kScrollDyLimit, dy, kScrollDyLimit);
+	if (clamped == 0) {
+		if (error) {
+			*error = QStringLiteral("invalid_dy");
+		}
+		return false;
+	}
 	INPUT input{};
 	input.type = INPUT_MOUSE;
 	input.mi.dwFlags = MOUSEEVENTF_WHEEL;
-	input.mi.mouseData = static_cast<DWORD>(dy * WHEEL_DELTA);
+	input.mi.mouseData = static_cast<DWORD>(clamped * WHEEL_DELTA);
 	if (SendInput(1, &input, sizeof(INPUT)) != 1) {
 		if (error) {
 			*error = QStringLiteral("sendinput_failed");
@@ -774,6 +801,13 @@ void ComputerUseExecutor::releaseButtons()
 		input.mi.dwFlags = MOUSEEVENTF_RIGHTUP;
 		SendInput(1, &input, sizeof(INPUT));
 		m_rightDown = false;
+	}
+	if (m_middleDown) {
+		INPUT input{};
+		input.type = INPUT_MOUSE;
+		input.mi.dwFlags = MOUSEEVENTF_MIDDLEUP;
+		SendInput(1, &input, sizeof(INPUT));
+		m_middleDown = false;
 	}
 #endif
 }

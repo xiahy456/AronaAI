@@ -112,7 +112,7 @@ def test_probe_token_recognition() -> None:
 def test_action_whitelist() -> None:
     print("== action whitelist ==")
     expected = {
-        "move", "click", "double_click", "right_click",
+        "move", "click", "double_click", "right_click", "middle_click",
         "drag", "right_drag",
         "scroll", "type", "key", "wait", "done",
     }
@@ -188,6 +188,53 @@ def test_parse_action_drag() -> None:
     steps = format_executed_steps([drag])
     if "drag x=120.0 y=200.0 x2=480.0 y2=200.0" not in steps:
         _fail(f"executed steps should include endpoints: {steps}")
+    print("  ok")
+
+
+def test_parse_action_scroll_and_middle_click() -> None:
+    print("== parse action scroll / middle_click ==")
+    scroll = parse_action({
+        "action": "scroll",
+        "x": 640,
+        "y": 360,
+        "dy": -3,
+        "coord_space": "image",
+    })
+    if scroll.action != "scroll":
+        _fail(f"action={scroll.action}")
+    if scroll.dy != -3:
+        _fail(f"dy={scroll.dy}")
+    steps = format_executed_steps([scroll])
+    if "dy=-3.0" not in steps and "dy=-3" not in steps:
+        _fail(f"executed steps should include dy: {steps}")
+    clamped = parse_action({
+        "action": "scroll",
+        "x": 1,
+        "y": 2,
+        "dy": 20,
+    })
+    if clamped.dy != 8:
+        _fail(f"dy should clamp to 8, got {clamped.dy}")
+    try:
+        parse_action({"action": "scroll", "x": 0.5, "y": 0.5})
+        _fail("scroll without dy should fail")
+    except SchemaError:
+        pass
+    try:
+        parse_action({"action": "scroll", "x": 0.5, "y": 0.5, "dy": 0})
+        _fail("scroll dy=0 should fail")
+    except SchemaError:
+        pass
+    middle = parse_action({
+        "action": "middle_click",
+        "x": 100,
+        "y": 200,
+        "coord_space": "image",
+    })
+    if middle.action != "middle_click":
+        _fail(f"action={middle.action}")
+    if middle.x != 100 or middle.y != 200:
+        _fail(f"middle_click coords {middle}")
     print("  ok")
 
 
@@ -669,6 +716,25 @@ def test_parse_vision_drag_defaults_image() -> None:
     print("  ok")
 
 
+def test_parse_vision_scroll_and_middle_click_defaults_image() -> None:
+    print("== parse vision scroll / middle_click defaults image coords ==")
+    scroll = parse_vision_action(
+        '{"action":"scroll","x":640,"y":360,"dy":-3}'
+    )
+    if scroll.action != "scroll":
+        _fail(f"action={scroll.action}")
+    if scroll.coord_space != "image":
+        _fail(f"coord_space={scroll.coord_space}")
+    if scroll.dy != -3:
+        _fail(f"dy={scroll.dy}")
+    middle = parse_vision_action(
+        '{"action":"middle_click","x":10,"y":20}'
+    )
+    if middle.action != "middle_click" or middle.coord_space != "image":
+        _fail(f"middle_click={middle}")
+    print("  ok")
+
+
 def test_parse_vision_done_requires_summary() -> None:
     print("== parse vision done requires summary ==")
     action = parse_vision_action(
@@ -897,6 +963,7 @@ def main() -> None:
         test_parse_action_wait,
         test_parse_action_key,
         test_parse_action_drag,
+        test_parse_action_scroll_and_middle_click,
         test_parse_action_rejects_unknown,
         test_parse_action_rejects_bad_coord_space,
         test_parse_observation_ok,
@@ -922,6 +989,7 @@ def main() -> None:
         test_computer_use_history_content,
         test_parse_vision_click_image_coords,
         test_parse_vision_drag_defaults_image,
+        test_parse_vision_scroll_and_middle_click_defaults_image,
         test_parse_vision_done_requires_summary,
         test_parse_vision_rejects_unknown_action,
         test_parse_vision_last_json_after_thinking,

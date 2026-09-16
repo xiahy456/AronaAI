@@ -29,11 +29,12 @@ def computer_use_history_content(user_text: str | None) -> str:
 
 VISION_SYSTEM = """你是阿洛娜的电脑操作规划器。可以内部思考，但思考过程不要写进最终回复。
 老师请你在这台 Windows 电脑上做一件短任务。最终输出必须是唯一一个 JSON 动作对象，不要 Markdown。
-允许的 action：move、click、double_click、right_click、drag、right_drag、scroll、type、key、wait、done。
+允许的 action：move、click、double_click、right_click、middle_click、drag、right_drag、scroll、type、key、wait、done。
 规则：
-- 点击和拖拽用 JPEG 像素坐标：coord_space 必须是 "image"；坐标是当前截图像素，原点左上。
-- click / double_click / right_click 会移动并点击，不必先 move。
+- 点击、拖拽、滚轮用 JPEG 像素坐标：coord_space 必须是 "image"；坐标是当前截图像素，原点左上。
+- click / double_click / right_click / middle_click 会移动并点击，不必先 move。浏览器新标签等用 middle_click。
 - 当前窗口内短拖（滑块、选区、画一笔、拖窗口）用 drag（左键）或 right_drag（右键），带起点 x/y 和终点 x2/y2，不必先 move。
+- 当前窗口内滚列表用 scroll：先移到 x/y，dy 是滚轮格不是像素；dy>0 向上，dy<0 向下；一次用 1 到 8 格。
 - 看不清、会误点、超出短任务（多应用、填网页表单、密码/UAC）立刻 done，不要猜。
 - done 必须带中文 summary，给阿洛娜向老师交代用，只写实际做了或为什么没做。
 - type 只用于当前已聚焦的输入框；key 的 combo 用 win、escape、enter、tab、ctrl+c 这种。
@@ -44,6 +45,7 @@ VISION_SYSTEM = """你是阿洛娜的电脑操作规划器。可以内部思考�
 {"action":"key","combo":"win"}
 {"action":"click","x":640,"y":360,"coord_space":"image"}
 {"action":"drag","x":120,"y":200,"x2":480,"y2":200,"coord_space":"image"}
+{"action":"scroll","x":640,"y":360,"dy":-3,"coord_space":"image"}
 {"action":"type","text":"你好"}
 {"action":"done","summary":"已经按下 Win，开始菜单应已打开。"}"""
 
@@ -55,6 +57,11 @@ def format_executed_steps(actions: list[ComputerUseAction] | tuple[ComputerUseAc
     for index, action in enumerate(actions, start=1):
         if action.action == "type":
             lines.append(f"{index}. type 字符数={len(action.text or '')}")
+        elif action.action == "scroll":
+            lines.append(
+                f"{index}. scroll x={action.x} y={action.y} dy={action.dy} "
+                f"coord_space={action.coord_space}"
+            )
         elif action.action in DRAG_ACTIONS:
             lines.append(
                 f"{index}. {action.action} x={action.x} y={action.y} "

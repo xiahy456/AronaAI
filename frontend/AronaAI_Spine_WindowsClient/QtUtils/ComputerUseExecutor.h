@@ -77,6 +77,7 @@ private:
 	bool m_cancelled = false;
 	bool m_leftDown = false;
 	bool m_rightDown = false;
+	bool m_middleDown = false;
 	bool m_pendingOk = true;
 	QString m_pendingError;
 };
