@@ -139,6 +139,9 @@ proactive:
   festival:
     enabled: true
 
+interact:
+  enabled: true
+
 token_budget:
   memory: 250
   knowledge: 250

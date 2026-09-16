@@ -197,6 +197,10 @@ class ContinueConfig(BaseModel):
     delay_sec: float = 2
 
 
+class InteractConfig(BaseModel):
+    enabled: bool = True
+
+
 class RelationshipConfig(BaseModel):
     enabled: bool = True
     persist_path: str = "data/memory/relationship.json"
@@ -238,6 +242,7 @@ class AppConfig(BaseModel):
     planner: PlannerConfig = Field(default_factory=PlannerConfig)
     listen: ListenConfig = Field(default_factory=ListenConfig)
     proactive: ProactiveConfig = Field(default_factory=ProactiveConfig)
+    interact: InteractConfig = Field(default_factory=InteractConfig)
     token_budget: TokenBudgetConfig = Field(default_factory=TokenBudgetConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 

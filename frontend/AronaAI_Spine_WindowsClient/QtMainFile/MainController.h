@@ -81,6 +81,7 @@ private slots:
 	void onWebSocketChatResponse(const QString& content, const QString& contextUsed, double latency, const QString& emotion);
 	void onWebSocketError(WebSocketController::ErrorCode code, const QString& message);
 	void onWebSocketStateChanged(WebSocketController::ConnectionState state);
+	void onPatEnded(int durationMs);
 
 private:
 	MainWidget* m_mainWidget;	// 主界面对象引用
@@ -112,6 +113,7 @@ private:
 	int m_outputGeneration = 0;	// 字幕/口型定时器世代，避免上一条清掉下一条
 	int m_ttsModelsLoaded = 0;	// 已切完的 TTS 权重数
 	QElapsedTimer m_ttsWeightTimer;	// TTS 切权重耗时
+	QElapsedTimer m_patInteractCooldown;	// 摸头 interact 冷却（从成功发送起算）
 
 	// 处理用户输入的文本（语音识别或文本输入）
 	void processInputText(const QString& text);
@@ -122,6 +124,7 @@ private:
 	void presentOutput(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion);
 	void presentOutputError(const QString& text, const QString& emotion);
 	void holdOrPresentOutput(const QByteArray& audioData, const QString& mediaType, bool isError, const QString& text, const QString& emotion);
+	void applySilentEmotion(const QString& emotion);
 	void dismissSplashOnUnrecoverableError();
 
 };

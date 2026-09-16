@@ -85,9 +85,7 @@ class IntentCard:
         followup_ok = _as_bool(data.get("followup_ok"), False)
         if not reply_ok:
             followup_ok = False
-            emotion = DEFAULT_EMOTION
-        else:
-            emotion = normalize_emotion(data.get("arona_emotion"))
+        emotion = normalize_emotion(data.get("arona_emotion"))
         return cls(
             draft=draft,
             arona_emotion=emotion,

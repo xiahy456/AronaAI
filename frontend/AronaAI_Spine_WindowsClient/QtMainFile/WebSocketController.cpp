@@ -192,6 +192,15 @@ void WebSocketController::sendChatMessage(const QString& content,
     sendMessage(message);
 }
 
+void WebSocketController::sendInteract(const QString& action, int durationMs)
+{
+    QJsonObject message;
+    message["type"] = QStringLiteral("interact");
+    message["action"] = action;
+    message["duration_ms"] = durationMs;
+    sendMessage(message);
+}
+
 void WebSocketController::sendListenState(bool listening)
 {
     QJsonObject message;

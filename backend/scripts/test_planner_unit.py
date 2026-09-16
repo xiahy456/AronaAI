@@ -111,7 +111,7 @@ def main() -> None:
     assert silent.draft == ""
     assert silent.user_act == "depart"
     assert silent.followup_ok is False
-    assert silent.arona_emotion == "normal"
+    assert silent.arona_emotion == "smile"
 
     assert parse_and_gate_intent(
         '{"draft":"","arona_emotion":"normal","followup_ok":false,"reply_ok":true}'
@@ -134,12 +134,9 @@ def main() -> None:
     assert '"draft"' in PLANNER_SYSTEM or "draft：" in PLANNER_SYSTEM
     assert "reply_ok" in PLANNER_SYSTEM
     assert "默认 true" in PLANNER_SYSTEM
-    assert "没点名" in PLANNER_SYSTEM
     assert "打电话" in PLANNER_SYSTEM
-    assert "午饭或睡觉的【系统事件】" in PLANNER_SYSTEM
-    assert "系统事件照料拿不准是否已交代时选 true" in PLANNER_SYSTEM
-    assert "老师本人发言拿不准时选 true" in PLANNER_SYSTEM
-    assert "draft 只写吃饭或休息提醒" in PLANNER_SYSTEM
+    assert "屏幕互动" in PLANNER_SYSTEM
+    assert "touch" in PLANNER_SYSTEM
     assert "user_act" in PLANNER_SYSTEM
     assert "【当前时间】" in PLANNER_SYSTEM
     assert "禁止把完整公历年月日念出来" in PLANNER_SYSTEM
@@ -163,7 +160,6 @@ def main() -> None:
     assert "【阿洛娜主要人设】" not in user_msg
     assert "must_say" not in user_msg
     assert "先判断 reply_ok" in user_msg
-    assert "拿不准是否对阿洛娜说时 reply_ok 选 true" in user_msg
     assert "电脑屏幕截图" not in user_msg
 
     vision_msg = build_planner_user_message(
@@ -175,7 +171,7 @@ def main() -> None:
         has_screenshot=True,
     )
     assert "电脑屏幕截图" in vision_msg
-    assert "仅在回答需要屏幕上可见信息时取用" in vision_msg
+    assert "仅在回答需要截图上的信息时" in vision_msg
     assert "先判断 reply_ok" in vision_msg
     assert "请输出唯一 JSON 对象。" in vision_msg
 

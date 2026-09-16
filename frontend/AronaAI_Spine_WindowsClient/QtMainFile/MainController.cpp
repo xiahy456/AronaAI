@@ -21,6 +21,12 @@
 #include <QTimer>
 #include <QWidget>
 
+namespace {
+constexpr int kPatMinDurationMs = 2000;
+constexpr int kPatCooldownMs = 10000;
+constexpr int kSilentInteractEmotionMs = 2000;
+}
+
 MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer, WebSocketController* webSocketController, UserInputWidget* userInputWidget)
     : m_mainWidget(mainWidget)
     , m_ttsManager(ttsManager)
@@ -122,6 +128,13 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
         this, &MainController::onWebSocketError);
     connect(m_webSocketController, &WebSocketController::connectionStateChanged,
         this, &MainController::onWebSocketStateChanged);
+
+    if (m_mainWidget) {
+        QtSpineManager* spine = m_mainWidget->spineManager();
+        if (spine) {
+            connect(spine, &QtSpineManager::patEnded, this, &MainController::onPatEnded);
+        }
+    }
 
     FINE_DEBUG_OUTPUT("[Startup] TTS warmup queued; WebSocket connect deferred until splash hooks are ready");
 
@@ -256,6 +269,10 @@ void MainController::holdOrPresentOutput(const QByteArray& audioData, const QStr
             FINE_DEBUG_OUTPUT(QString("[Main Controller] Welcome TTS %1, waiting for splash close")
                 .arg(isError ? "error" : "ready"));
             emit welcomePlaybackReady();
+            if (receivers(SIGNAL(welcomePlaybackReady())) == 0) {
+                FINE_DEBUG_OUTPUT("[Main Controller] Splash already gone, presenting welcome now");
+                onSplashClosed();
+            }
             return;
         }
     }
@@ -582,6 +599,9 @@ void MainController::onWebSocketChatResponse(const QString& content, const QStri
     if (content.trimmed().isEmpty()) {
         FINE_DEBUG_OUTPUT(QString("[WebSocket] Silent skip (no speech), context=%1")
             .arg(contextUsed));
+        if (contextUsed.contains(QStringLiteral("interact"))) {
+            applySilentEmotion(emotion);
+        }
         return;
     }
 
@@ -589,6 +609,44 @@ void MainController::onWebSocketChatResponse(const QString& content, const QStri
 
     // 通过TTS播放AI回复
     executeOutput(content);
+}
+
+void MainController::onPatEnded(int durationMs)
+{
+    if (durationMs < kPatMinDurationMs) {
+        FINE_DEBUG_OUTPUT(QString("[Interact] Pat skipped durationMs=%1 min=%2")
+            .arg(durationMs)
+            .arg(kPatMinDurationMs));
+        return;
+    }
+    if (m_patInteractCooldown.isValid() && m_patInteractCooldown.elapsed() < kPatCooldownMs) {
+        FINE_DEBUG_OUTPUT(QString("[Interact] Pat skipped cooldown remaining=%1ms")
+            .arg(kPatCooldownMs - static_cast<int>(m_patInteractCooldown.elapsed())));
+        return;
+    }
+    if (!m_webSocketController || !m_webSocketController->isConnected()) {
+        FINE_DEBUG_OUTPUT("[Interact] Pat skipped reason=not_connected");
+        return;
+    }
+    m_patInteractCooldown.restart();
+    m_webSocketController->sendInteract(QStringLiteral("pat_head"), durationMs);
+    FINE_DEBUG_OUTPUT(QString("[Interact] Sent pat_head durationMs=%1").arg(durationMs));
+}
+
+void MainController::applySilentEmotion(const QString& emotion)
+{
+    const QString face = emotion.isEmpty() ? QStringLiteral("normal") : emotion;
+    m_currentEmotion = face;
+    ++m_outputGeneration;
+    const int gen = m_outputGeneration;
+    const QString expressionAnim = AronaEmotion::toAnimationName(face);
+    m_mainWidget->setAnimation(expressionAnim, 1, true);
+    QTimer::singleShot(kSilentInteractEmotionMs, this, [this, gen]() {
+        if (gen != m_outputGeneration) {
+            return;
+        }
+        m_mainWidget->clearAnimation(1, 0.2f);
+    });
 }
 
 void MainController::onWebSocketError(WebSocketController::ErrorCode code, const QString& message)

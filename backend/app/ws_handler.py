@@ -39,6 +39,7 @@ from .input_filter import (
     ASR_FALLBACK_REPLY,
     is_unusable_user_text,
 )
+from .interact import parse_duration_ms, resolve_interact_action
 from .logging_utils import begin_trace, format_interactive_log, preview, reset_trace
 from .orchestrator import Orchestrator
 from .proactive import ConnectionHub, ProactiveScheduler, WelcomeState, resolve_welcome_context
@@ -54,6 +55,7 @@ from .protocol import (
     TYPE_CONNECTED,
     TYPE_GET_STATS,
     TYPE_INTERRUPT,
+    TYPE_INTERACT,
     TYPE_LISTEN_STATE,
     TYPE_PING,
     TYPE_PONG,
@@ -145,6 +147,7 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         state.scheduler.note_user_activity()
 
     chat_task: asyncio.Task[None] | None = None
+    inflight_kind: str | None = None
 
     def _clear_inflight() -> None:
         nonlocal inflight_user
@@ -179,6 +182,8 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         abort_check: Any | None = None,
         image: ImagePayload | None = None,
     ) -> None:
+        nonlocal inflight_kind
+        inflight_kind = "chat"
         state.hub.set_busy(session_id, True)
         if state.scheduler is not None:
             state.scheduler.note_user_activity()
@@ -211,6 +216,7 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
             except Exception:
                 pass
         finally:
+            inflight_kind = None
             state.hub.set_busy(session_id, False)
 
     async def _interrupt_generation(*, restore_inflight: bool) -> None:
@@ -294,6 +300,8 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         commit_task = asyncio.create_task(_commit_after(max(0.05, delay_ms / 1000.0)))
 
     async def _run_welcome() -> None:
+        nonlocal inflight_kind
+        inflight_kind = "welcome"
         state.hub.set_busy(session_id, True)
         try:
             slot, first = resolve_welcome_context(state.welcome)
@@ -381,6 +389,33 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         except Exception:
             logger.exception("welcome error session=%s", session_id)
         finally:
+            inflight_kind = None
+            state.hub.set_busy(session_id, False)
+
+    async def _run_interact(action: str, duration_ms: int) -> None:
+        nonlocal inflight_kind
+        inflight_kind = "interact"
+        state.hub.set_busy(session_id, True)
+        if state.scheduler is not None:
+            state.scheduler.note_user_activity()
+        try:
+            await state.orchestrator.handle_interact(
+                session_id=session_id,
+                action=action,
+                duration_ms=duration_ms,
+                send=send,
+            )
+        except asyncio.CancelledError:
+            logger.info("interact cancelled session=%s action=%s", session_id, action)
+            raise
+        except Exception as exc:
+            logger.exception("interact error session=%s action=%s", session_id, action)
+            try:
+                await send(msg_error(CODE_INTERNAL, str(exc)))
+            except Exception:
+                pass
+        finally:
+            inflight_kind = None
             state.hub.set_busy(session_id, False)
 
     if state.config.proactive.welcome.enabled:
@@ -428,20 +463,29 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                         )
                     )
                 elif msg_type == TYPE_CHAT:
-                    if (chat_task is not None and not chat_task.done()) or state.hub.is_busy(
-                        session_id
-                    ):
-                        logger.warning(
-                            "WS chat rejected session=%s reason=in_progress",
-                            session_id,
-                        )
-                        await send(
-                            msg_error(
-                                CODE_BAD_REQUEST,
-                                "A chat request is already in progress",
+                    busy = (
+                        (chat_task is not None and not chat_task.done())
+                        or state.hub.is_busy(session_id)
+                    )
+                    if busy:
+                        if inflight_kind == "interact":
+                            logger.info(
+                                "WS chat preempts interact session=%s",
+                                session_id,
                             )
-                        )
-                        continue
+                            await _interrupt_generation(restore_inflight=False)
+                        else:
+                            logger.warning(
+                                "WS chat rejected session=%s reason=in_progress",
+                                session_id,
+                            )
+                            await send(
+                                msg_error(
+                                    CODE_BAD_REQUEST,
+                                    "A chat request is already in progress",
+                                )
+                            )
+                            continue
                     chat_recv_at = time.perf_counter()
                     content = data.get("content", "")
                     options = data.get("options") or {}
@@ -488,6 +532,45 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                             None,
                             image,
                         )
+                    )
+                elif msg_type == TYPE_INTERACT:
+                    if not state.config.interact.enabled:
+                        logger.info(
+                            "WS interact rejected session=%s reason=disabled",
+                            session_id,
+                        )
+                        await send(msg_error(CODE_BAD_REQUEST, "Interact is disabled"))
+                        continue
+                    spec = resolve_interact_action(data.get("action"))
+                    if spec is None:
+                        logger.warning(
+                            "WS interact rejected session=%s reason=unknown_action action=%r",
+                            session_id,
+                            data.get("action"),
+                        )
+                        await send(
+                            msg_error(CODE_BAD_REQUEST, "Unknown interact action")
+                        )
+                        continue
+                    if (chat_task is not None and not chat_task.done()) or state.hub.is_busy(
+                        session_id
+                    ):
+                        logger.info(
+                            "WS interact dropped session=%s reason=busy kind=%s action=%s",
+                            session_id,
+                            inflight_kind,
+                            spec.action,
+                        )
+                        continue
+                    duration_ms = parse_duration_ms(data.get("duration_ms"))
+                    logger.info(
+                        "WS interact recv session=%s action=%s duration_ms=%s",
+                        session_id,
+                        spec.action,
+                        duration_ms,
+                    )
+                    chat_task = asyncio.create_task(
+                        _run_interact(spec.action, duration_ms)
                     )
                 elif msg_type == TYPE_LISTEN_STATE:
                     raw_state = data.get("state") or data.get("listening")

@@ -117,6 +117,31 @@ class RelationshipEngine:
         )
         return act, decision
 
+    def on_user_act(self, act: UserAct | str) -> tuple[UserAct, Decision]:
+        """Apply a known user_act Δ without classifying text."""
+        normalized = normalize_user_act(act)
+        self._apply(user_delta(normalized))
+        decision = decide(
+            self.state,
+            normalized,
+            cling_dependence=self.settings.cling_dependence,
+            high_dependence=self.settings.high_dependence,
+            stick_turns=self.settings.climate_stick_turns,
+        )
+        self.state.last_user_act = normalized
+        self.store.save(self.state)
+        logger.info(
+            "relationship user_act=%s climate=%s action=%s "
+            "trust=%.3f dependence=%.3f tension=%.3f source=direct",
+            normalized,
+            decision.climate,
+            decision.action,
+            self.state.trust,
+            self.state.dependence,
+            self.state.tension,
+        )
+        return normalized, decision
+
     def note_planner_user_act(self, act: str) -> UserAct:
         """Overwrite last_user_act from Planner; do not re-apply user Δ."""
         normalized = normalize_user_act(act)

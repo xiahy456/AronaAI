@@ -207,9 +207,10 @@ void QtSpineManager::paintGL()
 
         m_usedBatches = 0;
 
-        spine::Vector<spine::Slot*>& slots = m_skeleton->getDrawOrder();
-        for (size_t i = 0; i < slots.size(); ++i) {
-            spine::Slot* slot = slots[i];
+        // Do not name this `slots`: Qt's `slots` macro would erase the identifier.
+        spine::Vector<spine::Slot*>& drawOrder = m_skeleton->getDrawOrder();
+        for (size_t i = 0; i < drawOrder.size(); ++i) {
+            spine::Slot* slot = drawOrder[i];
             if (!slot) continue;
 
             spine::Attachment* attachment = slot->getAttachment();
@@ -740,6 +741,7 @@ void QtSpineManager::holdPatAnimation(int track_idx, const char* name)
 void QtSpineManager::handlePat()
 {
     m_patEnding = false;
+    m_patPressTimer.start();
     holdPatAnimation(kPatTrackA, kPatAnimA);
     holdPatAnimation(kPatTrackM, kPatAnimM);
     m_patActive = true;
@@ -791,7 +793,11 @@ void QtSpineManager::handlePatEnd()
         m_skeleton->updateWorldTransform(spine::Physics_Update);
         update();
     }
-    FINE_DEBUG_OUTPUT("[Spine Operation]Pat end");
+    const int durationMs = m_patPressTimer.isValid()
+        ? static_cast<int>(m_patPressTimer.elapsed())
+        : 0;
+    emit patEnded(durationMs);
+    FINE_DEBUG_OUTPUT(QString("[Spine Operation]Pat end durationMs=%1").arg(durationMs));
 }
 
 float QtSpineManager::computePatFollowT() const

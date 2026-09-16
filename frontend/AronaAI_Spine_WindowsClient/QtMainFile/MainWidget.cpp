@@ -15,6 +15,7 @@
 */
 
 #include "MainWidget.h"
+#include <QTimer>
 
 MainWidget::MainWidget(QWidget *parent)
     : QWidget(parent)
@@ -151,7 +152,12 @@ bool MainWidget::isMouseTransparent() const
 
 bool MainWidget::isSpineReady() const
 {
-	return m_spineReady;
+    return m_spineReady;
+}
+
+QtSpineManager* MainWidget::spineManager() const
+{
+    return ui.qtSpineManagerWidget;
 }
 
 void MainWidget::debug_showText()

@@ -16,6 +16,7 @@
 | **Planner**   | `app/planner/`                           | DeepSeek 意图卡、情感白名单；只读气候档位与姿态，不见 A/B/C 数字                  |
 | **模型加载**      | `app/model_loader.py`                    | llama-cpp-python 加载 GGUF；启动时用 Renderer prompt 预热并复用前缀 KV  |
 | **WebSocket** | `app/ws_handler.py`                      | 会话连接、上线欢迎、消息分发、ASR 过滤接入                                   |
+| **非对话交互**    | `app/interact/`                          | 摸头等手势白名单与系统事件指令；编排走 `handle_interact`                       |
 | **输入过滤**      | `app/input_filter.py`                    | 丢弃空串 / 腾讯云 ASR 错误模板，避免误触发对话                               |
 | **协议**        | `app/protocol.py`                        | 客户端/服务端消息类型定义                                             |
 | **对话历史**      | `app/conversation.py`                    | 多轮历史管理与截断                                                 |
@@ -102,9 +103,10 @@ python scripts/test_skip_ack.py            # 沉默/拒绝仍发空 chat_respons
 python scripts/test_welcome_unit.py        # 欢迎时段与指令（不加载 GGUF）
 python scripts/test_proactive_unit.py      # 空闲 / 照料 / goal / 节日 / continue / 调度落盘（不加载 GGUF）
 python scripts/test_image_input_unit.py   # 截图解析 / 日志脱敏 / logs 目录保留最近 8 张
+python scripts/test_interact_unit.py       # 非对话 interact 白名单 / 摸头指令 / touch Δ / reply_ok
 ```
 
-确保服务已启动后再跑 `smoke_ws.py`。脚本会发送 `ping` / `chat`，并打印响应。
+确保服务已启动后再跑 `smoke_ws.py`。脚本会发送 `ping` / `chat` / `interact`，并打印响应。
 
 ## 对话链路
 
@@ -676,7 +678,15 @@ python scripts/ingest_knowledge.py --rebuild
 {"type":"chat","content":"你好","options":{"use_rag":true,"use_memory":true}}
 ```
 
+客户端 `interact`（非对话手势，第一期仅 `pat_head`；最短时长与冷却由前端过滤，后端只校验白名单）：
+
+```json
+{"type":"interact","action":"pat_head","duration_ms":2400}
+```
+
 正常回复：`{"type":"chat_response","content":"...","emotion":"...","context_used":"...","latency":...}`。
+
+`interact` 的回复同样是 `chat_response`，`context_used` 含 `interact+pat_head`；Planner 标 `reply_ok=false` 时 `content` 为空且带 `silence`，但 `emotion` 仍可用于换脸。对话进行中到达的 `interact` 会被丢弃；`interact` 生成中到达的 `chat` 会取消前者。
 
 连接后若欢迎开启，服务端会再推一条 `chat_response`（`context_used` 含 `welcome`，节日当天首次则为 `festival`；凌晨/深夜节日可能再跟一条 `sleep`）。空闲搭话 / 照料 / goal 回访同样推 `chat_response`（`context_used` 含 `idle` / `lunch` / `sleep` / `goal`）。Planner 标 `followup_ok` 时，同一轮用户消息后可能再跟一条 `chat_response`（`context_used` 含 `continue`）。关系层决定沉默或 Planner 标 `reply_ok=false` 时仍发 `chat_response`，但 `content` 为空、`context_used` 为 `silence` / `refuse`，前端保持安静并解除等待。
 

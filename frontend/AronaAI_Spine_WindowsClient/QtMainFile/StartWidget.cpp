@@ -140,6 +140,11 @@ void StartWidget::waitUntilVideoEnded()
 	m_videoLoop = nullptr;
 }
 
+bool StartWidget::hasClosed() const
+{
+	return m_closeFinishedEmitted;
+}
+
 void StartWidget::onSpineReady()
 {
 	FINE_DEBUG_OUTPUT("[StartWidget] spine ready");

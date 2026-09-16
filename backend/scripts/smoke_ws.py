@@ -39,6 +39,22 @@ async def run(url: str, message: str) -> int:
         if data.get("type") != "chat_response":
             return 1
 
+        await asyncio.sleep(2.5)
+        interact = {
+            "type": "interact",
+            "action": "pat_head",
+            "duration_ms": 2400,
+        }
+        await ws.send(json.dumps(interact, ensure_ascii=False))
+        print(">>", interact)
+        interact_resp = json.loads(await ws.recv())
+        print("<<", interact_resp)
+        if interact_resp.get("type") != "chat_response":
+            return 1
+        if "interact" not in str(interact_resp.get("context_used") or ""):
+            print("Expected interact context_used", file=sys.stderr)
+            return 1
+
         await ws.send(
             json.dumps(
                 {

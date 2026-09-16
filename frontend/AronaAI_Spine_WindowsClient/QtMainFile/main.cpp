@@ -150,6 +150,9 @@ int main(int argc, char *argv[])
             startWidget, &StartWidget::onWelcomeReady);
         QObject::connect(startWidget, &StartWidget::closeFinished,
             mainController, &MainController::onSplashClosed);
+        if (startWidget->hasClosed()) {
+            mainController->onSplashClosed();
+        }
     } else {
         mainController->onSplashClosed();
     }

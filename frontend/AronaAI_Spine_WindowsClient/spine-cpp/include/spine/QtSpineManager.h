@@ -89,6 +89,7 @@ public:
 signals:
     void spineLoaded();
     void glReady();
+    void patEnded(int durationMs);
 
 protected:
     // 重写OpenGL相关函数
@@ -159,6 +160,7 @@ private:
     float m_patEndFromT = 0.0f;
     float m_patEndElapsed = 0.0f;
     QPointF m_mouseWorld;
+    QElapsedTimer m_patPressTimer;
 
     spine::Bone* m_touchPointBone = nullptr;
     spine::Bone* m_touchPointKeyBone = nullptr;

@@ -30,6 +30,7 @@ UserAct = Literal[
     "depart",
     "instrumental",
     "short_ack",
+    "touch",
     "other",
 ]
 
@@ -58,6 +59,7 @@ USER_DELTAS: dict[UserAct, tuple[float, float, float]] = {
     "depart": (0.0, -0.06, -0.06),
     "instrumental": (0.0, -0.06, -0.08),
     "short_ack": (0.0, 0.03, -0.06),
+    "touch": (0.04, 0.06, -0.03),
     "other": (0.0, 0.0, 0.0),
 }
 

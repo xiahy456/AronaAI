@@ -29,6 +29,7 @@ InitiateResult = Literal["sent", "declined", "failed"]
 from .config import AppConfig
 from .conversation import ConversationManager
 from .image_input import ImagePayload
+from .interact import resolve_interact_action
 from .knowledge import KnowledgeRetriever
 from .logging_utils import begin_trace, preview, preview_list, reset_trace, update_trace
 from .memory.extractor import MemoryExtractor
@@ -96,6 +97,7 @@ class Orchestrator:
             "goal_count": 0,
             "continue_count": 0,
             "festival_count": 0,
+            "interact_count": 0,
             "silence_count": 0,
             "refuse_count": 0,
             "planner_hits": 0,
@@ -417,6 +419,44 @@ class Orchestrator:
         )
         return result == "sent"
 
+    async def handle_interact(
+        self,
+        *,
+        session_id: str,
+        action: str,
+        duration_ms: int = 0,
+        send: SendFn,
+    ) -> bool:
+        """React to a client gesture. Unknown actions must be rejected by the WS layer."""
+        spec = resolve_interact_action(action)
+        if spec is None:
+            logger.warning(
+                "interact unknown action session=%s action=%r",
+                session_id,
+                action,
+            )
+            return False
+
+        decision: Decision | None = None
+        climate: str | None = None
+        if self.relationship is not None and self.config.proactive.relationship.enabled:
+            _act, decision = self.relationship.on_user_act(spec.user_act)
+            climate = decision.climate
+
+        result = await self.handle_initiate(
+            session_id=session_id,
+            kind="interact",
+            instruction=spec.build_instruction(duration_ms),
+            history_marker=spec.history_marker,
+            send=send,
+            retrieve_memory=False,
+            climate_block=self._climate_block(decision),
+            climate=climate,
+            decision=decision,
+            context_tags=["interact", spec.action],
+        )
+        return result == "sent"
+
     async def handle_initiate(
         self,
         *,
@@ -432,16 +472,18 @@ class Orchestrator:
         climate: str | None = None,
         decision: Decision | None = None,
         continue_previous: str | None = None,
+        context_tags: list[str] | None = None,
     ) -> InitiateResult:
-        """Generate a system-event line (welcome / idle / care / goal / continue).
+        """Generate a system-event line (welcome / idle / care / goal / continue / interact).
 
-        sent: a line was pushed. declined: lunch/sleep Planner refused (no fallback).
+        sent: a line was pushed (including silent interact with empty content).
+        declined: lunch/sleep Planner refused (no fallback).
         failed: generate miss; caller may retry.
         """
         user_text = instruction
         start = time.perf_counter()
         begin_trace(started_at=start)
-        context_parts: list[str] = [kind]
+        context_parts: list[str] = list(context_tags) if context_tags else [kind]
         if climate or decision is not None:
             context_parts.append("climate")
 
@@ -532,6 +574,37 @@ class Orchestrator:
                 )
                 reset_trace()
                 return "declined"
+            if (
+                kind == "interact"
+                and intent is not None
+                and not intent.reply_ok
+            ):
+                self.stats["planner_hits"] += 1
+                emotion = intent.arona_emotion
+                latency = time.perf_counter() - start
+                context_used = "+".join([*context_parts, "silence"])
+                await send(
+                    msg_chat_response(
+                        "",
+                        context_used=context_used,
+                        latency=round(latency, 4),
+                        emotion=emotion,
+                    )
+                )
+                self.conversations.append(session_id, "user", history_marker)
+                self.stats["silence_count"] = int(self.stats.get("silence_count", 0)) + 1
+                self.stats["interact_count"] = int(self.stats.get("interact_count", 0)) + 1
+                logger.info(
+                    "initiate silent session=%s kind=%s context=%s emotion=%s "
+                    "latency=%.3fs",
+                    session_id,
+                    kind,
+                    context_used,
+                    emotion,
+                    latency,
+                )
+                reset_trace()
+                return "sent"
             if intent is not None and not intent.reply_ok:
                 if not intent.to_renderer_draft():
                     logger.info(
@@ -603,7 +676,10 @@ class Orchestrator:
             used_climate = (
                 decision.climate if decision is not None else climate
             ) or "steady"
-            if kind == "continue":
+            if kind == "interact":
+                user_act = decision.user_act if decision is not None else "touch"
+                self.relationship.on_arona_action("speak", used_climate, user_act)
+            elif kind == "continue":
                 self.relationship.on_arona_action("continue", used_climate)
             else:
                 motive = None if kind == "welcome" else kind
@@ -616,6 +692,7 @@ class Orchestrator:
             "goal": "goal_count",
             "continue": "continue_count",
             "festival": "festival_count",
+            "interact": "interact_count",
         }.get(kind, "care_count")
         self.stats[stat_key] = int(self.stats.get(stat_key, 0)) + 1
         self.stats["chat_count"] += 1

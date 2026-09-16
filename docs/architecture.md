@@ -10,6 +10,7 @@ arona-ai/
 │   │   ├── orchestrator.py     # 对话编排（关系决策 → 检索 → Planner/本地 → 生成 → 记忆抽取）
 │   │   ├── model_loader.py     # GGUF 模型加载（llama-cpp-python）
 │   │   ├── planner/            # 双模型 Planner（DeepSeek 意图卡 → Renderer）
+│   │   ├── interact/           # 非对话手势（摸头等）；系统事件指令 + 白名单
 │   │   ├── proactive/          # 主动事件（上线欢迎、空闲搭话、时刻照料、goal 回访、节日）
 │   │   ├── relationship/       # 关系气候（信任/依赖/张力、决策）
 │   │   ├── knowledge.py        # 世界观知识 RAG

@@ -21,6 +21,7 @@ from typing import Any
 
 # Client -> server
 TYPE_CHAT = "chat"
+TYPE_INTERACT = "interact"
 TYPE_CLEAR_SESSION = "clear_session"
 TYPE_GET_STATS = "get_stats"
 TYPE_PING = "ping"

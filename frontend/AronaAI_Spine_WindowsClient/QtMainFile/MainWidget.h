@@ -53,7 +53,8 @@ public:
 	// 获取当前是否鼠标穿透
 	bool isMouseTransparent() const;
 	// Spine 是否已加载（构造期间 setMouseTransparent->show 可能已经加载完）
-	bool isSpineReady() const;
+    bool isSpineReady() const;
+    QtSpineManager* spineManager() const;
 
     // Debug-显示文本
 	void debug_showText();

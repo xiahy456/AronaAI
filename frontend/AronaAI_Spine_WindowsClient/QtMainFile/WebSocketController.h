@@ -106,6 +106,7 @@ public:
         bool useRag = true,
         bool useMemory = true,
         const QString& imageBase64 = QString());
+    void sendInteract(const QString& action, int durationMs);
 
     void sendListenState(bool listening);
     void sendTranscript(const QString& text, const QString& segmentId, int silenceMs,

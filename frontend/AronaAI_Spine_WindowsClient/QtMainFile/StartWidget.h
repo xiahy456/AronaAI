@@ -44,6 +44,8 @@ public:
 
 	// 阻塞直到预解码+回放结束（内部跑事件循环）
 	void waitUntilVideoEnded();
+	// ESC 可能在 MainController 接线前就关掉遮罩
+	bool hasClosed() const;
 
 signals:
 	void closeFinished();
