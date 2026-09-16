@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Phase-0 computer use: protocol, probe script, observation loop."""
+"""Computer use: conservative router, vision short loop, hardcoded probe."""
 
-from .loop import ProbeResult, probe_reply_text, run_probe, terminal_messages
+from .agent import run_vision_agent
+from .client import VisionClient
+from .loop import ProbeResult, probe_reply_text, run_action_loop, run_probe, terminal_messages
 from .probe import (
     PROBE_ALIAS,
     PROBE_ALIASES,
@@ -26,6 +28,13 @@ from .probe import (
     is_probe_text,
     probe_actions,
 )
+from .prompts import (
+    AGENT_CANCELLED_REPLY,
+    AGENT_SPEAK_FALLBACK,
+    HISTORY_COMPUTER_USE_MARKER,
+    build_computer_use_instruction,
+)
+from .router import ComputerUseRouter, is_denied_computer_use, parse_route_decision
 from .schema import (
     ACTION_WHITELIST,
     ComputerUseAction,
@@ -35,10 +44,14 @@ from .schema import (
     parse_action,
     parse_observation,
     parse_screen,
+    parse_vision_action,
 )
 
 __all__ = [
     "ACTION_WHITELIST",
+    "AGENT_CANCELLED_REPLY",
+    "AGENT_SPEAK_FALLBACK",
+    "HISTORY_COMPUTER_USE_MARKER",
     "PROBE_ALIAS",
     "PROBE_ALIASES",
     "PROBE_CANCELLED_REPLY",
@@ -48,15 +61,23 @@ __all__ = [
     "PROBE_TOKEN",
     "ComputerUseAction",
     "ComputerUseObservation",
+    "ComputerUseRouter",
     "ProbeResult",
     "SchemaError",
     "ScreenGeometry",
+    "VisionClient",
+    "build_computer_use_instruction",
+    "is_denied_computer_use",
     "is_probe_text",
     "parse_action",
     "parse_observation",
+    "parse_route_decision",
     "parse_screen",
+    "parse_vision_action",
     "probe_actions",
     "probe_reply_text",
+    "run_action_loop",
     "run_probe",
+    "run_vision_agent",
     "terminal_messages",
 ]

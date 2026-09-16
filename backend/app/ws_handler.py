@@ -27,13 +27,21 @@ from typing import Any
 from fastapi import WebSocket, WebSocketDisconnect
 
 from .computer_use import (
+    AGENT_CANCELLED_REPLY,
+    AGENT_SPEAK_FALLBACK,
+    HISTORY_COMPUTER_USE_MARKER,
     PROBE_DISABLED_REPLY,
     ComputerUseObservation,
+    ComputerUseRouter,
     ProbeResult,
     SchemaError,
+    VisionClient,
+    build_computer_use_instruction,
     is_probe_text,
     parse_observation,
+    probe_actions,
     run_probe,
+    run_vision_agent,
     terminal_messages,
 )
 from .config import AppConfig
@@ -72,6 +80,7 @@ from .protocol import (
     TYPE_PONG,
     TYPE_TRANSCRIPT,
     msg_chat_response,
+    msg_computer_use_done,
     msg_connected,
     msg_error,
     msg_pong,
@@ -288,7 +297,77 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         for payload in terminal_messages(result):
             await send(payload)
 
-    async def _run_computer_use_probe() -> None:
+    async def _speak_computer_use_result(user_text: str, result: ProbeResult) -> bool:
+        decision = None
+        climate = None
+        relationship = state.orchestrator.relationship
+        if (
+            relationship is not None
+            and state.config.proactive.relationship.enabled
+        ):
+            _act, decision = relationship.on_user_act("instrumental")
+            climate = decision.climate
+        outcome = await state.orchestrator.handle_initiate(
+            session_id=session_id,
+            kind="computer_use",
+            instruction=build_computer_use_instruction(
+                user_text=user_text,
+                summary=result.summary,
+                ok=result.ok,
+            ),
+            history_marker=HISTORY_COMPUTER_USE_MARKER,
+            send=send,
+            retrieve_memory=False,
+            climate=climate,
+            decision=decision,
+            context_tags=["computer_use"],
+        )
+        return outcome == "sent"
+
+    async def _send_agent_terminal(
+        result: ProbeResult,
+        *,
+        user_text: str,
+        speak: bool,
+    ) -> None:
+        await send(
+            msg_computer_use_done(
+                result.run_id,
+                ok=result.ok,
+                summary=result.summary,
+            )
+        )
+        if not speak:
+            await send(
+                msg_chat_response(
+                    AGENT_CANCELLED_REPLY
+                    if result.reason == "cancelled"
+                    else AGENT_SPEAK_FALLBACK,
+                    context_used="computer_use",
+                )
+            )
+            return
+        spoken = False
+        try:
+            spoken = await _speak_computer_use_result(user_text, result)
+        except Exception:
+            logger.exception(
+                "computer_use initiate failed session=%s",
+                session_id,
+            )
+        if not spoken:
+            await send(
+                msg_chat_response(
+                    AGENT_SPEAK_FALLBACK,
+                    context_used="computer_use",
+                )
+            )
+
+    async def _run_computer_use_session(
+        *,
+        mode: str,
+        user_text: str = "",
+    ) -> None:
         nonlocal inflight_kind, cu_run_id
         inflight_kind = "computer_use"
         state.hub.set_busy(session_id, True)
@@ -298,43 +377,68 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         sent_terminal = False
         cu_run_id = str(uuid.uuid4())
         _drain_cu_observations()
+        cancelled = ProbeResult(
+            ok=False,
+            summary="cancelled",
+            run_id=cu_run_id,
+            steps_completed=0,
+            reason="cancelled",
+        )
+        failed = ProbeResult(
+            ok=False,
+            summary="internal_error",
+            run_id=cu_run_id,
+            steps_completed=0,
+            reason="observation_failed",
+        )
         try:
-            if not cfg.enabled or not cfg.probe_enabled:
-                logger.info(
-                    "computer_use probe rejected session=%s enabled=%s probe=%s",
-                    session_id,
-                    cfg.enabled,
-                    cfg.probe_enabled,
-                )
-                await send(
-                    msg_chat_response(
-                        PROBE_DISABLED_REPLY,
-                        context_used="computer_use",
+            if mode == "probe":
+                if not cfg.enabled or not cfg.probe_enabled:
+                    logger.info(
+                        "computer_use probe rejected session=%s enabled=%s probe=%s",
+                        session_id,
+                        cfg.enabled,
+                        cfg.probe_enabled,
                     )
-                )
-                sent_terminal = True
-                return
-            result = await run_probe(
-                send=send,
-                wait_observation=_wait_cu_observation,
-                run_id=cu_run_id,
-                max_steps=cfg.max_steps,
-            )
-            await _send_probe_terminal(result)
-            sent_terminal = True
-        except asyncio.CancelledError:
-            logger.info("computer_use cancelled session=%s", session_id)
-            if not sent_terminal:
-                try:
-                    await _send_probe_terminal(
-                        ProbeResult(
-                            ok=False,
-                            summary="cancelled",
-                            run_id=cu_run_id or "",
-                            steps_completed=0,
-                            reason="cancelled",
+                    await send(
+                        msg_chat_response(
+                            PROBE_DISABLED_REPLY,
+                            context_used="computer_use",
                         )
                     )
+                    sent_terminal = True
+                    return
+                result = await run_probe(
+                    send=send,
+                    wait_observation=_wait_cu_observation,
+                    run_id=cu_run_id,
+                    max_steps=len(probe_actions()),
+                )
+                await _send_probe_terminal(result)
+                sent_terminal = True
+                return
+            result = await run_vision_agent(
+                send=send,
+                wait_observation=_wait_cu_observation,
+                client=VisionClient(state.config.planner, cfg),
+                user_text=user_text,
+                run_id=cu_run_id,
+                max_steps=max(1, int(cfg.max_steps or 5)),
+            )
+            await _send_agent_terminal(result, user_text=user_text, speak=True)
+            sent_terminal = True
+        except asyncio.CancelledError:
+            logger.info("computer_use cancelled session=%s mode=%s", session_id, mode)
+            if not sent_terminal:
+                try:
+                    if mode == "probe":
+                        await _send_probe_terminal(cancelled)
+                    else:
+                        await _send_agent_terminal(
+                            cancelled,
+                            user_text=user_text,
+                            speak=False,
+                        )
                 except Exception:
                     logger.exception(
                         "computer_use cancel notify failed session=%s",
@@ -342,18 +446,17 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                     )
             raise
         except Exception:
-            logger.exception("computer_use error session=%s", session_id)
+            logger.exception("computer_use error session=%s mode=%s", session_id, mode)
             if not sent_terminal:
                 try:
-                    await _send_probe_terminal(
-                        ProbeResult(
-                            ok=False,
-                            summary="internal_error",
-                            run_id=cu_run_id or "",
-                            steps_completed=0,
-                            reason="observation_failed",
+                    if mode == "probe":
+                        await _send_probe_terminal(failed)
+                    else:
+                        await _send_agent_terminal(
+                            failed,
+                            user_text=user_text,
+                            speak=True,
                         )
-                    )
                 except Exception:
                     pass
         finally:
@@ -361,6 +464,62 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
             cu_run_id = None
             _drain_cu_observations()
             state.hub.set_busy(session_id, False)
+
+    async def _run_computer_use_probe() -> None:
+        await _run_computer_use_session(mode="probe")
+
+    async def _run_computer_use_agent(user_text: str) -> None:
+        await _run_computer_use_session(mode="agent", user_text=user_text)
+
+    async def _run_routed_user_turn(
+        content: str,
+        options: dict[str, Any],
+        request_json: str,
+        started_at: float,
+        abort_check,
+        image: ImagePayload | None,
+    ) -> None:
+        nonlocal inflight_user
+        cfg = state.config.computer_use
+        if not cfg.enabled:
+            await _run_chat(
+                content,
+                options,
+                request_json,
+                started_at,
+                abort_check,
+                image,
+            )
+            return
+        operate = False
+        state.hub.set_busy(session_id, True)
+        try:
+            try:
+                router = ComputerUseRouter(state.config.planner, cfg)
+                operate = await router.should_operate(content)
+            except Exception:
+                logger.exception("computer_use route error session=%s", session_id)
+                operate = False
+            if operate:
+                inflight_user = None
+                logger.info(
+                    "computer_use agent start session=%s text=%r",
+                    session_id,
+                    content,
+                )
+                await _run_computer_use_agent(content)
+                return
+        finally:
+            if not operate:
+                state.hub.set_busy(session_id, False)
+        await _run_chat(
+            content,
+            options,
+            request_json,
+            started_at,
+            abort_check,
+            image,
+        )
 
     async def _interrupt_generation(*, restore_inflight: bool) -> None:
         nonlocal chat_task, generation_id, inflight_user
@@ -419,7 +578,7 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
             ensure_ascii=False,
         )
         chat_task = asyncio.create_task(
-            _run_chat(
+            _run_routed_user_turn(
                 drained,
                 {},
                 request_json,
@@ -679,7 +838,7 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                         chat_task = asyncio.create_task(_run_computer_use_probe())
                         continue
                     chat_task = asyncio.create_task(
-                        _run_chat(
+                        _run_routed_user_turn(
                             str(content),
                             options,
                             redact_request_json(raw),

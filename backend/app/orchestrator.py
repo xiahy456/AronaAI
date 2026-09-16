@@ -679,6 +679,11 @@ class Orchestrator:
             if kind == "interact":
                 user_act = decision.user_act if decision is not None else "touch"
                 self.relationship.on_arona_action("speak", used_climate, user_act)
+            elif kind == "computer_use":
+                user_act = (
+                    decision.user_act if decision is not None else "instrumental"
+                )
+                self.relationship.on_arona_action("speak", used_climate, user_act)
             elif kind == "continue":
                 self.relationship.on_arona_action("continue", used_climate)
             else:

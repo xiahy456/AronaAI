@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit tests for phase-0 computer-use probe (no GGUF, no network).
+"""Unit tests for computer-use probe, router, and vision loop (no GGUF, no network).
 
 Run from backend/:
   python scripts/test_computer_use_unit.py
@@ -20,18 +20,27 @@ from app.computer_use import (  # noqa: E402
     ACTION_WHITELIST,
     PROBE_ALIAS,
     PROBE_TOKEN,
+    ComputerUseAction,
     ComputerUseObservation,
+    ComputerUseRouter,
     ProbeResult,
     SchemaError,
+    is_denied_computer_use,
     is_probe_text,
     parse_action,
     parse_observation,
+    parse_route_decision,
     parse_screen,
+    parse_vision_action,
     probe_actions,
     probe_reply_text,
+    run_action_loop,
     run_probe,
+    run_vision_agent,
     terminal_messages,
 )
+from app.config import ComputerUseConfig, PlannerConfig  # noqa: E402
+from app.image_input import ImagePayload  # noqa: E402
 from app.protocol import (  # noqa: E402
     TYPE_COMPUTER_USE_ACTION,
     msg_computer_use_action,
@@ -58,6 +67,14 @@ def _ok_obs(run_id: str, step: int) -> ComputerUseObservation:
     return ComputerUseObservation(
         run_id=run_id, step=step, ok=True, error="",
         screen=parse_screen(_valid_screen()), image=None,
+    )
+
+
+def _ok_obs_image(run_id: str, step: int) -> ComputerUseObservation:
+    return ComputerUseObservation(
+        run_id=run_id, step=step, ok=True, error="",
+        screen=parse_screen(_valid_screen()),
+        image=ImagePayload(mime="image/jpeg", data=_JPEG),
     )
 
 
@@ -478,6 +495,283 @@ def test_msg_computer_use_done() -> None:
     print("  ok")
 
 
+# -- Router --
+
+def test_router_deny_words() -> None:
+    print("== router deny words ==")
+    for text in ("晚安", "老师晚安", "摸头", "想你了", "吃饭了吗"):
+        if not is_denied_computer_use(text):
+            _fail(f"should deny {text!r}")
+    for text in ("按 Win 打开开始菜单", "帮我点那个蓝色按钮", "在当前输入框打：你好"):
+        if is_denied_computer_use(text):
+            _fail(f"should allow {text!r}")
+    print("  ok")
+
+
+def test_router_parse_computer_use() -> None:
+    print("== router parse computer_use ==")
+    if parse_route_decision('{"computer_use": true}') is not True:
+        _fail("true should parse")
+    if parse_route_decision('{"computer_use": false}') is not False:
+        _fail("false should parse")
+    if parse_route_decision("not json") is not False:
+        _fail("invalid json should default false")
+    if parse_route_decision({"computer_use": "yes"}) is not True:
+        _fail("yes string should be true")
+    if parse_route_decision({"action": "reply"}) is not False:
+        _fail("missing key should default false")
+    print("  ok")
+
+
+def test_router_default_false() -> None:
+    print("== router default false ==")
+    router = ComputerUseRouter(
+        PlannerConfig(api_key="", enabled=True),
+        ComputerUseConfig(enabled=True),
+    )
+
+    async def _run() -> None:
+        if await router.should_operate("按 Win 打开开始菜单"):
+            _fail("no llm key should default false")
+        if await router.should_operate("晚安"):
+            _fail("deny word should be false")
+
+    asyncio.run(_run())
+    print("  ok")
+
+
+# -- Vision JSON --
+
+def test_parse_vision_click_image_coords() -> None:
+    print("== parse vision click image coords ==")
+    action = parse_vision_action(
+        '{"thought":"按钮在中间","action":"click","x":640,"y":360}'
+    )
+    if action.action != "click":
+        _fail(f"action={action.action}")
+    if action.coord_space != "image":
+        _fail(f"coord_space={action.coord_space}")
+    if action.x != 640 or action.y != 360:
+        _fail(f"x={action.x} y={action.y}")
+    print("  ok")
+
+
+def test_parse_vision_done_requires_summary() -> None:
+    print("== parse vision done requires summary ==")
+    action = parse_vision_action(
+        '{"action":"done","summary":"已经按下 Win。"}'
+    )
+    if action.summary != "已经按下 Win。":
+        _fail(f"summary={action.summary!r}")
+    try:
+        parse_vision_action({"action": "done"})
+        _fail("done without summary should fail")
+    except SchemaError:
+        pass
+    print("  ok")
+
+
+def test_parse_vision_rejects_unknown_action() -> None:
+    print("== parse vision rejects unknown action ==")
+    try:
+        parse_vision_action('{"action":"drag","x":1,"y":1}')
+        _fail("should reject drag")
+    except SchemaError:
+        pass
+    try:
+        parse_vision_action("not-json")
+        _fail("should reject invalid json")
+    except SchemaError:
+        pass
+    print("  ok")
+
+
+def test_parse_vision_last_json_after_thinking() -> None:
+    print("== parse vision last json after thinking ==")
+    raw = (
+        "The notepad already contains the date. It seems done.\n"
+        '{"action":"click","x":1,"y":2}\n'
+        '{"action":"done","summary":"已写入今天的日期。"}'
+    )
+    action = parse_vision_action(raw)
+    if action.action != "done":
+        _fail(f"action={action.action}")
+    if action.summary != "已写入今天的日期。":
+        _fail(f"summary={action.summary!r}")
+    nested = parse_vision_action(
+        '{"thought":{"note":"inner"},"action":"done","summary":"好了。"}'
+    )
+    if nested.action != "done" or nested.summary != "好了。":
+        _fail(f"nested should keep outer done, got {nested}")
+    print("  ok")
+
+
+# -- Agent loop --
+
+class _FakeVision:
+    def __init__(self, actions: list[ComputerUseAction | None]) -> None:
+        self.actions = list(actions)
+        self.calls = 0
+
+    async def plan(self, **kwargs: Any) -> ComputerUseAction | None:
+        del kwargs
+        if self.calls >= len(self.actions):
+            return ComputerUseAction(action="done", summary="结束。")
+        action = self.actions[self.calls]
+        self.calls += 1
+        return action
+
+
+def test_agent_wait_then_done() -> None:
+    print("== agent wait then done ==")
+    sent: list[dict[str, Any]] = []
+    fake = _FakeVision([ComputerUseAction(action="done", summary="已打开开始菜单。")])
+
+    async def send(payload: dict[str, Any]) -> None:
+        sent.append(payload)
+
+    async def wait_obs(run_id: str, step: int) -> ComputerUseObservation | None:
+        return _ok_obs_image(run_id, step)
+
+    result = asyncio.run(run_vision_agent(
+        send=send, wait_observation=wait_obs,
+        client=fake,  # type: ignore[arg-type]
+        user_text="按 Win 打开开始菜单",
+        run_id="agent-rid", max_steps=5,
+    ))
+    if not result.ok:
+        _fail(f"ok={result.ok} reason={result.reason} summary={result.summary}")
+    if result.summary != "已打开开始菜单。":
+        _fail(f"summary={result.summary!r}")
+    if len(sent) != 1:
+        _fail(f"sent {len(sent)} actions, expected 1 wait")
+    if sent[0]["action"] != "wait" or sent[0]["ms"] != 0:
+        _fail(f"first action={sent[0]}")
+    if fake.calls != 1:
+        _fail(f"vision calls={fake.calls}")
+    print("  ok")
+
+
+def test_agent_max_steps_truncates_sixth() -> None:
+    print("== agent max_steps truncates sixth ==")
+    sent: list[dict[str, Any]] = []
+    fake = _FakeVision(
+        [ComputerUseAction(action="wait", ms=0) for _ in range(8)]
+    )
+
+    async def send(payload: dict[str, Any]) -> None:
+        sent.append(payload)
+
+    async def wait_obs(run_id: str, step: int) -> ComputerUseObservation | None:
+        return _ok_obs_image(run_id, step)
+
+    result = asyncio.run(run_vision_agent(
+        send=send, wait_observation=wait_obs,
+        client=fake,  # type: ignore[arg-type]
+        user_text="帮我点按钮",
+        run_id="max5-rid", max_steps=5,
+    ))
+    if result.ok:
+        _fail("ok should be False when truncated")
+    if result.reason != "max_steps":
+        _fail(f"reason={result.reason}")
+    if len(sent) != 5:
+        _fail(f"sent {len(sent)} actions, expected 5")
+    if result.steps_completed != 5:
+        _fail(f"steps_completed={result.steps_completed}")
+    print("  ok")
+
+
+def test_run_action_loop_invalid_action() -> None:
+    print("== action loop invalid action ==")
+    sent: list[dict[str, Any]] = []
+
+    async def send(payload: dict[str, Any]) -> None:
+        sent.append(payload)
+
+    async def wait_obs(run_id: str, step: int) -> ComputerUseObservation | None:
+        return _ok_obs(run_id, step)
+
+    async def next_action(
+        step: int,
+        last_obs: ComputerUseObservation | None,
+        executed: list[ComputerUseAction],
+    ) -> ComputerUseAction | None:
+        del step, last_obs, executed
+        return None
+
+    result = asyncio.run(run_action_loop(
+        send=send, wait_observation=wait_obs,
+        next_action=next_action, run_id="bad-rid", max_steps=5,
+    ))
+    if result.ok:
+        _fail("ok should be False")
+    if result.reason != "invalid_action":
+        _fail(f"reason={result.reason}")
+    if sent:
+        _fail("should not send invalid action")
+    print("  ok")
+
+
+def test_loop_recovers_after_type_when_no_json() -> None:
+    print("== loop recovers after type when no json ==")
+    sent: list[dict[str, Any]] = []
+
+    async def send(payload: dict[str, Any]) -> None:
+        sent.append(payload)
+
+    async def wait_obs(run_id: str, step: int) -> ComputerUseObservation | None:
+        return _ok_obs(run_id, step)
+
+    async def next_action(
+        step: int,
+        last_obs: ComputerUseObservation | None,
+        executed: list[ComputerUseAction],
+    ) -> ComputerUseAction | None:
+        del step, last_obs
+        if not executed:
+            return ComputerUseAction(action="type", text="2026年9月16日")
+        return None
+
+    result = asyncio.run(run_action_loop(
+        send=send, wait_observation=wait_obs,
+        next_action=next_action, run_id="recover-rid", max_steps=5,
+    ))
+    if not result.ok:
+        _fail(f"ok={result.ok} reason={result.reason}")
+    if result.reason != "complete":
+        _fail(f"reason={result.reason}")
+    if "type" not in result.summary:
+        _fail(f"summary={result.summary!r}")
+    if len(sent) != 1 or sent[0]["action"] != "type":
+        _fail(f"sent={sent}")
+    print("  ok")
+
+
+def test_agent_first_vision_none_fails() -> None:
+    print("== agent first vision none fails ==")
+    sent: list[dict[str, Any]] = []
+    fake = _FakeVision([None])
+
+    async def send(payload: dict[str, Any]) -> None:
+        sent.append(payload)
+
+    async def wait_obs(run_id: str, step: int) -> ComputerUseObservation | None:
+        return _ok_obs_image(run_id, step)
+
+    result = asyncio.run(run_vision_agent(
+        send=send, wait_observation=wait_obs,
+        client=fake,  # type: ignore[arg-type]
+        user_text="帮我写日期",
+        run_id="first-none-rid", max_steps=5,
+    ))
+    if result.ok:
+        _fail("ok should be False when only wait ran")
+    if result.reason != "invalid_action":
+        _fail(f"reason={result.reason}")
+    print("  ok")
+
+
 # -- Main --
 
 def main() -> None:
@@ -505,6 +799,18 @@ def main() -> None:
         test_terminal_messages_cancelled,
         test_msg_computer_use_action,
         test_msg_computer_use_done,
+        test_router_deny_words,
+        test_router_parse_computer_use,
+        test_router_default_false,
+        test_parse_vision_click_image_coords,
+        test_parse_vision_done_requires_summary,
+        test_parse_vision_rejects_unknown_action,
+        test_parse_vision_last_json_after_thinking,
+        test_agent_wait_then_done,
+        test_agent_max_steps_truncates_sixth,
+        test_run_action_loop_invalid_action,
+        test_loop_recovers_after_type_when_no_json,
+        test_agent_first_vision_none_fails,
     ]
     for test in tests:
         test()

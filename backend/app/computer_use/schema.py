@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -115,6 +116,7 @@ class ComputerUseAction:
     text: str | None = None
     ms: int | None = None
     dy: float | None = None
+    summary: str | None = None
 
     def to_payload(self) -> dict[str, Any]:
         return {
@@ -128,6 +130,7 @@ class ComputerUseAction:
             "text": self.text,
             "ms": self.ms,
             "dy": self.dy,
+            "summary": self.summary,
         }
 
     def to_message(self) -> dict[str, Any]:
@@ -177,8 +180,53 @@ def parse_action(data: dict[str, Any] | None) -> ComputerUseAction:
         text=_as_str(data.get("text")) or None,
         ms=_as_int(data.get("ms")),
         dy=_as_float(data.get("dy")),
+        summary=_as_str(data.get("summary")) or None,
     )
     _validate_action(parsed)
+    return parsed
+
+
+def extract_json_object(text: str) -> dict[str, Any] | None:
+    """Return the last JSON object in text (final answer if thinking leaked in)."""
+    raw = (text or "").strip()
+    if not raw:
+        return None
+    decoder = json.JSONDecoder()
+    last: dict[str, Any] | None = None
+    idx = 0
+    length = len(raw)
+    while idx < length:
+        start = raw.find("{", idx)
+        if start < 0:
+            break
+        try:
+            parsed, end = decoder.raw_decode(raw, start)
+        except json.JSONDecodeError:
+            idx = start + 1
+            continue
+        if isinstance(parsed, dict):
+            last = parsed
+        idx = end if end > start else start + 1
+    return last
+
+
+def parse_vision_action(raw: str | dict[str, Any] | None) -> ComputerUseAction:
+    """Parse one vision-model action. Pointer defaults to image pixels."""
+    if isinstance(raw, str):
+        data = extract_json_object(raw)
+    elif isinstance(raw, dict):
+        data = dict(raw)
+    else:
+        data = None
+    if not isinstance(data, dict):
+        raise SchemaError("vision action must be a JSON object")
+    data.pop("thought", None)
+    action_name = _as_str(data.get("action")).lower()
+    if action_name in POINTER_ACTIONS and not _as_str(data.get("coord_space")):
+        data["coord_space"] = "image"
+    parsed = parse_action(data)
+    if parsed.action == "done" and not (parsed.summary or "").strip():
+        raise SchemaError("done requires summary")
     return parsed
 
 
