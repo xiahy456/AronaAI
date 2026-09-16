@@ -38,6 +38,7 @@ from app.computer_use import (  # noqa: E402
     parse_vision_action,
     probe_actions,
     probe_reply_text,
+    race_route_and_chat,
     run_action_loop,
     run_probe,
     run_vision_agent,
@@ -929,6 +930,95 @@ def test_loop_recovers_after_type_when_no_json() -> None:
     print("  ok")
 
 
+def test_parallel_route_true_discards_chat() -> None:
+    print("== parallel route true discards chat draft ==")
+    sent: list[dict[str, Any]] = []
+    cu_ran: list[bool] = []
+
+    async def route() -> bool:
+        await asyncio.sleep(0.05)
+        return True
+
+    async def run_chat(send) -> None:
+        await send({"type": "chat_response", "content": "draft"})
+
+    async def run_cu() -> None:
+        cu_ran.append(True)
+
+    async def send(payload: dict[str, Any]) -> None:
+        sent.append(payload)
+
+    operated = asyncio.run(race_route_and_chat(
+        route=route, run_chat=run_chat, run_cu=run_cu, send=send,
+    ))
+    if operated is not True:
+        _fail(f"operated={operated}")
+    if sent:
+        _fail(f"chat draft should not be sent, got {sent}")
+    if cu_ran != [True]:
+        _fail(f"CU should run, cu_ran={cu_ran}")
+    print("  ok")
+
+
+def test_parallel_route_false_sends_chat() -> None:
+    print("== parallel route false sends chat ==")
+    sent: list[dict[str, Any]] = []
+    cu_ran: list[bool] = []
+
+    async def route() -> bool:
+        return False
+
+    async def run_chat(send) -> None:
+        await asyncio.sleep(0.02)
+        await send({"type": "chat_response", "content": "hello"})
+
+    async def run_cu() -> None:
+        cu_ran.append(True)
+
+    async def send(payload: dict[str, Any]) -> None:
+        sent.append(payload)
+
+    operated = asyncio.run(race_route_and_chat(
+        route=route, run_chat=run_chat, run_cu=run_cu, send=send,
+    ))
+    if operated is not False:
+        _fail(f"operated={operated}")
+    if cu_ran:
+        _fail(f"CU should not run, cu_ran={cu_ran}")
+    if len(sent) != 1 or sent[0].get("content") != "hello":
+        _fail(f"expected chat payload, got {sent}")
+    print("  ok")
+
+
+def test_parallel_route_error_treated_false() -> None:
+    print("== parallel route error treated as false ==")
+    sent: list[dict[str, Any]] = []
+    cu_ran: list[bool] = []
+
+    async def route() -> bool:
+        raise RuntimeError("router down")
+
+    async def run_chat(send) -> None:
+        await send({"type": "chat_response", "content": "fallback"})
+
+    async def run_cu() -> None:
+        cu_ran.append(True)
+
+    async def send(payload: dict[str, Any]) -> None:
+        sent.append(payload)
+
+    operated = asyncio.run(race_route_and_chat(
+        route=route, run_chat=run_chat, run_cu=run_cu, send=send,
+    ))
+    if operated is not False:
+        _fail(f"operated={operated}")
+    if cu_ran:
+        _fail(f"CU should not run on route error, cu_ran={cu_ran}")
+    if len(sent) != 1 or sent[0].get("content") != "fallback":
+        _fail(f"chat should still send, got {sent}")
+    print("  ok")
+
+
 def test_agent_first_vision_none_fails() -> None:
     print("== agent first vision none fails ==")
     sent: list[dict[str, Any]] = []
@@ -997,6 +1087,9 @@ def main() -> None:
         test_agent_max_steps_truncates_ninth,
         test_run_action_loop_invalid_action,
         test_loop_recovers_after_type_when_no_json,
+        test_parallel_route_true_discards_chat,
+        test_parallel_route_false_sends_chat,
+        test_parallel_route_error_treated_false,
         test_agent_first_vision_none_fails,
     ]
     for test in tests:

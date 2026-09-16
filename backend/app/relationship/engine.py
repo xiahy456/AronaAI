@@ -93,6 +93,22 @@ class RelationshipEngine:
             makeup_trust_scale=s.makeup_trust_scale,
         )
 
+    def preview_user_text(self, text: str) -> tuple[UserAct, Decision]:
+        """Classify and decide without applying A/B/C or persisting stickiness."""
+        act = classify_user_act(text)
+        streak = self.state.climate_streak
+        last = self.state.last_climate
+        decision = decide(
+            self.state,
+            act,
+            cling_dependence=self.settings.cling_dependence,
+            high_dependence=self.settings.high_dependence,
+            stick_turns=self.settings.climate_stick_turns,
+        )
+        self.state.climate_streak = streak
+        self.state.last_climate = last
+        return act, decision
+
     def on_user_text(self, text: str) -> tuple[UserAct, Decision]:
         act = classify_user_act(text)
         self._apply(user_delta(act))

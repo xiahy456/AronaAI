@@ -145,7 +145,21 @@ class Orchestrator:
 
         start = time.perf_counter()
         context_parts: list[str] = []
-        decision = self._note_user_relationship(user_text)
+        relationship_applied = False
+        intent: IntentCard | None = None
+        decision = self._preview_user_relationship(user_text)
+
+        def _commit_relationship() -> None:
+            nonlocal relationship_applied, decision
+            if relationship_applied:
+                return
+            applied = self._note_user_relationship(user_text)
+            if applied is not None:
+                decision = applied
+            relationship_applied = True
+            if intent is not None:
+                self._note_planner_user_act(intent.user_act)
+
         if decision is not None:
             context_parts.append("climate")
         if decision is not None and decision.action in {"silence", "refuse"}:
@@ -155,6 +169,7 @@ class Orchestrator:
                 decision=decision,
                 send=send,
                 latency=time.perf_counter() - start,
+                on_sent=_commit_relationship,
             )
             _committed()
             return True
@@ -280,7 +295,6 @@ class Orchestrator:
             self.stats["local_route_count"] += 1
 
         emotion = DEFAULT_EMOTION
-        intent: IntentCard | None = None
         if use_dual:
             context_parts.append("planner")
             t0 = time.perf_counter()
@@ -305,7 +319,6 @@ class Orchestrator:
                 self.stats["planner_hits"] += 1
                 emotion = intent.arona_emotion
                 self._merge_decision_into_intent(intent, decision)
-                self._note_planner_user_act(intent.user_act)
                 if not intent.reply_ok:
                     await self._skip_generation(
                         session_id=session_id,
@@ -315,6 +328,7 @@ class Orchestrator:
                         reason="reply_ok_false",
                         latency=time.perf_counter() - start,
                         emotion=emotion,
+                        on_sent=_commit_relationship,
                     )
                     _committed()
                     return True
@@ -357,6 +371,7 @@ class Orchestrator:
                 emotion=emotion,
             )
         )
+        _commit_relationship()
 
         self.conversations.append(session_id, "user", user_text)
         self.conversations.append(session_id, "assistant", full)
@@ -832,6 +847,12 @@ class Orchestrator:
         update_trace(renderer_text=full)
         return full, context_used
 
+    def _preview_user_relationship(self, user_text: str) -> Decision | None:
+        if self.relationship is None or not self.config.proactive.relationship.enabled:
+            return None
+        _act, decision = self.relationship.preview_user_text(user_text)
+        return decision
+
     def _note_user_relationship(self, user_text: str) -> Decision | None:
         if self.relationship is None or not self.config.proactive.relationship.enabled:
             return None
@@ -944,10 +965,21 @@ class Orchestrator:
         reason: str | None = None,
         latency: float = 0.0,
         emotion: str = DEFAULT_EMOTION,
+        on_sent: Callable[[], None] | None = None,
     ) -> None:
         action = "silence" if reason == "reply_ok_false" else (
             decision.action if decision is not None else "silence"
         )
+        await send(
+            msg_chat_response(
+                "",
+                context_used=action,
+                latency=round(latency, 4),
+                emotion=emotion,
+            )
+        )
+        if on_sent is not None:
+            on_sent()
         key = "silence_count" if action == "silence" else "refuse_count"
         self.stats[key] = int(self.stats.get(key, 0)) + 1
         self.conversations.append(session_id, "user", user_text)
@@ -961,14 +993,6 @@ class Orchestrator:
             decision.user_act if decision is not None else None,
             reason or action,
             user_text,
-        )
-        await send(
-            msg_chat_response(
-                "",
-                context_used=action,
-                latency=round(latency, 4),
-                emotion=emotion,
-            )
         )
 
     async def _maybe_extract(self, session_id: str, user_text: str) -> None:

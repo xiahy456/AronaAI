@@ -377,6 +377,46 @@ def test_depart_then_short_ack_silence() -> None:
     print("  ok")
 
 
+def test_preview_user_text_does_not_apply(tmp: Path) -> None:
+    print("== preview_user_text does not apply A/B/C or stickiness ==")
+    engine = RelationshipEngine.from_path(
+        tmp / "rel_preview.json", RelationshipSettings(beta=0.0)
+    )
+    engine.state.trust = 0.50
+    engine.state.dependence = 0.30
+    engine.state.tension = 0.20
+    engine.state.climate_streak = 2
+    engine.state.last_climate = "steady"
+    engine.store.save(engine.state)
+    before = (
+        engine.state.trust,
+        engine.state.dependence,
+        engine.state.tension,
+        engine.state.climate_streak,
+        engine.state.last_climate,
+        engine.state.last_user_act,
+    )
+    act, decision = engine.preview_user_text("谢谢")
+    if act != "gratitude":
+        _fail(f"preview act={act}")
+    if decision.user_act != "gratitude":
+        _fail(f"preview decision.user_act={decision.user_act}")
+    after = (
+        engine.state.trust,
+        engine.state.dependence,
+        engine.state.tension,
+        engine.state.climate_streak,
+        engine.state.last_climate,
+        engine.state.last_user_act,
+    )
+    if after != before:
+        _fail(f"preview mutated state {before} -> {after}")
+    _applied, _ = engine.on_user_text("谢谢")
+    if engine.state.trust <= before[0]:
+        _fail("on_user_text should apply gratitude trust delta")
+    print("  ok")
+
+
 def test_engine_depart_then_ack(tmp: Path) -> None:
     print("== engine persist last_user_act ==")
     path = tmp / "rel.json"
@@ -446,6 +486,7 @@ def main() -> None:
     test_welcome_forbids_ask()
     test_depart_then_short_ack_silence()
     with tempfile.TemporaryDirectory() as tmp:
+        test_preview_user_text_does_not_apply(Path(tmp))
         test_engine_depart_then_ack(Path(tmp))
         test_engine_wait_then_hao(Path(tmp))
     test_config_loads()

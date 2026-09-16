@@ -37,9 +37,11 @@ from .computer_use import (
     VisionClient,
     build_computer_use_instruction,
     computer_use_history_content,
+    is_denied_computer_use,
     is_probe_text,
     parse_observation,
     probe_actions,
+    race_route_and_chat,
     run_probe,
     run_vision_agent,
     terminal_messages,
@@ -203,9 +205,12 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         started_at: float | None,
         abort_check: Any | None = None,
         image: ImagePayload | None = None,
+        send_fn: Any | None = None,
+        release_busy: bool = True,
     ) -> None:
         nonlocal inflight_kind
         inflight_kind = "chat"
+        outbound = send_fn or send
         state.hub.set_busy(session_id, True)
         if state.scheduler is not None:
             state.scheduler.note_user_activity()
@@ -218,7 +223,7 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                 session_id=session_id,
                 content=content,
                 options=options,
-                send=send,
+                send=outbound,
                 request_json=request_json,
                 started_at=started_at,
                 abort_check=abort_check,
@@ -234,12 +239,13 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         except Exception as exc:
             logger.exception("Handler error session=%s", session_id)
             try:
-                await send(msg_error(CODE_INTERNAL, str(exc)))
+                await outbound(msg_error(CODE_INTERNAL, str(exc)))
             except Exception:
                 pass
         finally:
             inflight_kind = None
-            state.hub.set_busy(session_id, False)
+            if release_busy:
+                state.hub.set_busy(session_id, False)
 
     def _drain_cu_observations() -> None:
         while True:
@@ -481,7 +487,7 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
     ) -> None:
         nonlocal inflight_user
         cfg = state.config.computer_use
-        if not cfg.enabled:
+        if not cfg.enabled or is_denied_computer_use(content):
             await _run_chat(
                 content,
                 options,
@@ -491,19 +497,30 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                 image,
             )
             return
-        operate = False
+
+        operated = False
         state.hub.set_busy(session_id, True)
         try:
-            try:
-                router = ComputerUseRouter(state.config.planner, cfg)
-                operate = await router.should_operate(
+            router = ComputerUseRouter(state.config.planner, cfg)
+            history = state.conversations.get_history(session_id)
+
+            async def route() -> bool:
+                return await router.should_operate(content, history=history)
+
+            async def run_chat(gated_send) -> None:
+                await _run_chat(
                     content,
-                    history=state.conversations.get_history(session_id),
+                    options,
+                    request_json,
+                    started_at,
+                    abort_check,
+                    image,
+                    send_fn=gated_send,
+                    release_busy=False,
                 )
-            except Exception:
-                logger.exception("computer_use route error session=%s", session_id)
-                operate = False
-            if operate:
+
+            async def run_cu() -> None:
+                nonlocal inflight_user
                 inflight_user = None
                 logger.info(
                     "computer_use agent start session=%s text=%r",
@@ -511,18 +528,16 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                     content,
                 )
                 await _run_computer_use_agent(content)
-                return
+
+            operated = await race_route_and_chat(
+                route=route,
+                run_chat=run_chat,
+                run_cu=run_cu,
+                send=send,
+            )
         finally:
-            if not operate:
+            if not operated:
                 state.hub.set_busy(session_id, False)
-        await _run_chat(
-            content,
-            options,
-            request_json,
-            started_at,
-            abort_check,
-            image,
-        )
 
     async def _interrupt_generation(*, restore_inflight: bool) -> None:
         nonlocal chat_task, generation_id, inflight_user

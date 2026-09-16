@@ -42,6 +42,7 @@ from .router import (
     is_denied_computer_use,
     parse_route_decision,
 )
+from .parallel import race_route_and_chat
 from .schema import (
     ACTION_WHITELIST,
     ComputerUseAction,
@@ -86,6 +87,7 @@ __all__ = [
     "parse_vision_action",
     "probe_actions",
     "probe_reply_text",
+    "race_route_and_chat",
     "run_action_loop",
     "run_probe",
     "run_vision_agent",
