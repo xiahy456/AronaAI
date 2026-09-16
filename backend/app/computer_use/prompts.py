@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Vision-agent and initiate prompts for short computer-use tasks."""
+"""Vision-agent and initiate prompts for computer-use tasks."""
 
 from __future__ import annotations
 
@@ -28,18 +28,20 @@ def computer_use_history_content(user_text: str | None) -> str:
     return (user_text or "").strip() or HISTORY_COMPUTER_USE_MARKER
 
 VISION_SYSTEM = """你是阿洛娜的电脑操作规划器。可以内部思考，但思考过程不要写进最终回复。
-老师请你在这台 Windows 电脑上做一件短任务。最终输出必须是唯一一个 JSON 动作对象，不要 Markdown。
+老师请你在这台 Windows 电脑上完成交代的任务。最终输出必须是唯一一个 JSON 动作对象，不要 Markdown。
 允许的 action：move、click、double_click、right_click、middle_click、drag、right_drag、scroll、type、key、wait、done。
 规则：
 - 点击、拖拽、滚轮用 JPEG 像素坐标：coord_space 必须是 "image"；坐标是当前截图像素，原点左上。
 - click / double_click / right_click / middle_click 会移动并点击，不必先 move。浏览器新标签等用 middle_click。
-- 当前窗口内短拖（滑块、选区、画一笔、拖窗口）用 drag（左键）或 right_drag（右键），带起点 x/y 和终点 x2/y2，不必先 move。
+- 当前窗口内拖（滑块、选区、画一笔、拖窗口）用 drag（左键）或 right_drag（右键），带起点 x/y 和终点 x2/y2，不必先 move。
 - 当前窗口内滚列表用 scroll：先移到 x/y，dy 是滚轮格不是像素；dy>0 向上，dy<0 向下；一次用 1 到 8 格。
-- 看不清、会误点、超出短任务（多应用、填网页表单、密码/UAC）立刻 done，不要猜。
+- 按老师原话把任务做完再 done。步数多、要连点、要玩游戏到通关、要在同一窗口里反复操作，都继续，不要提前结束。
+- 密码框、UAC、看不到目标窗口时立刻 done，不要猜密码或乱点系统对话框。
+- 看不清也先根据可见内容选一个最合理的下一步；未完成目标时不要 done。
 - done 必须带中文 summary，给阿洛娜向老师交代用，只写实际做了或为什么没做。
 - type 只用于当前已聚焦的输入框；key 的 combo 用 win、escape、enter、tab、ctrl+c 这种。
 - 打开一个应用：key combo="win" → 必要时短 wait（如 300ms）→ type 应用名 → key combo="enter"。再点正文 type。
-- 要开第二个应用立刻 done。
+- 老师没要求时不要切到无关应用。
 可选 thought 只能作为 JSON 字段，不能写在对象外。
 示例：
 {"action":"key","combo":"win"}
@@ -98,6 +100,7 @@ def build_vision_user_message(
         f"【已执行步骤】\n{format_executed_steps(executed)}\n"
         f"【当前截图像素】{size}\n"
         "根据截图只输出一个动作 JSON。点选用 image 坐标。"
+        "仅当无法继续或目标已完成时输出 done。"
     )
 
 
@@ -106,7 +109,7 @@ def build_computer_use_instruction(*, user_text: str, summary: str, ok: bool) ->
     note = (summary or "").strip() or AGENT_SPEAK_FALLBACK
     status = "已按计划结束" if ok else "没有做完"
     return (
-        "【系统事件】阿洛娜刚通过什亭之匣，在老师这台电脑上执行了短操作。"
+        "【系统事件】阿洛娜刚通过什亭之匣，在老师这台电脑上执行了操作。"
         "这不是老师新说的闲聊，而是操作结果需要口头交代。\n"
         f"老师原话：{text}\n"
         f"执行状态：{status}。\n"

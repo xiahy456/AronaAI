@@ -87,9 +87,11 @@ class VisionClient:
                 },
             ],
             "temperature": 0.0,
-            "max_tokens": max(int(self.planner.max_tokens or 512), 768),
+            "max_tokens": max(1, int(self.computer_use.vision_max_tokens or 2048)),
             "response_format": {"type": "json_object"},
-            "thinking": {"type": "enabled"},
+            "thinking": {
+                "type": "enabled" if self.computer_use.vision_thinking else "disabled"
+            },
         }
         headers = {
             "Authorization": f"Bearer {self.planner.api_key}",

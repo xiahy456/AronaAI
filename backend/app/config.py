@@ -209,6 +209,8 @@ class ComputerUseConfig(BaseModel):
     max_steps: int = 8
     route_timeout_sec: float = 3
     vision_timeout_sec: float = 20
+    vision_max_tokens: int = 2048
+    vision_thinking: bool = True
 
 
 class RelationshipConfig(BaseModel):

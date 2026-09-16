@@ -44,7 +44,13 @@ from app.computer_use import (  # noqa: E402
     run_vision_agent,
     terminal_messages,
 )
-from app.computer_use.prompts import format_executed_steps  # noqa: E402
+from app.computer_use.prompts import (  # noqa: E402
+    VISION_SYSTEM,
+    build_computer_use_instruction,
+    build_vision_user_message,
+    format_executed_steps,
+)
+from app.computer_use.router import ROUTER_SYSTEM  # noqa: E402
 from app.config import ComputerUseConfig, PlannerConfig  # noqa: E402
 from app.image_input import ImagePayload  # noqa: E402
 from app.protocol import (  # noqa: E402
@@ -638,6 +644,62 @@ def test_router_default_false() -> None:
     print("  ok")
 
 
+def test_vision_max_tokens_config() -> None:
+    print("== computer_use vision_max_tokens is independent ==")
+    default_cfg = ComputerUseConfig()
+    if default_cfg.vision_max_tokens != 2048:
+        _fail(f"default vision_max_tokens={default_cfg.vision_max_tokens}")
+    custom = ComputerUseConfig(vision_max_tokens=4096)
+    if custom.vision_max_tokens != 4096:
+        _fail(f"explicit vision_max_tokens={custom.vision_max_tokens}")
+    planner = PlannerConfig(max_tokens=512)
+    if planner.max_tokens == custom.vision_max_tokens:
+        _fail("planner.max_tokens should stay independent of vision_max_tokens")
+    print("  ok")
+
+
+def test_vision_thinking_config() -> None:
+    print("== computer_use vision_thinking toggles deep thinking ==")
+    default_cfg = ComputerUseConfig()
+    if default_cfg.vision_thinking is not True:
+        _fail(f"default vision_thinking={default_cfg.vision_thinking}")
+    off = ComputerUseConfig(vision_thinking=False)
+    if off.vision_thinking is not False:
+        _fail(f"explicit false vision_thinking={off.vision_thinking}")
+    on = ComputerUseConfig(vision_thinking=True)
+    if on.vision_thinking is not True:
+        _fail(f"explicit true vision_thinking={on.vision_thinking}")
+    print("  ok")
+
+
+def test_prompts_allow_long_tasks() -> None:
+    print("== computer_use prompts are not short-task gated ==")
+    if "短任务" in VISION_SYSTEM:
+        _fail("VISION_SYSTEM should not mention 短任务")
+    if "按老师原话把任务做完再 done" not in VISION_SYSTEM:
+        _fail("VISION_SYSTEM should keep going until the teacher goal is done")
+    if "任务短" in ROUTER_SYSTEM:
+        _fail("ROUTER_SYSTEM should not require 任务短")
+    if "玩游戏，包括玩到通关" not in ROUTER_SYSTEM:
+        _fail("ROUTER_SYSTEM should allow games through to completion")
+    user_msg = build_vision_user_message(
+        user_text="扫雷玩到胜利",
+        executed=[],
+        img_w=1280,
+        img_h=800,
+    )
+    if "仅当无法继续或目标已完成时输出 done" not in user_msg:
+        _fail("vision user message should forbid early done")
+    instruction = build_computer_use_instruction(
+        user_text="扫雷",
+        summary="已点一格",
+        ok=True,
+    )
+    if "短操作" in instruction:
+        _fail("initiate instruction should not call it 短操作")
+    print("  ok")
+
+
 def test_format_route_history() -> None:
     print("== format route history ==")
     history = [
@@ -1075,6 +1137,9 @@ def main() -> None:
         test_router_deny_words,
         test_router_parse_computer_use,
         test_router_default_false,
+        test_vision_max_tokens_config,
+        test_vision_thinking_config,
+        test_prompts_allow_long_tasks,
         test_format_route_history,
         test_computer_use_history_content,
         test_parse_vision_click_image_coords,
