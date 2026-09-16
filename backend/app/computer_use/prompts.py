@@ -22,6 +22,11 @@ HISTORY_COMPUTER_USE_MARKER = "【操作电脑】"
 AGENT_SPEAK_FALLBACK = "老师，这次没能操作完。"
 AGENT_CANCELLED_REPLY = "老师，这次操作取消了。"
 
+
+def computer_use_history_content(user_text: str | None) -> str:
+    """Store the teacher's original utterance, not a system marker."""
+    return (user_text or "").strip() or HISTORY_COMPUTER_USE_MARKER
+
 VISION_SYSTEM = """你是阿洛娜的电脑操作规划器。可以内部思考，但思考过程不要写进最终回复。
 老师请你在这台 Windows 电脑上做一件短任务。最终输出必须是唯一一个 JSON 动作对象，不要 Markdown。
 允许的 action：move、click、double_click、right_click、scroll、type、key、wait、done。

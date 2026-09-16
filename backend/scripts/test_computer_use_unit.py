@@ -18,6 +18,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 
 from app.computer_use import (  # noqa: E402
     ACTION_WHITELIST,
+    HISTORY_COMPUTER_USE_MARKER,
     PROBE_ALIAS,
     PROBE_TOKEN,
     ComputerUseAction,
@@ -26,6 +27,7 @@ from app.computer_use import (  # noqa: E402
     ProbeResult,
     SchemaError,
     build_route_user_message,
+    computer_use_history_content,
     format_route_history,
     is_denied_computer_use,
     is_probe_text,
@@ -547,15 +549,17 @@ def test_format_route_history() -> None:
     history = [
         {"role": "user", "content": "【上线】"},
         {"role": "assistant", "content": "欢迎回来"},
-        {"role": "user", "content": "【操作电脑】"},
+        {"role": "user", "content": "帮我打开记事本写今天日期"},
         {"role": "assistant", "content": "已经写好日期"},
         {"role": "user", "content": "再写一篇介绍"},
     ]
     text = format_route_history(history)
     if "【上线】" in text:
         _fail("should keep only last 4 messages")
-    if "【操作电脑】" not in text:
-        _fail("should include computer-use marker")
+    if "帮我打开记事本写今天日期" not in text:
+        _fail("should include the teacher's original computer-use request")
+    if "【操作电脑】" in text:
+        _fail("should not replace teacher speech with the system marker")
     if "已经写好日期" not in text:
         _fail("should include last assistant line")
     if format_route_history(None) != "（无）":
@@ -565,8 +569,22 @@ def test_format_route_history() -> None:
         _fail("prompt should include history block")
     if "我是说写在记事本里啦" not in msg:
         _fail("prompt should include current text")
-    if "老师：【操作电脑】" not in msg:
-        _fail("prompt should label user turns")
+    if "老师：帮我打开记事本写今天日期" not in msg:
+        _fail("prompt should label the teacher's original utterance")
+    print("  ok")
+
+
+def test_computer_use_history_content() -> None:
+    print("== computer_use history stores original speech ==")
+    spoken = "帮我打开记事本写今天日期"
+    if computer_use_history_content(spoken) != spoken:
+        _fail("history should keep the teacher's original utterance")
+    if computer_use_history_content("  写在记事本里  ") != "写在记事本里":
+        _fail("history should strip surrounding whitespace")
+    if computer_use_history_content("") != HISTORY_COMPUTER_USE_MARKER:
+        _fail("empty utterance may fall back to marker")
+    if computer_use_history_content(None) != HISTORY_COMPUTER_USE_MARKER:
+        _fail("missing utterance may fall back to marker")
     print("  ok")
 
 
@@ -835,6 +853,7 @@ def main() -> None:
         test_router_parse_computer_use,
         test_router_default_false,
         test_format_route_history,
+        test_computer_use_history_content,
         test_parse_vision_click_image_coords,
         test_parse_vision_done_requires_summary,
         test_parse_vision_rejects_unknown_action,

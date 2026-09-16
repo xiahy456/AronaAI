@@ -33,6 +33,7 @@ from .prompts import (
     AGENT_SPEAK_FALLBACK,
     HISTORY_COMPUTER_USE_MARKER,
     build_computer_use_instruction,
+    computer_use_history_content,
 )
 from .router import (
     ComputerUseRouter,
@@ -74,6 +75,7 @@ __all__ = [
     "VisionClient",
     "build_computer_use_instruction",
     "build_route_user_message",
+    "computer_use_history_content",
     "format_route_history",
     "is_denied_computer_use",
     "is_probe_text",
