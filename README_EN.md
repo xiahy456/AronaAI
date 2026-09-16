@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  The cloud handles planning and extraction; the local model handles persona and the immersive scene. Relationship vectors and proactive events form a rule-based control plane, so you live with Arona rather than chat with her.
+  The cloud handles planning, extraction, and screen reading; the local side handles persona, character art, and mouse/keyboard execution. Relationship vectors and proactive events form a rule-based control plane, and computer use gives Arona hands-on ability, so you live with her rather than chat with her.
 </p>
 
 <p align="center">
@@ -26,7 +26,7 @@
 
 **AronaAI** is a non-conversational desktop AI modeled after Arona from the game *Blue Archive*. In lore she is the OS administrator of the Shittim Chest: cheerful, enthusiastic, and always ready to help Sensei (the user).
 
-The project wires **Planner → AronaLM Renderer**, relationship climate, proactive events, long-term memory, world-lore RAG, continuous-dictation turn routing, screen-capture input, text-to-speech (TTS), automatic speech recognition (ASR), and Spine 2D character animation into one desktop pipeline, so Arona stays on your screen instead of inside a chat box.
+The project wires **Planner → AronaLM Renderer**, relationship climate, proactive events, long-term memory, world-lore RAG, continuous-dictation turn routing, screen-capture input, computer use, text-to-speech (TTS), automatic speech recognition (ASR), and Spine 2D character animation into one desktop pipeline, so Arona stays on your screen instead of inside a chat box.
 
 <p align="center">
   <img src="assets/running_example_2.png" alt="Running Example" width="600"/>
@@ -66,6 +66,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
 - **Relationship climate**: three scalars — trust / dependence / tension — form a vector. User actions are classified by rules, then a lookup table updates the climate; climate zones decide whether Arona speaks, how she holds herself, or stays silent
 - **Proactive behavior**: after a WebSocket connect, Arona greets and reminds by time of day; after a stretch of silence she checks in lightly; sparse follow-ups on unfinished plans in memory; when Planner allows it, she may add a line in the same turn
 - **Screen vision**: when image input is enabled, text or voice submits attach a JPEG of the screen under the cursor; Planner reads the screen in that turn when it needs the information
+- **Computer use**: Arona can complete tasks by operating the computer, and takes screenshots to observe when needed
 - **Continuous dictation**: ASR fragments go into a buffer first and are submitted after silence; a rule plus a short-timeout LLM router decides ignore / wait / reply
 - **AronaLM**: AronaLM-Renderer handles text rendering; when the dual-model pipeline is unavailable, the local single-model AronaLM-Generator takes over the full inference path
 - **Memory and knowledge are separate**: long-term user facts go to SQLite + FTS5 + Chroma; world-lore goes Markdown corpus → local BGE + Chroma RAG; they are never mixed, and each is injected into the prompt on demand
@@ -101,9 +102,10 @@ Download the packaged portable backend from the [Releases](https://github.com/xi
 
 2. After extracting, edit `config.yaml` in the directory and fill in at least these keys:
 
-   - `planner.api_key` / `memory.extractor.api_key`: replace `YOUR_DEEPSEEK_API_KEY` with your DeepSeek API Key. **Planner requires a key**; without a key, or with `planner.enabled` off, the backend falls back to the local single model. Memory extraction without a key uses the regex fallback. When a screenshot is attached, Planner uses `planner.vision_model` (default `deepseek-v4-flash-vision-exp`)
+   - `planner.api_key` / `memory.extractor.api_key`: replace `YOUR_DEEPSEEK_API_KEY` with your DeepSeek API Key. **Planner requires a key**; without a key, or with `planner.enabled` off, the backend falls back to the local single model. Memory extraction without a key uses the regex fallback. When a screenshot or computer use is involved, Planner uses `planner.vision_model` (default `deepseek-v4-flash-vision-exp`)
    - `model.enabled`: whether to enable Arona-Renderer rendering correction; `true` enables it, `false` uses the Planner draft only. Place the GGUF only when this is enabled. **Disabled by default**
    - `knowledge.enabled`: whether to enable world-lore RAG. Official zip packages that already have the corpus ingested keep this **enabled by default**; the sample config for running from source is `false` until you ingest the corpus
+   - `computer_use.enabled`: whether to allow Arona to operate Sensei's computer. **Disabled by default**. After turning this on, the client must also set `computer_use.enabled`; otherwise the backend receives a `disabled` observation and stops
 
 3. Place models under `models/` in the extracted directory as needed (paths are already set in the bundled `config.yaml`; see the bundled `models/README.txt` or [`models/README.md`](models/README.md)):
 
@@ -127,8 +129,11 @@ Download the packaged client from the [Releases](https://github.com/xiahy456/Aro
   "aronalm": {
     "websocket_url": "ws://127.0.0.1:20456/ws"
   },
+  "computer_use": {
+    "enabled": false
+  },
   "tts": {
-    "host": "your.gpt.sovits.ip"
+    "host": "127.0.0.1"
   },
   "tencent_speech_recognizer": {
     "secret_id": "${TENCENT_SECRET_ID}",
@@ -174,6 +179,7 @@ cd gpt-sovits
 |------|------|
 | **Backend** | [`backend/README.md`](backend/README.md) |
 | **Desktop client** | [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md) |
+| **TTS** | [`gpt-sovits/DEPLOY.md`](gpt-sovits/DEPLOY.md) |
 | **Models** | [`models/README.md`](models/README.md) |
 | **AronaLM fine-tune** (for developers) | [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md) |
 
@@ -189,7 +195,7 @@ cd gpt-sovits
 - **Qwen3-1.7B** — fine-tune base model (https://huggingface.co/Qwen/Qwen3-1.7B)
 - **Unsloth** — efficient QLoRA fine-tuning (https://unsloth.ai/)
 - **ChromaDB** — vector database (https://www.trychroma.com/products/chromadb)
-- **DeepSeek** — Planner intent planning, vision screen-reading, and memory extraction API (https://www.deepseek.com/)
+- **DeepSeek** — Planner intent planning, vision screen-reading, computer-use multimodal control, and memory extraction API (https://www.deepseek.com/)
 - **GPT-SoVITS** — speech synthesis (https://github.com/RVC-Boss/GPT-SoVITS)
 - **Tencent Cloud ASR** — online speech recognition (https://cloud.tencent.com/product/asr)
 - **bge-small-zh-v1.5** — text embedding model (https://huggingface.co/BAAI/bge-small-zh-v1.5)
