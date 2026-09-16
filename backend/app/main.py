@@ -80,7 +80,9 @@ def create_app() -> FastAPI:
     memory_store = MemoryStore(config, encoder=shared_encoder)
     extractor = MemoryExtractor(memory_store, config.memory.extractor)
     knowledge = KnowledgeRetriever(config, encoder=shared_encoder)
-    planner = PlannerClient(config.planner)
+    planner = PlannerClient(
+        config.planner, renderer_enabled=config.model.enabled
+    )
     relationship = RelationshipEngine.from_path(
         config.relationship_abs_path,
         RelationshipSettings.from_config(config.proactive.relationship),

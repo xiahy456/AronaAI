@@ -167,12 +167,14 @@ Planner 只看见【关系气候】档位与【建议姿态】，禁止下发 A/
 
 ### Planner prompt
 
-结构固定为两条 message：`system = PLANNER_SYSTEM`，`user = climate +【当前时间】+ 记忆 + 知识 + 历史 +「老师本轮消息」+ 收尾句`。
+结构固定为两条 message：`system` 由 `select_planner_system()` 按 `model.enabled` 选择，`user = climate +【当前时间】+ 记忆 + 知识 + 历史 +「老师本轮消息」+ 收尾句`。
 
 
 | 部件                                     | 位置                                                   |
 | -------------------------------------- | ---------------------------------------------------- |
-| `PLANNER_SYSTEM`（人设、边界、JSON schema）    | `[app/planner/prompts.py](app/planner/prompts.py)`   |
+| `PLANNER_SYSTEM`（`model.enabled=true`，planner → renderer） | `[app/planner/prompts.py](app/planner/prompts.py)`   |
+| `PLANNER_SYSTEM_DIRECT`（`model.enabled=false`，draft 即最终台词） | `[app/planner/prompts.py](app/planner/prompts.py)`   |
+| `select_planner_system()`              | `[app/planner/prompts.py](app/planner/prompts.py)`   |
 | `{EMOTION_WHITELIST_CSV}` 插值           | `[app/planner/emotions.py](app/planner/emotions.py)` |
 | user 模板 `build_planner_user_message()` | `[app/planner/prompts.py](app/planner/prompts.py)`   |
 
@@ -241,7 +243,7 @@ Planner 只看见【关系气候】档位与【建议姿态】，禁止下发 A/
 
 - 记忆抽取：`EXTRACT_SYSTEM` 在 `[app/memory/extractor.py](app/memory/extractor.py)`（另一路 DeepSeek）
 
-改话术时：用户对话改 `PLANNER_SYSTEM`；欢迎/空闲/照料等改对应 `build_*_instruction`；关系口吻改 `policy.py`；阿洛娜最终台词风格改 `app/prompt.py` 的 `RENDERER_SYSTEM`。
+改话术时：双模型路径改 `PLANNER_SYSTEM`；关闭 renderer、draft 直出时改 `PLANNER_SYSTEM_DIRECT`；欢迎/空闲/照料等改对应 `build_*_instruction`；关系口吻改 `policy.py`；阿洛娜最终台词风格改 `app/prompt.py` 的 `RENDERER_SYSTEM`。
 
 ## 关系气候
 

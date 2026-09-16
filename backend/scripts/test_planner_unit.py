@@ -10,7 +10,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import load_config
 from app.planner import EMOTION_WHITELIST, normalize_emotion, parse_and_gate_intent
-from app.planner.prompts import PLANNER_SYSTEM, build_planner_user_message
+from app.planner.prompts import (
+    PLANNER_SYSTEM,
+    PLANNER_SYSTEM_DIRECT,
+    build_planner_user_message,
+    select_planner_system,
+)
 from app.prompt import (
     LOCAL_MAX_HISTORY_TURNS,
     RENDERER_USER_TAIL,
@@ -142,6 +147,8 @@ def main() -> None:
     for act in USER_ACT_WHITELIST:
         assert act in PLANNER_SYSTEM
     assert USER_ACT_WHITELIST_CSV
+    assert select_planner_system(renderer_enabled=True) is PLANNER_SYSTEM
+    assert select_planner_system(renderer_enabled=False) is PLANNER_SYSTEM_DIRECT
     frozen = datetime(2026, 8, 24, 10, 14)
     user_msg = build_planner_user_message(
         user_text="谢谢你，阿洛娜。",

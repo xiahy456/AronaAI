@@ -24,15 +24,18 @@ import httpx
 from ..config import PlannerConfig
 from ..image_input import ImagePayload, redact_image_fields
 from ..logging_utils import update_trace
-from .prompts import PLANNER_SYSTEM, build_planner_user_message
+from .prompts import build_planner_user_message, select_planner_system
 from .schema import IntentCard, parse_and_gate_intent
 
 logger = logging.getLogger(__name__)
 
 
 class PlannerClient:
-    def __init__(self, config: PlannerConfig) -> None:
+    def __init__(
+        self, config: PlannerConfig, *, renderer_enabled: bool = True
+    ) -> None:
         self.config = config
+        self.renderer_enabled = renderer_enabled
 
     @property
     def enabled(self) -> bool:
@@ -82,7 +85,12 @@ class PlannerClient:
         payload: dict[str, Any] = {
             "model": model,
             "messages": [
-                {"role": "system", "content": PLANNER_SYSTEM},
+                {
+                    "role": "system",
+                    "content": select_planner_system(
+                        renderer_enabled=self.renderer_enabled
+                    ),
+                },
                 {"role": "user", "content": user_content},
             ],
             "temperature": self.config.temperature,

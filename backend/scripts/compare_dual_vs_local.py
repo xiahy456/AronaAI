@@ -209,7 +209,9 @@ async def amain() -> int:
     args = parser.parse_args()
 
     config = load_config()
-    planner = PlannerClient(config.planner)
+    planner = PlannerClient(
+        config.planner, renderer_enabled=config.model.enabled
+    )
     cases = DEFAULT_CASES
     if args.cases and args.cases.is_file():
         cases = json.loads(args.cases.read_text(encoding="utf-8"))

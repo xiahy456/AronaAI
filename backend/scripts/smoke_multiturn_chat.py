@@ -41,7 +41,9 @@ async def amain() -> int:
     args = parser.parse_args()
 
     config = load_config()
-    planner = PlannerClient(config.planner)
+    planner = PlannerClient(
+        config.planner, renderer_enabled=config.model.enabled
+    )
     if not planner.enabled:
         print("planner disabled / no API key")
         return 1

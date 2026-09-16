@@ -84,7 +84,9 @@ class Orchestrator:
         self.memory_store = memory_store
         self.extractor = extractor
         self.knowledge = knowledge
-        self.planner = planner or PlannerClient(config.planner)
+        self.planner = planner or PlannerClient(
+            config.planner, renderer_enabled=config.model.enabled
+        )
         self.relationship = relationship
         self.stats: dict[str, Any] = {
             "chat_count": 0,
