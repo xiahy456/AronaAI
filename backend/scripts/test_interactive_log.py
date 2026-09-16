@@ -13,9 +13,11 @@ from pathlib import Path
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND_DIR))
 
+from app.image_input import redact_image_fields  # noqa: E402
 from app.logging_utils import (  # noqa: E402
     begin_trace,
     format_interactive_log,
+    format_llm_exchange,
     pretty_json,
     reset_trace,
     update_trace,
@@ -182,6 +184,97 @@ def test_format_renderer_disabled_is_none() -> None:
     print("  ok")
 
 
+def test_format_llm_exchange_indent_and_sections() -> None:
+    print("== format_llm_exchange indent / prompt / response ==")
+    messages = [
+        {"role": "system", "content": "你是电脑操作路由器"},
+        {"role": "user", "content": "【老师本段】打开记事本写今天日期"},
+    ]
+    block = format_llm_exchange(
+        title="computer_use route",
+        prompt=messages,
+        response='{"computer_use": true}',
+        extra={"computer_use": True},
+    )
+    if not block.startswith("computer_use route:\n"):
+        _fail(f"title should start the block:\n{block}")
+    if "\n" not in block:
+        _fail(f"block should be multi-line:\n{block}")
+    if "prompt:\n" not in block:
+        _fail(f"missing prompt section:\n{block}")
+    if "response:\n" not in block:
+        _fail(f"missing response section:\n{block}")
+    if "\n\nresponse:\n" not in block:
+        _fail(f"blank line before response:\n{block}")
+    if '"role": "system"' not in block or "  " not in block:
+        _fail(f"prompt JSON should be indented:\n{block}")
+    if '"computer_use": true' not in block:
+        _fail(f"response JSON should be pretty-printed:\n{block}")
+    if "computer_use: true" not in block:
+        _fail(f"extra bool should render as true/false:\n{block}")
+    if "reasoning:" in block:
+        _fail(f"absent reasoning should omit the section:\n{block}")
+    print("  ok")
+
+
+def test_format_llm_exchange_optional_reasoning() -> None:
+    print("== format_llm_exchange optional reasoning ==")
+    with_reason = format_llm_exchange(
+        title="computer_use vision",
+        prompt=[{"role": "user", "content": "截图"}],
+        response='{"action":"wait","ms":0}',
+        reasoning="先看桌面再点开始菜单。",
+    )
+    if "\n\nreasoning:\n先看桌面再点开始菜单。\n\nresponse:\n" not in with_reason:
+        _fail(f"reasoning should sit between prompt and response:\n{with_reason}")
+    blank = format_llm_exchange(
+        title="computer_use vision",
+        prompt=[],
+        response="not json at all",
+        reasoning="   ",
+    )
+    if "reasoning:" in blank:
+        _fail(f"blank reasoning should be omitted:\n{blank}")
+    if "not json at all" not in blank:
+        _fail(f"non-JSON response should stay as text:\n{blank}")
+    print("  ok")
+
+
+def test_format_llm_exchange_redacts_data_url() -> None:
+    print("== format_llm_exchange redacts screenshot data_url ==")
+    payload = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "看屏幕"},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+                    },
+                },
+            ],
+        }
+    ]
+    raw_url = payload[0]["content"][1]["image_url"]["url"]
+    block = format_llm_exchange(
+        title="computer_use vision",
+        prompt=redact_image_fields(payload),
+        response='{"action":"done"}',
+    )
+    if raw_url in block:
+        _fail("raw data URL must not appear in the log")
+    if "data:image/png;base64," in block:
+        _fail("data URL prefix must not appear after redact")
+    if "[redacted data_url" not in block or "chars]" not in block:
+        _fail(f"expected redacted data_url placeholder:\n{block}")
+    if "看屏幕" not in block:
+        _fail(f"text part of prompt should remain:\n{block}")
+    if "Authorization" in block or "api_key" in block:
+        _fail(f"must not log credentials:\n{block}")
+    print("  ok")
+
+
 def main() -> None:
     try:
         test_pretty_json()
@@ -189,6 +282,9 @@ def main() -> None:
         test_format_missing_fields_are_none()
         test_format_listen_transcript_request()
         test_format_renderer_disabled_is_none()
+        test_format_llm_exchange_indent_and_sections()
+        test_format_llm_exchange_optional_reasoning()
+        test_format_llm_exchange_redacts_data_url()
     finally:
         reset_trace()
     print("ALL PASS")

@@ -22,6 +22,7 @@ from typing import Any
 import httpx
 
 from ..config import ComputerUseConfig, PlannerConfig
+from ..logging_utils import format_llm_exchange
 from .schema import extract_json_object
 
 logger = logging.getLogger(__name__)
@@ -48,8 +49,9 @@ ROUTER_SYSTEM = """你是桌面陪伴助手「阿洛娜」的电脑操作路由�
 结合【近期对话】和老师本段，判断是不是在请阿洛娜立刻操作这台 Windows 电脑。
 只输出一个 JSON 对象，不要 Markdown。
 computer_use 为 true 仅当任务短、且是动手操作，例如：
-- 对当前已打开的窗口打几个字、点已经能看清的大按钮、按快捷键；
-- 或用开始菜单打开 **一个** 应用再打几个字（例如打开记事本写一句话）。
+- 对当前已打开的窗口打几个字、点已经能看清的大按钮、按快捷键。
+- 用开始菜单打开 **一个** 应用再打几个字（例如打开记事本写一句话）。
+- 使用浏览器、画图等软件，完成简单的操作。
 上一轮已是【操作电脑】或阿洛娜刚交代过操作时，「写在记事本里 / 再写一段 / 继续」应倾向 true。
 以下必须 false：问好、摸头、吃饭、想你、闲聊、提问、只让阿洛娜说话、多应用切换、填网页表单、密码、不确定。
 拿不准必须 false。
@@ -164,7 +166,15 @@ class ComputerUseRouter:
                 data = resp.json()
             content = data["choices"][0]["message"]["content"] or ""
             decision = parse_route_decision(content)
-            logger.info("computer_use route llm computer_use=%s raw=%s", decision, content)
+            logger.info(
+                "%s",
+                format_llm_exchange(
+                    title="computer_use route",
+                    prompt=payload["messages"],
+                    response=content,
+                    extra={"computer_use": decision},
+                ),
+            )
             return decision
         except Exception as exc:
             logger.warning("computer_use route llm failed: %s", exc)

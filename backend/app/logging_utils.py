@@ -110,6 +110,34 @@ def pretty_json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, indent=2)
 
 
+def format_llm_exchange(
+    *,
+    title: str,
+    prompt: Any,
+    response: Any,
+    reasoning: Any = None,
+    extra: dict[str, Any] | None = None,
+) -> str:
+    """Multi-line remote-LLM exchange, same indent style as interactive logs."""
+    sections = [f"prompt:\n{pretty_json(prompt)}"]
+    reasoning_text = reasoning
+    if isinstance(reasoning, str):
+        reasoning_text = reasoning.strip() or None
+    if reasoning_text not in (None, ""):
+        sections.append(f"reasoning:\n{pretty_json(reasoning_text)}")
+    sections.append(f"response:\n{pretty_json(response)}")
+    if extra:
+        for key, value in extra.items():
+            if isinstance(value, bool):
+                rendered = "true" if value else "false"
+            elif isinstance(value, (dict, list)):
+                rendered = pretty_json(value)
+            else:
+                rendered = str(value)
+            sections.append(f"{key}: {rendered}")
+    return f"{title}:\n" + "\n\n".join(sections)
+
+
 def format_interactive_log(
     payload: dict[str, Any],
     *,

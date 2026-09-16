@@ -147,7 +147,7 @@ computer_use:
   probe_enabled: true
   probe_token: "__cu_probe__"
   observation_timeout_sec: 8
-  max_steps: 8
+  max_steps: 16
   route_timeout_sec: 3
   vision_timeout_sec: 20
 

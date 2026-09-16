@@ -22,6 +22,8 @@ from typing import Any
 import httpx
 
 from ..config import ComputerUseConfig, PlannerConfig
+from ..image_input import redact_image_fields
+from ..logging_utils import format_llm_exchange
 from .prompts import VISION_SYSTEM, build_vision_user_message
 from .schema import ComputerUseAction, ComputerUseObservation, SchemaError, parse_vision_action
 
@@ -101,9 +103,15 @@ class VisionClient:
             message = data["choices"][0]["message"] or {}
             content = message.get("content") or ""
             reasoning = message.get("reasoning_content") or ""
-            if str(reasoning).strip():
-                logger.info("computer_use vision reasoning=%s", reasoning)
-            logger.info("computer_use vision raw=%s", content)
+            logger.info(
+                "%s",
+                format_llm_exchange(
+                    title="computer_use vision",
+                    prompt=redact_image_fields(payload["messages"]),
+                    response=content,
+                    reasoning=reasoning if str(reasoning).strip() else None,
+                ),
+            )
             if not str(content).strip():
                 logger.warning("computer_use vision empty final content")
                 return None
