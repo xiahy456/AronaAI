@@ -20,6 +20,8 @@
 #include "GlobalVariables.h"
 
 #include <QByteArray>
+#include <QJsonObject>
+#include <QList>
 #include <QObject>
 #include <QString>
 #include <QMessageBox>
@@ -33,6 +35,7 @@
 #include "WebSocketController.h"
 #include "UserInputWidget.h"
 #include "AronaEmotionMap.h"
+#include "ComputerUseExecutor.h"
 
 class MainController : public QObject
 {
@@ -82,6 +85,9 @@ private slots:
 	void onWebSocketError(WebSocketController::ErrorCode code, const QString& message);
 	void onWebSocketStateChanged(WebSocketController::ConnectionState state);
 	void onPatEnded(int durationMs);
+	void onComputerUseAction(const QJsonObject& action);
+	void onComputerUseObservation(const QJsonObject& observation);
+	void onComputerUseDone(const QJsonObject& message);
 
 private:
 	MainWidget* m_mainWidget;	// 主界面对象引用
@@ -114,12 +120,15 @@ private:
 	int m_ttsModelsLoaded = 0;	// 已切完的 TTS 权重数
 	QElapsedTimer m_ttsWeightTimer;	// TTS 切权重耗时
 	QElapsedTimer m_patInteractCooldown;	// 摸头 interact 冷却（从成功发送起算）
+	ComputerUseExecutor* m_computerUseExecutor = nullptr;
 
 	// 处理用户输入的文本（语音识别或文本输入）
 	void processInputText(const QString& text);
 	void sendTranscriptToBackend(const QString& text);
 	void flushPendingTranscript();
 	QString maybeCaptureScreenBase64() const;
+	QList<QWidget*> computerUseExcludeWindows() const;
+	void sendComputerUseDisabled(const QJsonObject& action);
 	void interruptOutput();
 	void presentOutput(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion);
 	void presentOutputError(const QString& text, const QString& emotion);

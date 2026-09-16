@@ -112,6 +112,7 @@ public:
     void sendTranscript(const QString& text, const QString& segmentId, int silenceMs,
         const QString& imageBase64 = QString());
     void sendInterrupt();
+    void sendComputerUseObservation(const QJsonObject& observation);
 
     // 清空会话
     void clearSession();
@@ -153,6 +154,8 @@ signals:
     // emotion 为英文表情值（如 smile），由客户端映射到 Spine 动画值
     void chatResponseReceived(const QString& content,
         const QString& contextUsed, double latency, const QString& emotion);
+    void computerUseActionReceived(const QJsonObject& action);
+    void computerUseDoneReceived(const QJsonObject& message);
 
     // 收到错误信号
     void errorOccurred(ErrorCode code, const QString& message);
@@ -186,6 +189,8 @@ private:
 
     // 处理聊天响应
     void handleChatResponse(const QJsonObject& message);
+    void handleComputerUseAction(const QJsonObject& message);
+    void handleComputerUseDone(const QJsonObject& message);
 
     // 处理错误
     void handleError(const QJsonObject& message);

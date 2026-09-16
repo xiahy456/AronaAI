@@ -76,6 +76,9 @@
     <QtMoc Include="QtUtils\ShortCutKey.h">
       <Filter>QtUtils</Filter>
     </QtMoc>
+    <QtMoc Include="QtUtils\ComputerUseExecutor.h">
+      <Filter>QtUtils</Filter>
+    </QtMoc>
     <QtMoc Include="QtUtils\AudioRecorder.h">
       <Filter>QtUtils</Filter>
     </QtMoc>
@@ -357,6 +360,9 @@
       <Filter>QtUtils</Filter>
     </ClCompile>
     <ClCompile Include="QtUtils\ScreenCapture.cpp">
+      <Filter>QtUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="QtUtils\ComputerUseExecutor.cpp">
       <Filter>QtUtils</Filter>
     </ClCompile>
     <ClCompile Include="QtMainFile\GlobalVariables.cpp">

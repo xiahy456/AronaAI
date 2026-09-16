@@ -83,27 +83,41 @@ private:
 };
 #endif
 
-QString grabJpegBase64(const QList<QWidget*>& excludeWindows)
+Frame grabFrame(const QList<QWidget*>& excludeWindows, QScreen* screen)
 {
+	Frame frame;
+
 #ifdef Q_OS_WIN
 	ExcludeFromCaptureGuard guard(excludeWindows);
 #else
 	Q_UNUSED(excludeWindows);
 #endif
 
-	QScreen* screen = QGuiApplication::screenAt(QCursor::pos());
+	if (!screen) {
+		screen = QGuiApplication::screenAt(QCursor::pos());
+	}
 	if (!screen) {
 		screen = QGuiApplication::primaryScreen();
 	}
 	if (!screen) {
 		ERROR_DEBUG_OUTPUT("[Screen Capture] No screen available");
-		return {};
+		return frame;
 	}
+
+	const QRect geo = screen->geometry();
+	frame.originX = geo.x();
+	frame.originY = geo.y();
+	frame.physW = geo.width();
+	frame.physH = geo.height();
+	frame.dpiScale = screen->devicePixelRatio();
+	const QPoint cursor = QCursor::pos();
+	frame.cursorX = cursor.x();
+	frame.cursorY = cursor.y();
 
 	const QPixmap pixmap = screen->grabWindow(0);
 	if (pixmap.isNull()) {
 		ERROR_DEBUG_OUTPUT("[Screen Capture] grabWindow returned null");
-		return {};
+		return frame;
 	}
 
 	QImage image = pixmap.toImage();
@@ -117,14 +131,29 @@ QString grabJpegBase64(const QList<QWidget*>& excludeWindows)
 	buffer.open(QIODevice::WriteOnly);
 	if (!image.save(&buffer, "JPEG", 70)) {
 		ERROR_DEBUG_OUTPUT("[Screen Capture] JPEG encode failed");
-		return {};
+		return frame;
 	}
 
-	FINE_DEBUG_OUTPUT(QString("[Screen Capture] Captured %1x%2 jpeg=%3 bytes")
-		.arg(image.width())
-		.arg(image.height())
-		.arg(bytes.size()));
-	return QString::fromLatin1(bytes.toBase64());
+	frame.imgW = image.width();
+	frame.imgH = image.height();
+	frame.jpegBase64 = QString::fromLatin1(bytes.toBase64());
+	frame.ok = !frame.jpegBase64.isEmpty() && frame.physW > 0 && frame.physH > 0
+		&& frame.imgW > 0 && frame.imgH > 0;
+
+	FINE_DEBUG_OUTPUT(QString("[Screen Capture] Captured %1x%2 jpeg=%3 bytes origin=%4,%5 phys=%6x%7")
+		.arg(frame.imgW)
+		.arg(frame.imgH)
+		.arg(bytes.size())
+		.arg(frame.originX)
+		.arg(frame.originY)
+		.arg(frame.physW)
+		.arg(frame.physH));
+	return frame;
+}
+
+QString grabJpegBase64(const QList<QWidget*>& excludeWindows)
+{
+	return grabFrame(excludeWindows, nullptr).jpegBase64;
 }
 
 }

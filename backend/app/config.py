@@ -201,6 +201,14 @@ class InteractConfig(BaseModel):
     enabled: bool = True
 
 
+class ComputerUseConfig(BaseModel):
+    enabled: bool = False
+    probe_enabled: bool = True
+    probe_token: str = "__cu_probe__"
+    observation_timeout_sec: float = 8
+    max_steps: int = 8
+
+
 class RelationshipConfig(BaseModel):
     enabled: bool = True
     persist_path: str = "data/memory/relationship.json"
@@ -243,6 +251,7 @@ class AppConfig(BaseModel):
     listen: ListenConfig = Field(default_factory=ListenConfig)
     proactive: ProactiveConfig = Field(default_factory=ProactiveConfig)
     interact: InteractConfig = Field(default_factory=InteractConfig)
+    computer_use: ComputerUseConfig = Field(default_factory=ComputerUseConfig)
     token_budget: TokenBudgetConfig = Field(default_factory=TokenBudgetConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 

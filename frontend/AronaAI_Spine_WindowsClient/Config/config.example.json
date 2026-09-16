@@ -36,6 +36,9 @@
     "use_rag": true,
     "use_memory": true
   },
+  "computer_use": {
+    "enabled": false
+  },
   "spine": {
     "skelOrJson_path": "Assets/AronaSpineAssets/arona_spr_full.json",
     "atlas_path": "Assets/AronaSpineAssets/arona_spr_full.atlas",

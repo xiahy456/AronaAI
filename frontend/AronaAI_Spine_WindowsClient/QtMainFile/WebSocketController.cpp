@@ -235,6 +235,13 @@ void WebSocketController::sendInterrupt()
     sendMessage(message);
 }
 
+void WebSocketController::sendComputerUseObservation(const QJsonObject& observation)
+{
+    QJsonObject message = observation;
+    message["type"] = QStringLiteral("computer_use_observation");
+    sendMessage(message);
+}
+
 void WebSocketController::clearSession()
 {
     QJsonObject message;
@@ -565,6 +572,12 @@ void WebSocketController::handleMessage(const QJsonObject& message)
     if (type == "chat_response") {
         handleChatResponse(message);
     }
+    else if (type == "computer_use_action") {
+        handleComputerUseAction(message);
+    }
+    else if (type == "computer_use_done") {
+        handleComputerUseDone(message);
+    }
     else if (type == "error") {
         handleError(message);
     }
@@ -603,6 +616,24 @@ void WebSocketController::handleChatResponse(const QJsonObject& message)
     if (m_onChatResponseCallback) {
         m_onChatResponseCallback(message);
     }
+}
+
+void WebSocketController::handleComputerUseAction(const QJsonObject& message)
+{
+    FINE_DEBUG_OUTPUT(QString("[WebSocketController] computer_use_action run=%1 step=%2 action=%3")
+        .arg(message.value(QStringLiteral("run_id")).toString())
+        .arg(message.value(QStringLiteral("step")).toInt())
+        .arg(message.value(QStringLiteral("action")).toString()));
+    emit computerUseActionReceived(message);
+}
+
+void WebSocketController::handleComputerUseDone(const QJsonObject& message)
+{
+    FINE_DEBUG_OUTPUT(QString("[WebSocketController] computer_use_done run=%1 ok=%2 summary=%3")
+        .arg(message.value(QStringLiteral("run_id")).toString())
+        .arg(message.value(QStringLiteral("ok")).toBool() ? "true" : "false")
+        .arg(message.value(QStringLiteral("summary")).toString()));
+    emit computerUseDoneReceived(message);
 }
 
 void WebSocketController::handleError(const QJsonObject& message)

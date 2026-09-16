@@ -1,0 +1,254 @@
+# Copyright 2026 xia_hy456. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Computer-use action / observation schema (phase 0 probe)."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Literal
+
+from ..image_input import ImagePayload, parse_optional_image
+from ..protocol import msg_computer_use_action
+
+ActionName = Literal[
+    "move",
+    "click",
+    "double_click",
+    "right_click",
+    "scroll",
+    "type",
+    "key",
+    "wait",
+    "done",
+]
+
+COORD_SPACES = frozenset({"normalized", "image"})
+ACTION_WHITELIST = frozenset(
+    {
+        "move",
+        "click",
+        "double_click",
+        "right_click",
+        "scroll",
+        "type",
+        "key",
+        "wait",
+        "done",
+    }
+)
+POINTER_ACTIONS = frozenset(
+    {"move", "click", "double_click", "right_click", "scroll"}
+)
+
+
+class SchemaError(ValueError):
+    """Invalid computer-use payload."""
+
+
+def _as_str(value: object | None, default: str = "") -> str:
+    if isinstance(value, str):
+        return value.strip()
+    return default
+
+
+def _as_bool(value: object | None, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "1", "yes"}
+    return default
+
+
+def _as_int(value: object | None, default: int | None = None) -> int | None:
+    if value is None or value == "":
+        return default
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, str) and value.strip():
+        try:
+            return int(value.strip())
+        except ValueError:
+            return default
+    return default
+
+
+def _as_float(value: object | None, default: float | None = None) -> float | None:
+    if value is None or value == "":
+        return default
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str) and value.strip():
+        try:
+            return float(value.strip())
+        except ValueError:
+            return default
+    return default
+
+
+@dataclass
+class ComputerUseAction:
+    action: str
+    run_id: str = ""
+    step: int = 0
+    x: float | None = None
+    y: float | None = None
+    coord_space: str = "normalized"
+    combo: str | None = None
+    text: str | None = None
+    ms: int | None = None
+    dy: float | None = None
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "run_id": self.run_id,
+            "step": self.step,
+            "action": self.action,
+            "x": self.x,
+            "y": self.y,
+            "coord_space": self.coord_space,
+            "combo": self.combo,
+            "text": self.text,
+            "ms": self.ms,
+            "dy": self.dy,
+        }
+
+    def to_message(self) -> dict[str, Any]:
+        return msg_computer_use_action(self.to_payload())
+
+
+@dataclass(frozen=True)
+class ScreenGeometry:
+    origin_x: int
+    origin_y: int
+    phys_w: int
+    phys_h: int
+    img_w: int
+    img_h: int
+    dpi_scale: float = 1.0
+    cursor_x: int = 0
+    cursor_y: int = 0
+
+
+@dataclass
+class ComputerUseObservation:
+    run_id: str
+    step: int
+    ok: bool
+    error: str = ""
+    screen: ScreenGeometry | None = None
+    image: ImagePayload | None = None
+
+
+def parse_action(data: dict[str, Any] | None) -> ComputerUseAction:
+    if not isinstance(data, dict):
+        raise SchemaError("action must be an object")
+    action = _as_str(data.get("action")).lower()
+    if action not in ACTION_WHITELIST:
+        raise SchemaError(f"unknown action: {action or data.get('action')!r}")
+    coord_space = _as_str(data.get("coord_space"), "normalized").lower() or "normalized"
+    if coord_space not in COORD_SPACES:
+        raise SchemaError(f"unknown coord_space: {coord_space}")
+    parsed = ComputerUseAction(
+        action=action,
+        run_id=_as_str(data.get("run_id")),
+        step=_as_int(data.get("step"), 0) or 0,
+        x=_as_float(data.get("x")),
+        y=_as_float(data.get("y")),
+        coord_space=coord_space,
+        combo=_as_str(data.get("combo")) or None,
+        text=_as_str(data.get("text")) or None,
+        ms=_as_int(data.get("ms")),
+        dy=_as_float(data.get("dy")),
+    )
+    _validate_action(parsed)
+    return parsed
+
+
+def _validate_action(action: ComputerUseAction) -> None:
+    if action.action in POINTER_ACTIONS:
+        if action.x is None or action.y is None:
+            raise SchemaError(f"{action.action} requires x and y")
+        if action.action == "scroll" and action.dy is None:
+            raise SchemaError("scroll requires dy")
+    elif action.action == "type":
+        if not action.text:
+            raise SchemaError("type requires text")
+    elif action.action == "key":
+        if not action.combo:
+            raise SchemaError("key requires combo")
+    elif action.action == "wait":
+        if action.ms is None or action.ms < 0:
+            raise SchemaError("wait requires non-negative ms")
+
+
+def parse_screen(data: object | None) -> ScreenGeometry | None:
+    if not isinstance(data, dict):
+        return None
+    origin_x = _as_int(data.get("origin_x"))
+    origin_y = _as_int(data.get("origin_y"))
+    phys_w = _as_int(data.get("phys_w"))
+    phys_h = _as_int(data.get("phys_h"))
+    img_w = _as_int(data.get("img_w"))
+    img_h = _as_int(data.get("img_h"))
+    if origin_x is None or origin_y is None:
+        return None
+    if phys_w is None or phys_h is None or phys_w <= 0 or phys_h <= 0:
+        return None
+    if img_w is None or img_h is None or img_w <= 0 or img_h <= 0:
+        return None
+    dpi = _as_float(data.get("dpi_scale"), 1.0)
+    if dpi is None or dpi <= 0:
+        dpi = 1.0
+    return ScreenGeometry(
+        origin_x=origin_x,
+        origin_y=origin_y,
+        phys_w=phys_w,
+        phys_h=phys_h,
+        img_w=img_w,
+        img_h=img_h,
+        dpi_scale=dpi,
+        cursor_x=_as_int(data.get("cursor_x"), 0) or 0,
+        cursor_y=_as_int(data.get("cursor_y"), 0) or 0,
+    )
+
+
+def parse_observation(data: dict[str, Any] | None) -> ComputerUseObservation:
+    if not isinstance(data, dict):
+        raise SchemaError("observation must be an object")
+    run_id = _as_str(data.get("run_id"))
+    if not run_id:
+        raise SchemaError("observation requires run_id")
+    step = _as_int(data.get("step"), 0) or 0
+    ok = _as_bool(data.get("ok"), False)
+    error = _as_str(data.get("error"))
+    screen = parse_screen(data.get("screen"))
+    image = parse_optional_image(data)
+    if ok and screen is None:
+        ok = False
+        error = error or "invalid_screen"
+    return ComputerUseObservation(
+        run_id=run_id,
+        step=step,
+        ok=ok,
+        error=error,
+        screen=screen,
+        image=image,
+    )

@@ -142,6 +142,13 @@ proactive:
 interact:
   enabled: true
 
+computer_use:
+  enabled: false
+  probe_enabled: true
+  probe_token: "__cu_probe__"
+  observation_timeout_sec: 8
+  max_steps: 8
+
 token_budget:
   memory: 250
   knowledge: 250

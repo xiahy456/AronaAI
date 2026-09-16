@@ -42,6 +42,7 @@ _APP_LOGGERS = (
     "app.turntaking.router",
     "app.turntaking.llm_router",
     "app.image_input",
+    "app.computer_use",
 )
 
 

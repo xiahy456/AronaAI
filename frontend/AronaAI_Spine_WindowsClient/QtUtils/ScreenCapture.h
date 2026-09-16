@@ -21,11 +21,29 @@
 #include <QString>
 #include <QWidget>
 
+class QScreen;
+
 namespace ScreenCapture {
 
-// Grab the screen under the cursor as JPEG base64.
-// excludeWindows are omitted from the bitmap via WDA_EXCLUDEFROMCAPTURE
-// (still visible to the user). Empty string on failure.
+struct Frame {
+	QString jpegBase64;
+	int originX = 0;
+	int originY = 0;
+	int physW = 0;
+	int physH = 0;
+	int imgW = 0;
+	int imgH = 0;
+	qreal dpiScale = 1.0;
+	int cursorX = 0;
+	int cursorY = 0;
+	bool ok = false;
+};
+
+// Grab a screen as JPEG plus geometry. If screen is null, use the screen under
+// the cursor (then primary). excludeWindows are omitted via WDA_EXCLUDEFROMCAPTURE.
+Frame grabFrame(const QList<QWidget*>& excludeWindows, QScreen* screen = nullptr);
+
+// Grab the screen under the cursor as JPEG base64. Empty string on failure.
 QString grabJpegBase64(const QList<QWidget*>& excludeWindows);
 
 }

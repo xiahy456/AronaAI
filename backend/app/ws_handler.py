@@ -26,6 +26,16 @@ from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
 
+from .computer_use import (
+    PROBE_DISABLED_REPLY,
+    ComputerUseObservation,
+    ProbeResult,
+    SchemaError,
+    is_probe_text,
+    parse_observation,
+    run_probe,
+    terminal_messages,
+)
 from .config import AppConfig
 from .conversation import ConversationManager
 from .image_input import (
@@ -52,6 +62,7 @@ from .protocol import (
     TYPE_CHAT,
     TYPE_CHAT_RESPONSE,
     TYPE_CLEAR_SESSION,
+    TYPE_COMPUTER_USE_OBSERVATION,
     TYPE_CONNECTED,
     TYPE_GET_STATS,
     TYPE_INTERRUPT,
@@ -148,6 +159,8 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
 
     chat_task: asyncio.Task[None] | None = None
     inflight_kind: str | None = None
+    cu_observations: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+    cu_run_id: str | None = None
 
     def _clear_inflight() -> None:
         nonlocal inflight_user
@@ -219,6 +232,136 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
             inflight_kind = None
             state.hub.set_busy(session_id, False)
 
+    def _drain_cu_observations() -> None:
+        while True:
+            try:
+                cu_observations.get_nowait()
+            except asyncio.QueueEmpty:
+                return
+
+    async def _wait_cu_observation(
+        run_id: str,
+        step: int,
+    ) -> ComputerUseObservation | None:
+        timeout = max(0.1, float(state.config.computer_use.observation_timeout_sec))
+        deadline = time.monotonic() + timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return None
+            try:
+                raw = await asyncio.wait_for(cu_observations.get(), timeout=remaining)
+            except asyncio.TimeoutError:
+                return None
+            try:
+                observation = parse_observation(raw)
+            except SchemaError as exc:
+                logger.info(
+                    "computer_use observation dropped session=%s reason=%s",
+                    session_id,
+                    exc,
+                )
+                continue
+            if observation.run_id != run_id:
+                logger.info(
+                    "computer_use observation dropped session=%s reason=run_id "
+                    "want=%s got=%s",
+                    session_id,
+                    run_id,
+                    observation.run_id,
+                )
+                continue
+            if observation.step != step:
+                logger.info(
+                    "computer_use observation dropped session=%s reason=step "
+                    "want=%s got=%s",
+                    session_id,
+                    step,
+                    observation.step,
+                )
+                continue
+            if observation.image is not None:
+                asyncio.create_task(_persist_screenshot(observation.image))
+            return observation
+
+    async def _send_probe_terminal(result: ProbeResult) -> None:
+        for payload in terminal_messages(result):
+            await send(payload)
+
+    async def _run_computer_use_probe() -> None:
+        nonlocal inflight_kind, cu_run_id
+        inflight_kind = "computer_use"
+        state.hub.set_busy(session_id, True)
+        if state.scheduler is not None:
+            state.scheduler.note_user_activity()
+        cfg = state.config.computer_use
+        sent_terminal = False
+        cu_run_id = str(uuid.uuid4())
+        _drain_cu_observations()
+        try:
+            if not cfg.enabled or not cfg.probe_enabled:
+                logger.info(
+                    "computer_use probe rejected session=%s enabled=%s probe=%s",
+                    session_id,
+                    cfg.enabled,
+                    cfg.probe_enabled,
+                )
+                await send(
+                    msg_chat_response(
+                        PROBE_DISABLED_REPLY,
+                        context_used="computer_use",
+                    )
+                )
+                sent_terminal = True
+                return
+            result = await run_probe(
+                send=send,
+                wait_observation=_wait_cu_observation,
+                run_id=cu_run_id,
+                max_steps=cfg.max_steps,
+            )
+            await _send_probe_terminal(result)
+            sent_terminal = True
+        except asyncio.CancelledError:
+            logger.info("computer_use cancelled session=%s", session_id)
+            if not sent_terminal:
+                try:
+                    await _send_probe_terminal(
+                        ProbeResult(
+                            ok=False,
+                            summary="cancelled",
+                            run_id=cu_run_id or "",
+                            steps_completed=0,
+                            reason="cancelled",
+                        )
+                    )
+                except Exception:
+                    logger.exception(
+                        "computer_use cancel notify failed session=%s",
+                        session_id,
+                    )
+            raise
+        except Exception:
+            logger.exception("computer_use error session=%s", session_id)
+            if not sent_terminal:
+                try:
+                    await _send_probe_terminal(
+                        ProbeResult(
+                            ok=False,
+                            summary="internal_error",
+                            run_id=cu_run_id or "",
+                            steps_completed=0,
+                            reason="observation_failed",
+                        )
+                    )
+                except Exception:
+                    pass
+        finally:
+            inflight_kind = None
+            cu_run_id = None
+            _drain_cu_observations()
+            state.hub.set_busy(session_id, False)
+
     async def _interrupt_generation(*, restore_inflight: bool) -> None:
         nonlocal chat_task, generation_id, inflight_user
         generation_id += 1
@@ -259,6 +402,11 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         )
         if chat_task is not None and not chat_task.done():
             await _interrupt_generation(restore_inflight=True)
+        if is_probe_text(drained, state.config.computer_use.probe_token):
+            logger.info("listen commit computer_use probe session=%s", session_id)
+            inflight_user = None
+            chat_task = asyncio.create_task(_run_computer_use_probe())
+            return
         my_id = generation_id
         inflight_user = drained
         started = time.perf_counter()
@@ -523,6 +671,13 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                         continue
                     if image is not None:
                         asyncio.create_task(_persist_screenshot(image))
+                    if is_probe_text(
+                        str(content),
+                        state.config.computer_use.probe_token,
+                    ):
+                        logger.info("WS computer_use probe session=%s", session_id)
+                        chat_task = asyncio.create_task(_run_computer_use_probe())
+                        continue
                     chat_task = asyncio.create_task(
                         _run_chat(
                             str(content),
@@ -533,6 +688,20 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                             image,
                         )
                     )
+                elif msg_type == TYPE_COMPUTER_USE_OBSERVATION:
+                    logger.info(
+                        "WS computer_use observation session=%s payload=%s",
+                        session_id,
+                        preview(redact_request_json(raw) or "", 240),
+                    )
+                    if inflight_kind != "computer_use":
+                        logger.info(
+                            "WS computer_use observation dropped session=%s "
+                            "reason=not_in_probe",
+                            session_id,
+                        )
+                        continue
+                    await cu_observations.put(data)
                 elif msg_type == TYPE_INTERACT:
                     if not state.config.interact.enabled:
                         logger.info(

@@ -17,6 +17,8 @@
 #include "MainController.h"
 #include "SpokenTextSplitter.h"
 #include "ScreenCapture.h"
+#include "ComputerUseExecutor.h"
+#include <QJsonObject>
 #include <QList>
 #include <QTimer>
 #include <QWidget>
@@ -128,6 +130,14 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
         this, &MainController::onWebSocketError);
     connect(m_webSocketController, &WebSocketController::connectionStateChanged,
         this, &MainController::onWebSocketStateChanged);
+    connect(m_webSocketController, &WebSocketController::computerUseActionReceived,
+        this, &MainController::onComputerUseAction);
+    connect(m_webSocketController, &WebSocketController::computerUseDoneReceived,
+        this, &MainController::onComputerUseDone);
+
+    m_computerUseExecutor = new ComputerUseExecutor(this);
+    connect(m_computerUseExecutor, &ComputerUseExecutor::observationReady,
+        this, &MainController::onComputerUseObservation);
 
     if (m_mainWidget) {
         QtSpineManager* spine = m_mainWidget->spineManager();
@@ -427,6 +437,62 @@ QString MainController::maybeCaptureScreenBase64() const
     return imageBase64;
 }
 
+QList<QWidget*> MainController::computerUseExcludeWindows() const
+{
+    QList<QWidget*> exclude;
+    if (m_mainWidget) {
+        exclude << m_mainWidget;
+    }
+    if (m_userInputWidget && m_userInputWidget->isVisible()) {
+        exclude << m_userInputWidget;
+    }
+    return exclude;
+}
+
+void MainController::sendComputerUseDisabled(const QJsonObject& action)
+{
+    QJsonObject observation;
+    observation.insert(QStringLiteral("run_id"), action.value(QStringLiteral("run_id")).toString());
+    observation.insert(QStringLiteral("step"), action.value(QStringLiteral("step")).toInt());
+    observation.insert(QStringLiteral("ok"), false);
+    observation.insert(QStringLiteral("error"), QStringLiteral("disabled"));
+    if (m_webSocketController) {
+        m_webSocketController->sendComputerUseObservation(observation);
+    }
+}
+
+void MainController::onComputerUseAction(const QJsonObject& action)
+{
+    if (!GET_BOOL_FROM_JSON(_global_config, "computer_use", "enabled")) {
+        FINE_DEBUG_OUTPUT("[Computer Use] Action ignored: client disabled");
+        sendComputerUseDisabled(action);
+        return;
+    }
+    if (!m_computerUseExecutor) {
+        sendComputerUseDisabled(action);
+        return;
+    }
+    m_computerUseExecutor->setExcludeWindows(computerUseExcludeWindows());
+    m_computerUseExecutor->execute(action);
+}
+
+void MainController::onComputerUseObservation(const QJsonObject& observation)
+{
+    if (!m_webSocketController || !m_webSocketController->isConnected()) {
+        ERROR_DEBUG_OUTPUT("[Computer Use] Drop observation: not connected");
+        return;
+    }
+    m_webSocketController->sendComputerUseObservation(observation);
+}
+
+void MainController::onComputerUseDone(const QJsonObject& message)
+{
+    FINE_DEBUG_OUTPUT(QString("[Computer Use] Done run=%1 ok=%2 summary=%3")
+        .arg(message.value(QStringLiteral("run_id")).toString())
+        .arg(message.value(QStringLiteral("ok")).toBool() ? "true" : "false")
+        .arg(message.value(QStringLiteral("summary")).toString()));
+}
+
 void MainController::onAudioError(const QString& error)
 {
     ERROR_DEBUG_OUTPUT("[Audio Input Processing]Audio error!");
@@ -469,6 +535,9 @@ void MainController::interruptOutput()
     m_mainWidget->hideOutputText();
     m_mainWidget->clearAnimation(2, 0.2f);
     m_mainWidget->clearAnimation(1, 0.2f);
+    if (m_computerUseExecutor) {
+        m_computerUseExecutor->cancel();
+    }
     if (m_webSocketController->isConnected()) {
         m_webSocketController->sendInterrupt();
     }

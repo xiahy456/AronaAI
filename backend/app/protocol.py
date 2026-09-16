@@ -28,6 +28,7 @@ TYPE_PING = "ping"
 TYPE_LISTEN_STATE = "listen_state"
 TYPE_TRANSCRIPT = "transcript"
 TYPE_INTERRUPT = "interrupt"
+TYPE_COMPUTER_USE_OBSERVATION = "computer_use_observation"
 
 # Server -> client
 TYPE_CONNECTED = "connected"
@@ -36,6 +37,8 @@ TYPE_ERROR = "error"
 TYPE_STATS = "stats"
 TYPE_RESULT = "result"
 TYPE_PONG = "pong"
+TYPE_COMPUTER_USE_ACTION = "computer_use_action"
+TYPE_COMPUTER_USE_DONE = "computer_use_done"
 
 CODE_INVALID_JSON = "INVALID_JSON"
 CODE_INTERNAL = "INTERNAL_ERROR"
@@ -76,3 +79,21 @@ def msg_result(success: bool, message: str) -> dict[str, Any]:
 
 def msg_stats(payload: dict[str, Any]) -> dict[str, Any]:
     return {"type": TYPE_STATS, **payload}
+
+
+def msg_computer_use_action(payload: dict[str, Any]) -> dict[str, Any]:
+    return {"type": TYPE_COMPUTER_USE_ACTION, **payload}
+
+
+def msg_computer_use_done(
+    run_id: str,
+    *,
+    ok: bool,
+    summary: str = "",
+) -> dict[str, Any]:
+    return {
+        "type": TYPE_COMPUTER_USE_DONE,
+        "run_id": run_id,
+        "ok": ok,
+        "summary": summary,
+    }
