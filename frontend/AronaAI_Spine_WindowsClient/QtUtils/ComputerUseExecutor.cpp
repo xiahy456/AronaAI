@@ -22,6 +22,7 @@
 #include <QGuiApplication>
 #include <QPoint>
 #include <QScreen>
+#include <QThread>
 #include <QVector>
 
 #ifdef Q_OS_WIN
@@ -33,6 +34,9 @@
 namespace {
 
 constexpr int kSettleMs = 16;
+constexpr int kDragMaxSteps = 24;
+constexpr int kDragStepMs = 8;
+constexpr int kDragPixelsPerStep = 40;
 
 #ifdef Q_OS_WIN
 WORD virtualKeyFromName(const QString& name)
@@ -333,6 +337,8 @@ bool ComputerUseExecutor::performAction(const QJsonObject& action, QString* erro
 		|| name == QLatin1String("click")
 		|| name == QLatin1String("double_click")
 		|| name == QLatin1String("right_click")
+		|| name == QLatin1String("drag")
+		|| name == QLatin1String("right_drag")
 		|| name == QLatin1String("scroll")) {
 		if (!action.contains(QStringLiteral("x")) || !action.contains(QStringLiteral("y"))
 			|| action.value(QStringLiteral("x")).isNull()
@@ -352,6 +358,32 @@ bool ComputerUseExecutor::performAction(const QJsonObject& action, QString* erro
 			&physY,
 			error)) {
 			return false;
+		}
+		const bool isDrag = name == QLatin1String("drag") || name == QLatin1String("right_drag");
+		if (isDrag) {
+			if (!action.contains(QStringLiteral("x2")) || !action.contains(QStringLiteral("y2"))
+				|| action.value(QStringLiteral("x2")).isNull()
+				|| action.value(QStringLiteral("y2")).isNull()) {
+				if (error) {
+					*error = QStringLiteral("missing_coordinates");
+				}
+				return false;
+			}
+			int endX = 0;
+			int endY = 0;
+			if (!mapPoint(
+				action.value(QStringLiteral("x2")).toDouble(),
+				action.value(QStringLiteral("y2")).toDouble(),
+				action.value(QStringLiteral("coord_space")).toString(),
+				&endX,
+				&endY,
+				error)) {
+				return false;
+			}
+			if (name == QLatin1String("drag")) {
+				return sendDrag(physX, physY, endX, endY, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, error);
+			}
+			return sendDrag(physX, physY, endX, endY, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, error);
 		}
 		if (!sendMouseMove(physX, physY, error)) {
 			return false;
@@ -456,6 +488,140 @@ bool ComputerUseExecutor::sendMouseButton(int downFlag, int upFlag, QString* err
 	}
 	return true;
 #else
+	Q_UNUSED(downFlag);
+	Q_UNUSED(upFlag);
+	if (error) {
+		*error = QStringLiteral("unsupported_platform");
+	}
+	return false;
+#endif
+}
+
+bool ComputerUseExecutor::sendMouseDown(int downFlag, QString* error)
+{
+#ifdef Q_OS_WIN
+	INPUT input{};
+	input.type = INPUT_MOUSE;
+	input.mi.dwFlags = static_cast<DWORD>(downFlag);
+	if (downFlag == MOUSEEVENTF_LEFTDOWN) {
+		m_leftDown = true;
+	}
+	if (downFlag == MOUSEEVENTF_RIGHTDOWN) {
+		m_rightDown = true;
+	}
+	if (SendInput(1, &input, sizeof(INPUT)) != 1) {
+		if (downFlag == MOUSEEVENTF_LEFTDOWN) {
+			m_leftDown = false;
+		}
+		if (downFlag == MOUSEEVENTF_RIGHTDOWN) {
+			m_rightDown = false;
+		}
+		if (error) {
+			*error = QStringLiteral("sendinput_failed");
+		}
+		return false;
+	}
+	return true;
+#else
+	Q_UNUSED(downFlag);
+	if (error) {
+		*error = QStringLiteral("unsupported_platform");
+	}
+	return false;
+#endif
+}
+
+bool ComputerUseExecutor::sendMouseUp(int upFlag, QString* error)
+{
+#ifdef Q_OS_WIN
+	INPUT input{};
+	input.type = INPUT_MOUSE;
+	input.mi.dwFlags = static_cast<DWORD>(upFlag);
+	const UINT sent = SendInput(1, &input, sizeof(INPUT));
+	if (sent == 1) {
+		if (upFlag == MOUSEEVENTF_LEFTUP) {
+			m_leftDown = false;
+		}
+		if (upFlag == MOUSEEVENTF_RIGHTUP) {
+			m_rightDown = false;
+		}
+		return true;
+	}
+	if (error) {
+		*error = QStringLiteral("sendinput_failed");
+	}
+	return false;
+#else
+	Q_UNUSED(upFlag);
+	if (error) {
+		*error = QStringLiteral("unsupported_platform");
+	}
+	return false;
+#endif
+}
+
+bool ComputerUseExecutor::sendDrag(int startX, int startY, int endX, int endY, int downFlag, int upFlag, QString* error)
+{
+#ifdef Q_OS_WIN
+	if (!sendMouseMove(startX, startY, error)) {
+		return false;
+	}
+	if (pointHitsArona()) {
+		if (error) {
+			*error = QStringLiteral("hit_arona_window");
+		}
+		return false;
+	}
+	if (!sendMouseDown(downFlag, error)) {
+		releaseButtons();
+		return false;
+	}
+
+	const int deltaX = endX - startX;
+	const int deltaY = endY - startY;
+	const int distance = qMax(qAbs(deltaX), qAbs(deltaY));
+	const int steps = qBound(1, (distance + kDragPixelsPerStep - 1) / kDragPixelsPerStep, kDragMaxSteps);
+	bool ok = true;
+	QString dragError;
+	for (int i = 1; i <= steps; ++i) {
+		if (m_cancelled) {
+			ok = false;
+			dragError = QStringLiteral("cancelled");
+			break;
+		}
+		const int x = startX + qRound(static_cast<double>(deltaX) * i / steps);
+		const int y = startY + qRound(static_cast<double>(deltaY) * i / steps);
+		if (!sendMouseMove(x, y, &dragError)) {
+			ok = false;
+			break;
+		}
+		if (i < steps) {
+			QThread::msleep(kDragStepMs);
+		}
+	}
+	const bool hitEnd = pointHitsArona();
+	if (!sendMouseUp(upFlag, error)) {
+		releaseButtons();
+		return false;
+	}
+	if (!ok) {
+		if (error) {
+			*error = dragError.isEmpty() ? QStringLiteral("drag_failed") : dragError;
+		}
+		return false;
+	}
+	if (hitEnd) {
+		if (error) {
+			*error = QStringLiteral("hit_arona_window");
+		}
+		return false;
+	}
+	return true;
+#else
+	Q_UNUSED(startX);
+	Q_UNUSED(startY);
+	Q_UNUSED(endX);
+	Q_UNUSED(endY);
 	Q_UNUSED(downFlag);
 	Q_UNUSED(upFlag);
 	if (error) {

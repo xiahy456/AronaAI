@@ -54,6 +54,9 @@ private:
 	bool mapPoint(double x, double y, const QString& coordSpace, int* outX, int* outY, QString* error) const;
 	bool sendMouseMove(int x, int y, QString* error);
 	bool sendMouseButton(int downFlag, int upFlag, QString* error);
+	bool sendMouseDown(int downFlag, QString* error);
+	bool sendMouseUp(int upFlag, QString* error);
+	bool sendDrag(int startX, int startY, int endX, int endY, int downFlag, int upFlag, QString* error);
 	bool sendKeyCombo(const QString& combo, QString* error);
 	bool sendUnicodeText(const QString& text, QString* error);
 	bool sendScroll(int dy, QString* error);

@@ -28,6 +28,8 @@ ActionName = Literal[
     "click",
     "double_click",
     "right_click",
+    "drag",
+    "right_drag",
     "scroll",
     "type",
     "key",
@@ -42,6 +44,8 @@ ACTION_WHITELIST = frozenset(
         "click",
         "double_click",
         "right_click",
+        "drag",
+        "right_drag",
         "scroll",
         "type",
         "key",
@@ -50,8 +54,17 @@ ACTION_WHITELIST = frozenset(
     }
 )
 POINTER_ACTIONS = frozenset(
-    {"move", "click", "double_click", "right_click", "scroll"}
+    {
+        "move",
+        "click",
+        "double_click",
+        "right_click",
+        "drag",
+        "right_drag",
+        "scroll",
+    }
 )
+DRAG_ACTIONS = frozenset({"drag", "right_drag"})
 
 
 class SchemaError(ValueError):
@@ -111,6 +124,8 @@ class ComputerUseAction:
     step: int = 0
     x: float | None = None
     y: float | None = None
+    x2: float | None = None
+    y2: float | None = None
     coord_space: str = "normalized"
     combo: str | None = None
     text: str | None = None
@@ -125,6 +140,8 @@ class ComputerUseAction:
             "action": self.action,
             "x": self.x,
             "y": self.y,
+            "x2": self.x2,
+            "y2": self.y2,
             "coord_space": self.coord_space,
             "combo": self.combo,
             "text": self.text,
@@ -175,6 +192,8 @@ def parse_action(data: dict[str, Any] | None) -> ComputerUseAction:
         step=_as_int(data.get("step"), 0) or 0,
         x=_as_float(data.get("x")),
         y=_as_float(data.get("y")),
+        x2=_as_float(data.get("x2")),
+        y2=_as_float(data.get("y2")),
         coord_space=coord_space,
         combo=_as_str(data.get("combo")) or None,
         text=_as_str(data.get("text")) or None,
@@ -234,6 +253,8 @@ def _validate_action(action: ComputerUseAction) -> None:
     if action.action in POINTER_ACTIONS:
         if action.x is None or action.y is None:
             raise SchemaError(f"{action.action} requires x and y")
+        if action.action in DRAG_ACTIONS and (action.x2 is None or action.y2 is None):
+            raise SchemaError(f"{action.action} requires x2 and y2")
         if action.action == "scroll" and action.dy is None:
             raise SchemaError("scroll requires dy")
     elif action.action == "type":

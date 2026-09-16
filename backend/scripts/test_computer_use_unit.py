@@ -43,6 +43,7 @@ from app.computer_use import (  # noqa: E402
     run_vision_agent,
     terminal_messages,
 )
+from app.computer_use.prompts import format_executed_steps  # noqa: E402
 from app.config import ComputerUseConfig, PlannerConfig  # noqa: E402
 from app.image_input import ImagePayload  # noqa: E402
 from app.protocol import (  # noqa: E402
@@ -112,6 +113,7 @@ def test_action_whitelist() -> None:
     print("== action whitelist ==")
     expected = {
         "move", "click", "double_click", "right_click",
+        "drag", "right_drag",
         "scroll", "type", "key", "wait", "done",
     }
     if ACTION_WHITELIST != expected:
@@ -145,10 +147,54 @@ def test_parse_action_key() -> None:
     print("  ok")
 
 
+def test_parse_action_drag() -> None:
+    print("== parse action drag / right_drag ==")
+    drag = parse_action({
+        "action": "drag",
+        "x": 120,
+        "y": 200,
+        "x2": 480,
+        "y2": 200,
+        "coord_space": "image",
+    })
+    if drag.action != "drag":
+        _fail(f"action={drag.action}")
+    if drag.x != 120 or drag.y != 200 or drag.x2 != 480 or drag.y2 != 200:
+        _fail(f"start/end mismatch {drag}")
+    payload = drag.to_payload()
+    if payload.get("x2") != 480 or payload.get("y2") != 200:
+        _fail(f"payload missing end point: {payload}")
+    right = parse_action({
+        "action": "right_drag",
+        "x": 10,
+        "y": 20,
+        "x2": 30,
+        "y2": 40,
+    })
+    if right.action != "right_drag":
+        _fail(f"action={right.action}")
+    if right.x2 != 30 or right.y2 != 40:
+        _fail(f"right_drag end mismatch {right}")
+    try:
+        parse_action({"action": "drag", "x": 1, "y": 2})
+        _fail("drag without x2/y2 should fail")
+    except SchemaError:
+        pass
+    try:
+        parse_action({"action": "right_drag", "x": 1, "y": 2, "x2": 3})
+        _fail("right_drag without y2 should fail")
+    except SchemaError:
+        pass
+    steps = format_executed_steps([drag])
+    if "drag x=120.0 y=200.0 x2=480.0 y2=200.0" not in steps:
+        _fail(f"executed steps should include endpoints: {steps}")
+    print("  ok")
+
+
 def test_parse_action_rejects_unknown() -> None:
     print("== parse action rejects unknown ==")
     for bad in [
-        {"action": "drag", "x": 0.5, "y": 0.5},
+        {"action": "hover", "x": 0.5, "y": 0.5},
         {"action": "click"},
         {"action": "key"},
         {"action": "wait", "ms": -1},
@@ -604,6 +650,25 @@ def test_parse_vision_click_image_coords() -> None:
     print("  ok")
 
 
+def test_parse_vision_drag_defaults_image() -> None:
+    print("== parse vision drag defaults image coords ==")
+    action = parse_vision_action(
+        '{"action":"drag","x":120,"y":200,"x2":480,"y2":220}'
+    )
+    if action.action != "drag":
+        _fail(f"action={action.action}")
+    if action.coord_space != "image":
+        _fail(f"coord_space={action.coord_space}")
+    if action.x2 != 480 or action.y2 != 220:
+        _fail(f"x2={action.x2} y2={action.y2}")
+    right = parse_vision_action(
+        '{"action":"right_drag","x":1,"y":2,"x2":3,"y2":4}'
+    )
+    if right.action != "right_drag" or right.coord_space != "image":
+        _fail(f"right_drag={right}")
+    print("  ok")
+
+
 def test_parse_vision_done_requires_summary() -> None:
     print("== parse vision done requires summary ==")
     action = parse_vision_action(
@@ -622,8 +687,8 @@ def test_parse_vision_done_requires_summary() -> None:
 def test_parse_vision_rejects_unknown_action() -> None:
     print("== parse vision rejects unknown action ==")
     try:
-        parse_vision_action('{"action":"drag","x":1,"y":1}')
-        _fail("should reject drag")
+        parse_vision_action('{"action":"hover","x":1,"y":1}')
+        _fail("should reject hover")
     except SchemaError:
         pass
     try:
@@ -831,6 +896,7 @@ def main() -> None:
         test_parse_action_move,
         test_parse_action_wait,
         test_parse_action_key,
+        test_parse_action_drag,
         test_parse_action_rejects_unknown,
         test_parse_action_rejects_bad_coord_space,
         test_parse_observation_ok,
@@ -855,6 +921,7 @@ def main() -> None:
         test_format_route_history,
         test_computer_use_history_content,
         test_parse_vision_click_image_coords,
+        test_parse_vision_drag_defaults_image,
         test_parse_vision_done_requires_summary,
         test_parse_vision_rejects_unknown_action,
         test_parse_vision_last_json_after_thinking,
