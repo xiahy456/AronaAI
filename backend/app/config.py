@@ -89,7 +89,7 @@ class ExtractorConfig(BaseModel):
     enabled: bool = True
     base_url: str = "https://api.deepseek.com"
     api_key: str = ""
-    model: str = "deepseek-v4-flash"
+    model: str = "deepseek-flash"
     timeout_sec: float = 15
     max_calls_per_day: int = 200
     every_n_turns: int = 6
@@ -125,11 +125,11 @@ class PlannerConfig(BaseModel):
     enabled: bool = True
     base_url: str = "https://api.deepseek.com"
     api_key: str = ""
-    model: str = "deepseek-v4-flash"
+    model: str = "deepseek-flash"
     timeout_sec: float = 20
     temperature: float = 0.3
     max_tokens: int = 512
-    vision_model: str = "deepseek-v4-flash-vision-exp"
+    vision_model: str = "deepseek-flash"
     router_enabled: bool = False
     router_timeout_sec: float = 3.0
     router_max_tokens: int = 64

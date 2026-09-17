@@ -56,7 +56,7 @@ def main() -> None:
     assert "user_act" not in card.to_renderer_dict()
 
     cfg = load_config()
-    assert cfg.planner.vision_model == "deepseek-v4-flash-vision-exp"
+    assert cfg.planner.vision_model == "deepseek-flash"
     hist = [
         {"role": "user", "content": "上一轮老师"},
         {"role": "assistant", "content": "上一轮阿洛娜"},

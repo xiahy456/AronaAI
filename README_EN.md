@@ -103,7 +103,7 @@ Download the packaged portable backend from the [Releases](https://github.com/xi
 
 2. After extracting, edit `config.yaml` in the directory and fill in at least these keys:
 
-   - `planner.api_key` / `memory.extractor.api_key`: replace `YOUR_DEEPSEEK_API_KEY` with your DeepSeek API Key. **Planner requires a key**; without a key, or with `planner.enabled` off, the backend falls back to the local single model. Memory extraction without a key uses the regex fallback. When a screenshot or computer use is involved, Planner uses `planner.vision_model` (default `deepseek-v4-flash-vision-exp`)
+   - `planner.api_key` / `memory.extractor.api_key`: replace `YOUR_DEEPSEEK_API_KEY` with your DeepSeek API Key. **Planner requires a key**; without a key, or with `planner.enabled` off, the backend falls back to the local single model. Memory extraction without a key uses the regex fallback. When a screenshot or computer use is involved, Planner uses `planner.vision_model` (default `deepseek-flash`)
    - `model.enabled`: whether to enable Arona-Renderer rendering correction; `true` enables it, `false` uses the Planner draft only. Place the GGUF only when this is enabled. **Disabled by default**
    - `knowledge.enabled`: whether to enable world-lore RAG. Official zip packages that already have the corpus ingested keep this **enabled by default**; the sample config for running from source is `false` until you ingest the corpus
    - `computer_use.enabled`: whether to allow Arona to operate Sensei's computer. **Disabled by default**. After turning this on, the client must also set `computer_use.enabled`; otherwise the backend receives a `disabled` observation and stops

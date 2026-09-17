@@ -103,7 +103,7 @@ arona-ai/
 
 2. 解压后，编辑目录下的 `config.yaml`，至少填写以下关键项：
 
-   - `planner.api_key` / `memory.extractor.api_key`：把 `YOUR_DEEPSEEK_API_KEY` 换成你的 DeepSeek API Key。**Planner 必填**；不填 Key 或关闭 `planner.enabled` 则回落本地单模型。记忆抽取无 Key 时走正则降级。有截图或电脑操作时 Planner 使用 `planner.vision_model`（默认 `deepseek-v4-flash-vision-exp`）
+   - `planner.api_key` / `memory.extractor.api_key`：把 `YOUR_DEEPSEEK_API_KEY` 换成你的 DeepSeek API Key。**Planner 必填**；不填 Key 或关闭 `planner.enabled` 则回落本地单模型。记忆抽取无 Key 时走正则降级。有截图或电脑操作时 Planner 使用 `planner.vision_model`（默认 `deepseek-flash`）
    - `model.enabled`：是否启用 Arona-Renderer 渲染修正；`true` 启用，`false` 只用 Planner 草稿。仅启用时才需要放置 GGUF。**默认不启用**
    - `knowledge.enabled`：是否启用世界观 RAG。官方压缩包若已灌库，**默认启用**；从源码启动时示例配置为 `false`，需先灌库
    - `computer_use.enabled`：是否允许阿洛娜操作老师的电脑。**默认关闭**。打开后仍需客户端同步打开 `computer_use.enabled`，否则后端会收到 `disabled` 观察并停止

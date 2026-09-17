@@ -284,7 +284,7 @@ def _llm_rewrite_batch(
 ) -> list[dict]:
     """Ask LLM to produce concrete cards + replies for a small batch.
 
-    deepseek-v4-flash defaults to thinking mode; without
+    deepseek-flash defaults to thinking mode; without
     ``thinking: {type: disabled}`` most tokens go to reasoning_content,
     content may be empty/slow, and batches appear hung.
     """
@@ -300,7 +300,7 @@ def _llm_rewrite_batch(
         "model": model,
         "temperature": 0.4,
         "max_tokens": max_tokens,
-        # Align with backend PlannerClient — critical for deepseek-v4-flash.
+        # Align with backend PlannerClient — critical for deepseek-flash.
         "thinking": {"type": "disabled"},
         "response_format": {"type": "json_object"},
         "messages": [

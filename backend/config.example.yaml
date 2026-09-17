@@ -70,7 +70,7 @@ memory:
     enabled: true
     base_url: "https://api.deepseek.com"
     api_key: "YOUR_DEEPSEEK_API_KEY"
-    model: "deepseek-v4-flash"
+    model: "deepseek-flash"
     timeout_sec: 15
     max_calls_per_day: 512
     every_n_turns: 6
@@ -81,11 +81,11 @@ planner:
   enabled: true
   base_url: "https://api.deepseek.com"
   api_key: "YOUR_DEEPSEEK_API_KEY"
-  model: "deepseek-v4-flash"
+  model: "deepseek-flash"
   timeout_sec: 20
   temperature: 0.3
   max_tokens: 512
-  vision_model: "deepseek-v4-flash-vision-exp"
+  vision_model: "deepseek-flash"
   router_enabled: true
   router_timeout_sec: 3
   router_max_tokens: 64

@@ -483,7 +483,7 @@ python scripts/ingest_knowledge.py --rebuild
 | `enabled`              | `true`                     | 是否启用异步记忆抽取                  |
 | `base_url`             | `https://api.deepseek.com` | OpenAI 兼容 API 根地址           |
 | `api_key`              | `YOUR_DEEPSEEK_API_KEY`    | 未填写或仍为占位符时走 `fallback`      |
-| `model`                | `deepseek-v4-flash`        | 抽取模型名                       |
+| `model`                | `deepseek-flash`           | 抽取模型名                       |
 | `timeout_sec`          | `15`                       | 单次 HTTP 超时（秒）               |
 | `max_calls_per_day`    | `512`                      | 每日抽取调用上限                    |
 | `every_n_turns`        | `6`                        | 每 N 轮强制抽一次（另有「请记住」等启发式立即触发） |
@@ -501,10 +501,11 @@ python scripts/ingest_knowledge.py --rebuild
 | `enabled`            | `true`                     | 是否走 DeepSeek 意图卡。关闭、无 Key 或失败时回落本地 GGUF（若 `model.enabled`）或草稿 |
 | `base_url`           | `https://api.deepseek.com` | OpenAI 兼容 API 根地址                                             |
 | `api_key`            | `YOUR_DEEPSEEK_API_KEY`    | Planner 与轮次路由器共用                                              |
-| `model`              | `deepseek-v4-flash`        | Planner / 路由器模型名                                              |
+| `model`              | `deepseek-flash`           | Planner / 路由器模型名                                              |
 | `timeout_sec`        | `20`                       | Planner 请求超时（秒）                                               |
 | `temperature`        | `0.3`                      | Planner 采样温度                                                  |
 | `max_tokens`         | `512`                      | Planner 输出上限                                                  |
+| `vision_model`       | `deepseek-flash`           | 有截图或电脑操作时使用的多模态模型名；为空则回落 `model`                              |
 | `router_enabled`     | `true`                     | 连续听写时，规则拿不准再调短超时 LLM 判断 ignore / wait / reply                 |
 | `router_timeout_sec` | `3`                        | 路由器超时（秒）；不复用 Planner 的 20s 超时                                 |
 | `router_max_tokens`  | `64`                       | 路由器输出上限                                                       |
