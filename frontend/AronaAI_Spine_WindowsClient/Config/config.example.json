@@ -39,7 +39,8 @@
   },
   "computer_use": {
     "enabled": true,
-    "compress_screenshot": false
+    "compress_screenshot": false,
+    "click_settle_ms": 2000
   },
   "spine": {
     "skelOrJson_path": "Assets/AronaSpineAssets/arona_spr_full.json",
@@ -79,7 +80,8 @@
     "switch_audio_input": "Ctrl+Alt+V",
     "switch_mouse_transparent": "Ctrl+Alt+C",
     "show_user_input": "Ctrl+Alt+T",
-    "switch_image_input": "Ctrl+Alt+X"
+    "switch_image_input": "Ctrl+Alt+X",
+    "cancel_computer_use": "Ctrl+Alt+S"
   },
   "tencent_speech_recognizer": {
     "secret_id": "${TENCENT_SECRET_ID}",

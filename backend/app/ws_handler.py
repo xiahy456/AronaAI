@@ -382,6 +382,7 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
         cfg = state.config.computer_use
         sent_terminal = False
         cu_run_id = str(uuid.uuid4())
+        cu_generation = generation_id
         _drain_cu_observations()
         cancelled = ProbeResult(
             ok=False,
@@ -417,6 +418,7 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                 result = await run_probe(
                     send=send,
                     wait_observation=_wait_cu_observation,
+                    abort_check=lambda: generation_id != cu_generation,
                     run_id=cu_run_id,
                     max_steps=len(probe_actions()),
                 )
@@ -428,10 +430,15 @@ async def websocket_endpoint(websocket: WebSocket, state: AppState) -> None:
                 wait_observation=_wait_cu_observation,
                 client=VisionClient(state.config.planner, cfg),
                 user_text=user_text,
+                abort_check=lambda: generation_id != cu_generation,
                 run_id=cu_run_id,
                 max_steps=max(1, int(cfg.max_steps or 8)),
             )
-            await _send_agent_terminal(result, user_text=user_text, speak=True)
+            await _send_agent_terminal(
+                result,
+                user_text=user_text,
+                speak=result.reason != "cancelled",
+            )
             sent_terminal = True
         except asyncio.CancelledError:
             logger.info("computer_use cancelled session=%s mode=%s", session_id, mode)

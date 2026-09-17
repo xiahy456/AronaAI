@@ -89,6 +89,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
 | `Ctrl+Alt+C` | Toggle click-through |
 | `Ctrl+Alt+T` | Open text input |
 | `Ctrl+Alt+X` | Toggle screen-capture input |
+| `Ctrl+Alt+S` | Cancel the current computer-use run |
 
 ---
 

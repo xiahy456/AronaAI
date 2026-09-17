@@ -59,6 +59,8 @@ public:
 	bool isImageInputEnabled() const;
 	void toggleImageInput();
 	void setImageInputEnabled(bool enabled);
+	// 取消当前 computer use，并通知后端中断
+	void cancelComputerUse();
 	// 启动遮罩已关闭，冲刷待播欢迎语
 	void onSplashClosed();
 	// 遮罩信号接好后再连后端，避免连接失败早于槽绑定
@@ -121,6 +123,8 @@ private:
 	QElapsedTimer m_ttsWeightTimer;	// TTS 切权重耗时
 	QElapsedTimer m_patInteractCooldown;	// 摸头 interact 冷却（从成功发送起算）
 	ComputerUseExecutor* m_computerUseExecutor = nullptr;
+	bool m_computerUseStopRequested = false;	// 用户已请求停止当前 computer use
+	bool m_computerUseActive = false;	// 已收到 action、尚未收到 done
 
 	// 处理用户输入的文本（语音识别或文本输入）
 	void processInputText(const QString& text);

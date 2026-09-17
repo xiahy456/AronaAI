@@ -38,6 +38,7 @@ private slots:
 	void onSwitchMouseTransparent();
 	void onShowUserInput();
 	void onSwitchImageInput();
+	void onCancelComputerUse();
 
 private:
 	MainController* m_mainController = nullptr;
@@ -45,6 +46,7 @@ private:
 	QHotkey* m_switchMouseTransparent = nullptr;
 	QHotkey* m_showUserInput = nullptr;
 	QHotkey* m_switchImageInput = nullptr;
+	QHotkey* m_cancelComputerUse = nullptr;
 	bool m_switchAudioInputEnabled = false;
 
 };

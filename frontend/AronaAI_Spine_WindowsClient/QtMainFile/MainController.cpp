@@ -464,6 +464,10 @@ void MainController::sendComputerUseDisabled(const QJsonObject& action)
 
 void MainController::onComputerUseAction(const QJsonObject& action)
 {
+    if (m_computerUseStopRequested) {
+        FINE_DEBUG_OUTPUT("[Computer Use] Action dropped: stop requested");
+        return;
+    }
     if (!GET_BOOL_FROM_JSON(_global_config, "computer_use", "enabled")) {
         FINE_DEBUG_OUTPUT("[Computer Use] Action ignored: client disabled");
         sendComputerUseDisabled(action);
@@ -473,6 +477,7 @@ void MainController::onComputerUseAction(const QJsonObject& action)
         sendComputerUseDisabled(action);
         return;
     }
+    m_computerUseActive = true;
     m_computerUseExecutor->setExcludeWindows(computerUseExcludeWindows());
     m_computerUseExecutor->execute(action);
 }
@@ -488,6 +493,8 @@ void MainController::onComputerUseObservation(const QJsonObject& observation)
 
 void MainController::onComputerUseDone(const QJsonObject& message)
 {
+    m_computerUseStopRequested = false;
+    m_computerUseActive = false;
     FINE_DEBUG_OUTPUT(QString("[Computer Use] Done run=%1 ok=%2 summary=%3")
         .arg(message.value(QStringLiteral("run_id")).toString())
         .arg(message.value(QStringLiteral("ok")).toBool() ? "true" : "false")
@@ -525,6 +532,17 @@ void MainController::onSpeechDetected()
     }
 }
 
+void MainController::cancelComputerUse()
+{
+    FINE_DEBUG_OUTPUT("[Computer Use] Cancel requested");
+    if (m_computerUseActive
+        || m_waitingForAIResponse
+        || (m_computerUseExecutor && m_computerUseExecutor->isBusy())) {
+        m_computerUseStopRequested = true;
+    }
+    interruptOutput();
+}
+
 void MainController::interruptOutput()
 {
     FINE_DEBUG_OUTPUT("[Main Controller] Interrupting output");
@@ -536,6 +554,9 @@ void MainController::interruptOutput()
     m_mainWidget->hideOutputText();
     m_mainWidget->clearAnimation(2, 0.2f);
     m_mainWidget->clearAnimation(1, 0.2f);
+    if (m_computerUseActive || (m_computerUseExecutor && m_computerUseExecutor->isBusy())) {
+        m_computerUseStopRequested = true;
+    }
     if (m_computerUseExecutor) {
         m_computerUseExecutor->cancel();
     }
@@ -623,6 +644,7 @@ void MainController::processInputText(const QString& text)
 
     // 标记正在等待AI回复
     m_waitingForAIResponse = true;
+    m_computerUseStopRequested = false;
 
     // 给用户一个等待提示
     FINE_DEBUG_OUTPUT("[Main Controller] Generating responce...");

@@ -89,6 +89,7 @@ arona-ai/
 | `Ctrl+Alt+C` | 开 / 关鼠标穿透 |
 | `Ctrl+Alt+T` | 唤出文字输入 |
 | `Ctrl+Alt+X` | 开 / 关屏幕截图输入 |
+| `Ctrl+Alt+S` | 取消当前电脑操作（computer use） |
 
 ---
 

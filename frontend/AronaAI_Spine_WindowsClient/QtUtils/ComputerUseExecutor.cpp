@@ -19,7 +19,9 @@
 #include "GlobalVariables.h"
 #include "ScreenCapture.h"
 
+#include <QCoreApplication>
 #include <QCursor>
+#include <QEventLoop>
 #include <QGuiApplication>
 #include <QPoint>
 #include <QScreen>
@@ -35,6 +37,7 @@
 namespace {
 
 constexpr int kSettleMs = 16;
+constexpr int kDefaultClickSettleMs = 2000;
 constexpr int kDragMaxSteps = 24;
 constexpr int kDragStepMs = 8;
 constexpr int kDragPixelsPerStep = 40;
@@ -43,6 +46,28 @@ constexpr int kScrollDyLimit = 8;
 bool screenshotCompressEnabled()
 {
 	return GET_BOOL_FROM_JSON(_global_config, "computer_use", "compress_screenshot");
+}
+
+int clickSettleMs()
+{
+	const QJsonObject obj = _global_config->getJson(QStringLiteral("computer_use")).m_jsonObj;
+	const QString key = QStringLiteral("click_settle_ms");
+	if (!obj.contains(key)) {
+		return kDefaultClickSettleMs;
+	}
+	const int ms = obj.value(key).toInt(-1);
+	if (ms < 0) {
+		return kDefaultClickSettleMs;
+	}
+	return ms;
+}
+
+bool isClickAction(const QString& name)
+{
+	return name == QLatin1String("click")
+		|| name == QLatin1String("double_click")
+		|| name == QLatin1String("right_click")
+		|| name == QLatin1String("middle_click");
 }
 
 #ifdef Q_OS_WIN
@@ -157,7 +182,8 @@ void ComputerUseExecutor::execute(const QJsonObject& action)
 		scheduleCapture(kSettleMs, false, error);
 		return;
 	}
-	scheduleCapture(kSettleMs, true, QString());
+	const int settleMs = isClickAction(name) ? clickSettleMs() : kSettleMs;
+	scheduleCapture(settleMs, true, QString());
 }
 
 void ComputerUseExecutor::scheduleCapture(int delayMs, bool ok, const QString& error)
@@ -642,6 +668,7 @@ bool ComputerUseExecutor::sendDrag(int startX, int startY, int endX, int endY, i
 	bool ok = true;
 	QString dragError;
 	for (int i = 1; i <= steps; ++i) {
+		QCoreApplication::processEvents(QEventLoop::AllEvents, 1);
 		if (m_cancelled) {
 			ok = false;
 			dragError = QStringLiteral("cancelled");

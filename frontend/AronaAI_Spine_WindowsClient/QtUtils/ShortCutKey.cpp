@@ -28,6 +28,11 @@ ShortCutKey::ShortCutKey(MainController* mainController)
 		switchImageInputSeq = QStringLiteral("Ctrl+Alt+X");
 	}
 	m_switchImageInput = new QHotkey(QKeySequence(switchImageInputSeq), true, this);
+	QString cancelComputerUseSeq = GET_STRING_FROM_JSON(_global_config, "short_cut_key", "cancel_computer_use");
+	if (cancelComputerUseSeq.isEmpty()) {
+		cancelComputerUseSeq = QStringLiteral("Ctrl+Alt+S");
+	}
+	m_cancelComputerUse = new QHotkey(QKeySequence(cancelComputerUseSeq), true, this);
 
 	// 注册结果日志
 	if (m_switchAudioInput->isRegistered()) FINE_DEBUG_OUTPUT("[Short Cut Key]Key 'Switch Audio Input' registered succeed! Registered to: "
@@ -46,12 +51,17 @@ ShortCutKey::ShortCutKey(MainController* mainController)
 		+ switchImageInputSeq);
 	else ERROR_DEBUG_OUTPUT("[Short Cut Key]Key 'Switch Image Input' registered failed! It might be occupied! Registered to:"
 		+ switchImageInputSeq);
+	if (m_cancelComputerUse->isRegistered()) FINE_DEBUG_OUTPUT("[Short Cut Key]Key 'Cancel Computer Use' registered succeed! Registered to: "
+		+ cancelComputerUseSeq);
+	else ERROR_DEBUG_OUTPUT("[Short Cut Key]Key 'Cancel Computer Use' registered failed! It might be occupied! Registered to:"
+		+ cancelComputerUseSeq);
 
 	// 连接信号
 	connect(m_switchAudioInput, &QHotkey::activated, this, &ShortCutKey::onSwitchAudioInput);
 	connect(m_switchMouseTransparent, &QHotkey::activated, this, &ShortCutKey::onSwitchMouseTransparent);
 	connect(m_showUserInput, &QHotkey::activated, this, &ShortCutKey::onShowUserInput);
 	connect(m_switchImageInput, &QHotkey::activated, this, &ShortCutKey::onSwitchImageInput);
+	connect(m_cancelComputerUse, &QHotkey::activated, this, &ShortCutKey::onCancelComputerUse);
 
 }
 
@@ -89,5 +99,11 @@ void ShortCutKey::onSwitchImageInput()
 {
 	FINE_DEBUG_OUTPUT("[Short Cut Key]Key 'Switch Image Input' activated!");
 	m_mainController->toggleImageInput();
+}
+
+void ShortCutKey::onCancelComputerUse()
+{
+	FINE_DEBUG_OUTPUT("[Short Cut Key]Key 'Cancel Computer Use' activated!");
+	m_mainController->cancelComputerUse();
 }
 

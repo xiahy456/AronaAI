@@ -85,7 +85,8 @@ cp Config/config.example.json Config/config.json
   },
   "computer_use": {
     "enabled": false, // 是否允许阿洛娜操作老师的电脑；需与后端 computer_use.enabled 同时打开
-    "compress_screenshot": false // 是否压缩电脑操作截图；默认不压缩（原分辨率 JPEG 95）。true 时缩到 1280 宽、JPEG 70 以节省 IO
+    "compress_screenshot": false, // 是否压缩电脑操作截图；默认不压缩（原分辨率 JPEG 95）。true 时缩到 1280 宽、JPEG 70 以节省 IO
+    "click_settle_ms": 2000 // 点击后等待再截图的毫秒数；缺省或负值回退 2000，0 表示立即截图。需小于后端 observation_timeout_sec
   },
   "spine": {
     "skelOrJson_path": "Assets/AronaSpineAssets/arona_spr_full.json", // Spine 骨架文件（.skel / .json）路径（如果想要普拉娜可以改为Assets/AronaSpineAssets/NP0035_spr.skel）
@@ -124,7 +125,8 @@ cp Config/config.example.json Config/config.json
     "switch_audio_input": "Ctrl+Alt+V", // 切换 / 触发语音输入的快捷键
     "switch_mouse_transparent": "Ctrl+Alt+C", // 切换 / 触发鼠标穿透的快捷键
     "show_user_input": "Ctrl+Alt+T",// 显示用户输入的快捷键
-    "switch_image_input": "Ctrl+Alt+X"// 切换 / 触发图像输入的快捷键
+    "switch_image_input": "Ctrl+Alt+X",// 切换 / 触发图像输入的快捷键
+    "cancel_computer_use": "Ctrl+Alt+S"// 取消当前电脑操作（computer use）的快捷键
   },
   "tencent_speech_recognizer": {
     "secret_id": "${TENCENT_SECRET_ID}", // 腾讯云 SecretId（可用环境变量占位）
