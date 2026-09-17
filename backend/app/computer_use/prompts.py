@@ -25,6 +25,13 @@ REPEAT_CLICK_PIXELS = 8
 REPEAT_POINTER_WARNING = (
     "上一步指针仍停在同一坐标附近。画面若未变，禁止再点同一坐标，必须换目标/换格子。"
 )
+CURSOR_MARKER_NOTE = (
+    "截图上的彩色十字是当前鼠标位置，不是按钮或格子。要点可见目标的中心，不要点十字本身。"
+)
+GRID_MARKER_NOTE = (
+    "截图上的青色线和数字是 JPEG 像素刻度，不是控件。"
+    "用顶边读 x、左边读 y，点可见目标的中心，不要点网格线本身。"
+)
 
 
 def computer_use_history_content(user_text: str | None) -> str:
@@ -36,6 +43,8 @@ VISION_SYSTEM = """你是阿洛娜的电脑操作规划器。可以内部思考�
 允许的 action：move、click、double_click、right_click、middle_click、drag、right_drag、scroll、type、key、wait、done。
 规则：
 - 点击、拖拽、滚轮用 JPEG 像素坐标：coord_space 必须是 "image"；原点左上。x、y 必须落在当前这张 JPEG 的范围内：x ∈ [0, 宽-1]，y ∈ [0, 高-1]。宽高以 user 消息【当前截图像素】为准。
+- 截图上的彩色十字是当前鼠标位置，不是按钮或格子。要点可见目标的中心，不要点十字本身。
+- 截图上的青色线和数字是 JPEG 像素刻度，不是控件。用顶边读 x、左边读 y，点可见目标的中心，不要点网格线本身。
 - JSON 必须带简短 thought：先写要点哪个可见目标（窗口、按钮、格子等控件），再给坐标。thought 只能作为 JSON 字段，不能写在对象外。
 - 禁止重复点击上一步已经点过、且光标仍停在附近的坐标。画面若未变，必须换目标。
 - click / double_click / right_click / middle_click 会移动并点击，不必先 move。浏览器新标签等用 middle_click。
@@ -179,8 +188,10 @@ def build_vision_user_message(
             f"【坐标范围】x ∈ [0, {img_w - 1}]，y ∈ [0, {img_h - 1}]，"
             "原点左上，必须按当前这张 JPEG 点，不要用示例数字。"
         )
+        lines.append(GRID_MARKER_NOTE)
     if cursor_img_x is not None and cursor_img_y is not None:
         lines.append(f"【当前光标（image 像素）】{cursor_img_x},{cursor_img_y}")
+        lines.append(CURSOR_MARKER_NOTE)
     if repeat_pointer:
         lines.append(f"【警告】{REPEAT_POINTER_WARNING}")
     lines.append(

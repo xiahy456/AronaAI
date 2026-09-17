@@ -45,6 +45,8 @@ from app.computer_use import (  # noqa: E402
     terminal_messages,
 )
 from app.computer_use.prompts import (  # noqa: E402
+    CURSOR_MARKER_NOTE,
+    GRID_MARKER_NOTE,
     REPEAT_POINTER_WARNING,
     VISION_SYSTEM,
     build_computer_use_instruction,
@@ -697,12 +699,18 @@ def test_prompts_allow_long_tasks() -> None:
         _fail("vision user message should include image coordinate range")
     if "JSON 必须含 thought" not in user_msg:
         _fail("vision user message should require thought")
-    if "不要套用示例" not in VISION_SYSTEM:
-        _fail("VISION_SYSTEM should tell the model not to copy example coordinates")
+    if "不要用示例数字" not in user_msg:
+        _fail("vision user message should tell the model not to copy example coordinates")
     if "必须带简短 thought" not in VISION_SYSTEM:
         _fail("VISION_SYSTEM should require a thought field")
     if REPEAT_POINTER_WARNING not in VISION_SYSTEM and "禁止重复点击" not in VISION_SYSTEM:
         _fail("VISION_SYSTEM should forbid repeating the last pointer")
+    if CURSOR_MARKER_NOTE not in VISION_SYSTEM:
+        _fail("VISION_SYSTEM should explain the magenta cursor crosshair")
+    if GRID_MARKER_NOTE not in VISION_SYSTEM:
+        _fail("VISION_SYSTEM should explain the cyan coordinate grid")
+    if GRID_MARKER_NOTE not in user_msg:
+        _fail("vision user message should explain the cyan coordinate grid")
     instruction = build_computer_use_instruction(
         user_text="扫雷",
         summary="已点一格",
@@ -771,6 +779,8 @@ def test_repeat_pointer_warning() -> None:
         _fail("repeat warning missing from user message")
     if "【当前光标（image 像素）】1280,800" not in warned:
         _fail("cursor in image pixels missing from user message")
+    if CURSOR_MARKER_NOTE not in warned:
+        _fail("cursor marker note missing from user message")
     quiet = build_vision_user_message(
         user_text="扫雷",
         executed=[],
@@ -780,6 +790,19 @@ def test_repeat_pointer_warning() -> None:
     )
     if REPEAT_POINTER_WARNING in quiet:
         _fail("warning should not appear on the first step")
+    if CURSOR_MARKER_NOTE in quiet:
+        _fail("cursor marker note should only appear when cursor coords are known")
+    if GRID_MARKER_NOTE not in quiet:
+        _fail("grid marker note should appear when image size is known")
+    no_size = build_vision_user_message(
+        user_text="扫雷",
+        executed=[],
+        img_w=None,
+        img_h=None,
+        repeat_pointer=False,
+    )
+    if GRID_MARKER_NOTE in no_size:
+        _fail("grid marker note should not appear without image size")
     print("  ok")
 
 

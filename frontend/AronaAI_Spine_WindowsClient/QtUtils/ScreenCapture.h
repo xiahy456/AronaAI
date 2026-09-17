@@ -43,8 +43,11 @@ struct Frame {
 // the cursor (then primary). excludeWindows are omitted via WDA_EXCLUDEFROMCAPTURE.
 // compress=true downscales to 1280px wide and encodes JPEG quality 70;
 // compress=false keeps native resolution at JPEG quality 95.
+// drawCursor=true annotates the JPEG for computer-use vision: a 100/200px
+// coordinate grid, then a hollow crosshair at the pointer hotspot.
+// Chat screenshots leave this false.
 Frame grabFrame(const QList<QWidget*>& excludeWindows, QScreen* screen = nullptr,
-	bool compress = false);
+	bool compress = false, bool drawCursor = false);
 
 // Grab the screen under the cursor as JPEG base64. Empty string on failure.
 QString grabJpegBase64(const QList<QWidget*>& excludeWindows, bool compress = false);

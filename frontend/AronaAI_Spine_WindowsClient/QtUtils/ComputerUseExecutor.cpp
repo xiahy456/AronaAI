@@ -217,7 +217,7 @@ void ComputerUseExecutor::captureAndFinish(bool ok, const QString& error)
 		screen = QGuiApplication::screenAt(QCursor::pos());
 	}
 	const ScreenCapture::Frame frame = ScreenCapture::grabFrame(
-		exclude, screen, screenshotCompressEnabled());
+		exclude, screen, screenshotCompressEnabled(), true);
 
 	QJsonObject observation;
 	const bool resultOk = ok && frame.ok;
