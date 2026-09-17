@@ -368,6 +368,13 @@ bool ComputerUseExecutor::performAction(const QJsonObject& action, QString* erro
 			error)) {
 			return false;
 		}
+		FINE_DEBUG_OUTPUT(QString("[Computer Use] Map action=%1 (%2,%3) space=%4 -> phys=%5,%6")
+			.arg(name)
+			.arg(action.value(QStringLiteral("x")).toDouble())
+			.arg(action.value(QStringLiteral("y")).toDouble())
+			.arg(action.value(QStringLiteral("coord_space")).toString())
+			.arg(physX)
+			.arg(physY));
 		const bool isDrag = name == QLatin1String("drag") || name == QLatin1String("right_drag");
 		if (isDrag) {
 			if (!action.contains(QStringLiteral("x2")) || !action.contains(QStringLiteral("y2"))
@@ -389,13 +396,37 @@ bool ComputerUseExecutor::performAction(const QJsonObject& action, QString* erro
 				error)) {
 				return false;
 			}
+			FINE_DEBUG_OUTPUT(QString("[Computer Use] Map action=%1 end (%2,%3) space=%4 -> phys=%5,%6")
+				.arg(name)
+				.arg(action.value(QStringLiteral("x2")).toDouble())
+				.arg(action.value(QStringLiteral("y2")).toDouble())
+				.arg(action.value(QStringLiteral("coord_space")).toString())
+				.arg(endX)
+				.arg(endY));
+			bool dragOk = false;
 			if (name == QLatin1String("drag")) {
-				return sendDrag(physX, physY, endX, endY, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, error);
+				dragOk = sendDrag(physX, physY, endX, endY, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, error);
+			} else {
+				dragOk = sendDrag(physX, physY, endX, endY, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, error);
 			}
-			return sendDrag(physX, physY, endX, endY, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, error);
+			const QPoint actual = QCursor::pos();
+			FINE_DEBUG_OUTPUT(QString("[Computer Use] Cursor after drag intended=%1,%2 actual=%3,%4")
+				.arg(endX)
+				.arg(endY)
+				.arg(actual.x())
+				.arg(actual.y()));
+			return dragOk;
 		}
 		if (!sendMouseMove(physX, physY, error)) {
 			return false;
+		}
+		{
+			const QPoint actual = QCursor::pos();
+			FINE_DEBUG_OUTPUT(QString("[Computer Use] Cursor after move intended=%1,%2 actual=%3,%4")
+				.arg(physX)
+				.arg(physY)
+				.arg(actual.x())
+				.arg(actual.y()));
 		}
 		if (name == QLatin1String("move")) {
 			return true;

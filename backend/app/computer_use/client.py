@@ -24,7 +24,12 @@ import httpx
 from ..config import ComputerUseConfig, PlannerConfig
 from ..image_input import redact_image_fields
 from ..logging_utils import format_llm_exchange
-from .prompts import VISION_SYSTEM, build_vision_user_message
+from .prompts import (
+    VISION_SYSTEM,
+    build_vision_user_message,
+    cursor_to_image_xy,
+    is_repeat_pointer,
+)
 from .schema import ComputerUseAction, ComputerUseObservation, SchemaError, parse_vision_action
 
 logger = logging.getLogger(__name__)
@@ -61,13 +66,33 @@ class VisionClient:
         timeout = float(
             self.computer_use.vision_timeout_sec or self.planner.timeout_sec or 20
         )
-        img_w = observation.screen.img_w if observation.screen is not None else None
-        img_h = observation.screen.img_h if observation.screen is not None else None
+        screen = observation.screen
+        img_w = screen.img_w if screen is not None else None
+        img_h = screen.img_h if screen is not None else None
+        cursor_image = None
+        if screen is not None:
+            cursor_image = cursor_to_image_xy(
+                cursor_x=screen.cursor_x,
+                cursor_y=screen.cursor_y,
+                phys_w=screen.phys_w,
+                phys_h=screen.phys_h,
+                img_w=screen.img_w,
+                img_h=screen.img_h,
+            )
+        repeat_pointer = is_repeat_pointer(
+            executed,
+            cursor_image,
+            img_w=img_w,
+            img_h=img_h,
+        )
         user_payload = build_vision_user_message(
             user_text=user_text,
             executed=executed,
             img_w=img_w,
             img_h=img_h,
+            cursor_img_x=cursor_image[0] if cursor_image is not None else None,
+            cursor_img_y=cursor_image[1] if cursor_image is not None else None,
+            repeat_pointer=repeat_pointer,
         )
         model = (self.planner.vision_model or "").strip() or self.planner.model
         url = self.planner.base_url.rstrip("/") + "/chat/completions"

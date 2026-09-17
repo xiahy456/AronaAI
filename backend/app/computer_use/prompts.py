@@ -21,6 +21,10 @@ from .schema import DRAG_ACTIONS, ComputerUseAction, POINTER_ACTIONS
 HISTORY_COMPUTER_USE_MARKER = "【操作电脑】"
 AGENT_SPEAK_FALLBACK = "老师，这次没能操作完。"
 AGENT_CANCELLED_REPLY = "老师，这次操作取消了。"
+REPEAT_CLICK_PIXELS = 8
+REPEAT_POINTER_WARNING = (
+    "上一步指针仍停在同一坐标附近。画面若未变，禁止再点同一坐标，必须换目标/换格子。"
+)
 
 
 def computer_use_history_content(user_text: str | None) -> str:
@@ -31,7 +35,9 @@ VISION_SYSTEM = """你是阿洛娜的电脑操作规划器。可以内部思考�
 老师请你在这台 Windows 电脑上完成交代的任务。最终输出必须是唯一一个 JSON 动作对象，不要 Markdown。
 允许的 action：move、click、double_click、right_click、middle_click、drag、right_drag、scroll、type、key、wait、done。
 规则：
-- 点击、拖拽、滚轮用 JPEG 像素坐标：coord_space 必须是 "image"；坐标是当前截图像素，原点左上。
+- 点击、拖拽、滚轮用 JPEG 像素坐标：coord_space 必须是 "image"；原点左上。x、y 必须落在当前这张 JPEG 的范围内：x ∈ [0, 宽-1]，y ∈ [0, 高-1]。宽高以 user 消息【当前截图像素】为准。
+- JSON 必须带简短 thought：先写要点哪个可见目标（窗口、按钮、格子等控件），再给坐标。thought 只能作为 JSON 字段，不能写在对象外。
+- 禁止重复点击上一步已经点过、且光标仍停在附近的坐标。画面若未变，必须换目标。
 - click / double_click / right_click / middle_click 会移动并点击，不必先 move。浏览器新标签等用 middle_click。
 - 当前窗口内拖（滑块、选区、画一笔、拖窗口）用 drag（左键）或 right_drag（右键），带起点 x/y 和终点 x2/y2，不必先 move。
 - 当前窗口内滚列表用 scroll：先移到 x/y，dy 是滚轮格不是像素；dy>0 向上，dy<0 向下；一次用 1 到 8 格。
@@ -42,14 +48,13 @@ VISION_SYSTEM = """你是阿洛娜的电脑操作规划器。可以内部思考�
 - type 只用于当前已聚焦的输入框；key 的 combo 用 win、escape、enter、tab、ctrl+c 这种。
 - 打开一个应用：key combo="win" → 必要时短 wait（如 300ms）→ type 应用名 → key combo="enter"。再点正文 type。
 - 老师没要求时不要切到无关应用。
-可选 thought 只能作为 JSON 字段，不能写在对象外。
 示例：
-{"action":"key","combo":"win"}
-{"action":"click","x":640,"y":360,"coord_space":"image"}
-{"action":"drag","x":120,"y":200,"x2":480,"y2":200,"coord_space":"image"}
-{"action":"scroll","x":640,"y":360,"dy":-3,"coord_space":"image"}
-{"action":"type","text":"你好"}
-{"action":"done","summary":"已经按下 Win，开始菜单应已打开。"}"""
+{"thought":"打开开始菜单","action":"key","combo":"win"}
+{"thought":"点截图里那个可见按钮","action":"click","x":120,"y":80,"coord_space":"image"}
+{"thought":"把滑块拖到右侧","action":"drag","x":120,"y":200,"x2":480,"y2":200,"coord_space":"image"}
+{"thought":"列表向下滚","action":"scroll","x":400,"y":300,"dy":-3,"coord_space":"image"}
+{"thought":"在已聚焦输入框打字","action":"type","text":"你好"}
+{"thought":"开始菜单应已打开","action":"done","summary":"已经按下 Win，开始菜单应已打开。"}"""
 
 
 def format_executed_steps(actions: list[ComputerUseAction] | tuple[ComputerUseAction, ...]) -> str:
@@ -83,25 +88,107 @@ def format_executed_steps(actions: list[ComputerUseAction] | tuple[ComputerUseAc
     return "\n".join(lines)
 
 
+def cursor_to_image_xy(
+    *,
+    cursor_x: int | None,
+    cursor_y: int | None,
+    phys_w: int | None,
+    phys_h: int | None,
+    img_w: int | None,
+    img_h: int | None,
+) -> tuple[int, int] | None:
+    """Map logical cursor into JPEG pixel space."""
+    if cursor_x is None or cursor_y is None:
+        return None
+    if phys_w is None or phys_h is None or phys_w <= 0 or phys_h <= 0:
+        return None
+    if img_w is None or img_h is None or img_w <= 0 or img_h <= 0:
+        return None
+    return (
+        round(cursor_x * img_w / phys_w),
+        round(cursor_y * img_h / phys_h),
+    )
+
+
+def pointer_to_image_xy(
+    action: ComputerUseAction,
+    *,
+    img_w: int | None,
+    img_h: int | None,
+) -> tuple[float, float] | None:
+    """Return a pointer action's target in JPEG pixels."""
+    if action.action not in POINTER_ACTIONS:
+        return None
+    if action.x is None or action.y is None:
+        return None
+    space = (action.coord_space or "image").strip().lower() or "image"
+    if space == "image":
+        return (float(action.x), float(action.y))
+    if space != "normalized":
+        return None
+    if img_w is None or img_h is None or img_w <= 0 or img_h <= 0:
+        return None
+    return (
+        float(action.x) * max(0, img_w - 1),
+        float(action.y) * max(0, img_h - 1),
+    )
+
+
+def is_repeat_pointer(
+    executed: list[ComputerUseAction] | tuple[ComputerUseAction, ...],
+    cursor_image: tuple[int, int] | None,
+    *,
+    img_w: int | None,
+    img_h: int | None,
+    threshold: int = REPEAT_CLICK_PIXELS,
+) -> bool:
+    """True when the last pointer action still matches the current image cursor."""
+    if not executed or cursor_image is None or threshold < 0:
+        return False
+    last_xy = pointer_to_image_xy(executed[-1], img_w=img_w, img_h=img_h)
+    if last_xy is None:
+        return False
+    dx = last_xy[0] - cursor_image[0]
+    dy = last_xy[1] - cursor_image[1]
+    return (dx * dx + dy * dy) ** 0.5 < threshold
+
+
 def build_vision_user_message(
     *,
     user_text: str,
     executed: list[ComputerUseAction] | tuple[ComputerUseAction, ...],
     img_w: int | None,
     img_h: int | None,
+    cursor_img_x: int | None = None,
+    cursor_img_y: int | None = None,
+    repeat_pointer: bool = False,
 ) -> str:
     size = (
         f"{img_w}x{img_h}"
         if img_w and img_h and img_w > 0 and img_h > 0
         else "未知"
     )
-    return (
-        f"【老师原话】{(user_text or '').strip()}\n"
-        f"【已执行步骤】\n{format_executed_steps(executed)}\n"
-        f"【当前截图像素】{size}\n"
+    lines = [
+        f"【老师原话】{(user_text or '').strip()}",
+        "【已执行步骤】",
+        format_executed_steps(executed),
+        f"【当前截图像素】{size}",
+    ]
+    if img_w and img_h and img_w > 0 and img_h > 0:
+        lines.append(
+            f"【坐标范围】x ∈ [0, {img_w - 1}]，y ∈ [0, {img_h - 1}]，"
+            "原点左上，必须按当前这张 JPEG 点，不要用示例数字。"
+        )
+    if cursor_img_x is not None and cursor_img_y is not None:
+        lines.append(f"【当前光标（image 像素）】{cursor_img_x},{cursor_img_y}")
+    if repeat_pointer:
+        lines.append(f"【警告】{REPEAT_POINTER_WARNING}")
+    lines.append(
         "根据截图只输出一个动作 JSON。点选用 image 坐标。"
+        "JSON 必须含 thought（要点哪个可见目标）。"
         "仅当无法继续或目标已完成时输出 done。"
     )
+    return "\n".join(lines)
 
 
 def build_computer_use_instruction(*, user_text: str, summary: str, ok: bool) -> str:

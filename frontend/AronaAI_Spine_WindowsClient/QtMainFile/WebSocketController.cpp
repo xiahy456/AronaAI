@@ -620,10 +620,19 @@ void WebSocketController::handleChatResponse(const QJsonObject& message)
 
 void WebSocketController::handleComputerUseAction(const QJsonObject& message)
 {
-    FINE_DEBUG_OUTPUT(QString("[WebSocketController] computer_use_action run=%1 step=%2 action=%3")
+    QString extra;
+    if (message.contains(QStringLiteral("x")) && !message.value(QStringLiteral("x")).isNull()
+        && message.contains(QStringLiteral("y")) && !message.value(QStringLiteral("y")).isNull()) {
+        extra = QString(" x=%1 y=%2 coord_space=%3")
+            .arg(message.value(QStringLiteral("x")).toDouble())
+            .arg(message.value(QStringLiteral("y")).toDouble())
+            .arg(message.value(QStringLiteral("coord_space")).toString());
+    }
+    FINE_DEBUG_OUTPUT(QString("[WebSocketController] computer_use_action run=%1 step=%2 action=%3%4")
         .arg(message.value(QStringLiteral("run_id")).toString())
         .arg(message.value(QStringLiteral("step")).toInt())
-        .arg(message.value(QStringLiteral("action")).toString()));
+        .arg(message.value(QStringLiteral("action")).toString())
+        .arg(extra));
     emit computerUseActionReceived(message);
 }
 

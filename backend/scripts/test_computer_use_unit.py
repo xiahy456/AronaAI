@@ -45,10 +45,13 @@ from app.computer_use import (  # noqa: E402
     terminal_messages,
 )
 from app.computer_use.prompts import (  # noqa: E402
+    REPEAT_POINTER_WARNING,
     VISION_SYSTEM,
     build_computer_use_instruction,
     build_vision_user_message,
+    cursor_to_image_xy,
     format_executed_steps,
+    is_repeat_pointer,
 )
 from app.computer_use.router import ROUTER_SYSTEM  # noqa: E402
 from app.config import ComputerUseConfig, PlannerConfig  # noqa: E402
@@ -690,6 +693,16 @@ def test_prompts_allow_long_tasks() -> None:
     )
     if "仅当无法继续或目标已完成时输出 done" not in user_msg:
         _fail("vision user message should forbid early done")
+    if "【坐标范围】x ∈ [0, 1279]，y ∈ [0, 799]" not in user_msg:
+        _fail("vision user message should include image coordinate range")
+    if "JSON 必须含 thought" not in user_msg:
+        _fail("vision user message should require thought")
+    if "不要套用示例" not in VISION_SYSTEM:
+        _fail("VISION_SYSTEM should tell the model not to copy example coordinates")
+    if "必须带简短 thought" not in VISION_SYSTEM:
+        _fail("VISION_SYSTEM should require a thought field")
+    if REPEAT_POINTER_WARNING not in VISION_SYSTEM and "禁止重复点击" not in VISION_SYSTEM:
+        _fail("VISION_SYSTEM should forbid repeating the last pointer")
     instruction = build_computer_use_instruction(
         user_text="扫雷",
         summary="已点一格",
@@ -697,6 +710,76 @@ def test_prompts_allow_long_tasks() -> None:
     )
     if "短操作" in instruction:
         _fail("initiate instruction should not call it 短操作")
+    print("  ok")
+
+
+def test_cursor_to_image_xy() -> None:
+    print("== cursor maps into image pixels ==")
+    mapped = cursor_to_image_xy(
+        cursor_x=640,
+        cursor_y=400,
+        phys_w=1280,
+        phys_h=800,
+        img_w=2560,
+        img_h=1600,
+    )
+    if mapped != (1280, 800):
+        _fail(f"mapped={mapped}")
+    if cursor_to_image_xy(
+        cursor_x=0, cursor_y=0, phys_w=0, phys_h=800, img_w=2560, img_h=1600
+    ) is not None:
+        _fail("zero phys size should be None")
+    print("  ok")
+
+
+def test_repeat_pointer_warning() -> None:
+    print("== repeat pointer injects warning ==")
+    last = ComputerUseAction(
+        action="click", x=1280.0, y=800.0, coord_space="image",
+    )
+    cursor = (1280, 800)
+    if not is_repeat_pointer(
+        [last], cursor, img_w=2560, img_h=1600,
+    ):
+        _fail("same image click and cursor should count as repeat")
+    if is_repeat_pointer(
+        [last], (200, 200), img_w=2560, img_h=1600,
+    ):
+        _fail("far cursor should not count as repeat")
+    wait_only = ComputerUseAction(action="wait", ms=0)
+    if is_repeat_pointer(
+        [wait_only], cursor, img_w=2560, img_h=1600,
+    ):
+        _fail("wait should not count as repeat")
+    near = ComputerUseAction(
+        action="click", x=0.5, y=0.5, coord_space="normalized",
+    )
+    if not is_repeat_pointer(
+        [near], (640, 400), img_w=1280, img_h=800,
+    ):
+        _fail("normalized center should map near 640,400")
+    warned = build_vision_user_message(
+        user_text="扫雷",
+        executed=[last],
+        img_w=2560,
+        img_h=1600,
+        cursor_img_x=1280,
+        cursor_img_y=800,
+        repeat_pointer=True,
+    )
+    if REPEAT_POINTER_WARNING not in warned:
+        _fail("repeat warning missing from user message")
+    if "【当前光标（image 像素）】1280,800" not in warned:
+        _fail("cursor in image pixels missing from user message")
+    quiet = build_vision_user_message(
+        user_text="扫雷",
+        executed=[],
+        img_w=1280,
+        img_h=800,
+        repeat_pointer=False,
+    )
+    if REPEAT_POINTER_WARNING in quiet:
+        _fail("warning should not appear on the first step")
     print("  ok")
 
 
@@ -1140,6 +1223,8 @@ def main() -> None:
         test_vision_max_tokens_config,
         test_vision_thinking_config,
         test_prompts_allow_long_tasks,
+        test_cursor_to_image_xy,
+        test_repeat_pointer_warning,
         test_format_route_history,
         test_computer_use_history_content,
         test_parse_vision_click_image_coords,
