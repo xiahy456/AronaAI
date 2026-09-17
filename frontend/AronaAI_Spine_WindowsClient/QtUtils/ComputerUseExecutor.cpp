@@ -16,6 +16,7 @@
 
 #include "ComputerUseExecutor.h"
 #include "Defines.h"
+#include "GlobalVariables.h"
 #include "ScreenCapture.h"
 
 #include <QCursor>
@@ -38,6 +39,11 @@ constexpr int kDragMaxSteps = 24;
 constexpr int kDragStepMs = 8;
 constexpr int kDragPixelsPerStep = 40;
 constexpr int kScrollDyLimit = 8;
+
+bool screenshotCompressEnabled()
+{
+	return GET_BOOL_FROM_JSON(_global_config, "computer_use", "compress_screenshot");
+}
 
 #ifdef Q_OS_WIN
 WORD virtualKeyFromName(const QString& name)
@@ -184,7 +190,8 @@ void ComputerUseExecutor::captureAndFinish(bool ok, const QString& error)
 	if (!screen) {
 		screen = QGuiApplication::screenAt(QCursor::pos());
 	}
-	const ScreenCapture::Frame frame = ScreenCapture::grabFrame(exclude, screen);
+	const ScreenCapture::Frame frame = ScreenCapture::grabFrame(
+		exclude, screen, screenshotCompressEnabled());
 
 	QJsonObject observation;
 	const bool resultOk = ok && frame.ok;
@@ -285,7 +292,7 @@ bool ComputerUseExecutor::mapPoint(double x, double y, const QString& coordSpace
 				}
 			}
 			const ScreenCapture::Frame preview = ScreenCapture::grabFrame(
-				exclude, m_lockedScreen);
+				exclude, m_lockedScreen, screenshotCompressEnabled());
 			imgW = preview.imgW;
 			imgH = preview.imgH;
 		}

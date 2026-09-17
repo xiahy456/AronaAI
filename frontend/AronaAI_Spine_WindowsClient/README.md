@@ -70,6 +70,8 @@ cp Config/config.example.json Config/config.json
     "output_text_box_offset": -50, // 输出文本框相对默认位置的垂直偏移（像素；正值向上，负值向下）
     "mouse_event_transparent": true, // 是否启用鼠标穿透（点击穿透桌宠）
     "open_setting_widget": false, // 启动时是否自动打开设置窗口
+    "image_input": true, // 聊天/语音是否附带屏幕截图
+    "compress_screenshot": false, // 是否压缩聊天/语音截图；默认不压缩（原分辨率 JPEG 95）。true 时缩到 1280 宽、JPEG 70 以节省 IO
     "arona_ai_mode": 0, // 阿洛娜 AI 模式：0=日程模式，1=档案模式（待实现）
   },
   "aronalm": {
@@ -80,6 +82,10 @@ cp Config/config.example.json Config/config.json
     "max_reconnect_attempts": 5, // 最大重连次数
     "use_rag": true, // 是否启用知识库 RAG 检索
     "use_memory": true // 是否启用长期记忆
+  },
+  "computer_use": {
+    "enabled": false, // 是否允许阿洛娜操作老师的电脑；需与后端 computer_use.enabled 同时打开
+    "compress_screenshot": false // 是否压缩电脑操作截图；默认不压缩（原分辨率 JPEG 95）。true 时缩到 1280 宽、JPEG 70 以节省 IO
   },
   "spine": {
     "skelOrJson_path": "Assets/AronaSpineAssets/arona_spr_full.json", // Spine 骨架文件（.skel / .json）路径（如果想要普拉娜可以改为Assets/AronaSpineAssets/NP0035_spr.skel）

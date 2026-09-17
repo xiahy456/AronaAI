@@ -12,6 +12,7 @@
     "qhotkey_path": "QHotkey",
     "open_setting_widget": false,
     "image_input": true,
+    "compress_screenshot": false,
     "text_box_path": "Assets/ProgramAssets/TextBox.png",
     "push_button_path": "Assets/ProgramAssets/PushButton.png",
     "settings_bg_path": "Assets/ProgramAssets/SettingsMainBGWidget.png",
@@ -37,7 +38,8 @@
     "use_memory": true
   },
   "computer_use": {
-    "enabled": false
+    "enabled": true,
+    "compress_screenshot": false
   },
   "spine": {
     "skelOrJson_path": "Assets/AronaSpineAssets/arona_spr_full.json",

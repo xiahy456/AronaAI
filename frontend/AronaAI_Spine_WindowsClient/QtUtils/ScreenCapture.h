@@ -41,10 +41,13 @@ struct Frame {
 
 // Grab a screen as JPEG plus geometry. If screen is null, use the screen under
 // the cursor (then primary). excludeWindows are omitted via WDA_EXCLUDEFROMCAPTURE.
-Frame grabFrame(const QList<QWidget*>& excludeWindows, QScreen* screen = nullptr);
+// compress=true downscales to 1280px wide and encodes JPEG quality 70;
+// compress=false keeps native resolution at JPEG quality 95.
+Frame grabFrame(const QList<QWidget*>& excludeWindows, QScreen* screen = nullptr,
+	bool compress = false);
 
 // Grab the screen under the cursor as JPEG base64. Empty string on failure.
-QString grabJpegBase64(const QList<QWidget*>& excludeWindows);
+QString grabJpegBase64(const QList<QWidget*>& excludeWindows, bool compress = false);
 
 }
 

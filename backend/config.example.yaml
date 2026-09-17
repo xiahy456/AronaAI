@@ -143,7 +143,7 @@ interact:
   enabled: true
 
 computer_use:
-  enabled: false
+  enabled: true
   probe_enabled: true
   probe_token: "__cu_probe__"
   observation_timeout_sec: 8

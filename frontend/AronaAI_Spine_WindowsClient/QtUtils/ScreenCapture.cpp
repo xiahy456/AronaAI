@@ -83,7 +83,7 @@ private:
 };
 #endif
 
-Frame grabFrame(const QList<QWidget*>& excludeWindows, QScreen* screen)
+Frame grabFrame(const QList<QWidget*>& excludeWindows, QScreen* screen, bool compress)
 {
 	Frame frame;
 
@@ -121,15 +121,18 @@ Frame grabFrame(const QList<QWidget*>& excludeWindows, QScreen* screen)
 	}
 
 	QImage image = pixmap.toImage();
-	const int maxWidth = 1280;
-	if (image.width() > maxWidth) {
-		image = image.scaledToWidth(maxWidth, Qt::SmoothTransformation);
+	const int jpegQuality = compress ? 70 : 95;
+	if (compress) {
+		const int maxWidth = 1280;
+		if (image.width() > maxWidth) {
+			image = image.scaledToWidth(maxWidth, Qt::SmoothTransformation);
+		}
 	}
 
 	QByteArray bytes;
 	QBuffer buffer(&bytes);
 	buffer.open(QIODevice::WriteOnly);
-	if (!image.save(&buffer, "JPEG", 70)) {
+	if (!image.save(&buffer, "JPEG", jpegQuality)) {
 		ERROR_DEBUG_OUTPUT("[Screen Capture] JPEG encode failed");
 		return frame;
 	}
@@ -140,20 +143,21 @@ Frame grabFrame(const QList<QWidget*>& excludeWindows, QScreen* screen)
 	frame.ok = !frame.jpegBase64.isEmpty() && frame.physW > 0 && frame.physH > 0
 		&& frame.imgW > 0 && frame.imgH > 0;
 
-	FINE_DEBUG_OUTPUT(QString("[Screen Capture] Captured %1x%2 jpeg=%3 bytes origin=%4,%5 phys=%6x%7")
+	FINE_DEBUG_OUTPUT(QString("[Screen Capture] Captured %1x%2 jpeg=%3 bytes origin=%4,%5 phys=%6x%7 compress=%8")
 		.arg(frame.imgW)
 		.arg(frame.imgH)
 		.arg(bytes.size())
 		.arg(frame.originX)
 		.arg(frame.originY)
 		.arg(frame.physW)
-		.arg(frame.physH));
+		.arg(frame.physH)
+		.arg(compress ? "true" : "false"));
 	return frame;
 }
 
-QString grabJpegBase64(const QList<QWidget*>& excludeWindows)
+QString grabJpegBase64(const QList<QWidget*>& excludeWindows, bool compress)
 {
-	return grabFrame(excludeWindows, nullptr).jpegBase64;
+	return grabFrame(excludeWindows, nullptr, compress).jpegBase64;
 }
 
 }

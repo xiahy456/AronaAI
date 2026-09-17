@@ -129,9 +129,6 @@ Download the packaged client from the [Releases](https://github.com/xiahy456/Aro
   "aronalm": {
     "websocket_url": "ws://127.0.0.1:20456/ws"
   },
-  "computer_use": {
-    "enabled": false
-  },
   "tts": {
     "host": "127.0.0.1"
   },

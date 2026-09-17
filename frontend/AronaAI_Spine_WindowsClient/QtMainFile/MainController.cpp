@@ -430,7 +430,8 @@ QString MainController::maybeCaptureScreenBase64() const
     if (m_userInputWidget && m_userInputWidget->isVisible()) {
         exclude << m_userInputWidget;
     }
-    const QString imageBase64 = ScreenCapture::grabJpegBase64(exclude);
+    const bool compress = GET_BOOL_FROM_JSON(_global_config, "settings", "compress_screenshot");
+    const QString imageBase64 = ScreenCapture::grabJpegBase64(exclude, compress);
     if (imageBase64.isEmpty()) {
         ERROR_DEBUG_OUTPUT("[Main Controller] Screenshot failed, send text only");
     }
