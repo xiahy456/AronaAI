@@ -11,7 +11,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.config import load_config
 from app.planner import EMOTION_WHITELIST, normalize_emotion, parse_and_gate_intent
 from app.planner.prompts import (
+    PLANNER_PREFIX_DIRECT,
+    PLANNER_PREFIX_RENDERER,
     PLANNER_SYSTEM,
+    PLANNER_SYSTEM_BASE,
     PLANNER_SYSTEM_CRISIS,
     PLANNER_SYSTEM_DIRECT,
     build_planner_user_message,
@@ -145,6 +148,10 @@ def main() -> None:
     for act in USER_ACT_WHITELIST:
         assert act in PLANNER_SYSTEM
     assert USER_ACT_WHITELIST_CSV
+    assert PLANNER_SYSTEM == PLANNER_PREFIX_RENDERER + PLANNER_SYSTEM_BASE
+    assert PLANNER_SYSTEM_DIRECT == PLANNER_PREFIX_DIRECT + PLANNER_SYSTEM_BASE
+    assert PLANNER_SYSTEM_BASE in PLANNER_SYSTEM
+    assert PLANNER_SYSTEM_BASE in PLANNER_SYSTEM_DIRECT
     assert select_planner_system(renderer_enabled=True) is PLANNER_SYSTEM
     assert select_planner_system(renderer_enabled=False) is PLANNER_SYSTEM_DIRECT
     assert "reply_ok 必须为 true" in PLANNER_SYSTEM_CRISIS

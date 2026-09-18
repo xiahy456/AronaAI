@@ -28,8 +28,7 @@ from app.memory.normalize import normalize_memory_item  # noqa: E402
 from app.memory.trigger import should_extract  # noqa: E402
 from app.orchestrator import Orchestrator  # noqa: E402
 from app.planner.prompts import (  # noqa: E402
-    PLANNER_SYSTEM,
-    PLANNER_SYSTEM_DIRECT,
+    PLANNER_SYSTEM_BASE,
     build_planner_user_message,
 )
 from app.prompt import EMOTIONAL_INJECT_NOTE, build_messages, format_memory_inject  # noqa: E402
@@ -273,10 +272,8 @@ def test_labeled_inject() -> None:
         _fail("planner must not wrap labeled block again")
     if "【共同经历】" not in planner_msg:
         _fail("planner user message should keep episode label")
-    if "心情与共同经历不是稳定档案" not in PLANNER_SYSTEM:
+    if "心情与共同经历不是稳定档案" not in PLANNER_SYSTEM_BASE:
         _fail("daily planner must say moods are not durable persona")
-    if "心情与共同经历不是稳定档案" not in PLANNER_SYSTEM_DIRECT:
-        _fail("direct planner must say moods are not durable persona")
 
     cfg = AppConfig(model=ModelConfig(enabled=False))
     local = build_messages(
