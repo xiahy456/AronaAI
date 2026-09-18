@@ -22,12 +22,25 @@ from pathlib import Path
 from typing import Any
 
 from .classify import classify_user_act
-from .events import AronaAct, UserAct, arona_delta, normalize_user_act, user_delta
+from .events import (
+    DEFAULT_USER_ACT,
+    AronaAct,
+    UserAct,
+    arona_delta,
+    normalize_user_act,
+    user_delta,
+)
 from .policy import Action, Climate, Decision, decide, decide_proactive, map_arona_act
 from .state import RelationshipState
 from .store import RelationshipStore
+from ..taxonomy import CRISIS_USER_ACT
 
 logger = logging.getLogger(__name__)
+
+# Planner labels that must not backfill a user Δ (or crisis-gate an everyday turn).
+_PLANNER_BACKFILL_SKIP: frozenset[str] = frozenset(
+    {DEFAULT_USER_ACT, CRISIS_USER_ACT, "touch"}
+)
 
 
 @dataclass
@@ -76,6 +89,7 @@ class RelationshipEngine:
         self.settings = settings
         self.store = store
         self.state = store.load()
+        self._last_rule_act: UserAct | None = None
 
     @classmethod
     def from_path(cls, path: Path, settings: RelationshipSettings) -> RelationshipEngine:
@@ -120,6 +134,7 @@ class RelationshipEngine:
             stick_turns=self.settings.climate_stick_turns,
         )
         self.state.last_user_act = act
+        self._last_rule_act = act
         self.store.save(self.state)
         logger.info(
             "relationship user_act=%s climate=%s action=%s "
@@ -145,6 +160,7 @@ class RelationshipEngine:
             stick_turns=self.settings.climate_stick_turns,
         )
         self.state.last_user_act = normalized
+        self._last_rule_act = normalized
         self.store.save(self.state)
         logger.info(
             "relationship user_act=%s climate=%s action=%s "
@@ -158,13 +174,41 @@ class RelationshipEngine:
         )
         return normalized, decision
 
-    def note_planner_user_act(self, act: str) -> UserAct:
-        """Overwrite last_user_act from Planner; do not re-apply user Δ."""
+    def note_planner_user_act(self, act: str) -> tuple[UserAct, bool]:
+        """Overwrite last_user_act from Planner; backfill Δ only if rules said other.
+
+        Returns (normalized_act, backfilled). ``backfilled`` is True only when this
+        call applied a user Δ. Crisis/touch from Planner never backfill and do not
+        overwrite last_user_act when the rule classifier was ``other``.
+        """
         normalized = normalize_user_act(act)
-        self.state.last_user_act = normalized
+        rule_act = self._last_rule_act
+        self._last_rule_act = None
+
+        backfilled = False
+        if rule_act == DEFAULT_USER_ACT and normalized not in _PLANNER_BACKFILL_SKIP:
+            self._apply(user_delta(normalized))
+            self.state.last_user_act = normalized
+            backfilled = True
+            logger.info(
+                "relationship planner_user_act=%s backfill=1 "
+                "trust=%.3f dependence=%.3f tension=%.3f",
+                normalized,
+                self.state.trust,
+                self.state.dependence,
+                self.state.tension,
+            )
+        elif rule_act == DEFAULT_USER_ACT and normalized in {CRISIS_USER_ACT, "touch"}:
+            logger.info(
+                "relationship planner_user_act=%s skipped_backfill",
+                normalized,
+            )
+        else:
+            self.state.last_user_act = normalized
+            logger.info("relationship planner_user_act=%s", normalized)
+
         self.store.save(self.state)
-        logger.info("relationship planner_user_act=%s", normalized)
-        return normalized
+        return normalized, backfilled
 
     def peek_climate(self) -> str:
         from .policy import resolve_climate

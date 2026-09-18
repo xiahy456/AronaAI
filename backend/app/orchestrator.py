@@ -20,6 +20,7 @@ import asyncio
 import logging
 import time
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from datetime import datetime
 from typing import Any, Literal
 
@@ -200,7 +201,9 @@ class Orchestrator:
                 decision = applied
             relationship_applied = True
             if intent is not None:
-                self._note_planner_user_act(intent.user_act)
+                backfilled_act = self._note_planner_user_act(intent.user_act)
+                if backfilled_act is not None and decision is not None:
+                    decision = replace(decision, user_act=backfilled_act)
 
         if decision is not None:
             context_parts.append("climate")
@@ -1020,10 +1023,12 @@ class Orchestrator:
         _act, decision = self.relationship.on_user_text(user_text)
         return decision
 
-    def _note_planner_user_act(self, act: str) -> None:
+    def _note_planner_user_act(self, act: str) -> str | None:
+        """Return the Planner act only when a user Δ was backfilled."""
         if self.relationship is None or not self.config.proactive.relationship.enabled:
-            return
-        self.relationship.note_planner_user_act(act)
+            return None
+        normalized, backfilled = self.relationship.note_planner_user_act(act)
+        return normalized if backfilled else None
 
     def _note_arona_relationship(
         self, decision: Decision | None, action: str

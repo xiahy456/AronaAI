@@ -136,6 +136,7 @@ python scripts/test_interact_unit.py       # 非对话 interact 白名单 / 摸�
   → silence / refuse：写入历史，不调用 LLM，发空 content 的 chat_response（context_used=silence/refuse）
   → speak：本轮 query embedding 只算一次 → 记忆/知识检索（知识近义命中可复用）
        → Planner 或本地 → Renderer（复用 system 前缀 KV）→ chat_response
+  → 规则为 other 且 Planner 给出非 other（且非 crisis / touch）时，按 Planner 的 user_act 补一次用户 Δ
   → 回写阿洛娜自身行动（followed_up / gave_space / teased / greeted）
 ```
 
@@ -270,7 +271,7 @@ Planner 只看见【关系气候】档位与【建议姿态】，禁止下发 A/
 new = clamp(old + α * Δ - β * (old - baseline), -1, 1)
 ```
 
-Δ 由事件表给出，不让 LLM 发明浮点。用户侧事件包括 `fatigue` / `seek_validation` / `self_disclose` / `play_tease` / `reject` / `gratitude` / `affection` / `worry_bond` / `depart` / `instrumental` / `short_ack` / `other`。未识别为 `other`（Δ 为 0）。
+Δ 由事件表给出，不让 LLM 发明浮点。用户侧事件包括 `fatigue` / `seek_validation` / `self_disclose` / `play_tease` / `reject` / `gratitude` / `affection` / `worry_bond` / `depart` / `instrumental` / `short_ack` / `other`。未识别为 `other`（Δ 为 0）。规则为 `other` 且 Planner 给出白名单内非 `other` / 非 `crisis` / 非 `touch` 的 `user_act` 时，按 Planner 结果补一次用户 Δ；本轮 silence / 气候提示仍以规则分类为准。
 
 气候分区（连续若干轮保持同一姿态，紧急档可立即切换）：
 

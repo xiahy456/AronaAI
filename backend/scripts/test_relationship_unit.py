@@ -421,6 +421,117 @@ def test_preview_user_text_does_not_apply(tmp: Path) -> None:
     print("  ok")
 
 
+def test_planner_user_act_backfill(tmp: Path) -> None:
+    print("== planner user_act backfill when rules say other ==")
+    other_line = "今天天气不错呢"
+
+    engine = RelationshipEngine.from_path(
+        tmp / "rel_backfill.json", RelationshipSettings(beta=0.0)
+    )
+    before = engine.state.trust
+    act, _ = engine.on_user_text(other_line)
+    if act != "other":
+        _fail(f"expected other, got {act}")
+    if abs(engine.state.trust - before) > 1e-9:
+        _fail("other should not change trust before backfill")
+    noted, backfilled = engine.note_planner_user_act("affection")
+    if noted != "affection" or not backfilled:
+        _fail(f"expected backfill affection, got {noted} {backfilled}")
+    if engine.state.last_user_act != "affection":
+        _fail(f"last_user_act={engine.state.last_user_act}")
+    if engine.state.trust <= before:
+        _fail("affection backfill should raise trust")
+    after_backfill = engine.state.trust
+    noted2, backfilled2 = engine.note_planner_user_act("affection")
+    if backfilled2:
+        _fail("second note_planner_user_act must not apply Δ again")
+    if abs(engine.state.trust - after_backfill) > 1e-9:
+        _fail("second note must not change trust")
+
+    stacked = RelationshipEngine.from_path(
+        tmp / "rel_no_stack.json", RelationshipSettings(beta=0.0)
+    )
+    _act, _ = stacked.on_user_text("谢谢")
+    after_rule = stacked.state.trust
+    noted, backfilled = stacked.note_planner_user_act("affection")
+    if backfilled:
+        _fail("must not backfill when rules already classified")
+    if stacked.state.last_user_act != "affection":
+        _fail("planner still overwrites last_user_act when rules hit")
+    if abs(stacked.state.trust - after_rule) > 1e-9:
+        _fail("must not stack affection Δ on gratitude")
+
+    noop = RelationshipEngine.from_path(
+        tmp / "rel_noop.json", RelationshipSettings(beta=0.0)
+    )
+    noop.on_user_text(other_line)
+    after_other = noop.state.trust
+    noted, backfilled = noop.note_planner_user_act("other")
+    if noted != "other" or backfilled:
+        _fail(f"other+other should not backfill, got {noted} {backfilled}")
+    if abs(noop.state.trust - after_other) > 1e-9:
+        _fail("other+other must not change trust")
+
+    invalid = RelationshipEngine.from_path(
+        tmp / "rel_invalid.json", RelationshipSettings(beta=0.0)
+    )
+    invalid.on_user_text(other_line)
+    after_invalid_rule = invalid.state.trust
+    noted, backfilled = invalid.note_planner_user_act("not_a_real_act")
+    if noted != "other" or backfilled:
+        _fail(f"invalid act should normalize to other, got {noted} {backfilled}")
+    if abs(invalid.state.trust - after_invalid_rule) > 1e-9:
+        _fail("invalid planner act must not change climate")
+
+    crisis = RelationshipEngine.from_path(
+        tmp / "rel_crisis.json", RelationshipSettings(beta=0.0)
+    )
+    crisis.on_user_text(other_line)
+    after_crisis_rule = (
+        crisis.state.trust,
+        crisis.state.dependence,
+        crisis.state.tension,
+    )
+    noted, backfilled = crisis.note_planner_user_act("crisis")
+    if backfilled:
+        _fail("crisis must not backfill")
+    if crisis.state.last_user_act == "crisis":
+        _fail("must not mark an everyday turn as crisis for gating")
+    if crisis.state.last_user_act != "other":
+        _fail(f"expected last_user_act other, got {crisis.state.last_user_act}")
+    after_crisis = (
+        crisis.state.trust,
+        crisis.state.dependence,
+        crisis.state.tension,
+    )
+    if after_crisis != after_crisis_rule:
+        _fail("crisis skip must not change A/B/C")
+
+    touch = RelationshipEngine.from_path(
+        tmp / "rel_touch.json", RelationshipSettings(beta=0.0)
+    )
+    touch.on_user_text(other_line)
+    after_touch_rule = touch.state.trust
+    noted, backfilled = touch.note_planner_user_act("touch")
+    if backfilled or touch.state.last_user_act != "other":
+        _fail("touch must not backfill an everyday chat")
+    if abs(touch.state.trust - after_touch_rule) > 1e-9:
+        _fail("touch skip must not change trust")
+
+    preview = RelationshipEngine.from_path(
+        tmp / "rel_preview_note.json", RelationshipSettings(beta=0.0)
+    )
+    preview_before = preview.state.trust
+    preview.preview_user_text(other_line)
+    noted, backfilled = preview.note_planner_user_act("affection")
+    if backfilled:
+        _fail("preview must not arm planner backfill")
+    if abs(preview.state.trust - preview_before) > 1e-9:
+        _fail("preview + note_planner must not apply Δ")
+    print("  ok")
+
+
+
 def test_engine_depart_then_ack(tmp: Path) -> None:
     print("== engine persist last_user_act ==")
     path = tmp / "rel.json"
@@ -491,6 +602,7 @@ def main() -> None:
     test_depart_then_short_ack_silence()
     with tempfile.TemporaryDirectory() as tmp:
         test_preview_user_text_does_not_apply(Path(tmp))
+        test_planner_user_act_backfill(Path(tmp))
         test_engine_depart_then_ack(Path(tmp))
         test_engine_wait_then_hao(Path(tmp))
     test_config_loads()
