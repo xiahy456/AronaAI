@@ -30,6 +30,12 @@ _FACTISH = re.compile(
     r"记得我|以后叫我|称呼我)"
 )
 
+# Shared time with Arona, or a confirmed mood disclosure.
+_EPISODEISH = re.compile(
+    r"(一起|陪我|陪你|我们去了|我们看了|"
+    r"今天被|心里|难过|开心不起来|有点慌|害怕|委屈|失眠|被批评)"
+)
+
 
 def should_extract(
     user_text: str,
@@ -45,6 +51,8 @@ def should_extract(
     if _EXPLICIT.search(text):
         return True
     if _FACTISH.search(text):
+        return True
+    if _EPISODEISH.search(text):
         return True
     if every_n_turns > 0 and turn_count > 0 and turn_count % every_n_turns == 0:
         return True

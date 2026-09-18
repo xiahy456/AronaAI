@@ -19,6 +19,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from ..taxonomy import normalize_memory_category
+
 # Shared color token fragment (no outer group).
 COLOR_TOKEN = (
     r"粉(?:色|红)?|粉红|桃红|"
@@ -89,5 +91,5 @@ def normalize_memory_item(item: dict[str, Any]) -> dict[str, Any]:
         return out
 
     if category:
-        out["category"] = category
+        out["category"] = normalize_memory_category(category)
     return out

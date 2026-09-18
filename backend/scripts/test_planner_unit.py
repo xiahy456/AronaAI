@@ -152,6 +152,8 @@ def main() -> None:
     assert "热线告示" in PLANNER_SYSTEM_CRISIS
     assert "明确的自伤" in PLANNER_SYSTEM
     assert "明确的自伤" in PLANNER_SYSTEM_DIRECT
+    assert "心情与共同经历不是稳定档案" in PLANNER_SYSTEM
+    assert "心情与共同经历不是稳定档案" in PLANNER_SYSTEM_DIRECT
     frozen = datetime(2026, 8, 24, 10, 14)
     user_msg = build_planner_user_message(
         user_text="谢谢你，阿洛娜。",

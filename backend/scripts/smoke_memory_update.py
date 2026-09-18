@@ -30,6 +30,7 @@ from app.memory.extractor import MemoryExtractor, _format_existing_memories, for
 from app.memory.fallback import regex_extract_memories  # noqa: E402
 from app.memory.normalize import normalize_memory_item  # noqa: E402
 from app.memory.store import MemoryStore  # noqa: E402
+from app.prompt import format_memory_inject  # noqa: E402
 
 
 def _fail(msg: str) -> None:
@@ -67,6 +68,12 @@ def test_normalize_and_regex() -> None:
     if name.get("key") != "user_name" or name.get("category") != "profile":
         _fail(f"normalize name failed: {name}")
     print(f"  normalize name ok: {name}")
+
+    mood = regex_extract_memories("我今天很难过，被批评了")
+    for item in mood:
+        if item.get("category") in {"episodic", "emotional"}:
+            _fail(f"regex must not write episode cats, got {item}")
+    print("  regex mood has no emotional/episodic ok")
 
 
 def test_format_context() -> None:
@@ -607,6 +614,49 @@ def test_extract_conflict_cleanup() -> None:
         store._client = None
 
 
+def test_emotional_inject_labels() -> None:
+    print("== labeled inject after emotional upsert ==")
+    cfg = load_config()
+    store, _tmp = _make_store(cfg)
+    try:
+        store.upsert(
+            "preference_color",
+            "老师喜欢蓝色",
+            category="preference",
+            source="seed",
+        )
+        store.upsert(
+            "emo_20260918_overtime",
+            "老师2026年9月18日因加班感到难过",
+            category="emotional",
+            source="seed",
+        )
+        store.upsert(
+            "ep_20260918_fireworks",
+            "老师2026年9月18日和阿洛娜一起看烟花",
+            category="episodic",
+            source="seed",
+        )
+        rows = _list_rows(store)
+        if rows.get("emo_20260918_overtime", ("", ""))[1] != "emotional":
+            _fail(f"emotional category not stored, rows={rows}")
+        entries = [
+            {"key": key, "content": content, "category": cat}
+            for key, (content, cat) in rows.items()
+        ]
+        block = format_memory_inject(entries, max_chars=400).block
+        if "【长期记忆】" not in block or "蓝色" not in block:
+            _fail(f"fact column missing: {block}")
+        if "【共同经历】" not in block or "烟花" not in block:
+            _fail(f"episode column missing: {block}")
+        if "【老师提过的心情】" not in block or "加班" not in block:
+            _fail(f"emotional column missing: {block}")
+        print("  labeled inject ok")
+    finally:
+        store._collection = None
+        store._client = None
+
+
 def main() -> None:
     test_normalize_and_regex()
     test_format_context()
@@ -617,6 +667,7 @@ def main() -> None:
     test_extract_buffer_user_texts()
     test_extract_multi_turn_context()
     test_extract_conflict_cleanup()
+    test_emotional_inject_labels()
     print("ALL SMOKE CHECKS PASSED")
 
 

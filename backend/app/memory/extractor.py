@@ -25,8 +25,9 @@ from typing import Any
 import httpx
 
 from ..config import ExtractorConfig, MemoryConfig
-from ..query_time import format_extract_now
+from ..query_time import format_extract_now, parse_content_datetimes
 from ..safety import is_crisis_text, turns_contain_crisis
+from ..taxonomy import normalize_memory_category
 from .fallback import regex_extract_memories
 from .normalize import normalize_memory_item
 from .store import MemoryStore, normalize_content_for_compare
@@ -38,18 +39,21 @@ _HOT_KEYS = frozenset({"user_name", "preference_color", "user_birthday"})
 
 EXTRACT_SYSTEM = """你是记忆抽取助手。根据「用户（老师）」与「阿洛娜」的对话片段、【当前时间】，以及可选的【已有相关记忆】，提取需要长期记住或需要更新/清除的用户（老师）事实。
 只输出 JSON，格式：
-{"memories":[{"op":"upsert或delete","key":"英文蛇形键","content":"短中文陈述句","category":"preference|profile|goal|other"}]}
+{"memories":[{"op":"upsert或delete","key":"英文蛇形键","content":"短中文陈述句","category":"preference|profile|goal|other|episodic|emotional"}]}
 规则：
-- 只提取已确认的精确事实（名字、偏好、约定、未完成的计划），不要闲聊、不要世界观百科。
+- 只提取已确认的精确事实（名字、偏好、约定、未完成的计划）、已确认的共处事件、已确认的心情披露，不要闲聊、不要世界观百科。
 - 无值得记忆的内容时返回 {"memories":[]}
 - content 必须是短陈述句；delete 时可省略 content 或沿用旧内容
 - 禁止疑问句、反问、猜测或未确认信息；错误示例：「老师喜欢什么颜色吗」
 - 不要把老师的提问本身当成事实写入
+- 禁止提取自伤、轻生、不想活、结束生命等危机内容
 - category 含义：
   - preference：稳定偏好（颜色、食物等）
   - profile：档案信息（名字、生日等）
   - goal：未完成的计划/打算/约定（临时意图）
   - other：其它稳定事实
+  - episodic：老师与阿洛娜的共处事件（「一起做过 X」），不是稳定档案。key 建议带日期，如 ep_20260918_fireworks。同日同主题才复用 key；跨日的相似事件必须新 key。禁止写成「老师经常和阿洛娜去看烟花」这类永恒人格。
+  - emotional：已确认的心情披露 + 原因（「因 Y 感到难过/开心」），不是猜测、不是未说出口的分析。key 建议带日期，如 emo_20260918_overtime。同日同主题才复用 key；跨日的相似心情必须新 key。禁止写成「老师是个容易难过的人」这类永恒人格。
 - 时间写入 content（对照【当前时间】换算，禁止保留相对说法）：
   - 按能确定的最细粒度写：能确定到日则写年月日（「今天 / 明天 / 后天 / 昨天 / 下周一」，如 2026年8月23日）；只能确定到月则写年月（「下个月 / 上个月 / 这个月」，如 2026年9月）；只能确定到年则写年份（「明年 / 去年」）。「下个月3号」这类已点明日的，仍写到日，不要停在月。缺少年份的绝对日期（如「8月31号」）用【当前时间】补全年份。
   - 钟点可保留，但必须带日期。正确：「老师2026年8月24日下午4点睡到晚上7点」；错误：「老师今天下午4点睡到晚上7点」
@@ -80,13 +84,33 @@ def _format_existing_memories(entries: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+_EPISODE_CATEGORIES = frozenset({"episodic", "emotional"})
+
+
+def episode_contents_same_day(left: str, right: str) -> bool:
+    """True when both contents resolve to at least one shared calendar day."""
+    left_days = {dt.date() for dt in parse_content_datetimes(left)}
+    right_days = {dt.date() for dt in parse_content_datetimes(right)}
+    if not left_days or not right_days:
+        return False
+    return bool(left_days & right_days)
+
+
+def episode_merge_allowed(category: str, new_content: str, old_content: str) -> bool:
+    """Facts may merge as before; episodic/emotional only on the same calendar day."""
+    cat = (category or "").strip()
+    if cat not in _EPISODE_CATEGORIES:
+        return True
+    return episode_contents_same_day(new_content, old_content)
+
+
 def _category_of(item: dict[str, Any] | None, fallback: str | None = None) -> str:
     if item is not None:
         cat = item.get("category")
         if isinstance(cat, str) and cat.strip():
-            return cat.strip()
+            return normalize_memory_category(cat)
     if isinstance(fallback, str) and fallback.strip():
-        return fallback.strip()
+        return normalize_memory_category(fallback)
     return "other"
 
 
@@ -448,6 +472,10 @@ class MemoryExtractor:
                 continue
             if hit_cat != cat:
                 continue
+            if not episode_merge_allowed(
+                cat, content, str(hit.get("content") or "")
+            ):
+                continue
             score = float(hit.get("score") or 0.0)
             logger.info(
                 "reconcile delete key=%s because of key=%s score=%.3f",
@@ -475,6 +503,10 @@ class MemoryExtractor:
                     continue
                 if hit_cat != category:
                     continue
+                if not episode_merge_allowed(
+                    category, content, str(hit.get("content") or "")
+                ):
+                    continue
                 by_key[hit_key] = hit
         except Exception:
             logger.exception("dedup find_exact_content failed content=%r", content[:80])
@@ -496,6 +528,10 @@ class MemoryExtractor:
             if not hit_key or hit_cat == "goal":
                 continue
             if hit_cat != category:
+                continue
+            if not episode_merge_allowed(
+                category, content, str(hit.get("content") or "")
+            ):
                 continue
             prev = by_key.get(hit_key)
             if prev is None or float(hit.get("score") or 0.0) > float(prev.get("score") or 0.0):
@@ -580,6 +616,9 @@ class MemoryExtractor:
                 for candidate in leftover
                 if _category_of(candidate) == cat
                 and str(candidate.get("key") or "").strip() not in addressed_keys
+                and episode_merge_allowed(
+                    cat, content, str(candidate.get("content") or "")
+                )
             ]
             if not same_cat:
                 continue
@@ -617,8 +656,8 @@ class MemoryExtractor:
             key = str(item.get("key") or "").strip()
             content = str(item.get("content") or "").strip()
             category = item.get("category")
-            if isinstance(category, str):
-                category = category.strip() or None
+            if isinstance(category, str) and category.strip():
+                category = normalize_memory_category(category)
             else:
                 category = None
             if not key:
@@ -657,8 +696,8 @@ class MemoryExtractor:
             key = str(item.get("key") or "").strip()
             content = str(item.get("content") or "").strip()
             category = item.get("category")
-            if isinstance(category, str):
-                category = category.strip() or None
+            if isinstance(category, str) and category.strip():
+                category = normalize_memory_category(category)
             else:
                 category = None
             if not key:

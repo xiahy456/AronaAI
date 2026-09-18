@@ -21,8 +21,8 @@ side effects.
 Wiring status:
 
 - Step 1: ``crisis`` is attached to ``USER_DELTAS`` / ``UserAct``.
-- Step 2: do not list ``episodic`` / ``emotional`` in the extractor JSON
-  schema until crisis turns are blocked from extraction.
+- Step 2: extractor JSON schema lists ``episodic`` / ``emotional``; same-day
+  merge only; labeled inject. Crisis turns are still blocked from extraction.
 - Step 3: do not return ``mood_followup`` from the proactive scheduler until
   emotional memories exist and crisis content cannot be selected. Adding the
   string to ``MotiveKind`` too early would be recorded as a care slot.

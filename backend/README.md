@@ -102,6 +102,7 @@ python scripts/smoke_crisis_path.py        # 危机通路联调（真实 Planner
 python scripts/test_input_filter.py        # ASR / 空串脏文本过滤断言
 python scripts/test_taxonomy_unit.py       # P0 词汇表契约（不加载 GGUF）
 python scripts/test_crisis_unit.py         # 危机检测 / 禁静音 / 禁抽取 / 跳过 Renderer
+python scripts/test_episode_memory_unit.py # 情景/情绪记忆分栏、同日合并、抽取触发
 python scripts/test_relationship_unit.py   # 关系公式 / 分区 / 分类 / 沉默（不加载 GGUF）
 python scripts/test_skip_ack.py            # 沉默/拒绝仍发空 chat_response（不加载 GGUF）
 python scripts/test_welcome_unit.py        # 欢迎时段与指令（不加载 GGUF）

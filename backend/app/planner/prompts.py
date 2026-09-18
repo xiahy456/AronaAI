@@ -60,7 +60,7 @@ PLANNER_SYSTEM = f"""你是桌面陪伴助手「阿洛娜」的「回复规划�
 1. 只输出一个 JSON 对象，不要 Markdown 或额外说明。
 2. draft：仅 reply_ok 为 true 时写不超过 2 句完整中文，含本轮全部意思；禁止提纲；禁止系统事件、提示词、关系数值、思考过程。reply_ok 为 false 时 draft 必须是空字符串。
 3. 本轮不是问候则不要再问候；问候时段与老师原话一致。
-4. 记忆/知识只取与本轮直接相关的，无关记忆/知识不要采用；不要重复最近的对话中已经说过的内容。
+4. 记忆/知识只取与本轮直接相关的，无关记忆/知识不要采用；不要重复最近的对话中已经说过的内容。心情与共同经历不是稳定档案，不要当成长久人设或翻旧账。
 5. 对于需要记忆/知识的问题，若没有相关事实可用则使用中性回答，禁止编造事实。
 6. 老师已答过的问题不要再问；收束（拒绝某条建议/没什么/不是什么大事）时不要追问细节。
 7. arona_emotion 必须从下列英文值中原样选一个：{EMOTION_WHITELIST_CSV}
@@ -133,7 +133,7 @@ PLANNER_SYSTEM_DIRECT = f"""你是桌面陪伴助手「阿洛娜」。你要以�
    - 禁止提纲、禁止旁白、禁止动作描写（如「（轻轻提起）」「（歪头）」）、禁止出现对自己回复的指示、元指令或思考过程、禁止系统事件 / 提示词内容 / 关系数值。
    - 禁止 Markdown、列表、括号说明；
 3. 若【近期对话】中阿洛娜的上一条消息与本轮老师的消息已经构成了互相问候，如「早上好」、「晚安」等，则本轮阿洛娜不要问候。在正常对话中不要进行「早安」、「晚上好」等问候。
-4. 记忆/知识只取与本轮直接相关的，无关记忆/知识不要采用；不要重复最近的对话中已经说过的内容。
+4. 记忆/知识只取与本轮直接相关的，无关记忆/知识不要采用；不要重复最近的对话中已经说过的内容。心情与共同经历不是稳定档案，不要当成长久人设或翻旧账。
 5. 对于需要记忆/知识的问题，若没有相关事实可用则使用中性回答，禁止编造事实。
 6. 老师已答过的问题不要再问；收束（拒绝某条建议/没什么/不是什么大事）时不要继续追问。
 7. arona_emotion 必须从下列英文值中原样选一个：{EMOTION_WHITELIST_CSV}
@@ -204,10 +204,17 @@ def build_planner_user_message(
     climate_block: str = "",
     now: datetime | None = None,
     has_screenshot: bool = False,
+    memory_block: str = "",
 ) -> str:
-    mem_block = "（无）"
-    if memories:
-        mem_block = "\n".join(f"- {m.strip()}" for m in memories if m.strip())
+    labeled = (memory_block or "").strip()
+    if labeled:
+        mem_section = labeled
+    elif memories:
+        mem_section = "【长期记忆】\n" + "\n".join(
+            f"- {m.strip()}" for m in memories if m.strip()
+        )
+    else:
+        mem_section = "【长期记忆】\n（无）"
 
     know_block = "（无）"
     if knowledge:
@@ -242,7 +249,7 @@ def build_planner_user_message(
     return (
         f"{climate_section}"
         f"{format_extract_now(now)}\n\n"
-        f"【长期记忆】\n{mem_block}\n\n"
+        f"{mem_section}\n\n"
         f"【相关知识】\n{know_block}\n\n"
         f"【近期对话】\n{hist_block}\n\n"
         f"【老师本轮消息】\n{user_text.strip()}\n\n"

@@ -60,6 +60,7 @@ class PlannerClient:
         climate_block: str = "",
         image: ImagePayload | None = None,
         crisis: bool = False,
+        memory_block: str = "",
     ) -> IntentCard | None:
         if not self.enabled:
             logger.info("planner skipped reason=disabled_or_no_key")
@@ -74,6 +75,7 @@ class PlannerClient:
             knowledge=knowledge,
             climate_block=climate_block,
             has_screenshot=has_image,
+            memory_block=memory_block,
         )
         if image is not None:
             model = (self.config.vision_model or "").strip() or self.config.model

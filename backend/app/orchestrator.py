@@ -51,7 +51,13 @@ from .proactive.followup import (
     should_skip_continue,
     too_similar,
 )
-from .prompt import build_messages, build_renderer_messages, clip_knowledge_for_inject
+from .prompt import (
+    build_messages,
+    build_renderer_messages,
+    clip_knowledge_for_inject,
+    format_memory_inject,
+    memory_inject_char_budget,
+)
 from .protocol import CODE_INTERNAL, msg_chat_response, msg_error
 from .query_time import build_time_aware_query
 from .relationship import (
@@ -61,6 +67,7 @@ from .relationship import (
     local_system_hint,
     planner_climate_block,
 )
+from .relationship.classify import classify_user_act
 from .safety import (
     CRISIS_FALLBACK_EMOTION,
     crisis_fallback_reply,
@@ -112,6 +119,22 @@ class Orchestrator:
             "local_route_count": 0,
             "dual_route_count": 0,
         }
+
+    def _pack_memory_inject(
+        self,
+        entries: list[dict[str, Any]] | None = None,
+        *,
+        extra_contents: list[str] | None = None,
+        mark: bool = True,
+    ) -> tuple[list[str], str]:
+        injected = format_memory_inject(
+            entries,
+            extra_contents=extra_contents,
+            max_chars=memory_inject_char_budget(self.config),
+        )
+        if mark and injected.keys:
+            self.memory_store.mark_injected(injected.keys)
+        return injected.contents, injected.block
 
     async def handle_chat(
         self,
@@ -238,12 +261,14 @@ class Orchestrator:
                 time_query_embedding = None
 
         memories: list[str] = []
+        memory_block = ""
         if use_memory:
             t0 = time.perf_counter()
-            memories = await asyncio.to_thread(
-                self.memory_store.retrieve,
+            cand_k = max(1, int(self.config.memory.candidate_top_k))
+            entries = await asyncio.to_thread(
+                self.memory_store.retrieve_entries,
                 user_text,
-                self.config.memory.retrieve_top_k,
+                cand_k,
                 query_embedding,
                 apply_inject_cooldown=True,
                 include_time=True,
@@ -251,6 +276,7 @@ class Orchestrator:
                 time_query_embedding=time_query_embedding,
                 now=retrieve_now,
             )
+            memories, memory_block = self._pack_memory_inject(entries)
             logger.info(
                 "memory retrieve session=%s hits=%d latency=%.3fs items=%s",
                 session_id,
@@ -323,6 +349,7 @@ class Orchestrator:
                 knowledge=knowledge_chunks,
                 climate_block=self._climate_block(decision),
                 image=image,
+                memory_block=memory_block,
             )
             logger.info(
                 "planner session=%s ok=%s latency=%.3fs",
@@ -348,6 +375,7 @@ class Orchestrator:
                         abort_check=abort_check,
                         on_committed=on_committed,
                         memories=memories,
+                        memory_block=memory_block,
                         image=image,
                     )
                 emotion = intent.arona_emotion
@@ -376,6 +404,7 @@ class Orchestrator:
             context_parts=context_parts,
             extra_system=self._local_hint(decision),
             emotion=emotion,
+            memory_block=memory_block,
         )
         latency = time.perf_counter() - start
         if full is None:
@@ -445,6 +474,7 @@ class Orchestrator:
         abort_check: AbortCheck | None = None,
         on_committed: Callable[[], None] | None = None,
         memories: list[str] | None = None,
+        memory_block: str = "",
         image: ImagePayload | None = None,
     ) -> bool:
         """Speak via crisis planner draft (no renderer); local Arona fallback."""
@@ -460,6 +490,7 @@ class Orchestrator:
                 climate_block=crisis_planner_climate_block(),
                 image=image,
                 crisis=True,
+                memory_block=memory_block,
             )
             logger.info(
                 "crisis planner session=%s ok=%s latency=%.3fs",
@@ -628,13 +659,17 @@ class Orchestrator:
         )
 
         memories: list[str] = []
+        memory_block = ""
         injected = [
             item.strip()
             for item in (extra_memories or ())
             if (item or "").strip()
         ]
         if injected:
-            memories = injected
+            memories, memory_block = self._pack_memory_inject(
+                extra_contents=injected,
+                mark=False,
+            )
             context_parts.append("memory")
             logger.info(
                 "initiate memory injected session=%s kind=%s hits=%d",
@@ -644,12 +679,14 @@ class Orchestrator:
             )
         elif retrieve_memory and memory_query:
             t0 = time.perf_counter()
-            memories = await asyncio.to_thread(
-                self.memory_store.retrieve,
+            cand_k = max(1, int(self.config.memory.candidate_top_k))
+            entries = await asyncio.to_thread(
+                self.memory_store.retrieve_entries,
                 memory_query,
-                self.config.memory.retrieve_top_k,
+                cand_k,
                 apply_inject_cooldown=True,
             )
+            memories, memory_block = self._pack_memory_inject(entries)
             logger.info(
                 "initiate memory retrieve session=%s kind=%s hits=%d latency=%.3fs",
                 session_id,
@@ -688,6 +725,7 @@ class Orchestrator:
                 memories=memories,
                 knowledge=[],
                 climate_block=block,
+                memory_block=memory_block,
             )
             logger.info(
                 "initiate planner session=%s kind=%s ok=%s latency=%.3fs",
@@ -774,6 +812,7 @@ class Orchestrator:
             extra_system=self._local_hint(decision) if decision is not None else None,
             emotion=emotion,
             kind=kind,
+            memory_block=memory_block,
         )
         latency = time.perf_counter() - start
         if not (full or "").strip():
@@ -858,6 +897,7 @@ class Orchestrator:
         extra_system: str | None = None,
         emotion: str = DEFAULT_EMOTION,
         kind: str | None = None,
+        memory_block: str = "",
     ) -> tuple[str | None, str]:
         """Build the spoken line: renderer GGUF, local GGUF fallback, or planner draft.
 
@@ -914,6 +954,7 @@ class Orchestrator:
                 memories=memories,
                 knowledge=knowledge,
                 extra_system=extra_system,
+                memory_block=memory_block,
             )
             mode = "local"
 
@@ -1127,7 +1168,11 @@ class Orchestrator:
         ext = self.config.memory.extractor
         turn_count = self.conversations.turn_count(session_id)
         buffer_turns = self.conversations.extract_buffer_turn_count(session_id)
-        if not should_extract(
+        disclose = (
+            not is_crisis_text(user_text)
+            and classify_user_act(user_text) == "self_disclose"
+        )
+        if not disclose and not should_extract(
             user_text,
             turn_count=turn_count,
             every_n_turns=ext.every_n_turns,

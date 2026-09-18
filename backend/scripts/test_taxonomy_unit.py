@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lock Step 0 taxonomy names; assert runtime enums are not wired yet.
+"""Lock Step 0 taxonomy names and Step 2 extractor schema wiring.
 
 Run from backend/:
   python scripts/test_taxonomy_unit.py
@@ -100,10 +100,10 @@ def main() -> None:
         fails.append("USER_DELTAS must include crisis")
     if USER_DELTAS.get(CRISIS_USER_ACT) != (0.0, 0.0, 0.0):
         fails.append(f"crisis delta={USER_DELTAS.get(CRISIS_USER_ACT)!r}")
-    if "episodic" in EXTRACT_SYSTEM:
-        fails.append("EXTRACT_SYSTEM must not list episodic yet")
-    if "emotional" in EXTRACT_SYSTEM:
-        fails.append("EXTRACT_SYSTEM must not list emotional yet")
+    if "episodic" not in EXTRACT_SYSTEM:
+        fails.append("EXTRACT_SYSTEM must list episodic")
+    if "emotional" not in EXTRACT_SYSTEM:
+        fails.append("EXTRACT_SYSTEM must list emotional")
 
     if fails:
         print("FAIL")

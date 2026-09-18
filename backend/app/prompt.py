@@ -16,9 +16,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from .config import AppConfig
+from .safety import is_crisis_text
+from .taxonomy import FACT_CATEGORIES, normalize_memory_category
 
 # Dedicated renderer system prompt (do NOT splice yaml prompt.local_system_prompt).
 RENDERER_SYSTEM = """你是阿洛娜（Arona），什亭之匣的操作系统管理员。
@@ -59,6 +63,99 @@ def clip_knowledge_for_inject(config: AppConfig, knowledge: list[str]) -> list[s
     return clip_inject_chunks(knowledge, budget)
 
 
+def memory_inject_char_budget(config: AppConfig) -> int:
+    budget = _approx_chars_for_tokens(config.token_budget.memory)
+    return min(budget, config.memory.max_inject_chars)
+
+
+EMOTIONAL_INJECT_NOTE = "仅在与本轮相关时轻触，不要当病历翻旧账。"
+
+
+@dataclass(frozen=True)
+class MemoryInject:
+    block: str
+    contents: list[str]
+    keys: list[str]
+
+
+def format_memory_inject(
+    entries: Sequence[dict[str, Any]] | None = None,
+    *,
+    extra_contents: Sequence[str] | None = None,
+    max_chars: int,
+) -> MemoryInject:
+    """Labeled memory sections: facts first, then at most one episode and one mood."""
+    facts: list[dict[str, Any]] = []
+    episodes: list[dict[str, Any]] = []
+    emotions: list[dict[str, Any]] = []
+    for raw in list(entries or []) + [
+        {"key": "", "content": text, "category": "other"}
+        for text in (extra_contents or ())
+    ]:
+        content = str(raw.get("content") or "").strip()
+        if not content or is_crisis_text(content):
+            continue
+        cat = normalize_memory_category(raw.get("category"))
+        row = {
+            "key": str(raw.get("key") or "").strip(),
+            "content": content,
+            "category": cat,
+        }
+        if cat == "episodic":
+            episodes.append(row)
+        elif cat == "emotional":
+            emotions.append(row)
+        elif cat in FACT_CATEGORIES:
+            facts.append(row)
+
+    budget = max(0, int(max_chars))
+    parts: list[str] = []
+    contents: list[str] = []
+    keys: list[str] = []
+
+    def _fits(section: str) -> bool:
+        joined = "\n\n".join([*parts, section]) if parts else section
+        return len(joined) <= budget
+
+    fact_lines: list[str] = []
+    for row in facts:
+        line = f"- {row['content']}"
+        candidate_lines = [*fact_lines, line]
+        section = "【长期记忆】\n" + "\n".join(candidate_lines)
+        if not _fits(section):
+            break
+        fact_lines.append(line)
+        contents.append(row["content"])
+        if row["key"]:
+            keys.append(row["key"])
+    if fact_lines:
+        parts.append("【长期记忆】\n" + "\n".join(fact_lines))
+
+    if episodes:
+        row = episodes[0]
+        section = f"【共同经历】\n- {row['content']}"
+        if _fits(section):
+            parts.append(section)
+            contents.append(row["content"])
+            if row["key"]:
+                keys.append(row["key"])
+
+    if emotions:
+        row = emotions[0]
+        section = (
+            "【老师提过的心情】\n"
+            f"{EMOTIONAL_INJECT_NOTE}\n"
+            f"- {row['content']}"
+        )
+        if _fits(section):
+            parts.append(section)
+            contents.append(row["content"])
+            if row["key"]:
+                keys.append(row["key"])
+
+    return MemoryInject(block="\n\n".join(parts), contents=contents, keys=keys)
+
+
 def build_messages(
     config: AppConfig,
     *,
@@ -67,14 +164,17 @@ def build_messages(
     memories: list[str],
     knowledge: list[str],
     extra_system: str | None = None,
+    memory_block: str = "",
 ) -> list[dict[str, str]]:
     system_parts = [config.prompt.local_system_prompt.strip()]
     if extra_system and extra_system.strip():
         system_parts.append(extra_system.strip())
 
-    if memories:
-        budget = _approx_chars_for_tokens(config.token_budget.memory)
-        budget = min(budget, config.memory.max_inject_chars)
+    labeled = (memory_block or "").strip()
+    if labeled:
+        system_parts.append(labeled)
+    elif memories:
+        budget = memory_inject_char_budget(config)
         lines: list[str] = []
         used = 0
         for mem in memories:
