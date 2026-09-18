@@ -31,6 +31,13 @@ from .festival import (
     parse_birthday_md,
 )
 from .followup import HISTORY_CONTINUE_MARKER, build_continue_instruction
+from .mood import (
+    HISTORY_MOOD_MARKER,
+    build_mood_instruction,
+    can_attempt_mood,
+    select_mood_entry,
+    wants_topic_mute,
+)
 from .goal import (
     HISTORY_GOAL_MARKER,
     build_goal_instruction,
@@ -71,6 +78,7 @@ __all__ = [
     "HISTORY_FESTIVAL_MARKER",
     "HISTORY_GOAL_MARKER",
     "HISTORY_IDLE_MARKER",
+    "HISTORY_MOOD_MARKER",
     "HISTORY_USER_MARKER",
     "FestivalHit",
     "Motive",
@@ -92,8 +100,10 @@ __all__ = [
     "build_festival_instruction",
     "build_goal_instruction",
     "build_idle_instruction",
+    "build_mood_instruction",
     "build_welcome_instruction",
     "can_attempt_goal",
+    "can_attempt_mood",
     "has_important_goal",
     "last_any_goal_at",
     "match_festival",
@@ -107,8 +117,10 @@ __all__ = [
     "load_birthday_content",
     "run_proactive_loop",
     "select_goal",
+    "select_mood_entry",
     "should_fire_care",
     "should_fire_idle",
     "tick_once",
     "wants_goal_mute",
+    "wants_topic_mute",
 ]

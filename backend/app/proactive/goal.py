@@ -31,6 +31,9 @@ def wants_goal_mute(text: str) -> bool:
     return bool(_MUTE_RE.search((text or "").strip()))
 
 
+wants_topic_mute = wants_goal_mute
+
+
 def _parse_iso(value: str) -> datetime | None:
     raw = (value or "").strip()
     if not raw:

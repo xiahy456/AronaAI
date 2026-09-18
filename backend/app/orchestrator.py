@@ -111,6 +111,7 @@ class Orchestrator:
             "goal_count": 0,
             "continue_count": 0,
             "festival_count": 0,
+            "mood_followup_count": 0,
             "interact_count": 0,
             "silence_count": 0,
             "refuse_count": 0,
@@ -869,6 +870,7 @@ class Orchestrator:
             "goal": "goal_count",
             "continue": "continue_count",
             "festival": "festival_count",
+            "mood_followup": "mood_followup_count",
             "interact": "interact_count",
         }.get(kind, "care_count")
         self.stats[stat_key] = int(self.stats.get(stat_key, 0)) + 1

@@ -293,6 +293,8 @@ def test_welcome_not_teased_and_speak_not_ratchet() -> None:
         _fail("care initiate should be cared")
     if map_arona_act("initiate", "secure_play", motive_kind="goal") != "checked_in":
         _fail("goal initiate should be checked_in")
+    if map_arona_act("initiate", "secure_play", motive_kind="mood_followup") != "checked_in":
+        _fail("mood_followup initiate should be checked_in")
     if map_arona_act("continue", "secure_play") != "followed_up":
         _fail("continue should be followed_up")
     if map_arona_act("initiate", "secure_play", motive_kind="festival") != "greeted":

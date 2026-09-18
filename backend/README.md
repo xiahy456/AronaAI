@@ -106,7 +106,7 @@ python scripts/test_episode_memory_unit.py # 情景/情绪记忆分栏、同日�
 python scripts/test_relationship_unit.py   # 关系公式 / 分区 / 分类 / 沉默（不加载 GGUF）
 python scripts/test_skip_ack.py            # 沉默/拒绝仍发空 chat_response（不加载 GGUF）
 python scripts/test_welcome_unit.py        # 欢迎时段与指令（不加载 GGUF）
-python scripts/test_proactive_unit.py      # 空闲 / 照料 / goal / 节日 / continue / 调度落盘（不加载 GGUF）
+python scripts/test_proactive_unit.py      # 空闲 / 照料 / goal / 心情回访 / 节日 / continue / 调度落盘（不加载 GGUF）
 python scripts/test_image_input_unit.py   # 截图解析 / 日志脱敏 / logs 目录保留最近 8 张
 python scripts/test_interact_unit.py       # 非对话 interact 白名单 / 摸头指令 / touch Δ / reply_ok
 ```

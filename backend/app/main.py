@@ -104,6 +104,7 @@ def create_app() -> FastAPI:
         care_cfg=config.proactive.care,
         goal_cfg=config.proactive.goal,
         festival_cfg=config.proactive.festival,
+        mood_cfg=config.proactive.mood_followup,
     )
     state = AppState(
         config,

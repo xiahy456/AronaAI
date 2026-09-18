@@ -45,7 +45,16 @@ from app.proactive.idle import (  # noqa: E402
     build_idle_instruction,
     should_fire_idle,
 )
+from app.proactive.mood import (  # noqa: E402
+    HISTORY_MOOD_MARKER,
+    build_mood_instruction,
+    can_attempt_mood,
+    mood_entry_skip_reason,
+    select_mood_entry,
+    wants_topic_mute,
+)
 from app.proactive.scheduler import ProactiveScheduler  # noqa: E402
+from app.taxonomy import MOOD_FOLLOWUP_KIND  # noqa: E402
 from app.relationship.events import ARONA_DELTAS  # noqa: E402
 from app.relationship.policy import decide_proactive, map_arona_act  # noqa: E402
 from app.relationship.state import RelationshipState  # noqa: E402
@@ -194,6 +203,8 @@ def test_care_planner_declined() -> None:
         _fail("welcome must not use care decline")
     if care_planner_declined("festival", reply_ok=False):
         _fail("festival must not use care decline")
+    if care_planner_declined("mood_followup", reply_ok=False):
+        _fail("mood_followup must not use care decline")
     print("  ok")
 
 
@@ -233,6 +244,19 @@ def test_decide_proactive_policy() -> None:
         _fail(f"cling goal should silence, got {goal_cling.action}")
     if map_arona_act("initiate", "secure_play", motive_kind="goal") != "checked_in":
         _fail("goal initiate should be checked_in")
+    mood_ok = decide_proactive(play, "mood_followup")
+    if mood_ok.action != "initiate":
+        _fail(f"secure_play mood_followup should initiate, got {mood_ok.action}")
+    if "不当病历" not in mood_ok.stance:
+        _fail(f"mood stance missing 病历 ban: {mood_ok.stance}")
+    mood_cling = decide_proactive(cling, "mood_followup")
+    if mood_cling.action != "silence":
+        _fail(f"cling mood_followup should silence, got {mood_cling.action}")
+    frag = RelationshipState(trust=0.2, dependence=0.2, tension=0.7)
+    if decide_proactive(frag, "mood_followup").action != "silence":
+        _fail("fragile mood_followup should silence")
+    if map_arona_act("initiate", "secure_play", motive_kind="mood_followup") != "checked_in":
+        _fail("mood_followup initiate should be checked_in")
     fest = decide_proactive(cling, "festival")
     if fest.action != "initiate":
         _fail(f"cling festival should still initiate, got {fest.action}")
@@ -463,6 +487,18 @@ def test_config_loads() -> None:
         _fail(f"horizon {cfg.proactive.goal.important_horizon_hours}")
     if cfg.proactive.goal.important_cooldown_sec != 1800:
         _fail(f"important cooldown {cfg.proactive.goal.important_cooldown_sec}")
+    if not cfg.proactive.mood_followup.enabled:
+        _fail("mood_followup should default enabled")
+    if cfg.proactive.mood_followup.min_after_user_sec != 900:
+        _fail(f"mood min_after {cfg.proactive.mood_followup.min_after_user_sec}")
+    if cfg.proactive.mood_followup.min_age_sec != 7200:
+        _fail(f"mood min_age {cfg.proactive.mood_followup.min_age_sec}")
+    if cfg.proactive.mood_followup.max_age_hours != 72:
+        _fail(f"mood max_age {cfg.proactive.mood_followup.max_age_hours}")
+    if cfg.proactive.mood_followup.cooldown_sec != 21600:
+        _fail(f"mood cooldown {cfg.proactive.mood_followup.cooldown_sec}")
+    if cfg.proactive.mood_followup.max_per_day != 1:
+        _fail(f"mood max_per_day {cfg.proactive.mood_followup.max_per_day}")
     if not cfg.proactive.continue_line.enabled:
         _fail("continue should default enabled")
     if cfg.proactive.continue_line.delay_sec != 2:
@@ -1202,6 +1238,319 @@ def test_continue_renderer_split_and_skip() -> None:
     print("  ok")
 
 
+def _mood_cfg(**overrides: object) -> SimpleNamespace:
+    ns = SimpleNamespace(
+        enabled=True,
+        min_after_user_sec=900,
+        min_age_sec=7200,
+        max_age_hours=72,
+        cooldown_sec=21600,
+        mute_sec=604800,
+        max_per_day=1,
+    )
+    for key, value in overrides.items():
+        setattr(ns, key, value)
+    return ns
+
+
+def test_mood_followup_select_and_gates(tmp: Path) -> None:
+    print("== mood followup select / climate / mute / priority ==")
+    now = datetime(2026, 9, 18, 15, 0, 0)
+    quiet = now - timedelta(seconds=1200)
+    aged = (now - timedelta(hours=3)).timestamp()
+    newer = (now - timedelta(minutes=30)).timestamp()
+    older_content = "老师2026年9月16日因加班感到难过"
+    newer_content = "老师2026年9月18日因为被批评有点委屈"
+    crisis = "老师不想活了"
+    episodic = "老师2026年9月16日和阿洛娜一起看烟花"
+
+    if mood_entry_skip_reason(
+        {
+            "key": "emo_new",
+            "content": newer_content,
+            "category": "emotional",
+            "updated_at": newer,
+        },
+        now,
+        mood_last={},
+        mood_mute={},
+        min_age_sec=7200,
+        max_age_hours=72,
+        cooldown_sec=21600,
+    ) != "too_new":
+        _fail("same-day too new should skip")
+    if mood_entry_skip_reason(
+        {
+            "key": "emo_old",
+            "content": "老师2026年9月10日因加班感到难过",
+            "category": "emotional",
+            "updated_at": 1.0,
+        },
+        now,
+        mood_last={},
+        mood_mute={},
+        min_age_sec=7200,
+        max_age_hours=72,
+        cooldown_sec=21600,
+    ) != "too_old":
+        _fail("older than 72h should skip")
+    if mood_entry_skip_reason(
+        {
+            "key": "emo_crisis",
+            "content": crisis,
+            "category": "emotional",
+            "updated_at": aged,
+        },
+        now,
+        mood_last={},
+        mood_mute={},
+        min_age_sec=7200,
+        max_age_hours=72,
+        cooldown_sec=21600,
+    ) != "crisis":
+        _fail("crisis content should skip")
+    if mood_entry_skip_reason(
+        {
+            "key": "ep_1",
+            "content": episodic,
+            "category": "episodic",
+            "updated_at": aged,
+        },
+        now,
+        mood_last={},
+        mood_mute={},
+        min_age_sec=7200,
+        max_age_hours=72,
+        cooldown_sec=21600,
+    ) != "not_source":
+        _fail("episodic should not be a followup source")
+
+    picked = select_mood_entry(
+        [
+            {
+                "key": "emo_new",
+                "content": newer_content,
+                "category": "emotional",
+                "updated_at": newer,
+            },
+            {
+                "key": "emo_ok",
+                "content": older_content,
+                "category": "emotional",
+                "updated_at": aged,
+            },
+            {
+                "key": "emo_crisis",
+                "content": crisis,
+                "category": "emotional",
+                "updated_at": aged,
+            },
+        ],
+        now,
+        mood_last={},
+        mood_mute={},
+        min_age_sec=7200,
+        max_age_hours=72,
+        cooldown_sec=21600,
+    )
+    if picked is None or picked.get("key") != "emo_ok":
+        _fail(f"expected oldest in-window mood, got {picked}")
+
+    if can_attempt_mood(
+        now,
+        enabled=True,
+        last_user_at=quiet,
+        last_user_act="other",
+        climate=None,
+        mood_count=0,
+        min_after_user_sec=900,
+        max_per_day=1,
+    ):
+        _fail("unknown climate must not attempt mood")
+    if can_attempt_mood(
+        now,
+        enabled=True,
+        last_user_at=quiet,
+        last_user_act="depart",
+        climate="steady",
+        mood_count=0,
+        min_after_user_sec=900,
+        max_per_day=1,
+    ):
+        _fail("depart must not attempt mood")
+    if can_attempt_mood(
+        now,
+        enabled=True,
+        last_user_at=quiet,
+        last_user_act="reject",
+        climate="steady",
+        mood_count=0,
+        min_after_user_sec=900,
+        max_per_day=1,
+    ):
+        _fail("reject must not attempt mood")
+    if can_attempt_mood(
+        now,
+        enabled=True,
+        last_user_at=quiet,
+        last_user_act="crisis",
+        climate="steady",
+        mood_count=0,
+        min_after_user_sec=900,
+        max_per_day=1,
+    ):
+        _fail("crisis user_act must not attempt mood")
+    if can_attempt_mood(
+        now,
+        enabled=True,
+        last_user_at=quiet,
+        last_user_act="other",
+        climate="fragile",
+        mood_count=0,
+        min_after_user_sec=900,
+        max_per_day=1,
+    ):
+        _fail("fragile must not attempt mood")
+    if not can_attempt_mood(
+        now,
+        enabled=True,
+        last_user_at=quiet,
+        last_user_act="other",
+        climate="steady",
+        mood_count=0,
+        min_after_user_sec=900,
+        max_per_day=1,
+    ):
+        _fail("steady quiet afternoon should allow mood")
+    if "治疗师" not in build_mood_instruction(older_content):
+        _fail("mood instruction should ban therapist role")
+    if HISTORY_MOOD_MARKER != "【心情回访】":
+        _fail("history marker")
+    if not wants_topic_mute("先别提这个了"):
+        _fail("topic mute alias should match 先别提")
+
+    idle_cfg = SimpleNamespace(
+        enabled=True, after_sec=900, cooldown_sec=1800, max_per_day=3
+    )
+    care_cfg = SimpleNamespace(
+        enabled=True,
+        lunch_start="12:00",
+        lunch_end="12:30",
+        sleep_start="23:00",
+        sleep_end="23:20",
+    )
+    path = tmp / "proactive_mood.json"
+    moods = [
+        {
+            "key": "emo_ok",
+            "content": older_content,
+            "category": "emotional",
+            "updated_at": aged,
+        }
+    ]
+    sched = ProactiveScheduler(
+        path,
+        idle_cfg=idle_cfg,
+        care_cfg=care_cfg,
+        mood_cfg=_mood_cfg(),
+    )
+    sched.state.last_user_at = quiet.isoformat(timespec="seconds")
+    sched.save()
+    hit = sched.pick_motive(
+        now,
+        last_user_act="other",
+        climate="steady",
+        moods=moods,
+    )
+    if hit is None or hit.kind != MOOD_FOLLOWUP_KIND:
+        _fail(f"expected mood_followup, got {hit}")
+    if hit.mood_key != "emo_ok":
+        _fail(f"mood_key {hit.mood_key}")
+    if HISTORY_MOOD_MARKER not in hit.history_marker:
+        _fail("mood history marker missing")
+
+    sched.mark_fired(MOOD_FOLLOWUP_KIND, now, mood_key="emo_ok")
+    if "mood_followup" in sched.state.care_done:
+        _fail("mood_followup must not land in care_done")
+    if sched.state.mood_count != 1 or sched.state.last_mood_key != "emo_ok":
+        _fail(f"mood mark_fired failed {sched.state.mood_count} {sched.state.last_mood_key}")
+
+    muted = sched.mute_last_followup(now)
+    if muted != "emo_ok":
+        _fail(f"expected mute emo_ok, got {muted}")
+    next_day = now + timedelta(days=1)
+    blocked = sched.pick_motive(
+        next_day,
+        last_user_act="other",
+        climate="steady",
+        moods=moods,
+    )
+    if blocked is not None and blocked.kind == MOOD_FOLLOWUP_KIND:
+        _fail("muted mood must not fire again")
+
+    off = ProactiveScheduler(
+        tmp / "proactive_mood_off.json",
+        idle_cfg=idle_cfg,
+        care_cfg=care_cfg,
+        mood_cfg=_mood_cfg(enabled=False),
+    )
+    off.state.last_user_at = quiet.isoformat(timespec="seconds")
+    off.save()
+    skipped = off.pick_motive(
+        now,
+        last_user_act="other",
+        climate="steady",
+        moods=moods,
+    )
+    if skipped is not None and skipped.kind == MOOD_FOLLOWUP_KIND:
+        _fail("enabled=false must never pick mood_followup")
+
+    lunch = datetime(2026, 9, 18, 12, 10, 0)
+    lunch_sched = ProactiveScheduler(
+        tmp / "proactive_mood_lunch.json",
+        idle_cfg=idle_cfg,
+        care_cfg=care_cfg,
+        mood_cfg=_mood_cfg(),
+    )
+    lunch_sched.state.last_user_at = (lunch - timedelta(seconds=1200)).isoformat(
+        timespec="seconds"
+    )
+    lunch_sched.save()
+    care_hit = lunch_sched.pick_motive(
+        lunch,
+        last_user_act="other",
+        climate="steady",
+        moods=moods,
+    )
+    if care_hit is None or care_hit.kind != "lunch":
+        _fail(f"lunch must beat mood_followup, got {care_hit}")
+
+    goal_sched = ProactiveScheduler(
+        tmp / "proactive_mood_goal.json",
+        idle_cfg=idle_cfg,
+        care_cfg=care_cfg,
+        mood_cfg=_mood_cfg(),
+    )
+    goal_sched.state.last_user_at = quiet.isoformat(timespec="seconds")
+    goal_sched.save()
+    goal_hit = goal_sched.pick_motive(
+        now,
+        last_user_act="other",
+        climate="steady",
+        goals=[
+            {
+                "key": "goal_walk",
+                "content": "老师打算和阿洛娜出去散步",
+                "updated_at": aged,
+            }
+        ],
+        moods=moods,
+    )
+    if goal_hit is None or goal_hit.kind != "goal":
+        _fail(f"goal must beat mood_followup, got {goal_hit}")
+    print("  ok")
+
+
 def main() -> None:
     test_idle_fire_rules()
     test_care_window_once_per_day()
@@ -1223,6 +1572,7 @@ def main() -> None:
         test_goal_global_gap_blocks_other_keys(Path(tmp))
         test_stale_dated_goal_uses_daily_cap(Path(tmp))
         test_festival_calendar_and_once(Path(tmp))
+        test_mood_followup_select_and_gates(Path(tmp))
     test_hub_busy()
     test_config_loads()
     print("ALL PASS")

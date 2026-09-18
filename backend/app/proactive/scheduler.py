@@ -23,7 +23,8 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
-from ..config import FestivalConfig, GoalConfig
+from ..config import FestivalConfig, GoalConfig, MoodFollowupConfig
+from ..taxonomy import MOOD_FOLLOWUP_KIND
 from .care import (
     CARE_MEMORY_QUERY,
     HISTORY_CARE_MARKER,
@@ -50,10 +51,16 @@ from .idle import (
     idle_skip_reason,
     should_fire_idle,
 )
+from .mood import (
+    HISTORY_MOOD_MARKER,
+    build_mood_instruction,
+    can_attempt_mood,
+    select_mood_entry,
+)
 
 logger = logging.getLogger(__name__)
 
-MotiveKind = Literal["idle", "lunch", "sleep", "goal", "festival"]
+MotiveKind = Literal["idle", "lunch", "sleep", "goal", "festival", "mood_followup"]
 
 
 @dataclass(frozen=True)
@@ -64,6 +71,7 @@ class Motive:
     retrieve_memory: bool = False
     memory_query: str = ""
     goal_key: str = ""
+    mood_key: str = ""
     festival_id: str = ""
     extra_memories: tuple[str, ...] = ()
 
@@ -80,6 +88,10 @@ class ProactiveState:
     goal_mute: dict[str, str] = field(default_factory=dict)
     goal_count: int = 0
     last_goal_key: str = ""
+    mood_last: dict[str, str] = field(default_factory=dict)
+    mood_mute: dict[str, str] = field(default_factory=dict)
+    mood_count: int = 0
+    last_mood_key: str = ""
     festival_done: list[str] = field(default_factory=list)
 
     def roll_day(self, now: datetime) -> None:
@@ -89,6 +101,7 @@ class ProactiveState:
             self.idle_count = 0
             self.care_done = []
             self.goal_count = 0
+            self.mood_count = 0
             self.festival_done = []
 
     def to_dict(self) -> dict[str, Any]:
@@ -103,6 +116,10 @@ class ProactiveState:
             "goal_mute": dict(self.goal_mute),
             "goal_count": self.goal_count,
             "last_goal_key": self.last_goal_key,
+            "mood_last": dict(self.mood_last),
+            "mood_mute": dict(self.mood_mute),
+            "mood_count": self.mood_count,
+            "last_mood_key": self.last_mood_key,
             "festival_done": list(self.festival_done),
         }
 
@@ -127,6 +144,10 @@ class ProactiveState:
             goal_mute=_as_str_dict(data.get("goal_mute")),
             goal_count=int(data.get("goal_count") or 0),
             last_goal_key=str(data.get("last_goal_key") or ""),
+            mood_last=_as_str_dict(data.get("mood_last")),
+            mood_mute=_as_str_dict(data.get("mood_mute")),
+            mood_count=int(data.get("mood_count") or 0),
+            last_mood_key=str(data.get("last_mood_key") or ""),
             festival_done=[str(item) for item in festivals if item],
         )
 
@@ -162,6 +183,7 @@ class ProactiveScheduler:
         care_cfg: Any,
         goal_cfg: Any | None = None,
         festival_cfg: Any | None = None,
+        mood_cfg: Any | None = None,
     ) -> None:
         self.path = path
         self.idle_cfg = idle_cfg
@@ -170,6 +192,7 @@ class ProactiveScheduler:
         self.festival_cfg = (
             festival_cfg if festival_cfg is not None else FestivalConfig()
         )
+        self.mood_cfg = mood_cfg if mood_cfg is not None else MoodFollowupConfig()
         self.state = self._load()
 
     def _load(self) -> ProactiveState:
@@ -215,6 +238,7 @@ class ProactiveScheduler:
         *,
         goal_key: str = "",
         festival_id: str = "",
+        mood_key: str = "",
     ) -> None:
         dt = now or datetime.now()
         self.state.roll_day(dt)
@@ -229,6 +253,12 @@ class ProactiveScheduler:
             if key:
                 self.state.last_goal_key = key
                 self.state.goal_last[key] = stamp
+        elif kind == MOOD_FOLLOWUP_KIND:
+            self.state.mood_count += 1
+            key = (mood_key or "").strip()
+            if key:
+                self.state.last_mood_key = key
+                self.state.mood_last[key] = stamp
         elif kind == "festival":
             fid = (festival_id or "").strip()
             if fid and fid not in self.state.festival_done:
@@ -261,6 +291,37 @@ class ProactiveScheduler:
         logger.info("goal muted key=%s until=%s", key, self.state.goal_mute[key])
         return key
 
+    def _mute_mood(self, key: str, now: datetime) -> str:
+        mute_sec = float(getattr(self.mood_cfg, "mute_sec", 604800))
+        until = now + timedelta(seconds=mute_sec)
+        self.state.mood_mute[key] = until.isoformat(timespec="seconds")
+        self.save()
+        logger.info("mood muted key=%s until=%s", key, self.state.mood_mute[key])
+        return key
+
+    def mute_last_followup(self, now: datetime | None = None) -> str | None:
+        """Mute the more recently fired goal or mood follow-up key."""
+        dt = now or datetime.now()
+        goal_key = (self.state.last_goal_key or "").strip()
+        mood_key = (self.state.last_mood_key or "").strip()
+        goal_at = (
+            _parse_iso(str(self.state.goal_last.get(goal_key) or ""))
+            if goal_key
+            else None
+        )
+        mood_at = (
+            _parse_iso(str(self.state.mood_last.get(mood_key) or ""))
+            if mood_key
+            else None
+        )
+        if mood_at is not None and (goal_at is None or mood_at >= goal_at):
+            return self._mute_mood(mood_key, dt)
+        if goal_key:
+            return self.mute_last_goal(dt)
+        if mood_key:
+            return self._mute_mood(mood_key, dt)
+        return None
+
     def pending_festival(
         self,
         now: datetime | None = None,
@@ -283,6 +344,7 @@ class ProactiveScheduler:
         last_user_act: str = "other",
         climate: str | None = None,
         goals: list[dict[str, object]] | None = None,
+        moods: list[dict[str, object]] | None = None,
         birthday_content: str = "",
     ) -> Motive | None:
         dt = now or datetime.now()
@@ -374,6 +436,37 @@ class ProactiveScheduler:
                             goal_key=key,
                             extra_memories=(content,),
                         )
+
+        if getattr(self.mood_cfg, "enabled", True) and can_attempt_mood(
+            dt,
+            enabled=True,
+            last_user_at=_parse_iso(self.state.last_user_at),
+            last_user_act=last_user_act,
+            climate=climate,
+            mood_count=self.state.mood_count,
+            min_after_user_sec=float(self.mood_cfg.min_after_user_sec),
+            max_per_day=int(self.mood_cfg.max_per_day),
+        ):
+            selected_mood = select_mood_entry(
+                moods or [],
+                dt,
+                mood_last=self.state.mood_last,
+                mood_mute=self.state.mood_mute,
+                min_age_sec=float(self.mood_cfg.min_age_sec),
+                max_age_hours=float(self.mood_cfg.max_age_hours),
+                cooldown_sec=float(self.mood_cfg.cooldown_sec),
+            )
+            if selected_mood is not None:
+                key = str(selected_mood.get("key") or "").strip()
+                content = str(selected_mood.get("content") or "").strip()
+                if key and content:
+                    return Motive(
+                        kind=MOOD_FOLLOWUP_KIND,  # type: ignore[arg-type]
+                        instruction=build_mood_instruction(content, climate),
+                        history_marker=HISTORY_MOOD_MARKER,
+                        mood_key=key,
+                        extra_memories=(content,),
+                    )
 
         if getattr(self.idle_cfg, "enabled", True) and should_fire_idle(
             dt,

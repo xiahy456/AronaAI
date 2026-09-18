@@ -23,9 +23,9 @@ Wiring status:
 - Step 1: ``crisis`` is attached to ``USER_DELTAS`` / ``UserAct``.
 - Step 2: extractor JSON schema lists ``episodic`` / ``emotional``; same-day
   merge only; labeled inject. Crisis turns are still blocked from extraction.
-- Step 3: do not return ``mood_followup`` from the proactive scheduler until
-  emotional memories exist and crisis content cannot be selected. Adding the
-  string to ``MotiveKind`` too early would be recorded as a care slot.
+- Step 3: ``mood_followup`` is attached to ``MotiveKind``. Default config is
+  enabled; set ``proactive.mood_followup.enabled`` false to disable triggering.
+  Crisis content still cannot be selected.
 
 Meanings
 --------
@@ -36,8 +36,8 @@ Meanings
   teacher felt), not a guess. Default source for mood follow-up.
 - ``crisis``: user-act name, distinct from ``fatigue`` and ``self_disclose``.
   Attached to ``UserAct`` in Step 1.
-- ``mood_followup``: reserved proactive motive, alongside idle / care / goal /
-  festival. Step 3 will attach it to ``MotiveKind``.
+- ``mood_followup``: proactive motive, alongside idle / care / goal / festival.
+  Attached to ``MotiveKind`` in Step 3.
 """
 
 from __future__ import annotations

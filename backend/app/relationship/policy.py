@@ -21,6 +21,7 @@ from typing import Literal
 
 from .events import AronaAct, UserAct
 from .state import RelationshipState
+from ..taxonomy import MOOD_FOLLOWUP_KIND
 
 Climate = Literal[
     "secure_play",
@@ -32,7 +33,7 @@ Climate = Literal[
 ]
 
 Action = Literal["speak", "continue", "initiate", "refuse", "silence"]
-ProactiveKind = Literal["idle", "lunch", "sleep", "goal", "festival"]
+ProactiveKind = Literal["idle", "lunch", "sleep", "goal", "festival", "mood_followup"]
 
 _IDLE_OK_CLIMATES: frozenset[str] = frozenset({"secure_play", "steady"})
 
@@ -211,11 +212,21 @@ def decide_proactive(
         state.tension,
         cling_dependence=cling_dependence,
     )
-    if kind in {"idle", "goal"}:
+    if kind in {"idle", "goal", MOOD_FOLLOWUP_KIND}:
         action: Action = "initiate" if climate in _IDLE_OK_CLIMATES else "silence"
-        stance = "轻在场，不追问老师还在不在"
-        must_not = ["还在吗", "需不需要我", "编造未发生的事", "把问题抛回老师"]
-        tone = "轻、短"
+        if kind == MOOD_FOLLOWUP_KIND:
+            stance = "轻轻提起老师不久前提过的心情，不盘问、不分析、不当病历"
+            must_not = [
+                "盘问细节",
+                "心理分析",
+                "扮演治疗师",
+                "编造老师后来怎样了",
+            ]
+            tone = "轻、短"
+        else:
+            stance = "轻在场，不追问老师还在不在"
+            must_not = ["还在吗", "需不需要我", "编造未发生的事", "把问题抛回老师"]
+            tone = "轻、短"
     elif kind == "festival":
         action = "initiate"
         if climate == "cling_risk":
@@ -302,7 +313,7 @@ def map_arona_act(
     if action in {"silence", "refuse"}:
         return "gave_space"
     if action == "initiate":
-        if motive_kind in {"idle", "goal"}:
+        if motive_kind in {"idle", "goal", MOOD_FOLLOWUP_KIND}:
             return "checked_in"
         if motive_kind in {"lunch", "sleep", "care"}:
             return "cared"

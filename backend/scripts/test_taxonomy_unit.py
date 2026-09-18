@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lock Step 0 taxonomy names and Step 2 extractor schema wiring.
+"""Lock taxonomy names and Step 1–3 wiring.
 
 Run from backend/:
   python scripts/test_taxonomy_unit.py
@@ -10,10 +10,13 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from typing import get_args
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from app.memory.extractor import EXTRACT_SYSTEM  # noqa: E402
+from app.proactive.scheduler import MotiveKind  # noqa: E402
 from app.relationship.events import USER_DELTAS  # noqa: E402
 from app.taxonomy import (  # noqa: E402
     CRISIS_USER_ACT,
@@ -104,6 +107,8 @@ def main() -> None:
         fails.append("EXTRACT_SYSTEM must list episodic")
     if "emotional" not in EXTRACT_SYSTEM:
         fails.append("EXTRACT_SYSTEM must list emotional")
+    if MOOD_FOLLOWUP_KIND not in get_args(MotiveKind):
+        fails.append("MotiveKind must include mood_followup")
 
     if fails:
         print("FAIL")

@@ -188,6 +188,16 @@ class GoalConfig(BaseModel):
     max_per_day: int = 1
 
 
+class MoodFollowupConfig(BaseModel):
+    enabled: bool = True
+    min_after_user_sec: float = 900
+    min_age_sec: float = 7200
+    max_age_hours: float = 72
+    cooldown_sec: float = 21600
+    mute_sec: float = 604800
+    max_per_day: int = 1
+
+
 class FestivalConfig(BaseModel):
     enabled: bool = True
 
@@ -237,6 +247,7 @@ class ProactiveConfig(BaseModel):
     idle: IdleConfig = Field(default_factory=IdleConfig)
     care: CareConfig = Field(default_factory=CareConfig)
     goal: GoalConfig = Field(default_factory=GoalConfig)
+    mood_followup: MoodFollowupConfig = Field(default_factory=MoodFollowupConfig)
     festival: FestivalConfig = Field(default_factory=FestivalConfig)
     continue_line: ContinueConfig = Field(
         default_factory=ContinueConfig,

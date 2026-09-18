@@ -139,12 +139,18 @@ async def tick_once(state: "AppState", now: datetime | None = None) -> bool:
         goals = await asyncio.to_thread(
             state.orchestrator.memory_store.list_by_category, "goal"
         )
+    moods: list[dict] = []
+    if getattr(state.scheduler.mood_cfg, "enabled", False):
+        moods = await asyncio.to_thread(
+            state.orchestrator.memory_store.list_by_category, "emotional"
+        )
 
     motive = state.scheduler.pick_motive(
         dt,
         last_user_act=last_user_act,
         climate=climate,
         goals=goals,
+        moods=moods,
         birthday_content=birthday,
     )
     if motive is None:
@@ -202,7 +208,12 @@ async def tick_once(state: "AppState", now: datetime | None = None) -> bool:
         state.hub.set_busy(session_id, False)
 
     if result == "sent":
-        state.scheduler.mark_fired(motive.kind, dt, goal_key=motive.goal_key)
+        state.scheduler.mark_fired(
+            motive.kind,
+            dt,
+            goal_key=motive.goal_key,
+            mood_key=motive.mood_key,
+        )
         logger.info(
             "proactive fired session=%s kind=%s", session_id, motive.kind
         )
