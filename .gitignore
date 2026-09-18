@@ -7,6 +7,15 @@
 !/gpt-sovits/ref_audio/Arona/
 !/gpt-sovits/ref_audio/Arona/*.ogg
 
+# GPT-SoVITS minimal_inference：仅跟踪启动脚本与 voices 配置
+/gpt-sovits-minimal/**
+!/gpt-sovits-minimal/DEPLOY.md
+!/gpt-sovits-minimal/go-api.ps1
+!/gpt-sovits-minimal/go-api.bat
+!/gpt-sovits-minimal/watch-api.ps1
+!/gpt-sovits-minimal/config/
+!/gpt-sovits-minimal/config/voices.json
+
 # social preview：仅跟踪成品图，其余素材不提交
 /assets/social_preview/**
 !/assets/social_preview/social_preview.png
