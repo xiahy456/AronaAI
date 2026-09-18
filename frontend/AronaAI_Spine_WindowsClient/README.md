@@ -127,17 +127,17 @@ cp Config/config.example.json Config/config.json
       {
         "emotion": "worried",
         "ref_audio_path": "ref_audio/Arona/arona_work_talk_6.ogg",
-        "prompt_text": "哇啊……真是超级多的工作呢。"
+        "prompt_text": "呜哇哇...还有这么多工作需要处理啊."
       },
       {
         "emotion": "angry",
         "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
-        "prompt_text": "" // raidmap 系请按实际口播填写
+        "prompt_text": "这就是最后的决斗了.老师,我们一起加油吧!"
       },
       {
         "emotion": "sleep",
         "ref_audio_path": "ref_audio/Arona/arona_work_sleep_talk_4.ogg",
-        "prompt_text": "才没有在打瞌睡哦……唔喵。"
+        "prompt_text": "我才没有打瞌睡呢...唔喵."
       }
     ]
   },
@@ -161,5 +161,5 @@ cp Config/config.example.json Config/config.json
 
 > **注意**：
 > - 资源路径相对**程序工作目录**解析；在 Visual Studio 中调试时默认为项目根目录，请勿直接双击 `x64/Debug` 或 `x64/Release` 下的 exe（工作目录会不对）。
-> - `tts.refs` 路径相对 **GPT-SoVITS 工作目录**（`gpt-sovits/`）。未列出的表情回退顶层 `ref_audio_path` / `prompt_text`；`arona_r53_2_worldraidmap_in_2.ogg` 的 `prompt_text` 请按实际口播填写。
+> - `tts.refs` 路径相对 **GPT-SoVITS 工作目录**（`gpt-sovits/`）。未列出的表情回退顶层 `ref_audio_path` / `prompt_text`。`prompt_text` 须与对应 ogg 口播一致。
 > - `config.json` 已在 `.gitignore` 中，不会被提交到版本控制。

@@ -91,32 +91,32 @@
       {
         "emotion": "worried",
         "ref_audio_path": "ref_audio/Arona/arona_work_talk_6.ogg",
-        "prompt_text": "哇啊……真是超级多的工作呢。"
+        "prompt_text": "呜哇哇...还有这么多工作需要处理啊."
       },
       {
         "emotion": "angry",
         "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
-        "prompt_text": ""
+        "prompt_text": "这就是最后的决斗了.老师,我们一起加油吧!"
       },
       {
         "emotion": "angry_shame",
         "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
-        "prompt_text": ""
+        "prompt_text": "这就是最后的决斗了.老师,我们一起加油吧!"
       },
       {
         "emotion": "disgusted",
         "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
-        "prompt_text": ""
+        "prompt_text": "这就是最后的决斗了.老师,我们一起加油吧!"
       },
       {
         "emotion": "disgusted_surprised",
         "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
-        "prompt_text": ""
+        "prompt_text": "这就是最后的决斗了.老师,我们一起加油吧!"
       },
       {
         "emotion": "disgusted_worried",
         "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
-        "prompt_text": ""
+        "prompt_text": "这就是最后的决斗了.老师,我们一起加油吧!"
       },
       {
         "emotion": "frustration",
@@ -146,7 +146,7 @@
       {
         "emotion": "unwilling",
         "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
-        "prompt_text": ""
+        "prompt_text": "这就是最后的决斗了.老师,我们一起加油吧!"
       },
       {
         "emotion": "shy",
@@ -166,17 +166,17 @@
       {
         "emotion": "confident_serious",
         "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
-        "prompt_text": ""
+        "prompt_text": "这就是最后的决斗了.老师,我们一起加油吧!"
       },
       {
         "emotion": "sleep_very_content",
         "ref_audio_path": "ref_audio/Arona/arona_work_sleep_talk_4.ogg",
-        "prompt_text": "才没有在打瞌睡哦……唔喵。"
+        "prompt_text": "我才没有打瞌睡呢...唔喵."
       },
       {
         "emotion": "sleep_question",
         "ref_audio_path": "ref_audio/Arona/arona_work_sleep_talk_4.ogg",
-        "prompt_text": "才没有在打瞌睡哦……唔喵。"
+        "prompt_text": "我才没有打瞌睡呢...唔喵."
       },
       {
         "emotion": "confident",
@@ -191,17 +191,17 @@
       {
         "emotion": "disappointed_disgusted",
         "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
-        "prompt_text": ""
+        "prompt_text": "这就是最后的决斗了.老师,我们一起加油吧!"
       },
       {
         "emotion": "very_surprised",
         "ref_audio_path": "ref_audio/Arona/arona_work_talk_6.ogg",
-        "prompt_text": "哇啊……真是超级多的工作呢。"
+        "prompt_text": "呜哇哇...还有这么多工作需要处理啊."
       },
       {
         "emotion": "dizzy",
         "ref_audio_path": "ref_audio/Arona/arona_work_sleep_talk_4.ogg",
-        "prompt_text": "才没有在打瞌睡哦……唔喵。"
+        "prompt_text": "我才没有打瞌睡呢...唔喵."
       },
       {
         "emotion": "surprise",
@@ -216,7 +216,7 @@
       {
         "emotion": "sleep",
         "ref_audio_path": "ref_audio/Arona/arona_work_sleep_talk_4.ogg",
-        "prompt_text": "才没有在打瞌睡哦……唔喵。"
+        "prompt_text": "我才没有打瞌睡呢...唔喵."
       }
     ]
   },
