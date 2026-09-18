@@ -71,7 +71,154 @@
     "request_timeout_ms": 25000,
     "repetition_penalty": 1.35,
     "sample_steps": 32,
-    "super_sampling": false
+    "super_sampling": false,
+    "refs": [
+      {
+        "emotion": "normal",
+        "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg",
+        "prompt_text": "老师可以在这里做您的日程表哦!"
+      },
+      {
+        "emotion": "curious",
+        "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg",
+        "prompt_text": "老师可以在这里做您的日程表哦!"
+      },
+      {
+        "emotion": "smile",
+        "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg",
+        "prompt_text": "老师可以在这里做您的日程表哦!"
+      },
+      {
+        "emotion": "worried",
+        "ref_audio_path": "ref_audio/Arona/arona_work_talk_6.ogg",
+        "prompt_text": "哇啊……真是超级多的工作呢。"
+      },
+      {
+        "emotion": "angry",
+        "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
+        "prompt_text": ""
+      },
+      {
+        "emotion": "angry_shame",
+        "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
+        "prompt_text": ""
+      },
+      {
+        "emotion": "disgusted",
+        "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
+        "prompt_text": ""
+      },
+      {
+        "emotion": "disgusted_surprised",
+        "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
+        "prompt_text": ""
+      },
+      {
+        "emotion": "disgusted_worried",
+        "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
+        "prompt_text": ""
+      },
+      {
+        "emotion": "frustration",
+        "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg",
+        "prompt_text": "老师可以在这里做您的日程表哦!"
+      },
+      {
+        "emotion": "like",
+        "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg",
+        "prompt_text": "老师可以在这里做您的日程表哦!"
+      },
+      {
+        "emotion": "very_happy",
+        "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg",
+        "prompt_text": "老师可以在这里做您的日程表哦!"
+      },
+      {
+        "emotion": "enjoy",
+        "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg",
+        "prompt_text": "老师可以在这里做您的日程表哦!"
+      },
+      {
+        "emotion": "complaint",
+        "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg",
+        "prompt_text": "老师可以在这里做您的日程表哦!"
+      },
+      {
+        "emotion": "unwilling",
+        "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
+        "prompt_text": ""
+      },
+      {
+        "emotion": "shy",
+        "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg",
+        "prompt_text": "老师可以在这里做您的日程表哦!"
+      },
+      {
+        "emotion": "shout",
+        "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg",
+        "prompt_text": "老师可以在这里做您的日程表哦!"
+      },
+      {
+        "emotion": "want",
+        "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg",
+        "prompt_text": "老师可以在这里做您的日程表哦!"
+      },
+      {
+        "emotion": "confident_serious",
+        "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
+        "prompt_text": ""
+      },
+      {
+        "emotion": "sleep_very_content",
+        "ref_audio_path": "ref_audio/Arona/arona_work_sleep_talk_4.ogg",
+        "prompt_text": "才没有在打瞌睡哦……唔喵。"
+      },
+      {
+        "emotion": "sleep_question",
+        "ref_audio_path": "ref_audio/Arona/arona_work_sleep_talk_4.ogg",
+        "prompt_text": "才没有在打瞌睡哦……唔喵。"
+      },
+      {
+        "emotion": "confident",
+        "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg",
+        "prompt_text": "老师可以在这里做您的日程表哦!"
+      },
+      {
+        "emotion": "disappointed",
+        "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg",
+        "prompt_text": "老师可以在这里做您的日程表哦!"
+      },
+      {
+        "emotion": "disappointed_disgusted",
+        "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
+        "prompt_text": ""
+      },
+      {
+        "emotion": "very_surprised",
+        "ref_audio_path": "ref_audio/Arona/arona_work_talk_6.ogg",
+        "prompt_text": "哇啊……真是超级多的工作呢。"
+      },
+      {
+        "emotion": "dizzy",
+        "ref_audio_path": "ref_audio/Arona/arona_work_sleep_talk_4.ogg",
+        "prompt_text": "才没有在打瞌睡哦……唔喵。"
+      },
+      {
+        "emotion": "surprise",
+        "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg",
+        "prompt_text": "老师可以在这里做您的日程表哦!"
+      },
+      {
+        "emotion": "surprise_very_happy",
+        "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg",
+        "prompt_text": "老师可以在这里做您的日程表哦!"
+      },
+      {
+        "emotion": "sleep",
+        "ref_audio_path": "ref_audio/Arona/arona_work_sleep_talk_4.ogg",
+        "prompt_text": "才没有在打瞌睡哦……唔喵。"
+      }
+    ]
   },
   "audio_input": {
     "device": ""

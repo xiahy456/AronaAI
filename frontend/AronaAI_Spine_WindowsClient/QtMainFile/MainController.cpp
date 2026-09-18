@@ -60,6 +60,7 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
     ttsRequestParams.sampleSteps = GET_INT_FROM_JSON(_global_config, "tts", "sample_steps");   // 采样步数
     ttsRequestParams.superSampling = GET_BOOL_FROM_JSON(_global_config, "tts", "super_sampling"); // 超采样
     ttsRequestParams.mediaType = "wav";  // 媒体类型
+    m_ttsRefMap.loadFromConfig();
 
     connect(m_ttsManager, &TTSManager::ttsFinished, this, &MainController::onTTSFinished);
     connect(m_ttsManager, &TTSManager::ttsError, this, &MainController::onTTSError);
@@ -169,6 +170,9 @@ void MainController::startSession()
 void MainController::executeOutput(const QString& text)
 {
     ttsRequestParams.emotion = m_currentEmotion;
+    const AronaTtsRef::TtsRef ref = m_ttsRefMap.resolve(m_currentEmotion);
+    ttsRequestParams.refAudioPath = ref.refAudioPath;
+    ttsRequestParams.promptText = ref.promptText;
     const QStringList parts = SpokenTextSplitter::split(text);
     for (const QString& part : parts) {
         ttsRequestParams.text = part;

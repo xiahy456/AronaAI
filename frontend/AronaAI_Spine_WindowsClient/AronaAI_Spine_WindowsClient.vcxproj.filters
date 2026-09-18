@@ -724,6 +724,9 @@
     <ClInclude Include="QtMainFile\AronaEmotionMap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="QtMainFile\AronaTtsRefMap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="QtMainFile\SpokenTextSplitter.h">
       <Filter>Header Files</Filter>
     </ClInclude>

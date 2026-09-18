@@ -51,6 +51,7 @@ cp Config/config.example.json Config/config.json
 > - 资源路径相对**程序工作目录**解析；在 Visual Studio 中调试时默认为项目根目录，请勿直接双击 `x64/Debug` 或 `x64/Release` 下的 exe（工作目录会不对）。
 > - 请将 AronaLM 后端服务、GPT-SoVITS 服务的地址、端口按实际情况填写。
 > - `tts.request_timeout_ms` 仅改配置即可生效（dist 客户端同理）；`TTSManager` / `MainController` 源码改动需重新编译客户端后才有超时、预热与合成/播放解耦逻辑。
+> - `tts.refs` 为表情到参考音频的扁平数组（`emotion` / `ref_audio_path` / `prompt_text`）。加音频或改某表情绑定只改该数组；路径相对 GPT-SoVITS 工作目录。未列出的表情回退顶层 `ref_audio_path` / `prompt_text`。已有 `config.json` 需自行并入该数组，否则仍只用默认参考音频。
 > - 本项目使用**腾讯云语音识别**（ASR），腾讯云 ASR 的 SecretId 和 SecretKey 可以在腾讯云控制台的 API 密钥管理中获取。
 > - `config.json` 已在 `.gitignore` 中，不会被提交到版本控制，请放心修改。
 
@@ -98,8 +99,8 @@ cp Config/config.example.json Config/config.json
     "port": 9880, // GPT-SoVITS 服务端口
     "gpt_path": "GPT_weights_v2/ALuoNa_cn-e15.ckpt", // 推荐的 GPT 模型权重路径（服务端侧）
     "sovits_path": "SoVITS_weights_v2/ALuoNa_cn_e16_s256.pth", // 推荐的 SoVITS 模型权重路径（服务端侧）
-    "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg", // 推荐的参考音频路径（服务端侧）
-    "prompt_text": "老师可以在这里做您的日程表哦!", // 参考音频对应的提示文本
+    "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg", // 预热与缺表回退用的参考音频路径（相对 GPT-SoVITS 工作目录）
+    "prompt_text": "老师可以在这里做您的日程表哦!", // 上述默认参考音频对应的提示文本
     "prompt_lang": "zh", // 提示文本语言
     "top_k": 15, // Top-K 采样
     "top_p": 1.0, // Top-P 采样
@@ -116,7 +117,29 @@ cp Config/config.example.json Config/config.json
     "request_timeout_ms": 45000, // 客户端等待 /tts 的超时（毫秒）；超时后仍显示字幕，不卡死 UI
     "repetition_penalty": 1.35, // 重复惩罚系数
     "sample_steps": 32, // 采样步数
-    "super_sampling": false // 是否启用超采样
+    "super_sampling": false, // 是否启用超采样
+    "refs": [ // 表情 → 参考音频；增删或改绑定只改本数组，不必重编译。完整 29 条见 Config/config.example.json
+      {
+        "emotion": "normal",
+        "ref_audio_path": "ref_audio/Arona/arona_academy_in_1.ogg",
+        "prompt_text": "老师可以在这里做您的日程表哦!"
+      },
+      {
+        "emotion": "worried",
+        "ref_audio_path": "ref_audio/Arona/arona_work_talk_6.ogg",
+        "prompt_text": "哇啊……真是超级多的工作呢。"
+      },
+      {
+        "emotion": "angry",
+        "ref_audio_path": "ref_audio/Arona/arona_r53_2_worldraidmap_in_2.ogg",
+        "prompt_text": "" // raidmap 系请按实际口播填写
+      },
+      {
+        "emotion": "sleep",
+        "ref_audio_path": "ref_audio/Arona/arona_work_sleep_talk_4.ogg",
+        "prompt_text": "才没有在打瞌睡哦……唔喵。"
+      }
+    ]
   },
   "audio_input": {
     "device": "" // 音频输入设备名（空字符串表示使用系统默认设备）
@@ -138,4 +161,5 @@ cp Config/config.example.json Config/config.json
 
 > **注意**：
 > - 资源路径相对**程序工作目录**解析；在 Visual Studio 中调试时默认为项目根目录，请勿直接双击 `x64/Debug` 或 `x64/Release` 下的 exe（工作目录会不对）。
+> - `tts.refs` 路径相对 **GPT-SoVITS 工作目录**（`gpt-sovits/`）。未列出的表情回退顶层 `ref_audio_path` / `prompt_text`；`arona_r53_2_worldraidmap_in_2.ogg` 的 `prompt_text` 请按实际口播填写。
 > - `config.json` 已在 `.gitignore` 中，不会被提交到版本控制。

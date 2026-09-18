@@ -35,6 +35,7 @@
 #include "WebSocketController.h"
 #include "UserInputWidget.h"
 #include "AronaEmotionMap.h"
+#include "AronaTtsRefMap.h"
 #include "ComputerUseExecutor.h"
 
 class MainController : public QObject
@@ -99,6 +100,7 @@ private:
 	WebSocketController* m_webSocketController;	// 服务端websocket连接
 	UserInputWidget* m_userInputWidget;	// 用户文本输入界面
 	TTSManager::TTSRequestParams ttsRequestParams;	// 语音合成请求参数
+	AronaTtsRef::Map m_ttsRefMap;	// emotion -> 参考音频 / prompt_text
 	QString m_currentText = "";	// 当前正在处理的文本
 	QString m_currentEmotion = "normal";	// 当前回复表情（英文值）
 	bool m_waitingForAIResponse = false;	// 是否正在等待AI回复（仅文本输入）

@@ -128,6 +128,7 @@
     <QtMoc Include="QHotkey\qhotkey_p.h" />
     <ClInclude Include="QtMainFile\GlobalVariables.h" />
     <ClInclude Include="QtMainFile\AronaEmotionMap.h" />
+    <ClInclude Include="QtMainFile\AronaTtsRefMap.h" />
     <ClInclude Include="QtMainFile\SpokenTextSplitter.h" />
     <QtMoc Include="QtMainFile\SettingsWidget.h" />
     <QtMoc Include="QtMainFile\SystemTray.h" />

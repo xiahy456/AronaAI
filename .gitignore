@@ -5,7 +5,7 @@
 !/gpt-sovits/DEPLOY.md
 !/gpt-sovits/ref_audio/
 !/gpt-sovits/ref_audio/Arona/
-!/gpt-sovits/ref_audio/Arona/arona_academy_in_1.ogg
+!/gpt-sovits/ref_audio/Arona/*.ogg
 
 # social preview：仅跟踪成品图，其余素材不提交
 /assets/social_preview/**
