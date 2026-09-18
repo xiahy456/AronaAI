@@ -98,6 +98,7 @@ zip **不含** GGUF、**不含** 本机 `config.yaml` 里的真实 Key。用户�
 ```bash
 python scripts/smoke_ws.py
 python scripts/test_input_filter.py        # ASR / 空串脏文本过滤断言
+python scripts/test_taxonomy_unit.py       # P0 词汇表契约（不加载 GGUF）
 python scripts/test_relationship_unit.py   # 关系公式 / 分区 / 分类 / 沉默（不加载 GGUF）
 python scripts/test_skip_ack.py            # 沉默/拒绝仍发空 chat_response（不加载 GGUF）
 python scripts/test_welcome_unit.py        # 欢迎时段与指令（不加载 GGUF）
