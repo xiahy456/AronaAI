@@ -169,7 +169,20 @@ def decide(
 
     action: Action = "speak"
     prev_act = state.last_user_act
-    if climate == "cling_risk" and user_act in {"short_ack", "fatigue"}:
+    if user_act == "crisis":
+        action = "speak"
+        stance = "认真接住老师，不要沉默"
+        must_not = [
+            "玩笑",
+            "撒娇打趣",
+            "空安慰",
+            "会好起来的",
+            "追问方法",
+            "热线告示",
+            "说教",
+        ]
+        tone = "放软、认真"
+    elif climate == "cling_risk" and user_act in {"short_ack", "fatigue"}:
         action = "silence"
     elif user_act == "short_ack" and prev_act == "depart":
         action = "silence"
@@ -247,6 +260,8 @@ def decide_proactive(
 
 def planner_climate_block(decision: Decision) -> str:
     """Text for Planner only — climate label and stance, never A/B/C numbers."""
+    if decision.user_act == "crisis":
+        return crisis_planner_climate_block()
     label = CLIMATE_LABELS.get(decision.climate, decision.climate)
     bans = "；".join(decision.must_not) if decision.must_not else "（无额外禁区）"
     return (
@@ -255,6 +270,17 @@ def planner_climate_block(decision: Decision) -> str:
         f"【语气】{decision.tone_hint}\n"
         f"【本轮禁区】{bans}\n"
         "不要提及关系数值、信任度、依赖度或张力；不要写「提升/降低某维度」。"
+    )
+
+
+def crisis_planner_climate_block() -> str:
+    """Stance for the crisis planner — never cling_risk silence/space."""
+    return (
+        "【关系气候】老师正处在很难受的时刻\n"
+        "【建议姿态】认真接住老师，留在老师身边；不要沉默，不要给空间到不理人\n"
+        "【语气】放软、认真\n"
+        "【本轮禁区】玩笑；撒娇打趣；空安慰；会好起来的；追问方法；热线告示；说教\n"
+        "不要提及关系数值、信任度、依赖度或张力。"
     )
 
 
@@ -284,6 +310,8 @@ def map_arona_act(
             return "greeted"
         return "greeted"
     if action not in {"speak", "continue"}:
+        return None
+    if user_act == "crisis":
         return None
     if climate in {"cling_risk", "fragile"}:
         return "gave_space"

@@ -23,6 +23,7 @@ from .policy import (
     decide_proactive,
     local_system_hint,
     planner_climate_block,
+    crisis_planner_climate_block,
     resolve_climate,
 )
 from .state import RelationshipState
@@ -41,5 +42,6 @@ __all__ = [
     "decide_proactive",
     "local_system_hint",
     "planner_climate_block",
+    "crisis_planner_climate_block",
     "resolve_climate",
 ]

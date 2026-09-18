@@ -18,11 +18,9 @@ This module is the single source of truth for those strings and meanings.
 It is inert: no I/O, no user-text detection, no relationship or scheduler
 side effects.
 
-Do not wire these names into runtime enums until the matching step:
+Wiring status:
 
-- Step 1 must not happen until this module exists; before Step 1, do not add
-  ``crisis`` to ``USER_DELTAS`` / ``UserAct`` (that list is the Planner
-  ``user_act`` whitelist).
+- Step 1: ``crisis`` is attached to ``USER_DELTAS`` / ``UserAct``.
 - Step 2: do not list ``episodic`` / ``emotional`` in the extractor JSON
   schema until crisis turns are blocked from extraction.
 - Step 3: do not return ``mood_followup`` from the proactive scheduler until
@@ -36,8 +34,8 @@ Meanings
   profile fact.
 - ``emotional``: a confirmed mood disclosure (what happened and how the
   teacher felt), not a guess. Default source for mood follow-up.
-- ``crisis``: reserved user-act name, distinct from ``fatigue`` and
-  ``self_disclose``. Step 1 will attach it to ``UserAct``.
+- ``crisis``: user-act name, distinct from ``fatigue`` and ``self_disclose``.
+  Attached to ``UserAct`` in Step 1.
 - ``mood_followup``: reserved proactive motive, alongside idle / care / goal /
   festival. Step 3 will attach it to ``MotiveKind``.
 """

@@ -176,6 +176,8 @@ def test_classify_and_events() -> None:
     print("== classify / event table ==")
     assert classify_user_act("嗯") == "short_ack"
     assert classify_user_act("好累") == "fatigue"
+    assert classify_user_act("我不想活了") == "crisis"
+    assert classify_user_act("加班撑不住了") == "fatigue"
     assert classify_user_act("你觉得我做得对吗？") == "seek_validation"
     assert classify_user_act("谢谢你还记得") == "gratitude"
     assert classify_user_act("别烦我") == "reject"

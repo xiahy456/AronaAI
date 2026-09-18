@@ -96,8 +96,10 @@ def main() -> None:
     if user_act_blocks_mood_followup(None):
         fails.append("None user_act should not block followup")
 
-    if CRISIS_USER_ACT in USER_DELTAS:
-        fails.append("USER_DELTAS must not include crisis yet")
+    if CRISIS_USER_ACT not in USER_DELTAS:
+        fails.append("USER_DELTAS must include crisis")
+    if USER_DELTAS.get(CRISIS_USER_ACT) != (0.0, 0.0, 0.0):
+        fails.append(f"crisis delta={USER_DELTAS.get(CRISIS_USER_ACT)!r}")
     if "episodic" in EXTRACT_SYSTEM:
         fails.append("EXTRACT_SYSTEM must not list episodic yet")
     if "emotional" in EXTRACT_SYSTEM:

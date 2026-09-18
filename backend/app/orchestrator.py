@@ -57,9 +57,16 @@ from .query_time import build_time_aware_query
 from .relationship import (
     Decision,
     RelationshipEngine,
+    crisis_planner_climate_block,
     local_system_hint,
     planner_climate_block,
 )
+from .safety import (
+    CRISIS_FALLBACK_EMOTION,
+    crisis_fallback_reply,
+    is_crisis_text,
+)
+from .taxonomy import CRISIS_USER_ACT
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +146,17 @@ class Orchestrator:
                 )
             )
             return True
+
+        if is_crisis_text(user_text):
+            return await self._deliver_crisis(
+                session_id=session_id,
+                user_text=user_text,
+                send=send,
+                start=time.perf_counter(),
+                abort_check=abort_check,
+                on_committed=on_committed,
+                image=image,
+            )
 
         use_rag = bool(options.get("use_rag", self.config.knowledge.enabled))
         use_memory = bool(options.get("use_memory", True))
@@ -317,6 +335,21 @@ class Orchestrator:
                 logger.info("planner fallback to local path session=%s", session_id)
             else:
                 self.stats["planner_hits"] += 1
+                if intent.user_act == CRISIS_USER_ACT:
+                    logger.info(
+                        "planner marked crisis; discard daily draft session=%s",
+                        session_id,
+                    )
+                    return await self._deliver_crisis(
+                        session_id=session_id,
+                        user_text=user_text,
+                        send=send,
+                        start=start,
+                        abort_check=abort_check,
+                        on_committed=on_committed,
+                        memories=memories,
+                        image=image,
+                    )
                 emotion = intent.arona_emotion
                 self._merge_decision_into_intent(intent, decision)
                 if not intent.reply_ok:
@@ -401,6 +434,91 @@ class Orchestrator:
             abort_check=abort_check,
         )
         return True
+
+    async def _deliver_crisis(
+        self,
+        *,
+        session_id: str,
+        user_text: str,
+        send: SendFn,
+        start: float,
+        abort_check: AbortCheck | None = None,
+        on_committed: Callable[[], None] | None = None,
+        memories: list[str] | None = None,
+        image: ImagePayload | None = None,
+    ) -> bool:
+        """Speak via crisis planner draft (no renderer); local Arona fallback."""
+        history = self.conversations.get_history(session_id)
+        intent: IntentCard | None = None
+        if self.planner.enabled:
+            t0 = time.perf_counter()
+            intent = await self.planner.plan(
+                user_text=user_text,
+                history=history,
+                memories=list(memories or []),
+                knowledge=[],
+                climate_block=crisis_planner_climate_block(),
+                image=image,
+                crisis=True,
+            )
+            logger.info(
+                "crisis planner session=%s ok=%s latency=%.3fs",
+                session_id,
+                intent is not None,
+                time.perf_counter() - t0,
+            )
+
+        draft = ""
+        emotion = CRISIS_FALLBACK_EMOTION
+        context_used = "crisis_fallback"
+        if intent is not None:
+            spoken = intent.to_renderer_draft()
+            if spoken and intent.reply_ok:
+                draft = spoken
+                emotion = intent.arona_emotion
+                context_used = "crisis_planner"
+        if not draft:
+            draft = crisis_fallback_reply()
+            emotion = CRISIS_FALLBACK_EMOTION
+            context_used = "crisis_fallback"
+
+        if abort_check is not None and abort_check():
+            logger.info("crisis aborted before send session=%s", session_id)
+            reset_trace()
+            return False
+
+        latency = time.perf_counter() - start
+        await send(
+            msg_chat_response(
+                draft,
+                context_used=context_used,
+                latency=round(latency, 4),
+                emotion=emotion,
+            )
+        )
+        self._commit_crisis_relationship()
+        self.conversations.append(session_id, "user", user_text)
+        self.conversations.append(session_id, "assistant", draft)
+        if on_committed is not None:
+            on_committed()
+        self.conversations.clear_extract_buffer(session_id)
+        self.stats["chat_count"] += 1
+        logger.info(
+            "chat crisis session=%s context=%s emotion=%s latency=%.3fs "
+            "request=%r response=%r",
+            session_id,
+            context_used,
+            emotion,
+            time.perf_counter() - start,
+            user_text,
+            draft,
+        )
+        return True
+
+    def _commit_crisis_relationship(self) -> None:
+        if self.relationship is None or not self.config.proactive.relationship.enabled:
+            return
+        self.relationship.on_user_act(CRISIS_USER_ACT)
 
     async def handle_welcome(
         self,

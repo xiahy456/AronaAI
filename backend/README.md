@@ -97,8 +97,11 @@ zip **不含** GGUF、**不含** 本机 `config.yaml` 里的真实 Key。用户�
 
 ```bash
 python scripts/smoke_ws.py
+python scripts/smoke_crisis_path.py        # 危机通路联调（真实 Planner；临时记忆库）
+# 或对已启动的后端：python scripts/smoke_crisis_path.py --url ws://127.0.0.1:20456/ws
 python scripts/test_input_filter.py        # ASR / 空串脏文本过滤断言
 python scripts/test_taxonomy_unit.py       # P0 词汇表契约（不加载 GGUF）
+python scripts/test_crisis_unit.py         # 危机检测 / 禁静音 / 禁抽取 / 跳过 Renderer
 python scripts/test_relationship_unit.py   # 关系公式 / 分区 / 分类 / 沉默（不加载 GGUF）
 python scripts/test_skip_ack.py            # 沉默/拒绝仍发空 chat_response（不加载 GGUF）
 python scripts/test_welcome_unit.py        # 欢迎时段与指令（不加载 GGUF）

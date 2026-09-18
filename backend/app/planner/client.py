@@ -24,7 +24,11 @@ import httpx
 from ..config import PlannerConfig
 from ..image_input import ImagePayload, redact_image_fields
 from ..logging_utils import update_trace
-from .prompts import build_planner_user_message, select_planner_system
+from .prompts import (
+    PLANNER_SYSTEM_CRISIS,
+    build_planner_user_message,
+    select_planner_system,
+)
 from .schema import IntentCard, parse_and_gate_intent
 
 logger = logging.getLogger(__name__)
@@ -55,6 +59,7 @@ class PlannerClient:
         knowledge: list[str],
         climate_block: str = "",
         image: ImagePayload | None = None,
+        crisis: bool = False,
     ) -> IntentCard | None:
         if not self.enabled:
             logger.info("planner skipped reason=disabled_or_no_key")
@@ -82,14 +87,17 @@ class PlannerClient:
         else:
             model = self.config.model
             user_content = user_payload
+        system_prompt = (
+            PLANNER_SYSTEM_CRISIS
+            if crisis
+            else select_planner_system(renderer_enabled=self.renderer_enabled)
+        )
         payload: dict[str, Any] = {
             "model": model,
             "messages": [
                 {
                     "role": "system",
-                    "content": select_planner_system(
-                        renderer_enabled=self.renderer_enabled
-                    ),
+                    "content": system_prompt,
                 },
                 {"role": "user", "content": user_content},
             ],

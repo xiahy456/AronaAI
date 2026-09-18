@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import re
 
+from ..safety import is_crisis_text
+from ..taxonomy import CRISIS_USER_ACT
 from .events import UserAct
 
 _REJECT_RE = re.compile(
@@ -60,6 +62,8 @@ def classify_user_act(text: str) -> UserAct:
         return "other"
     compact = re.sub(r"[\s!~！。？?~～…,.，、]+", "", raw)
 
+    if is_crisis_text(raw):
+        return CRISIS_USER_ACT  # type: ignore[return-value]
     if _REJECT_RE.search(raw):
         return "reject"
     if _DEPART_RE.search(raw):

@@ -12,6 +12,7 @@ from app.config import load_config
 from app.planner import EMOTION_WHITELIST, normalize_emotion, parse_and_gate_intent
 from app.planner.prompts import (
     PLANNER_SYSTEM,
+    PLANNER_SYSTEM_CRISIS,
     PLANNER_SYSTEM_DIRECT,
     build_planner_user_message,
     select_planner_system,
@@ -146,6 +147,11 @@ def main() -> None:
     assert USER_ACT_WHITELIST_CSV
     assert select_planner_system(renderer_enabled=True) is PLANNER_SYSTEM
     assert select_planner_system(renderer_enabled=False) is PLANNER_SYSTEM_DIRECT
+    assert "reply_ok 必须为 true" in PLANNER_SYSTEM_CRISIS
+    assert "crisis" in PLANNER_SYSTEM_CRISIS
+    assert "热线告示" in PLANNER_SYSTEM_CRISIS
+    assert "明确的自伤" in PLANNER_SYSTEM
+    assert "明确的自伤" in PLANNER_SYSTEM_DIRECT
     frozen = datetime(2026, 8, 24, 10, 14)
     user_msg = build_planner_user_message(
         user_text="谢谢你，阿洛娜。",

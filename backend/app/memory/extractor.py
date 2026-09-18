@@ -26,6 +26,7 @@ import httpx
 
 from ..config import ExtractorConfig, MemoryConfig
 from ..query_time import format_extract_now
+from ..safety import is_crisis_text, turns_contain_crisis
 from .fallback import regex_extract_memories
 from .normalize import normalize_memory_item
 from .store import MemoryStore, normalize_content_for_compare
@@ -185,8 +186,15 @@ class MemoryExtractor:
         if not self.config.enabled:
             logger.info("memory extractor disabled; skip enqueue")
             return
-        qsize = self._queue.qsize() + 1
         turns = [str(t).strip() for t in (user_turns or []) if str(t).strip()]
+        if turns_contain_crisis(user_text, turns):
+            logger.info(
+                "memory extract skipped reason=crisis user_text=%r user_turns=%d",
+                user_text,
+                len(turns),
+            )
+            return
+        qsize = self._queue.qsize() + 1
         logger.info(
             "memory extract queued qsize=%d user_text=%r user_turns=%d",
             qsize,
@@ -319,6 +327,13 @@ class MemoryExtractor:
         user_turns = job.get("user_turns") or []
         if not isinstance(user_turns, list):
             user_turns = []
+        if turns_contain_crisis(user_text, [str(t) for t in user_turns]):
+            logger.info(
+                "memory extract dropped reason=crisis user_text=%r user_turns=%d",
+                user_text,
+                len(user_turns),
+            )
+            return
         logger.info(
             "memory extract start user_text=%r user_turns=%d transcript_chars=%d",
             user_text,
@@ -615,6 +630,14 @@ class MemoryExtractor:
                 "category": category,
             }
             if op == "upsert" and content:
+                if is_crisis_text(content):
+                    logger.info(
+                        "memory upsert skipped reason=crisis key=%r content=%r source=%s",
+                        key,
+                        content,
+                        source,
+                    )
+                    continue
                 reason = memory_reject_reason(key, content)
                 if reason:
                     logger.info(
