@@ -1,6 +1,8 @@
 # GPT-SoVITS 目录与部署
 
-本目录是 AronaAI 的 **TTS 服务端**。桌面客户端通过 HTTP 调用 `api_v2.py`（默认 `127.0.0.1:9880`）合成阿洛娜语音；后端对话服务不经过这里。
+本目录是 AronaAI 的 **官方 TTS 服务端**。桌面客户端在 `tts.backend` 为 `official`（缺省）时通过 HTTP 调用 `api_v2.py`（默认 `127.0.0.1:9880`）合成阿洛娜语音；后端对话服务不经过这里。
+
+可选加速后端见 [`../gpt-sovits-minimal/DEPLOY.md`](../gpt-sovits-minimal/DEPLOY.md)。`start-all.ps1` 根据客户端 `tts.backend` **只启动一套**，不要同卡同时跑官方与 minimal。
 
 仓库 `.gitignore` **不提交** GPT-SoVITS 本体、权重与 `runtime/`。clone 后这里通常只有启动脚本和本文件，需要自行补齐官方程序、预训练模型、阿洛娜微调权重和参考音频。
 
@@ -121,8 +123,11 @@ python api_v2.py
 
 | 字段 | 本项目推荐值 |
 |------|----------------|
-| `host` | 本机 `127.0.0.1`；异机填 TTS 机 IP |
+| `backend` | 缺省 / `official`。切加速后端时改为 `minimal`（见 [`../gpt-sovits-minimal/DEPLOY.md`](../gpt-sovits-minimal/DEPLOY.md)） |
+| `host` | 本机 `127.0.0.1`；异机填官方 TTS 机 IP |
 | `port` | `9880` |
+| `minimal_host` / `minimal_port` | 仅 `backend=minimal` 时使用，默认 `127.0.0.1` / `8000` |
+| `voice` | 仅 minimal：`voices.json` 条目名，默认 `arona` |
 | `gpt_path` | `GPT_weights_v2/ALuoNa_cn-e15.ckpt` |
 | `sovits_path` | `SoVITS_weights_v2/ALuoNa_cn_e16_s256.pth` |
 | `ref_audio_path` | `ref_audio/Arona/arona_academy_in_2.ogg` |

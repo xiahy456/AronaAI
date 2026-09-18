@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Send 10 typical Arona replies to GPT-SoVITS /tts at a fixed interval and report RTT."""
+"""Send typical Arona replies to the configured TTS backend and report RTT."""
 
 from __future__ import annotations
 
@@ -60,7 +60,23 @@ def load_tts_section(path: Path) -> dict:
     return tts
 
 
-def build_payload_base(tts: dict) -> dict:
+def resolve_backend(tts: dict, override: str) -> str:
+    raw = (override or str(tts.get("backend") or "official")).strip().lower()
+    if raw in ("official", "minimal"):
+        return raw
+    raise ValueError(f"unknown TTS backend: {raw}")
+
+
+def rewrite_ref_audio_path(path: str, backend: str) -> str:
+    if backend != "minimal" or not path:
+        return path
+    normalized = path.replace("\\", "/")
+    if Path(path).is_absolute() or normalized.startswith("../gpt-sovits/"):
+        return path
+    return "../gpt-sovits/" + normalized.lstrip("/")
+
+
+def build_official_payload_base(tts: dict) -> dict:
     base = {
         "text_lang": "zh",
         "ref_audio_path": "ref_audio/Arona/arona_academy_in_2.ogg",
@@ -89,6 +105,25 @@ def build_payload_base(tts: dict) -> dict:
     base["streaming_mode"] = False
     base["media_type"] = "wav"
     return base
+
+
+def build_minimal_payload_base(tts: dict) -> dict:
+    official = build_official_payload_base(tts)
+    voice = str(tts.get("voice") or "arona")
+    return {
+        "voice": voice,
+        "model": "gpt-sovits-v2",
+        "response_format": "wav",
+        "text_lang": official["text_lang"],
+        "speed": official["speed_factor"],
+        "top_k": official["top_k"],
+        "top_p": official["top_p"],
+        "temperature": official["temperature"],
+        "pause_length": official["fragment_interval"],
+        "ref_audio": rewrite_ref_audio_path(str(official["ref_audio_path"]), "minimal"),
+        "ref_text": official["prompt_text"],
+        "ref_lang": official["prompt_lang"],
+    }
 
 
 def call_tts(url: str, payload: dict, timeout: float) -> tuple[int, float, int, str]:
@@ -130,12 +165,23 @@ def resolve_config(explicit: str | None) -> Path:
     raise FileNotFoundError("Config/config.json and config.example.json not found")
 
 
+def resolve_endpoint(tts: dict, backend: str, host_override: str, port_override: int) -> tuple[str, int, str]:
+    if backend == "minimal":
+        host = host_override or str(tts.get("minimal_host") or tts.get("host") or "127.0.0.1")
+        port = port_override or int(tts.get("minimal_port") or 8000)
+        return host, port, f"http://{host}:{port}/v1/audio/speech"
+    host = host_override or str(tts.get("host") or "127.0.0.1")
+    port = port_override or int(tts.get("port") or 9880)
+    return host, port, f"http://{host}:{port}/tts"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="POST 10 typical Arona lines to GPT-SoVITS with a fixed interval."
+        description="POST typical Arona lines to official /tts or minimal /v1/audio/speech."
     )
-    parser.add_argument("--host", default="", help="Override tts.host from config")
-    parser.add_argument("--port", type=int, default=0, help="Override tts.port from config")
+    parser.add_argument("--host", default="", help="Override TTS host from config")
+    parser.add_argument("--port", type=int, default=0, help="Override TTS port from config")
+    parser.add_argument("--backend", default="", help="official or minimal (default: tts.backend)")
     parser.add_argument("--config", default="", help="Client config.json path")
     parser.add_argument("--interval", type=float, default=15.0, help="Seconds to wait after each reply")
     parser.add_argument("--timeout", type=float, default=60.0, help="Per-request HTTP timeout (seconds)")
@@ -145,25 +191,32 @@ def main() -> int:
     try:
         cfg_path = resolve_config(args.config or None)
         tts = load_tts_section(cfg_path)
+        backend = resolve_backend(tts, args.backend)
     except Exception as e:
         print(f"Failed to load TTS config: {e}", file=sys.stderr)
         return 1
 
-    host = args.host or str(tts.get("host") or "127.0.0.1")
-    port = args.port or int(tts.get("port") or 9880)
-    url = f"http://{host}:{port}/tts"
-    base = build_payload_base(tts)
+    host, port, url = resolve_endpoint(tts, backend, args.host, args.port)
+    if backend == "minimal":
+        base = build_minimal_payload_base(tts)
+        ref_label = f"ref_audio={base['ref_audio']} voice={base['voice']}"
+        text_key = "input"
+    else:
+        base = build_official_payload_base(tts)
+        ref_label = f"ref_audio_path={base['ref_audio_path']} parallel_infer={base['parallel_infer']}"
+        text_key = "text"
     texts = TEXTS[: max(1, min(args.count, len(TEXTS)))]
 
     print(f"Config: {cfg_path}")
+    print(f"Backend: {backend}")
     print(f"POST {url} interval={args.interval}s timeout={args.timeout}s n={len(texts)}")
-    print(f"ref_audio_path={base['ref_audio_path']} parallel_infer={base['parallel_infer']}")
+    print(ref_label)
     print(flush=True)
 
     rows: list[tuple[int, str, bool, float, int]] = []
     for i, text in enumerate(texts, start=1):
         payload = dict(base)
-        payload["text"] = text
+        payload[text_key] = text
         preview = text if len(text) <= 36 else text[:33] + "..."
         print(f"[{i}/{len(texts)}] {preview}", flush=True)
         status, elapsed, nbytes, err = call_tts(url, payload, args.timeout)

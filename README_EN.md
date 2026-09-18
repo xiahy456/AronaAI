@@ -44,7 +44,8 @@ The project wires **Planner → AronaLM Renderer**, relationship climate, proact
 arona-ai/
 ├── backend/                              # Python backend (FastAPI + WebSocket)
 ├── frontend/                             # Desktop client (Qt/C++ + Spine)
-├── gpt-sovits/                           # GPT-SoVITS TTS
+├── gpt-sovits/                           # Official GPT-SoVITS TTS
+├── gpt-sovits-minimal/                   # GPT-SoVITS_minimal_inference (optional fast backend)
 ├── llm/aronaLM/finetune/                 # AronaLM fine-tune (not actually a large model… I wrote that wrong earlier and still haven't changed it)
 ├── models/                               # Local model weights (download yourself)
 ├── docs/                                 # Architecture, hot-word lists, and other docs
@@ -161,6 +162,8 @@ gpt-sovits/
 
 #### Start the GPT-SoVITS API
 
+The default backend is official:
+
 ```bash
 cd gpt-sovits
 # Windows: go-apiv2.bat
@@ -168,6 +171,8 @@ cd gpt-sovits
 ```
 
 `go-apiv2` auto-restarts the API if inference stalls. For debugging without auto-restart, you can run `python api_v2.py` directly.
+
+Optional faster backend: [GPT-SoVITS_minimal_inference](https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_inference). See [`gpt-sovits-minimal/DEPLOY.md`](gpt-sovits-minimal/DEPLOY.md). Set client `tts.backend` to `minimal` and `start-all.ps1` starts only that process (default `127.0.0.1:8000`). Run only one TTS engine at a time.
 
 ---
 
@@ -177,7 +182,7 @@ cd gpt-sovits
 |------|------|
 | **Backend** | [`backend/README.md`](backend/README.md) |
 | **Desktop client** | [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md) |
-| **TTS** | [`gpt-sovits/DEPLOY.md`](gpt-sovits/DEPLOY.md) |
+| **TTS** | [`gpt-sovits/DEPLOY.md`](gpt-sovits/DEPLOY.md) · [`gpt-sovits-minimal/DEPLOY.md`](gpt-sovits-minimal/DEPLOY.md) |
 | **Models** | [`models/README.md`](models/README.md) |
 | **AronaLM fine-tune** (for developers) | [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md) |
 
@@ -195,6 +200,7 @@ cd gpt-sovits
 - **ChromaDB** — vector database (https://www.trychroma.com/products/chromadb)
 - **DeepSeek** — Planner intent planning, vision screen-reading, computer-use multimodal control, and memory extraction API (https://www.deepseek.com/)
 - **GPT-SoVITS** — speech synthesis (https://github.com/RVC-Boss/GPT-SoVITS)
+- **GPT-SoVITS_minimal_inference** — accelerated inference backend (https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_inference)
 - **Tencent Cloud ASR** — online speech recognition (https://cloud.tencent.com/product/asr)
 - **bge-small-zh-v1.5** — text embedding model (https://huggingface.co/BAAI/bge-small-zh-v1.5)
 

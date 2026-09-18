@@ -48,8 +48,12 @@
     "animation_default_mix": 0.2
   },
   "tts": {
+    "backend": "official",
     "host": "127.0.0.1",
     "port": 9880,
+    "minimal_host": "127.0.0.1",
+    "minimal_port": 8000,
+    "voice": "arona",
     "gpt_path": "GPT_weights_v2/ALuoNa_cn-e15.ckpt",
     "sovits_path": "SoVITS_weights_v2/ALuoNa_cn_e16_s256.pth",
     "text_lang": "zh",

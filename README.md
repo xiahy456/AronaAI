@@ -44,7 +44,8 @@
 arona-ai/
 ├── backend/                              # Python 后端（FastAPI + WebSocket）
 ├── frontend/                             # 桌面客户端（Qt/C++ + Spine）
-├── gpt-sovits/                           # GPT-SoVITS 语音合成
+├── gpt-sovits/                           # 官方 GPT-SoVITS 语音合成
+├── gpt-sovits-minimal/                   # GPT-SoVITS_minimal_inference（可选加速后端）
 ├── llm/aronaLM/finetune/                 # AronaLM 微调（其实不是大模型啦……之前写错了还没有改过来呢）
 ├── models/                               # 本地模型权重（需自行下载）
 ├── docs/                                 # 架构与热词等文档
@@ -161,6 +162,8 @@ gpt-sovits/
 
 #### 启动 GPT-SoVITS API 服务
 
+默认走官方后端：
+
 ```bash
 cd gpt-sovits
 # Windows: go-apiv2.bat
@@ -168,6 +171,8 @@ cd gpt-sovits
 ```
 
 `go-apiv2` 会在推理卡住时自动重启 API。仅调试、不要自动重启时，可直接运行 `python api_v2.py`。
+
+可选加速后端：[GPT-SoVITS_minimal_inference](https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_inference)。部署见 [`gpt-sovits-minimal/DEPLOY.md`](gpt-sovits-minimal/DEPLOY.md)。客户端 `tts.backend` 设为 `minimal` 后，`start-all.ps1` 只启动这一套（默认 `127.0.0.1:8000`）。同一时间只跑一个 TTS 进程。
 
 ---
 
@@ -177,7 +182,7 @@ cd gpt-sovits
 |------|------|
 | **后端** | [`backend/README.md`](backend/README.md) |
 | **桌面客户端** | [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md) |
-| **语音合成** | [`gpt-sovits/DEPLOY.md`](gpt-sovits/DEPLOY.md) |
+| **语音合成** | [`gpt-sovits/DEPLOY.md`](gpt-sovits/DEPLOY.md) · [`gpt-sovits-minimal/DEPLOY.md`](gpt-sovits-minimal/DEPLOY.md) |
 | **模型** | [`models/README.md`](models/README.md) |
 | **AronaLM 微调**（如果您是开发者，请参考该文档） | [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md) |
 
@@ -195,6 +200,7 @@ cd gpt-sovits
 - **ChromaDB** - 向量数据库 (https://www.trychroma.com/products/chromadb)
 - **DeepSeek** - Planner 意图规划、视觉读屏、computer use 多模态操作与记忆抽取 API (https://www.deepseek.com/)
 - **GPT-SoVITS** - 语音合成服务 (https://github.com/RVC-Boss/GPT-SoVITS)
+- **GPT-SoVITS_minimal_inference** - 加速推理后端 (https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_inference)
 - **腾讯云语音识别** - 在线语音识别 (https://cloud.tencent.com/product/asr)
 - **bge-small-zh-v1.5** - 文本嵌入模型 (https://huggingface.co/BAAI/bge-small-zh-v1.5)
 

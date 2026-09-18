@@ -21,6 +21,7 @@
 #include <QAudioFormat>
 #include <QAudioSink>
 #include <QTimer>
+#include <QFileInfo>
 #include <cstring>
 
 TTSManager::TTSManager(QObject* parent)
@@ -36,10 +37,33 @@ TTSManager::TTSManager(QObject* parent)
     , m_currentIsWarmup(false)
     , m_playbackGeneration(0)
     , requestTimeoutMs(45000)
+    , m_minimalBackend(false)
 {
-    // 设置服务器地址
-    setServerAddress(GET_STRING_FROM_JSON(_global_config, "tts", "host"), GET_INT_FROM_JSON(_global_config, "tts", "port"));
-    FINE_DEBUG_OUTPUT("[TTS Operation]Set server : Host: " + serverHost + " | Port: " + QString::number(serverPort));
+    const QString backend = GET_STRING_FROM_JSON(_global_config, "tts", "backend").trimmed().toLower();
+    m_minimalBackend = (backend == QLatin1String("minimal"));
+    m_voice = GET_STRING_FROM_JSON(_global_config, "tts", "voice").trimmed();
+    if (m_voice.isEmpty()) {
+        m_voice = QStringLiteral("arona");
+    }
+
+    QString host = GET_STRING_FROM_JSON(_global_config, "tts", "host");
+    int port = GET_INT_FROM_JSON(_global_config, "tts", "port");
+    if (m_minimalBackend) {
+        const QString minimalHost = GET_STRING_FROM_JSON(_global_config, "tts", "minimal_host").trimmed();
+        if (!minimalHost.isEmpty()) {
+            host = minimalHost;
+        }
+        const int minimalPort = GET_INT_FROM_JSON(_global_config, "tts", "minimal_port");
+        port = (minimalPort > 0) ? minimalPort : 8000;
+        if (host.isEmpty()) {
+            host = QStringLiteral("127.0.0.1");
+        }
+    }
+
+    setServerAddress(host, port);
+    FINE_DEBUG_OUTPUT(QString("[TTS Operation]Set server : backend=%1 Host: %2 | Port: %3")
+        .arg(m_minimalBackend ? QStringLiteral("minimal") : QStringLiteral("official"),
+            serverHost, QString::number(serverPort)));
 
     int configuredTimeout = GET_INT_FROM_JSON(_global_config, "tts", "request_timeout_ms");
     if (configuredTimeout > 0) {
@@ -72,6 +96,11 @@ void TTSManager::setServerAddress(const QString& host, int port)
 {
     serverHost = host;
     serverPort = port;
+}
+
+bool TTSManager::isMinimalBackend() const
+{
+    return m_minimalBackend;
 }
 
 void TTSManager::cleanupCurrentReply()
@@ -169,9 +198,54 @@ QJsonObject TTSManager::buildJsonFromParams(const TTSRequestParams& params) cons
     json["super_sampling"] = params.superSampling;
 
 	// 输出构建的文本
-    FINE_DEBUG_OUTPUT("[TTS Operation]Generate text: " + params.text);
+	FINE_DEBUG_OUTPUT("[TTS Operation]Generate text: " + params.text);
 
     return json;
+}
+
+QString TTSManager::rewriteRefAudioPath(const QString& path) const
+{
+    if (!m_minimalBackend || path.isEmpty()) {
+        return path;
+    }
+    const QFileInfo info(path);
+    if (info.isAbsolute()) {
+        return path;
+    }
+    QString normalized = path;
+    normalized.replace(QLatin1Char('\\'), QLatin1Char('/'));
+    if (normalized.startsWith(QLatin1String("../gpt-sovits/"))) {
+        return path;
+    }
+    while (normalized.startsWith(QLatin1Char('/'))) {
+        normalized.remove(0, 1);
+    }
+    return QStringLiteral("../gpt-sovits/") + normalized;
+}
+
+QJsonObject TTSManager::buildMinimalJsonFromParams(const TTSRequestParams& params) const
+{
+    QJsonObject json;
+    json["input"] = params.text;
+    json["voice"] = m_voice;
+    json["model"] = QStringLiteral("gpt-sovits-v2");
+    json["response_format"] = QStringLiteral("wav");
+    json["text_lang"] = params.textLang;
+    json["speed"] = params.speedFactor;
+    json["top_k"] = params.topK;
+    json["top_p"] = params.topP;
+    json["temperature"] = params.temperature;
+    json["pause_length"] = params.fragmentInterval;
+    json["ref_audio"] = rewriteRefAudioPath(params.refAudioPath);
+    json["ref_text"] = params.promptText;
+    json["ref_lang"] = params.promptLang;
+    FINE_DEBUG_OUTPUT("[TTS Operation]Generate text: " + params.text);
+    return json;
+}
+
+bool TTSManager::isTtsReplyPath(const QString& path) const
+{
+    return path == QLatin1String("/tts") || path == QLatin1String("/v1/audio/speech");
 }
 
 void TTSManager::requestTTSGet(const TTSRequestParams& params)
@@ -206,14 +280,20 @@ void TTSManager::setSovitsWeights(const QString& weightsPath)
 
 void TTSManager::warmup(const TTSRequestParams& params)
 {
-    if (!params.refAudioPath.isEmpty()) {
-        requestQueue.enqueue(QueuedRequest(QueuedRequest::SetReferAudio, params.refAudioPath, true));
-    }
     TTSRequestParams warm = params;
     warm.text = QStringLiteral("老师好。");
     warm.emotion.clear();
-    requestQueue.enqueue(QueuedRequest(QueuedRequest::WarmupTTS, warm));
-    FINE_DEBUG_OUTPUT("[TTS Operation]Warmup queued (set_refer_audio + short /tts)");
+    if (m_minimalBackend) {
+        requestQueue.enqueue(QueuedRequest(QueuedRequest::WarmupTTS, warm));
+        FINE_DEBUG_OUTPUT("[TTS Operation]Warmup queued (short /v1/audio/speech)");
+    }
+    else {
+        if (!params.refAudioPath.isEmpty()) {
+            requestQueue.enqueue(QueuedRequest(QueuedRequest::SetReferAudio, params.refAudioPath, true));
+        }
+        requestQueue.enqueue(QueuedRequest(QueuedRequest::WarmupTTS, warm));
+        FINE_DEBUG_OUTPUT("[TTS Operation]Warmup queued (set_refer_audio + short /tts)");
+    }
     processNextRequest();
 }
 
@@ -228,7 +308,7 @@ void TTSManager::onNetworkReplyFinished()
         return;
     }
 
-    const bool isTts = reply->url().path() == QLatin1String("/tts");
+    const bool isTts = isTtsReplyPath(reply->url().path());
     const bool warmup = m_currentIsWarmup;
     if (isTts) {
         if (reply->error() != QNetworkReply::NoError) {
@@ -248,7 +328,7 @@ void TTSManager::onNetworkReplyFinished()
             ERROR_DEBUG_OUTPUT("[TTS Operation]Warmup failed: " + reply->errorString());
         }
         else {
-            FINE_DEBUG_OUTPUT("[TTS Operation]Warmup /tts complete");
+            FINE_DEBUG_OUTPUT("[TTS Operation]Warmup complete");
         }
         cleanupCurrentReply();
         isProcessingRequest = false;
@@ -513,7 +593,13 @@ bool TTSManager::extractWavPcm(const QByteArray& wav, WavPcmInfo* out) const
         return false;
     }
     const int available = wav.size() - pcmOffset;
-    const int bytes = qMin(static_cast<int>(pcmSize), available);
+    int bytes = 0;
+    if (pcmSize == 0 || static_cast<int>(pcmSize) < available) {
+        bytes = available;
+    }
+    else {
+        bytes = qMin(static_cast<int>(pcmSize), available);
+    }
     if (bytes <= 0) {
         return false;
     }
@@ -580,6 +666,11 @@ void TTSManager::processNextRequest()
 
 void TTSManager::executeTTSGet(const TTSRequestParams& params)
 {
+    if (m_minimalBackend) {
+        executeTTSPost(params);
+        return;
+    }
+
     QUrl url = buildBaseUrl();
     url.setPath("/tts");
     url.setQuery(buildQueryFromParams(params));
@@ -601,13 +692,15 @@ void TTSManager::executeTTSGet(const TTSRequestParams& params)
 void TTSManager::executeTTSPost(const TTSRequestParams& params)
 {
     QUrl url = buildBaseUrl();
-    url.setPath("/tts");
+    url.setPath(m_minimalBackend ? QStringLiteral("/v1/audio/speech") : QStringLiteral("/tts"));
 
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     applyRequestTimeout(request);
 
-    QJsonObject json = buildJsonFromParams(params);
+    const QJsonObject json = m_minimalBackend
+        ? buildMinimalJsonFromParams(params)
+        : buildJsonFromParams(params);
     QJsonDocument doc(json);
     QByteArray data = doc.toJson();
 

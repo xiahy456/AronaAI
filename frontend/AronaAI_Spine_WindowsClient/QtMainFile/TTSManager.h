@@ -49,6 +49,8 @@ public:
     // 设置服务器地址
     void setServerAddress(const QString& host, int port);
 
+    bool isMinimalBackend() const;
+
     // TTS请求参数结构体
     struct TTSRequestParams {
         QString text = "";  // 要合成的文本
@@ -173,6 +175,8 @@ private:
     QNetworkAccessManager* networkManager;
     QString serverHost;
     int serverPort;
+    bool m_minimalBackend;
+    QString m_voice;
 
     QNetworkReply* currentReply;
     QString currentMediaType;
@@ -203,6 +207,9 @@ private:
     QUrl buildBaseUrl() const;
     QUrlQuery buildQueryFromParams(const TTSRequestParams& params) const;
     QJsonObject buildJsonFromParams(const TTSRequestParams& params) const;
+    QJsonObject buildMinimalJsonFromParams(const TTSRequestParams& params) const;
+    QString rewriteRefAudioPath(const QString& path) const;
+    bool isTtsReplyPath(const QString& path) const;
     void enqueueTtsPlaybackFromReply(QNetworkReply* reply, bool httpError, const QString& errorString);
     void tryDeliverPlayback();
     bool extractWavPcm(const QByteArray& wav, WavPcmInfo* out) const;

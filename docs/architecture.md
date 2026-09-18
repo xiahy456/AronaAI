@@ -64,7 +64,7 @@ arona-ai/
 │           ├── start.bat       # Windows 一键训练
 │           └── README.md
 │
-├── gpt-sovits/                 # GPT-SoVITS 语音合成（需手动部署，或使用外部服务）
+├── gpt-sovits/                 # 官方 GPT-SoVITS 语音合成（需手动部署，或使用外部服务）
 │   ├── GPT_SoVITS/             # 核心模型
 │   ├── GPT_weights_v2/         # GPT 权重
 │   │   └── ALuoNa_cn-e15.ckpt  # 阿洛娜 GPT 权重
@@ -78,6 +78,13 @@ arona-ai/
 │   └── ref_audio/              # 参考音频
 │       └── Arona/
 │           └── arona_academy_in_2.ogg   # 推荐的参考音频
+│
+├── gpt-sovits-minimal/         # GPT-SoVITS_minimal_inference（可选；与官方二选一）
+│   ├── DEPLOY.md               # clone、独立 Python、voices.json
+│   ├── go-api.bat / go-api.ps1
+│   ├── watch-api.ps1           # 崩溃自动重启
+│   ├── config/voices.json      # 阿洛娜 v2 权重路径（相对本目录）
+│   └── api_server.py           # clone 上游后才有；默认 :8000
 │
 ├── docs/                       # 项目文档
 │   └── architecture.md         # 完整目录树

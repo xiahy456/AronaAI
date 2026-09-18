@@ -37,11 +37,17 @@
   (then config.example.yaml). Fallback: 20456.
 
 .PARAMETER GptPort
-  GPT-SoVITS listen port to clear before start. 0 = 9880.
+  TTS listen port to clear before start. 0 = from client config
+  (official 9880 / minimal 8000).
+
+.PARAMETER TtsBackend
+  TTS engine to start: official or minimal. Empty = read tts.backend from
+  the desktop client config.json (default official).
 
 .EXAMPLE
   .\start-all.ps1
   .\start-all.ps1 -CondaEnv arona -TimeoutSec 900
+  .\start-all.ps1 -TtsBackend minimal
 
   After launch, in the control window:
     restart backend
@@ -57,7 +63,8 @@ param(
     [int]$TtsStallSec = 60,
     [int]$TtsRestartCooldownSec = 90,
     [int]$BackendPort = 0,
-    [int]$GptPort = 0
+    [int]$GptPort = 0,
+    [string]$TtsBackend = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -70,7 +77,9 @@ $script:FrontendProc = $null
 $script:ServicesStopped = $false
 $script:BackendDir = $null
 $script:GptDir = $null
+$script:MinimalDir = $null
 $script:GptWatch = $null
+$script:TtsBackend = "official"
 $script:Conda = $null
 $script:FrontendInfo = $null
 $script:BackendLog = $null
@@ -260,8 +269,63 @@ function Resolve-BackendListenPort {
     return 20456
 }
 
+function Find-ClientConfigJson {
+    $paths = @()
+    if ($script:FrontendInfo -and $script:FrontendInfo.WorkDir) {
+        $paths += Join-Path $script:FrontendInfo.WorkDir "Config\config.json"
+    }
+    $paths += Join-Path $Root "frontend\AronaAI_Spine_WindowsClient\dist\AronaAI_Client\Config\config.json"
+    $paths += Join-Path $Root "frontend\AronaAI_Spine_WindowsClient\Config\config.json"
+    foreach ($p in $paths) {
+        if ($p -and (Test-Path -LiteralPath $p)) { return $p }
+    }
+    return $null
+}
+
+function Get-ClientTtsObject {
+    $path = Find-ClientConfigJson
+    if (-not $path) { return $null }
+    try {
+        $json = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
+        return $json.tts
+    } catch {
+        Write-Host ("  Failed to parse {0}: {1}" -f $path, $_) -ForegroundColor Yellow
+        return $null
+    }
+}
+
+function Resolve-TtsBackendName {
+    if (-not [string]::IsNullOrWhiteSpace($TtsBackend)) {
+        $v = $TtsBackend.Trim().ToLowerInvariant()
+        if ($v -eq "official" -or $v -eq "minimal") { return $v }
+        throw "Invalid -TtsBackend '$TtsBackend'. Use official or minimal."
+    }
+    $tts = Get-ClientTtsObject
+    if ($tts -and $null -ne $tts.backend) {
+        $v = ([string]$tts.backend).Trim().ToLowerInvariant()
+        if ($v -eq "minimal") { return "minimal" }
+        if ($v -eq "official" -or $v -eq "") { return "official" }
+        Write-Host "  Unknown tts.backend '$v'; using official" -ForegroundColor Yellow
+    }
+    return "official"
+}
+
 function Resolve-GptListenPort {
     if ($GptPort -gt 0) { return $GptPort }
+    $tts = Get-ClientTtsObject
+    if ($script:TtsBackend -eq "minimal") {
+        if ($tts -and $tts.minimal_port) {
+            $p = 0
+            [void][int]::TryParse([string]$tts.minimal_port, [ref]$p)
+            if ($p -gt 0) { return $p }
+        }
+        return 8000
+    }
+    if ($tts -and $tts.port) {
+        $p = 0
+        [void][int]::TryParse([string]$tts.port, [ref]$p)
+        if ($p -gt 0) { return $p }
+    }
     return 9880
 }
 
@@ -472,7 +536,7 @@ function Clear-StaleServices {
     Write-Step "Checking for leftover processes ..." Yellow
     $killed = $false
     if (Stop-ListenersOnPort -Port $script:ResolvedBackendPort -Label "Backend") { $killed = $true }
-    if (Stop-ListenersOnPort -Port $script:ResolvedGptPort -Label "GPT-SoVITS") { $killed = $true }
+    if (Stop-ListenersOnPort -Port $script:ResolvedGptPort -Label (Get-ServiceDisplayName "gpt")) { $killed = $true }
     if (Stop-LeftoverFrontend) { $killed = $true }
     if (-not $killed) {
         Write-Host "  None found." -ForegroundColor DarkGray
@@ -485,7 +549,7 @@ function Stop-AllTrackedServices {
 
     Write-Step "Stopping all services ..." Yellow
     Stop-TrackedProcessTree -Process $script:BackendProc -Label "Backend"
-    Stop-TrackedProcessTree -Process $script:GptProc -Label "GPT-SoVITS"
+    Stop-TrackedProcessTree -Process $script:GptProc -Label (Get-ServiceDisplayName "gpt")
     Stop-TrackedProcessTree -Process $script:FrontendProc -Label "Frontend"
 
     $deadline = (Get-Date).AddSeconds(5)
@@ -661,7 +725,9 @@ function Get-ServiceDisplayName {
     param([string]$Name)
     switch ($Name) {
         "backend" { "Backend" }
-        "gpt" { "GPT-SoVITS" }
+        "gpt" {
+            if ($script:TtsBackend -eq "minimal") { "GPT-SoVITS minimal" } else { "GPT-SoVITS" }
+        }
         "frontend" { "Frontend" }
         default { $Name }
     }
@@ -682,7 +748,7 @@ function Resolve-ServiceToken {
 function Show-ServiceStatus {
     $rows = @(
         @{ Key = "backend"; Label = "Backend" },
-        @{ Key = "gpt"; Label = "GPT-SoVITS" },
+        @{ Key = "gpt"; Label = (Get-ServiceDisplayName "gpt") },
         @{ Key = "frontend"; Label = "Frontend" }
     )
     Write-Host ""
@@ -735,14 +801,39 @@ function Start-BackendService {
     return $true
 }
 
+function Start-MinimalTtsService {
+    [void](Stop-ListenersOnPort -Port $script:ResolvedGptPort -Label (Get-ServiceDisplayName "gpt"))
+    Write-Step "Starting GPT-SoVITS minimal ..."
+    if (Test-Path -LiteralPath $script:GptLog) {
+        Remove-Item -LiteralPath $script:GptLog -Force -ErrorAction SilentlyContinue
+    }
+    $script:GptProc = Start-ServiceWindow `
+        -Title "GPT-SoVITS minimal API (watchdog)" `
+        -WorkDir $script:MinimalDir `
+        -ExePath "powershell.exe" `
+        -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $script:GptWatch,
+            "-LogPath", $script:GptLog,
+            "-Port", "$($script:ResolvedGptPort)",
+            "-RestartCooldownSec", "$TtsRestartCooldownSec"
+        ) `
+        -LogPath $script:GptWatchdogLog
+    return $true
+}
+
 function Start-GptService {
+    $label = Get-ServiceDisplayName "gpt"
     if (Test-ProcAlive $script:GptProc) {
-        Write-Host ("  GPT-SoVITS is already running (PID {0})." -f ($script:GptProc).Id) -ForegroundColor Yellow
+        Write-Host ("  {0} is already running (PID {1})." -f $label, ($script:GptProc).Id) -ForegroundColor Yellow
         return $false
     }
-    [void](Stop-ListenersOnPort -Port $script:ResolvedGptPort -Label "GPT-SoVITS")
+    if ($script:TtsBackend -eq "minimal") {
+        return Start-MinimalTtsService
+    }
+    [void](Stop-ListenersOnPort -Port $script:ResolvedGptPort -Label $label)
     Write-Step "Starting GPT-SoVITS ..."
-    # Clear API log so Wait-ServicesReady does not see a stale ready signal.
     if (Test-Path -LiteralPath $script:GptLog) {
         Remove-Item -LiteralPath $script:GptLog -Force -ErrorAction SilentlyContinue
     }
@@ -755,6 +846,7 @@ function Start-GptService {
             "-ExecutionPolicy", "Bypass",
             "-File", $script:GptWatch,
             "-LogPath", $script:GptLog,
+            "-Port", "$($script:ResolvedGptPort)",
             "-StallSec", "$TtsStallSec",
             "-RestartCooldownSec", "$TtsRestartCooldownSec"
         ) `
@@ -799,7 +891,7 @@ function Wait-NamedServiceReady {
         }
         "gpt" {
             Wait-ServicesReady -TimeoutSeconds $TimeoutSec -Services @(
-                @{ Name = "GPT-SoVITS"; LogPath = $script:GptLog; Process = $script:GptProc }
+                @{ Name = (Get-ServiceDisplayName "gpt"); LogPath = $script:GptLog; Process = $script:GptProc }
             )
         }
     }
@@ -935,24 +1027,37 @@ New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
 
 $script:BackendDir = Join-Path $Root "backend"
 $script:GptDir = Join-Path $Root "gpt-sovits"
+$script:MinimalDir = Join-Path $Root "gpt-sovits-minimal"
 $GptApi = Join-Path $script:GptDir "api_v2.py"
-$script:GptWatch = Join-Path $script:GptDir "watch-apiv2.ps1"
 $GptRuntimePy = Join-Path $script:GptDir "runtime\python.exe"
+$MinimalApi = Join-Path $script:MinimalDir "api_server.py"
+$MinimalWatch = Join-Path $script:MinimalDir "watch-api.ps1"
 
 Assert-Path $script:BackendDir "backend directory"
 Assert-Path (Join-Path $script:BackendDir "app\main.py") "backend entry"
 Assert-Path $script:GptDir "gpt-sovits directory"
-Assert-Path $GptApi "GPT-SoVITS api_v2.py"
-Assert-Path $script:GptWatch "GPT-SoVITS watch-apiv2.ps1"
 
 $script:Conda = Resolve-CondaCmd
 $script:FrontendInfo = Resolve-Frontend -Explicit $FrontendExe
+$script:TtsBackend = Resolve-TtsBackendName
+$script:GptWatch = if ($script:TtsBackend -eq "minimal") { $MinimalWatch } else { Join-Path $script:GptDir "watch-apiv2.ps1" }
+
+if ($script:TtsBackend -eq "minimal") {
+    if (-not (Test-Path -LiteralPath $MinimalApi)) {
+        throw "GPT-SoVITS minimal api_server.py not found in $($script:MinimalDir). Clone the upstream repo first. See gpt-sovits-minimal/DEPLOY.md."
+    }
+    Assert-Path $MinimalWatch "GPT-SoVITS minimal watch-api.ps1"
+} else {
+    Assert-Path $GptApi "GPT-SoVITS api_v2.py"
+    Assert-Path $script:GptWatch "GPT-SoVITS watch-apiv2.ps1"
+}
 
 $script:BackendLog = Join-Path $LogDir "backend.log"
 $script:GptLog = Join-Path $LogDir "gpt-sovits.log"
 $script:GptWatchdogLog = Join-Path $LogDir "gpt-sovits-watchdog.log"
 $script:ResolvedBackendPort = Resolve-BackendListenPort
 $script:ResolvedGptPort = Resolve-GptListenPort
+$ttsLabel = Get-ServiceDisplayName "gpt"
 
 Write-Step "AronaAI start-all"
 Write-Host "  Root:        $Root"
@@ -961,26 +1066,29 @@ Write-Host "  CondaEnv:    $CondaEnv"
 Write-Host ("  Frontend:    {0}" -f ($script:FrontendInfo).Exe)
 Write-Host ("  FrontendCwd: {0}" -f ($script:FrontendInfo).WorkDir)
 Write-Host "  BackendPort: $($script:ResolvedBackendPort)"
+Write-Host "  TtsBackend:  $($script:TtsBackend)"
 Write-Host "  GptPort:     $($script:ResolvedGptPort)"
 Write-Host "  Logs:        $LogDir"
-Write-Host "  Timeout:     ${TimeoutSec}s for backend + GPT-SoVITS"
+Write-Host "  Timeout:     ${TimeoutSec}s for backend + TTS"
 
-if (-not (Test-Path -LiteralPath $GptRuntimePy)) {
-    Write-Host "  runtime\python.exe not found; falling back to python on PATH" -ForegroundColor Yellow
-    $py = Get-Command python -ErrorAction SilentlyContinue
-    if (-not $py) { throw "Neither gpt-sovits\runtime\python.exe nor python on PATH was found." }
+if ($script:TtsBackend -ne "minimal") {
+    if (-not (Test-Path -LiteralPath $GptRuntimePy)) {
+        Write-Host "  runtime\python.exe not found; falling back to python on PATH" -ForegroundColor Yellow
+        $py = Get-Command python -ErrorAction SilentlyContinue
+        if (-not $py) { throw "Neither gpt-sovits\runtime\python.exe nor python on PATH was found." }
+    }
 }
 
-# ---- 1) Backend + GPT-SoVITS in parallel ----
+# ---- 1) Backend + TTS in parallel ----
 try {
     Clear-StaleServices
-    Write-Step "Starting backend and GPT-SoVITS in parallel ..."
+    Write-Step "Starting backend and $ttsLabel in parallel ..."
     [void](Start-BackendService)
     [void](Start-GptService)
 
     Wait-ServicesReady -TimeoutSeconds $TimeoutSec -Services @(
         @{ Name = "Backend"; LogPath = $script:BackendLog; Process = $script:BackendProc },
-        @{ Name = "GPT-SoVITS"; LogPath = $script:GptLog; Process = $script:GptProc }
+        @{ Name = $ttsLabel; LogPath = $script:GptLog; Process = $script:GptProc }
     )
 
     # ---- 2) Frontend ----

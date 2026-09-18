@@ -84,10 +84,13 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
         });
 
     const bool reloadWeights = GET_BOOL_FROM_JSON(_global_config, "tts", "reload_weights_on_start");
-    if (reloadWeights) {
+    if (!m_ttsManager->isMinimalBackend() && reloadWeights) {
         m_ttsManager->setGPTWeights(GET_STRING_FROM_JSON(_global_config, "tts", "gpt_path"));
         m_ttsManager->setSovitsWeights(GET_STRING_FROM_JSON(_global_config, "tts", "sovits_path"));
         FINE_DEBUG_OUTPUT("[Startup] TTS weight switch queued (reload_weights_on_start=true)");
+    }
+    else if (m_ttsManager->isMinimalBackend()) {
+        FINE_DEBUG_OUTPUT("[Startup] Skip TTS weight reload (minimal backend; voices.json weights stay loaded)");
     }
     else {
         FINE_DEBUG_OUTPUT("[Startup] Skip TTS weight reload (reload_weights_on_start=false); yaml weights stay loaded");
