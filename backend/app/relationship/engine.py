@@ -112,6 +112,8 @@ class RelationshipEngine:
         act = classify_user_act(text)
         streak = self.state.climate_streak
         last = self.state.last_climate
+        recovering_from = self.state.recovering_from
+        recover_remaining = self.state.recover_remaining
         decision = decide(
             self.state,
             act,
@@ -121,6 +123,8 @@ class RelationshipEngine:
         )
         self.state.climate_streak = streak
         self.state.last_climate = last
+        self.state.recovering_from = recovering_from
+        self.state.recover_remaining = recover_remaining
         return act, decision
 
     def on_user_text(self, text: str) -> tuple[UserAct, Decision]:

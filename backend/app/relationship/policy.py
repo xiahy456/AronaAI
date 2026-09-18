@@ -38,6 +38,9 @@ ProactiveKind = Literal["idle", "lunch", "sleep", "goal", "festival", "mood_foll
 _IDLE_OK_CLIMATES: frozenset[str] = frozenset({"secure_play", "steady"})
 
 URGENT_CLIMATES: frozenset[str] = frozenset({"fragile", "rupture", "cling_risk"})
+_TIGHT_RECOVER_CLIMATES: frozenset[str] = frozenset({"fragile", "rupture"})
+_RECOVER_STANCE_PREFIX = "仍偏稳住，不要突然加戏；"
+_RECOVER_TONE = "轻、稳"
 
 CLIMATE_LABELS: dict[str, str] = {
     "secure_play": "安心可玩",
@@ -57,6 +60,8 @@ class Decision:
     must_not: list[str] = field(default_factory=list)
     tone_hint: str = ""
     user_act: UserAct = "other"
+    transition_from: str = ""
+    transition_note: str = ""
 
 
 def resolve_climate(
@@ -105,6 +110,80 @@ def stick_climate(
         state.climate_streak = 1
     state.last_climate = chosen
     return chosen  # type: ignore[return-value]
+
+
+_URGENT_TRANSITION_NOTES: dict[str, str] = {
+    "fragile": "正在从「信任不足且紧绷」缓和，仍保持轻稳，不要突然玩笑或顶嘴",
+    "rupture": "正在从「张力偏高，需要先稳住」缓和，仍先认情绪，不要突然开玩笑或讲理",
+    "cling_risk": "正在从「依赖偏高，需要空间」缓和，仍少索取确认，不要突然黏上",
+}
+
+
+def _union_unique(primary: list[str], extra: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in primary + extra:
+        if item not in seen:
+            seen.add(item)
+            out.append(item)
+    return out
+
+
+def _mild_transition_note(from_climate: str) -> str:
+    label = CLIMATE_LABELS.get(from_climate, from_climate)
+    return f"正在从「{label}」转到当前相处方式，不要突然换语气"
+
+
+def _in_tight_recovery(state: RelationshipState) -> bool:
+    return (
+        state.recover_remaining > 0
+        and state.recovering_from in _TIGHT_RECOVER_CLIMATES
+    )
+
+
+def _advance_recovery(
+    state: RelationshipState,
+    last: str,
+    chosen: Climate,
+    *,
+    stick_turns: int,
+) -> tuple[str, bool]:
+    """Update recover window. Returns (transition_from, merge_bans)."""
+    if chosen in URGENT_CLIMATES:
+        state.recovering_from = ""
+        state.recover_remaining = 0
+        return "", False
+
+    if last in URGENT_CLIMATES and chosen not in URGENT_CLIMATES:
+        state.recovering_from = last
+        state.recover_remaining = max(1, stick_turns)
+
+    from_cl = state.recovering_from
+    remaining = state.recover_remaining
+    merge_bans = bool(from_cl in URGENT_CLIMATES and remaining > 0)
+
+    if remaining > 0:
+        state.recover_remaining = remaining - 1
+        if state.recover_remaining <= 0:
+            state.recovering_from = ""
+
+    if remaining > 0 and from_cl:
+        return from_cl, merge_bans
+    return "", False
+
+
+def _overlay_urgent_recovery(
+    from_climate: str,
+    stance: str,
+    must_not: list[str],
+    _tone: str,
+) -> tuple[str, list[str], str, str]:
+    extra = list(_POLICY[from_climate][1]) if from_climate in _POLICY else []  # type: ignore[index]
+    must_not = _union_unique(must_not, extra)
+    if _RECOVER_STANCE_PREFIX not in stance:
+        stance = _RECOVER_STANCE_PREFIX + stance
+    note = _URGENT_TRANSITION_NOTES.get(from_climate, _mild_transition_note(from_climate))
+    return stance, must_not, _RECOVER_TONE, note
 
 
 _POLICY: dict[Climate, tuple[str, list[str], str]] = {
@@ -160,9 +239,29 @@ def decide(
         state.tension,
         cling_dependence=cling_dependence,
     )
+    last = state.last_climate or "steady"
     climate = stick_climate(state, raw, stick_turns=stick_turns)
+    recover_from, merge_bans = _advance_recovery(
+        state, last, climate, stick_turns=stick_turns
+    )
     stance, must_not, tone = _POLICY[climate]
     must_not = list(must_not)
+    transition_from = ""
+    transition_note = ""
+    if recover_from and merge_bans:
+        stance, must_not, tone, transition_note = _overlay_urgent_recovery(
+            recover_from, stance, must_not, tone
+        )
+        transition_from = recover_from
+    elif (
+        last
+        and last != climate
+        and last not in URGENT_CLIMATES
+        and climate not in URGENT_CLIMATES
+    ):
+        transition_from = last
+        transition_note = _mild_transition_note(last)
+
     if state.dependence > high_dependence:
         must_not.extend(["增加依赖", "追问还在不在"])
         if "给空间" not in stance:
@@ -183,6 +282,8 @@ def decide(
             "说教",
         ]
         tone = "放软、认真"
+        transition_from = ""
+        transition_note = ""
     elif climate == "cling_risk" and user_act in {"short_ack", "fatigue"}:
         action = "silence"
     elif user_act == "short_ack" and prev_act == "depart":
@@ -195,6 +296,8 @@ def decide(
         must_not=must_not,
         tone_hint=tone,
         user_act=user_act,
+        transition_from=transition_from,
+        transition_note=transition_note,
     )
 
 
@@ -213,7 +316,8 @@ def decide_proactive(
         cling_dependence=cling_dependence,
     )
     if kind in {"idle", "goal", MOOD_FOLLOWUP_KIND}:
-        action: Action = "initiate" if climate in _IDLE_OK_CLIMATES else "silence"
+        allow_idle = climate in _IDLE_OK_CLIMATES and not _in_tight_recovery(state)
+        action: Action = "initiate" if allow_idle else "silence"
         if kind == MOOD_FOLLOWUP_KIND:
             stance = "轻轻提起老师不久前提过的心情，不盘问、不分析、不当病历"
             must_not = [
@@ -260,12 +364,22 @@ def decide_proactive(
         must_not = list(must_not)
         must_not.extend(["增加依赖", "追问还在不在"])
 
+    transition_from = ""
+    transition_note = ""
+    if state.recover_remaining > 0 and state.recovering_from in URGENT_CLIMATES:
+        stance, must_not, tone, transition_note = _overlay_urgent_recovery(
+            state.recovering_from, stance, must_not, tone
+        )
+        transition_from = state.recovering_from
+
     return Decision(
         action=action,
         climate=climate,
         stance=stance,
         must_not=must_not,
         tone_hint=tone,
+        transition_from=transition_from,
+        transition_note=transition_note,
     )
 
 
@@ -275,8 +389,12 @@ def planner_climate_block(decision: Decision) -> str:
         return crisis_planner_climate_block()
     label = CLIMATE_LABELS.get(decision.climate, decision.climate)
     bans = "；".join(decision.must_not) if decision.must_not else "（无额外禁区）"
+    transition = ""
+    if decision.transition_note:
+        transition = f"【过渡】{decision.transition_note}\n"
     return (
         f"【关系气候】{label}\n"
+        f"{transition}"
         f"【建议姿态】{decision.stance}\n"
         f"【语气】{decision.tone_hint}\n"
         f"【本轮禁区】{bans}\n"
@@ -298,8 +416,11 @@ def crisis_planner_climate_block() -> str:
 def local_system_hint(decision: Decision) -> str:
     label = CLIMATE_LABELS.get(decision.climate, decision.climate)
     bans = "、".join(decision.must_not[:4])
+    extra = ""
+    if decision.transition_note:
+        extra = f"过渡：{decision.transition_note}。"
     return (
-        f"【相处姿态】当前气候：{label}。{decision.stance}。"
+        f"【相处姿态】当前气候：{label}。{extra}{decision.stance}。"
         f"语气：{decision.tone_hint}。禁止：{bans}。"
     )
 

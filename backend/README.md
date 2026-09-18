@@ -286,6 +286,8 @@ new = clamp(old + α * Δ - β * (old - baseline), -1, 1)
 | `steady`      | 其余          | 平稳接住本轮         |
 
 
+离开 `fragile` / `rupture` / `cling_risk` 后有 `climate_stick_turns`（默认 3）轮恢复窗：Planner 的 `planner_climate_block` 增加【过渡】行（不写 A/B/C 数字），禁区取新旧带并集，姿态偏克制。`fragile` / `rupture` 恢复期内 idle / goal / mood_followup 仍沉默；`cling_risk` 恢复只约束话术。非紧急档之间切换只提示 1 轮、不并禁区。紧急档重新进入时立即切并清掉恢复窗。
+
 沉默规则（当前实现）：
 
 - `cling_risk` 且用户是 `short_ack` / `fatigue`
@@ -562,7 +564,7 @@ python scripts/ingest_knowledge.py --rebuild
 | `makeup_trust_scale`  | `1.5`                           | 上述放大倍数                                                          |
 | `cling_dependence`    | `0.55`                          | 依赖高于该值且张力低 → `cling_risk`                                       |
 | `high_dependence`     | `0.7`                           | 依赖高于该值时额外禁「增加依赖 / 追问还在不在」                                       |
-| `climate_stick_turns` | `3`                             | 非紧急档需连续若干轮才切换气候                                                 |
+| `climate_stick_turns` | `3`                             | 非紧急档需连续若干轮才切换气候；紧急档退出后的恢复窗也用此轮数 |
 | `baseline_trust`      | `0.55`                          | 信任回归中心                                                          |
 | `baseline_dependence` | `0.30`                          | 依赖回归中心                                                          |
 | `baseline_tension`    | `0.25`                          | 张力回归中心                                                          |

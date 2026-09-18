@@ -28,6 +28,8 @@ from app.relationship import (  # noqa: E402
     RelationshipState,
     RelationshipStore,
     classify_user_act,
+    decide_proactive,
+    local_system_hint,
     planner_climate_block,
     resolve_climate,
 )
@@ -257,14 +259,32 @@ def test_store_roundtrip(tmp: Path) -> None:
     print("== JSON persist ==")
     path = tmp / "relationship.json"
     store = RelationshipStore(path)
-    state = RelationshipState(trust=0.42, dependence=0.31, tension=0.22)
+    state = RelationshipState(
+        trust=0.42,
+        dependence=0.31,
+        tension=0.22,
+        recovering_from="fragile",
+        recover_remaining=2,
+    )
     store.save(state)
     loaded = store.load()
     if abs(loaded.trust - 0.42) > 1e-9:
         _fail(f"loaded trust {loaded.trust}")
+    if loaded.recovering_from != "fragile" or loaded.recover_remaining != 2:
+        _fail(
+            f"recover fields {loaded.recovering_from!r} {loaded.recover_remaining}"
+        )
     engine = RelationshipEngine.from_path(path, RelationshipSettings())
     if abs(engine.state.trust - 0.42) > 1e-9:
         _fail("engine did not load persisted state")
+    old_path = tmp / "relationship_old.json"
+    old_path.write_text(
+        '{"trust": 0.41, "dependence": 0.30, "tension": 0.22, "last_climate": "steady"}',
+        encoding="utf-8",
+    )
+    old = RelationshipStore(old_path).load()
+    if old.recovering_from != "" or old.recover_remaining != 0:
+        _fail("old JSON should default recover fields")
     print("  ok")
 
 
@@ -391,6 +411,8 @@ def test_preview_user_text_does_not_apply(tmp: Path) -> None:
     engine.state.tension = 0.20
     engine.state.climate_streak = 2
     engine.state.last_climate = "steady"
+    engine.state.recovering_from = ""
+    engine.state.recover_remaining = 0
     engine.store.save(engine.state)
     before = (
         engine.state.trust,
@@ -399,6 +421,8 @@ def test_preview_user_text_does_not_apply(tmp: Path) -> None:
         engine.state.climate_streak,
         engine.state.last_climate,
         engine.state.last_user_act,
+        engine.state.recovering_from,
+        engine.state.recover_remaining,
     )
     act, decision = engine.preview_user_text("谢谢")
     if act != "gratitude":
@@ -412,12 +436,40 @@ def test_preview_user_text_does_not_apply(tmp: Path) -> None:
         engine.state.climate_streak,
         engine.state.last_climate,
         engine.state.last_user_act,
+        engine.state.recovering_from,
+        engine.state.recover_remaining,
     )
     if after != before:
         _fail(f"preview mutated state {before} -> {after}")
     _applied, _ = engine.on_user_text("谢谢")
     if engine.state.trust <= before[0]:
         _fail("on_user_text should apply gratitude trust delta")
+    print("  ok")
+
+
+def test_preview_does_not_persist_recover_window(tmp: Path) -> None:
+    print("== preview does not persist recover window ==")
+    engine = RelationshipEngine.from_path(
+        tmp / "rel_preview_recover.json", RelationshipSettings(beta=0.0)
+    )
+    engine.state.trust = 0.60
+    engine.state.dependence = 0.30
+    engine.state.tension = 0.30
+    engine.state.last_climate = "fragile"
+    engine.state.climate_streak = 4
+    engine.state.recovering_from = ""
+    engine.state.recover_remaining = 0
+    engine.store.save(engine.state)
+    _act, decision = engine.preview_user_text("今天天气不错呢")
+    if decision.transition_from != "fragile":
+        _fail(f"preview should still describe the transition, got {decision.transition_from}")
+    if engine.state.last_climate != "fragile":
+        _fail(f"preview last_climate={engine.state.last_climate}")
+    if engine.state.recovering_from or engine.state.recover_remaining:
+        _fail("preview must not keep recover window on state")
+    loaded = RelationshipStore(tmp / "rel_preview_recover.json").load()
+    if loaded.last_climate != "fragile" or loaded.recovering_from or loaded.recover_remaining:
+        _fail("preview must not write recover window to JSON")
     print("  ok")
 
 
@@ -531,6 +583,157 @@ def test_planner_user_act_backfill(tmp: Path) -> None:
     print("  ok")
 
 
+def test_climate_recovery_window() -> None:
+    print("== urgent exit recovery window ==")
+    state = RelationshipState(
+        trust=0.6,
+        dependence=0.3,
+        tension=0.3,
+        last_climate="fragile",
+        climate_streak=4,
+    )
+    first = decide(state, "other")
+    if first.climate != "secure_play":
+        _fail(f"expected secure_play, got {first.climate}")
+    if first.transition_from != "fragile":
+        _fail(f"transition_from={first.transition_from}")
+    if "玩笑" not in first.must_not or "顶嘴" not in first.must_not:
+        _fail(f"fragile bans should remain: {first.must_not}")
+    if "仍偏稳住" not in first.stance:
+        _fail(f"stance should stay restrained: {first.stance}")
+    if first.tone_hint != "轻、稳":
+        _fail(f"tone={first.tone_hint}")
+    if state.recovering_from != "fragile" or state.recover_remaining != 2:
+        _fail(
+            f"after first recover remaining={state.recover_remaining} "
+            f"from={state.recovering_from}"
+        )
+    block = planner_climate_block(first)
+    if "【过渡】" not in block or "信任不足且紧绷" not in block:
+        _fail(f"missing transition line: {block}")
+    if "提升信任度" in block or "0.6" in block:
+        _fail(f"block leaked numbers: {block}")
+    hint = local_system_hint(first)
+    if "过渡：" not in hint:
+        _fail(f"local hint missing transition: {hint}")
+
+    second = decide(state, "other")
+    if second.transition_from != "fragile" or "玩笑" not in second.must_not:
+        _fail("second recover turn should still overlay")
+    if state.recover_remaining != 1:
+        _fail(f"remaining after second={state.recover_remaining}")
+    third = decide(state, "other")
+    if third.transition_from != "fragile":
+        _fail("third recover turn should still overlay")
+    if state.recover_remaining != 0 or state.recovering_from != "":
+        _fail(
+            f"window should clear after third: remaining={state.recover_remaining} "
+            f"from={state.recovering_from}"
+        )
+    fourth = decide(state, "other")
+    if fourth.transition_note or "玩笑" in fourth.must_not:
+        _fail(f"fourth turn should be plain secure_play: {fourth}")
+    if "【过渡】" in planner_climate_block(fourth):
+        _fail("fourth block should drop transition")
+    print("  ok")
+
+
+def test_recovery_reenter_urgent_and_crisis() -> None:
+    print("== re-enter urgent clears recovery; crisis has no transition ==")
+    state = RelationshipState(
+        trust=0.6,
+        dependence=0.3,
+        tension=0.3,
+        last_climate="fragile",
+    )
+    decide(state, "other")
+    if state.recover_remaining <= 0:
+        _fail("expected recovery window")
+    state.dependence = 0.70
+    state.tension = 0.15
+    urgent = decide(state, "other")
+    if urgent.climate != "cling_risk":
+        _fail(f"expected cling_risk, got {urgent.climate}")
+    if urgent.transition_note or state.recover_remaining != 0 or state.recovering_from:
+        _fail("urgent re-entry should clear recovery")
+
+    crisis_state = RelationshipState(
+        trust=0.6,
+        dependence=0.3,
+        tension=0.3,
+        last_climate="rupture",
+    )
+    crisis = decide(crisis_state, "crisis")
+    if crisis.transition_note or "【过渡】" in planner_climate_block(crisis):
+        _fail("crisis block must not include transition")
+    if "很难受" not in planner_climate_block(crisis):
+        _fail("crisis block should stay on crisis copy")
+    print("  ok")
+
+
+def test_non_urgent_one_turn_transition() -> None:
+    print("== non-urgent switch gets one-turn hint, no ban union ==")
+    state = RelationshipState(
+        trust=0.6,
+        dependence=0.3,
+        tension=0.3,
+        last_climate="steady",
+        climate_streak=3,
+    )
+    first = decide(state, "other")
+    if first.climate != "secure_play":
+        _fail(f"expected switch to secure_play, got {first.climate}")
+    if first.transition_from != "steady":
+        _fail(f"expected mild transition from steady, got {first.transition_from}")
+    if "再次问候" in first.must_not:
+        _fail(f"must_not should not union steady bans: {first.must_not}")
+    if "【过渡】" not in planner_climate_block(first):
+        _fail("first non-urgent switch should have transition line")
+    second = decide(state, "other")
+    if second.transition_note:
+        _fail("non-urgent hint should last one turn only")
+    print("  ok")
+
+
+def test_proactive_recovery_gates() -> None:
+    print("== fragile/rupture recovery silences idle/mood/goal ==")
+    play = RelationshipState(
+        trust=0.6,
+        dependence=0.3,
+        tension=0.3,
+        recovering_from="fragile",
+        recover_remaining=2,
+    )
+    remaining_before = play.recover_remaining
+    if decide_proactive(play, "idle").action != "silence":
+        _fail("fragile recovery should silence idle")
+    if decide_proactive(play, "mood_followup").action != "silence":
+        _fail("fragile recovery should silence mood_followup")
+    if decide_proactive(play, "goal").action != "silence":
+        _fail("fragile recovery should silence goal")
+    fest = decide_proactive(play, "festival")
+    if fest.action != "initiate":
+        _fail("festival should still initiate during recovery")
+    if fest.transition_from != "fragile" or "玩笑" not in fest.must_not:
+        _fail(f"festival should overlay fragile bans: {fest.must_not}")
+    if play.recover_remaining != remaining_before:
+        _fail("decide_proactive must not consume recover_remaining")
+
+    cling_recover = RelationshipState(
+        trust=0.6,
+        dependence=0.3,
+        tension=0.3,
+        recovering_from="cling_risk",
+        recover_remaining=2,
+    )
+    cling_idle = decide_proactive(cling_recover, "idle")
+    if cling_idle.action != "initiate":
+        _fail("cling_risk recovery should still allow idle")
+    if cling_idle.transition_from != "cling_risk":
+        _fail("cling recovery idle should still carry transition")
+    print("  ok")
+
+
 
 def test_engine_depart_then_ack(tmp: Path) -> None:
     print("== engine persist last_user_act ==")
@@ -593,6 +796,10 @@ def main() -> None:
     test_cling_risk_silence()
     test_seek_validation_raises_b()
     test_planner_block_has_no_numbers()
+    test_climate_recovery_window()
+    test_recovery_reenter_urgent_and_crisis()
+    test_non_urgent_one_turn_transition()
+    test_proactive_recovery_gates()
     with tempfile.TemporaryDirectory() as tmp:
         test_store_roundtrip(Path(tmp))
     test_welcome_climate_notes()
@@ -602,6 +809,7 @@ def main() -> None:
     test_depart_then_short_ack_silence()
     with tempfile.TemporaryDirectory() as tmp:
         test_preview_user_text_does_not_apply(Path(tmp))
+        test_preview_does_not_persist_recover_window(Path(tmp))
         test_planner_user_act_backfill(Path(tmp))
         test_engine_depart_then_ack(Path(tmp))
         test_engine_wait_then_hao(Path(tmp))

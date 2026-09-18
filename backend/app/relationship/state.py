@@ -33,6 +33,8 @@ class RelationshipState:
     last_climate: str = "secure_play"
     last_user_act: str = "other"
     climate_streak: int = 0
+    recovering_from: str = ""
+    recover_remaining: int = 0
     day: str = ""
     day_abs_trust: float = 0.0
     day_abs_dependence: float = 0.0
@@ -106,6 +108,8 @@ class RelationshipState:
             "last_climate": self.last_climate,
             "last_user_act": self.last_user_act,
             "climate_streak": self.climate_streak,
+            "recovering_from": self.recovering_from,
+            "recover_remaining": self.recover_remaining,
             "day": self.day,
             "day_abs_trust": self.day_abs_trust,
             "day_abs_dependence": self.day_abs_dependence,
@@ -123,6 +127,8 @@ class RelationshipState:
             last_climate=str(data.get("last_climate") or "secure_play"),
             last_user_act=str(data.get("last_user_act") or "other"),
             climate_streak=int(data.get("climate_streak") or 0),
+            recovering_from=str(data.get("recovering_from") or ""),
+            recover_remaining=int(data.get("recover_remaining") or 0),
             day=str(data.get("day") or ""),
             day_abs_trust=float(data.get("day_abs_trust") or 0.0),
             day_abs_dependence=float(data.get("day_abs_dependence") or 0.0),
