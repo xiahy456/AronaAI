@@ -186,6 +186,8 @@ def _overlay_urgent_recovery(
     return stance, must_not, _RECOVER_TONE, note
 
 
+_FACT_REPAIR_BANS: list[str] = ["硬撑事实错误"]
+
 _POLICY: dict[Climate, tuple[str, list[str], str]] = {
     "secure_play": (
         "可以轻松一点，允许轻玩笑或轻轻顶一句，允许撒娇、亲密对话，仍要接住老师本轮内容",
@@ -266,6 +268,8 @@ def decide(
         must_not.extend(["增加依赖", "追问还在不在"])
         if "给空间" not in stance:
             stance = "给空间，" + stance
+
+    must_not = _union_unique(must_not, _FACT_REPAIR_BANS)
 
     action: Action = "speak"
     prev_act = state.last_user_act

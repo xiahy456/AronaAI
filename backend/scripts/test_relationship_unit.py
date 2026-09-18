@@ -671,6 +671,37 @@ def test_recovery_reenter_urgent_and_crisis() -> None:
     print("  ok")
 
 
+def test_fact_repair_must_not() -> None:
+    print("== fact repair ban on daily turns, not crisis ==")
+    play = decide(RelationshipState(trust=0.6, dependence=0.3, tension=0.3), "other")
+    if "硬撑事实错误" not in play.must_not:
+        _fail(f"secure_play missing fact-repair ban: {play.must_not}")
+    if "硬撑事实错误" not in planner_climate_block(play):
+        _fail("planner climate block missing fact-repair ban")
+
+    rupture = decide(
+        RelationshipState(
+            trust=0.5,
+            dependence=0.3,
+            tension=0.7,
+            last_climate="rupture",
+        ),
+        "other",
+    )
+    joined = " ".join(rupture.must_not)
+    if "讲理争赢" not in joined or "硬撑事实错误" not in joined:
+        _fail(f"rupture should keep argue-ban and fact-repair: {rupture.must_not}")
+    if "硬撑事实错误" not in planner_climate_block(rupture):
+        _fail("rupture climate block missing fact-repair ban")
+
+    crisis = decide(RelationshipState(trust=0.6, dependence=0.3, tension=0.3), "crisis")
+    if "硬撑事实错误" in crisis.must_not:
+        _fail(f"crisis must_not should not include fact-repair: {crisis.must_not}")
+    if "硬撑事实错误" in planner_climate_block(crisis):
+        _fail("crisis climate block should not include fact-repair")
+    print("  ok")
+
+
 def test_non_urgent_one_turn_transition() -> None:
     print("== non-urgent switch gets one-turn hint, no ban union ==")
     state = RelationshipState(
@@ -798,6 +829,7 @@ def main() -> None:
     test_planner_block_has_no_numbers()
     test_climate_recovery_window()
     test_recovery_reenter_urgent_and_crisis()
+    test_fact_repair_must_not()
     test_non_urgent_one_turn_transition()
     test_proactive_recovery_gates()
     with tempfile.TemporaryDirectory() as tmp:
