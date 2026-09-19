@@ -52,7 +52,7 @@ arona-ai/
 ├── start-all.bat                         # Windows one-click local start for all services
 ├── pack-client.ps1                       # pack the desktop client
 ├── pack-backend.ps1                      # pack the Windows portable backend
-└── pack-tts.ps1                          # pack TTS scripts, reference audio, and the minimal runtime
+└── pack-tts.ps1                          # pack TTS scripts and reference audio
 ```
 
 See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
@@ -150,11 +150,10 @@ For a remote setup, change `websocket_url` / `tts.host` to the corresponding IPs
 
 ### TTS Service
 
-Shortest path on Windows:
+The official engine is used by default. See [`tts/README.md`](tts/README.md) for the full guide. To use the faster backend, set the client's `tts.backend` to `minimal`; steps are in [`tts/gpt-sovits-minimal/DEPLOY.md`](tts/gpt-sovits-minimal/DEPLOY.md).
 
-1. Download `AronaAI_GPTSoVITS_v*_x64.zip` from [Releases](https://github.com/xiahy456/AronaAI/releases) and extract it to the **repo root** (same level as `start-all.ps1`). The zip contains launch scripts, reference audio, and the minimal `runtime\`; it does **not** include the official all-in-one package or Arona ckpt files.
-2. Extract the [official GPT-SoVITS Windows package](https://huggingface.co/lj1995/GPT-SoVITS-windows-package) into `tts/gpt-sovits/` (do not overwrite `go-apiv2` / `ref_audio`).
-3. Place the fine-tuned weights:
+1. Extract the [GPT-SoVITS Windows package](https://huggingface.co/lj1995/GPT-SoVITS-windows-package) (a [Yuque mirror](https://www.yuque.com/baicaigongchang1145haoyuangong/ib3g1e/dkxgpiy9zb96hob4#KTvnO) is available in China) into `tts/gpt-sovits/`. You should see `api_v2.py` and `runtime\python.exe`. If prompted to overwrite, skip `go-apiv2` / `ref_audio`.
+2. Place the two voice files:
 
 ```
 tts/gpt-sovits/
@@ -164,8 +163,8 @@ tts/gpt-sovits/
     └── ALuoNa_cn_e16_s256.pth
 ```
 
-4. `tts.backend` defaults to `official`. From the repo root, run `.\start-all.ps1` (`127.0.0.1:9880`).
-5. To use the faster backend, clone [GPT-SoVITS_minimal_inference](https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_inference) into `tts/gpt-sovits-minimal/` (do not overwrite `launch_api.py`), set `"backend": "minimal"` on the client, then restart the services.
+3. Extract `AronaAI_GPTSoVITS_v*_x64.zip` from Releases to the repo root.
+4. From the repo root, run `.\start-all.ps1`.
 
 ---
 

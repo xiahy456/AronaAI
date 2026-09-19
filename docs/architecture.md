@@ -101,7 +101,7 @@ arona-ai/
 ├── start-all.bat               # Windows 一键本机启动所有服务
 ├── pack-client.ps1             # 打包桌面客户端
 ├── pack-backend.ps1            # 打包后端 Windows 便携目录
-├── pack-tts.ps1                # 打包 TTS 脚本、参考音频与 minimal runtime
+├── pack-tts.ps1                # 打包 TTS 脚本与参考音频
 └── setup-backend-pack-env.ps1  # 创建后端打包用最小 conda 环境
 ```
 

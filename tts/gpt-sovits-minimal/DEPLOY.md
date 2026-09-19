@@ -6,7 +6,7 @@
 
 客户端用 `tts.backend` 选择调用哪套：`official`（默认，`127.0.0.1:9880`）或 `minimal`（本目录，`127.0.0.1:8000`）。`start-all.ps1` 只拉起配置中选中的那一个。
 
-**终端用户**请先看 TTS 总览 [`../README.md`](../README.md)。Releases 的 `AronaAI_GPTSoVITS_v*_x64.zip` 已含本目录的启动脚本和 `runtime\`，仍需：官方树里的权重 / 预训练，以及把上游 clone 进本目录（不要覆盖 `launch_api.py`）。维护者打该 zip：仓库根 `.\pack-tts.ps1`（会带上已有的 `runtime\`）。
+默认请用官方引擎，见 [`../README.md`](../README.md)。本目录是可选加速后端：客户端 `tts.backend` 设为 `minimal` 后按本文部署。本机制作 runtime：`.\pack-runtime.ps1`。
 
 ---
 
@@ -91,7 +91,7 @@ pip install -r requirements.txt
 python -c "import torch; assert torch.cuda.is_available(), torch.__version__"
 ```
 
-然后打包（整包大约数 GB，不含权重）：
+然后打包（不含权重）：
 
 ```powershell
 cd tts/gpt-sovits-minimal
@@ -106,7 +106,7 @@ cd tts/gpt-sovits-minimal
 
 `watch-api.ps1` 解析 Python 的顺序：`-PythonExe` → 环境变量 `GPT_SOVITS_MINIMAL_PYTHON` → **`runtime\python.exe`** → `.venv\Scripts\python.exe` → conda 环境 `gpt-sovits-minimal` → PATH 上的 `python`。
 
-分发 runtime zip 只替代 Python 与 pip 依赖。用户仍需：本目录源码（`api_server.py`）、官方权重 / 预训练 / 参考音频，以及 VC++ 运行库。不要把 HuBERT、BERT、ckpt 打进 runtime。
+runtime zip 只替代 Python 与 pip 依赖。用户仍需：本目录源码（`api_server.py`）、官方权重 / 预训练 / 参考音频，以及 VC++ 运行库。不要把 HuBERT、BERT、ckpt 打进 runtime。
 
 ### 4. 核对 voices.json
 

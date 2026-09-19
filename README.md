@@ -52,7 +52,7 @@ arona-ai/
 ├── start-all.bat                         # Windows 一键本机启动所有服务
 ├── pack-client.ps1                       # 打包桌面客户端
 ├── pack-backend.ps1                      # 打包后端 Windows 便携目录
-└── pack-tts.ps1                          # 打包 TTS 脚本、参考音频与 minimal runtime
+└── pack-tts.ps1                          # 打包 TTS 脚本与参考音频
 ```
 
 完整目录树见 [`docs/architecture.md`](docs/architecture.md)。
@@ -150,11 +150,10 @@ arona-ai/
 
 ### 语音合成服务
 
-Windows 最短路径：
+默认使用官方引擎，完整说明见 [`tts/README.md`](tts/README.md)。需要加速时，把客户端 `tts.backend` 改为 `minimal`，步骤见 [`tts/gpt-sovits-minimal/DEPLOY.md`](tts/gpt-sovits-minimal/DEPLOY.md)。
 
-1. 从 [Releases](https://github.com/xiahy456/AronaAI/releases) 下载 `AronaAI_GPTSoVITS_v*_x64.zip`，解压到**仓库根**（与 `start-all.ps1` 同级）。包内是启动脚本、参考音频和 minimal 的 `runtime\`，**不含**官方整合包和阿洛娜 ckpt。
-2. 把 [官方 GPT-SoVITS Windows 整合包](https://huggingface.co/lj1995/GPT-SoVITS-windows-package) 解压进 `tts/gpt-sovits/`（不要覆盖 `go-apiv2` / `ref_audio`）。
-3. 放入微调权重：
+1. 把 [GPT-SoVITS Windows 整合包](https://huggingface.co/lj1995/GPT-SoVITS-windows-package)（国内可用[语雀镜像](https://www.yuque.com/baicaigongchang1145haoyuangong/ib3g1e/dkxgpiy9zb96hob4#KTvnO)）解压进 `tts/gpt-sovits/`。看到 `api_v2.py` 和 `runtime\python.exe` 即可。覆盖提示时跳过 `go-apiv2` / `ref_audio`。
+2. 放入两个声音文件：
 
 ```
 tts/gpt-sovits/
@@ -164,8 +163,8 @@ tts/gpt-sovits/
     └── ALuoNa_cn_e16_s256.pth
 ```
 
-4. 默认 `tts.backend` 为 `official`，仓库根执行 `.\start-all.ps1`（`127.0.0.1:9880`）。
-5. 若要用加速后端：再把 [GPT-SoVITS_minimal_inference](https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_inference) clone 进 `tts/gpt-sovits-minimal/`（不要覆盖 `launch_api.py`），客户端设 `"backend": "minimal"` 后重启服务。
+3. 从 Releases 解压 `AronaAI_GPTSoVITS_v*_x64.zip` 到仓库根。
+4. 仓库根运行 `.\start-all.ps1`。
 
 ---
 

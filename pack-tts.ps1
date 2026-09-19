@@ -1,18 +1,13 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Pack Arona-owned GPT-SoVITS overlay files and the minimal Python runtime into release/.
+  Pack Arona-owned GPT-SoVITS overlay files into release/ (no Python runtime).
 
 .DESCRIPTION
-  在仓库根目录执行。把 tts/ 下属于本仓库的启动脚本、文档、launch_api.py、
-  voices.json、参考音频，以及 gpt-sovits-minimal/runtime 打成 zip，不包含：
+  在仓库根目录执行。把 tts/ 下本仓库跟踪的启动脚本、文档、launch_api.py、
+  voices.json 与参考音频打成 zip。不含 runtime、上游 clone、官方整合包、模型与预训练。
 
-    - 上游 clone（api_v2.py、api_server.py、GPT_SoVITS/ 源码等）
-    - 模型与预训练（*.ckpt / *.pth / pretrained_models / GPT_weights* / SoVITS_weights*）
-    - 官方整合包 runtime、.venv、conda 环境本身
-
-  压缩包根目录是 tts/，解压到仓库根即可与现有布局对齐。
-  需先有 tts\gpt-sovits-minimal\runtime\python.exe（.\tts\gpt-sovits-minimal\pack-runtime.ps1）。
+  压缩包根目录是 tts/，解压到仓库根即可。
 
     .\pack-tts.ps1
     → release\AronaAI_GPTSoVITS_v<version>_x64.zip
@@ -80,7 +75,7 @@ if (-not (Test-Path -LiteralPath $TtsRoot)) {
 $PackVersion = Get-PackVersion -Path $IssPath
 $ZipPath = Join-Path $ArtifactDir "AronaAI_GPTSoVITS_v${PackVersion}_x64.zip"
 
-Write-Step "Staging Arona GPT-SoVITS overlay + minimal runtime (no models, no upstream clone)"
+Write-Step "Staging Arona GPT-SoVITS overlay (scripts + ref audio; no runtime)"
 if (Test-Path -LiteralPath $StageRoot) {
     Remove-Item -LiteralPath $StageRoot -Recurse -Force
 }
@@ -119,20 +114,11 @@ else {
     Write-Host "  skip missing: tts\gpt-sovits\ref_audio\Arona" -ForegroundColor Yellow
 }
 
-$overlayCount = @(Get-ChildItem -LiteralPath $StageRoot -Recurse -File).Count
-if ($overlayCount -lt 1) {
+$staged = @(Get-ChildItem -LiteralPath $StageRoot -Recurse -File)
+if ($staged.Count -lt 1) {
     throw "Stage is empty; nothing to pack."
 }
-
-$RuntimeSrc = Join-Path $Root "tts\gpt-sovits-minimal\runtime"
-$RuntimePy = Join-Path $RuntimeSrc "python.exe"
-if (-not (Test-Path -LiteralPath $RuntimePy)) {
-    throw "minimal runtime not found: $RuntimePy. Run tts\gpt-sovits-minimal\pack-runtime.ps1 first."
-}
-$RuntimeDst = Join-Path $StageRoot "tts\gpt-sovits-minimal\runtime"
-Write-Host "  tts\gpt-sovits-minimal\runtime  (junction, not copied)"
-New-Item -ItemType Junction -Path $RuntimeDst -Target (Resolve-Path -LiteralPath $RuntimeSrc).Path | Out-Null
-Write-Host ("Staged {0} overlay files + runtime\." -f $overlayCount) -ForegroundColor Green
+Write-Host ("Staged {0} files." -f $staged.Count) -ForegroundColor Green
 
 if ($SkipZip) {
     Write-Host "SkipZip: left stage at $StageRoot"
@@ -144,30 +130,26 @@ if (Test-Path -LiteralPath $ZipPath) {
     Remove-Item -LiteralPath $ZipPath -Force
 }
 
-Write-Step "Zipping -> $ZipPath (runtime is several GB; this can take a few minutes)"
+Write-Step "Zipping -> $ZipPath"
 $tar = Get-Command tar.exe -ErrorAction SilentlyContinue
-if (-not $tar) {
-    throw "tar.exe is required to pack the multi-GB runtime. Compress-Archive cannot be used."
-}
 Push-Location $StageRoot
 try {
-    & tar.exe -a -c -f $ZipPath "tts"
-    if ($LASTEXITCODE -ne 0) {
-        throw "tar.exe failed ($LASTEXITCODE)"
+    if ($tar) {
+        & tar.exe -a -c -f $ZipPath "tts"
+        if ($LASTEXITCODE -ne 0) {
+            throw "tar.exe failed ($LASTEXITCODE)"
+        }
+    }
+    else {
+        Compress-Archive -Path (Join-Path $StageRoot "tts") -DestinationPath $ZipPath -Force
     }
 }
 finally {
     Pop-Location
-    if (Test-Path -LiteralPath $RuntimeDst) {
-        cmd.exe /c "rmdir `"$RuntimeDst`"" | Out-Null
-    }
-    if (Test-Path -LiteralPath $StageRoot) {
-        Remove-Item -LiteralPath $StageRoot -Recurse -Force -ErrorAction SilentlyContinue
-    }
 }
 
+Remove-Item -LiteralPath $StageRoot -Recurse -Force
 Write-Host ""
-Write-Host ("[{0}] TTS pack finished." -f (Get-Date -Format "HH:mm:ss")) -ForegroundColor Green
+Write-Host ("[{0}] TTS overlay pack finished." -f (Get-Date -Format "HH:mm:ss")) -ForegroundColor Green
 Write-Host "Zip: $ZipPath"
-Write-Host "Extract into the repository root so paths are tts\gpt-sovits\ and tts\gpt-sovits-minimal\ (including runtime\python.exe)."
-Write-Host "Weights, pretrained models, and upstream clone are not in this zip."
+Write-Host "Extract into the repository root."
