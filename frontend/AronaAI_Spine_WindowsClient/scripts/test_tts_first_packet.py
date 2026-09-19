@@ -12,7 +12,8 @@ Two backends cannot share one GPU. Typical usage:
 First-packet time is measured as the first body bytes after a 44-byte WAV
 header (playable PCM). Complete time is when the HTTP stream ends.
 Official streaming_mode defaults to true so first-packet is meaningful; pass
---no-official-stream to match the current desktop client (整包返回).
+--no-official-stream to match desktop client tts.streaming=false (整包返回).
+Client tts.streaming=true consumes the same chunked WAV (header then PCM).
 """
 
 from __future__ import annotations
@@ -180,7 +181,7 @@ def run_backend(
 ) -> list[dict[str, Any]]:
     print(f"\n===== {name}  POST {url}  n={len(texts)} =====", flush=True)
     if name == "official":
-        mode = "true 流式" if official_stream else "false 整包（与当前客户端一致）"
+        mode = "true 流式" if official_stream else "false 整包（客户端 tts.streaming=false）"
         print(f"official streaming_mode={mode}", flush=True)
 
     if warmup:
@@ -299,7 +300,7 @@ def main() -> int:
         "--no-official-stream",
         dest="official_stream",
         action="store_false",
-        help="Official streaming_mode=false，与当前桌面客户端整包返回一致",
+        help="Official streaming_mode=false，与客户端 tts.streaming=false 整包返回一致",
     )
     parser.add_argument("--json", default="", help="Write per-sentence results to this JSON path")
     parser.add_argument("--official-host", default="", help="Override official host")

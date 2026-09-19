@@ -37,6 +37,9 @@
 #include <QAudioSink>
 #include <QQueue>
 #include <QElapsedTimer>
+#include <QSharedPointer>
+
+class StreamingPcmDevice;
 
 class TTSManager : public QObject
 {
@@ -50,6 +53,7 @@ public:
     void setServerAddress(const QString& host, int port);
 
     bool isMinimalBackend() const;
+    bool isStreaming() const;
 
     // TTS请求参数结构体
     struct TTSRequestParams {
@@ -98,6 +102,9 @@ public:
     // 播放音频；返回 WAV 时长（秒，失败为 -1）。上一条未结束时不要打断。
     double playAudio(const QByteArray& audioData);
 
+    // 流式：播放当前已交付会话（首包已到）。时长未知时返回 -1。
+    double startStreamPlayback();
+
     bool isPlayingAudio() const;
     void interruptPlayback();
 
@@ -113,15 +120,20 @@ public:
 signals:
     // TTS完成信号（带本条文本与表情，不要再用全局 m_currentText）
     void ttsFinished(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion);
+    // 流式：首包 PCM 到达且轮到该句播放
+    void ttsStreamReady(const QString& text, const QString& emotion);
     // TTS错误信号
     void ttsError(const QString& errorString, const QString& text, const QString& emotion);
     // 命令执行完成信号
     void commandFinished(bool success, const QString& message);
     // 模型切换完成信号
     void modelSwitched(bool success, const QString& message);
+    // 当前句音频实际播完（失败字幕路径不发）
+    void playbackEnded();
 
 private slots:
     void onNetworkReplyFinished();
+    void onTtsReadyRead();
 
 private:
     struct QueuedRequest {
@@ -152,13 +164,32 @@ private:
         }
     };
 
+    struct StreamSession {
+        QByteArray raw;
+        QByteArray pcm;
+        bool headerParsed = false;
+        bool firstPcmSeen = false;
+        bool complete = false;
+        bool jsonError = false;
+        bool enqueued = false;
+        int sampleRate = 32000;
+        int channelCount = 1;
+        int bitsPerSample = 16;
+        int pcmOffset = -1;
+        QString text;
+        QString emotion;
+        QString mediaType;
+    };
+
     struct ReadyPlayback {
         bool isError = false;
+        bool isStream = false;
         QByteArray audioData;
         QString mediaType;
         QString text;
         QString emotion;
         QString errorString;
+        QSharedPointer<StreamSession> stream;
     };
 
     struct WavPcmInfo {
@@ -169,6 +200,14 @@ private:
         double durationSec = -1;
     };
 
+    struct WavHeaderInfo {
+        int sampleRate = 0;
+        int channelCount = 0;
+        int bitsPerSample = 0;
+        int pcmOffset = -1;
+        quint32 pcmSize = 0;
+    };
+
     QQueue<QueuedRequest> requestQueue;
     QQueue<ReadyPlayback> m_readyPlayback;
 
@@ -176,6 +215,7 @@ private:
     QString serverHost;
     int serverPort;
     bool m_minimalBackend;
+    bool m_streaming;
     QString m_voice;
 
     QNetworkReply* currentReply;
@@ -183,17 +223,22 @@ private:
 
     QAudioSink* audioSink;
     QBuffer* audioBuffer;
+    StreamingPcmDevice* m_streamDevice;
 
     bool isProcessingRequest;
     bool m_awaitingPlayback;
     bool m_playingAudio;
     bool m_ignoreAudioIdle;
     bool m_currentIsWarmup;
+    bool m_resumingStream;
     int m_playbackGeneration;
     QString currentTtsText;
     QString currentTtsEmotion;
     int requestTimeoutMs;  // HTTP 请求超时（毫秒），0 表示不限制
     QElapsedTimer m_ttsRequestTimer;  // TTS HTTP RTT
+    QElapsedTimer m_streamPlayTimer;  // 流式开播墙钟，用于排空硬件缓冲
+    QSharedPointer<StreamSession> m_currentReceive;
+    QSharedPointer<StreamSession> m_deliveredStream;
 
     void processNextRequest();
     void executeTTSGet(const TTSRequestParams& params);
@@ -213,6 +258,19 @@ private:
     void enqueueTtsPlaybackFromReply(QNetworkReply* reply, bool httpError, const QString& errorString);
     void tryDeliverPlayback();
     bool extractWavPcm(const QByteArray& wav, WavPcmInfo* out) const;
+    bool parseWavHeader(const QByteArray& wav, WavHeaderInfo* out) const;
+    void beginStreamingReceive();
+    void consumeReceiveBuffer();
+    void enqueueStreamSession(const QSharedPointer<StreamSession>& session);
+    void enqueueStreamError(const QSharedPointer<StreamSession>& session, const QString& errorString);
+    void finishStreamingReceive(QNetworkReply* reply, bool httpError, const QString& errorString);
+    void appendSessionPcm(const QSharedPointer<StreamSession>& session, const QByteArray& pcm);
+    void resumeStreamIfNeeded();
+    void scheduleStreamPlaybackEnd();
+    void finishAudioPlayback();
+    void stopAudioSink();
+    void attachStreamingReadyRead();
+    double pcmDurationSec(qint64 bytes, int sampleRate, int channelCount, int bitsPerSample) const;
 
 };
 

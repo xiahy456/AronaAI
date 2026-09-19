@@ -22,25 +22,111 @@
 #include <QAudioSink>
 #include <QTimer>
 #include <QFileInfo>
+#include <QIODevice>
 #include <cstring>
+
+class StreamingPcmDevice : public QIODevice
+{
+public:
+    explicit StreamingPcmDevice(QObject* parent = nullptr)
+        : QIODevice(parent)
+    {
+        open(QIODevice::ReadOnly);
+    }
+
+    bool isSequential() const override
+    {
+        return true;
+    }
+
+    qint64 bytesAvailable() const override
+    {
+        return (m_buffer.size() - m_readPos) + QIODevice::bytesAvailable();
+    }
+
+    bool atEnd() const override
+    {
+        return m_complete && m_readPos >= m_buffer.size();
+    }
+
+    void append(const QByteArray& pcm)
+    {
+        if (pcm.isEmpty()) {
+            return;
+        }
+        m_buffer.append(pcm);
+        emit readyRead();
+    }
+
+    void markComplete()
+    {
+        m_complete = true;
+        emit readyRead();
+    }
+
+    bool isComplete() const
+    {
+        return m_complete;
+    }
+
+    qint64 unreadBytes() const
+    {
+        return m_buffer.size() - m_readPos;
+    }
+
+protected:
+    qint64 readData(char* data, qint64 maxSize) override
+    {
+        const qint64 available = m_buffer.size() - m_readPos;
+        const qint64 n = qMin(maxSize, available);
+        if (n <= 0) {
+            return 0;
+        }
+        memcpy(data, m_buffer.constData() + m_readPos, static_cast<size_t>(n));
+        m_readPos += n;
+        if (m_readPos > 64 * 1024 && m_readPos * 2 > m_buffer.size()) {
+            m_buffer.remove(0, static_cast<int>(m_readPos));
+            m_readPos = 0;
+        }
+        return n;
+    }
+
+    qint64 writeData(const char*, qint64) override
+    {
+        return -1;
+    }
+
+private:
+    QByteArray m_buffer;
+    qint64 m_readPos = 0;
+    bool m_complete = false;
+};
 
 TTSManager::TTSManager(QObject* parent)
     : QObject(parent)
     , networkManager(new QNetworkAccessManager(this))
+    , serverHost()
+    , serverPort(0)
+    , m_minimalBackend(false)
+    , m_streaming(false)
+    , m_voice()
     , currentReply(nullptr)
+    , currentMediaType()
     , audioSink(nullptr)
     , audioBuffer(nullptr)
+    , m_streamDevice(nullptr)
     , isProcessingRequest(false)
     , m_awaitingPlayback(false)
     , m_playingAudio(false)
     , m_ignoreAudioIdle(false)
     , m_currentIsWarmup(false)
+    , m_resumingStream(false)
     , m_playbackGeneration(0)
     , requestTimeoutMs(45000)
-    , m_minimalBackend(false)
 {
     const QString backend = GET_STRING_FROM_JSON(_global_config, "tts", "backend").trimmed().toLower();
     m_minimalBackend = (backend == QLatin1String("minimal"));
+    m_streaming = GET_BOOL_FROM_JSON(_global_config, "tts", "streaming");
     m_voice = GET_STRING_FROM_JSON(_global_config, "tts", "voice").trimmed();
     if (m_voice.isEmpty()) {
         m_voice = QStringLiteral("arona");
@@ -61,9 +147,10 @@ TTSManager::TTSManager(QObject* parent)
     }
 
     setServerAddress(host, port);
-    FINE_DEBUG_OUTPUT(QString("[TTS Operation]Set server : backend=%1 Host: %2 | Port: %3")
+    FINE_DEBUG_OUTPUT(QString("[TTS Operation]Set server : backend=%1 Host: %2 | Port: %3 | streaming=%4")
         .arg(m_minimalBackend ? QStringLiteral("minimal") : QStringLiteral("official"),
-            serverHost, QString::number(serverPort)));
+            serverHost, QString::number(serverPort),
+            m_streaming ? QStringLiteral("true") : QStringLiteral("false")));
 
     int configuredTimeout = GET_INT_FROM_JSON(_global_config, "tts", "request_timeout_ms");
     if (configuredTimeout > 0) {
@@ -82,14 +169,9 @@ TTSManager::~TTSManager()
     cleanupCurrentReply();
     requestQueue.clear();
     m_readyPlayback.clear();
-
-    if (audioSink) {
-        audioSink->stop();
-        delete audioSink;
-    }
-    if (audioBuffer) {
-        delete audioBuffer;
-    }
+    m_currentReceive.clear();
+    m_deliveredStream.clear();
+    stopAudioSink();
 }
 
 void TTSManager::setServerAddress(const QString& host, int port)
@@ -103,6 +185,11 @@ bool TTSManager::isMinimalBackend() const
     return m_minimalBackend;
 }
 
+bool TTSManager::isStreaming() const
+{
+    return m_streaming;
+}
+
 void TTSManager::cleanupCurrentReply()
 {
     if (currentReply) {
@@ -112,6 +199,25 @@ void TTSManager::cleanupCurrentReply()
         currentReply->deleteLater();
         currentReply = nullptr;
     }
+}
+
+void TTSManager::stopAudioSink()
+{
+    m_ignoreAudioIdle = true;
+    if (audioSink) {
+        audioSink->stop();
+        delete audioSink;
+        audioSink = nullptr;
+    }
+    if (audioBuffer) {
+        delete audioBuffer;
+        audioBuffer = nullptr;
+    }
+    if (m_streamDevice) {
+        delete m_streamDevice;
+        m_streamDevice = nullptr;
+    }
+    m_ignoreAudioIdle = false;
 }
 
 QUrl TTSManager::buildBaseUrl() const
@@ -154,7 +260,7 @@ QUrlQuery TTSManager::buildQueryFromParams(const TTSRequestParams& params) const
     query.addQueryItem("fragment_interval", QString::number(params.fragmentInterval));
     query.addQueryItem("seed", QString::number(params.seed));
     query.addQueryItem("media_type", params.mediaType);
-    query.addQueryItem("streaming_mode", "false");
+    query.addQueryItem("streaming_mode", m_streaming ? "true" : "false");
     query.addQueryItem("parallel_infer", params.parallelInfer ? "true" : "false");
     query.addQueryItem("repetition_penalty", QString::number(params.repetitionPenalty));
     query.addQueryItem("sample_steps", QString::number(params.sampleSteps));
@@ -191,7 +297,7 @@ QJsonObject TTSManager::buildJsonFromParams(const TTSRequestParams& params) cons
     json["fragment_interval"] = params.fragmentInterval;
     json["seed"] = params.seed;
     json["media_type"] = params.mediaType;
-    json["streaming_mode"] = false;
+    json["streaming_mode"] = m_streaming;
     json["parallel_infer"] = params.parallelInfer;
     json["repetition_penalty"] = params.repetitionPenalty;
     json["sample_steps"] = params.sampleSteps;
@@ -297,6 +403,32 @@ void TTSManager::warmup(const TTSRequestParams& params)
     processNextRequest();
 }
 
+void TTSManager::beginStreamingReceive()
+{
+    m_currentReceive = QSharedPointer<StreamSession>::create();
+    m_currentReceive->text = currentTtsText;
+    m_currentReceive->emotion = currentTtsEmotion;
+    m_currentReceive->mediaType = currentMediaType;
+}
+
+void TTSManager::attachStreamingReadyRead()
+{
+    if (!m_streaming || m_currentIsWarmup || !currentReply) {
+        return;
+    }
+    beginStreamingReceive();
+    connect(currentReply, &QNetworkReply::readyRead, this, &TTSManager::onTtsReadyRead);
+}
+
+void TTSManager::onTtsReadyRead()
+{
+    if (!currentReply || m_currentIsWarmup || !m_currentReceive) {
+        return;
+    }
+    m_currentReceive->raw.append(currentReply->readAll());
+    consumeReceiveBuffer();
+}
+
 void TTSManager::onNetworkReplyFinished()
 {
     QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
@@ -330,6 +462,7 @@ void TTSManager::onNetworkReplyFinished()
         else {
             FINE_DEBUG_OUTPUT("[TTS Operation]Warmup complete");
         }
+        m_currentReceive.clear();
         cleanupCurrentReply();
         isProcessingRequest = false;
         processNextRequest();
@@ -346,7 +479,13 @@ void TTSManager::onNetworkReplyFinished()
                 errorMsg = QString("TTS request timed out after %1 ms").arg(requestTimeoutMs);
             }
         }
-        enqueueTtsPlaybackFromReply(reply, httpError, errorMsg);
+        if (m_streaming && m_currentReceive) {
+            m_currentReceive->raw.append(reply->readAll());
+            finishStreamingReceive(reply, httpError, errorMsg);
+        }
+        else {
+            enqueueTtsPlaybackFromReply(reply, httpError, errorMsg);
+        }
         cleanupCurrentReply();
         isProcessingRequest = false;
         processNextRequest();
@@ -357,6 +496,156 @@ void TTSManager::onNetworkReplyFinished()
     cleanupCurrentReply();
     isProcessingRequest = false;
     processNextRequest();
+}
+
+void TTSManager::consumeReceiveBuffer()
+{
+    if (!m_currentReceive || m_currentReceive->jsonError) {
+        return;
+    }
+    const QSharedPointer<StreamSession> session = m_currentReceive;
+
+    if (!session->headerParsed) {
+        if (session->raw.isEmpty()) {
+            return;
+        }
+        if (session->raw.startsWith('{')) {
+            const QJsonDocument doc = QJsonDocument::fromJson(session->raw);
+            if (doc.isObject()) {
+                session->jsonError = true;
+                QString msg = doc.object().value(QStringLiteral("message")).toString();
+                if (msg.isEmpty()) {
+                    msg = QString::fromUtf8(session->raw);
+                }
+                enqueueStreamError(session, msg);
+            }
+            return;
+        }
+        WavHeaderInfo header;
+        if (!parseWavHeader(session->raw, &header)) {
+            return;
+        }
+        session->headerParsed = true;
+        session->sampleRate = header.sampleRate;
+        session->channelCount = header.channelCount;
+        session->bitsPerSample = header.bitsPerSample;
+        session->pcmOffset = header.pcmOffset;
+        FINE_DEBUG_OUTPUT(QString("[TTS Operation]Stream WAV header: sample rate: %1 | channel num: %2 | bits per sample: %3")
+            .arg(session->sampleRate)
+            .arg(session->channelCount)
+            .arg(session->bitsPerSample));
+    }
+
+    const int available = session->raw.size() - session->pcmOffset;
+    if (available <= 0) {
+        return;
+    }
+    const int frameSize = qMax(1, session->channelCount * (session->bitsPerSample / 8));
+    const int aligned = available - (available % frameSize);
+    if (aligned <= 0) {
+        return;
+    }
+    const QByteArray pcm = session->raw.mid(session->pcmOffset, aligned);
+    session->raw = session->raw.mid(session->pcmOffset + aligned);
+    session->pcmOffset = 0;
+    appendSessionPcm(session, pcm);
+}
+
+void TTSManager::appendSessionPcm(const QSharedPointer<StreamSession>& session, const QByteArray& pcm)
+{
+    if (!session || pcm.isEmpty()) {
+        return;
+    }
+    if (!session->firstPcmSeen) {
+        session->firstPcmSeen = true;
+        FINE_DEBUG_OUTPUT(QString("[Latency] TTS first packet: %1 ms (%2 bytes)")
+            .arg(m_ttsRequestTimer.elapsed())
+            .arg(pcm.size()));
+    }
+    session->pcm.append(pcm);
+    if (m_streamDevice && m_deliveredStream == session) {
+        m_streamDevice->append(pcm);
+        resumeStreamIfNeeded();
+    }
+    if (!session->enqueued) {
+        session->enqueued = true;
+        enqueueStreamSession(session);
+        tryDeliverPlayback();
+    }
+}
+
+void TTSManager::enqueueStreamSession(const QSharedPointer<StreamSession>& session)
+{
+    ReadyPlayback item;
+    item.isStream = true;
+    item.stream = session;
+    item.text = session->text;
+    item.emotion = session->emotion;
+    item.mediaType = session->mediaType;
+    m_readyPlayback.enqueue(item);
+}
+
+void TTSManager::enqueueStreamError(const QSharedPointer<StreamSession>& session, const QString& errorString)
+{
+    if (!session || session->enqueued) {
+        return;
+    }
+    session->enqueued = true;
+    ReadyPlayback item;
+    item.isError = true;
+    item.text = session->text;
+    item.emotion = session->emotion;
+    item.errorString = errorString;
+    m_readyPlayback.enqueue(item);
+}
+
+void TTSManager::finishStreamingReceive(QNetworkReply* reply, bool httpError, const QString& errorString)
+{
+    Q_UNUSED(reply);
+    consumeReceiveBuffer();
+    const QSharedPointer<StreamSession> session = m_currentReceive;
+    m_currentReceive.clear();
+    if (!session) {
+        return;
+    }
+
+    if (session->jsonError) {
+        return;
+    }
+
+    if (httpError && !session->firstPcmSeen) {
+        enqueueStreamError(session, errorString);
+        return;
+    }
+
+    if (!session->firstPcmSeen) {
+        if (session->raw.startsWith('{')) {
+            const QJsonDocument doc = QJsonDocument::fromJson(session->raw);
+            QString msg = errorString;
+            if (doc.isObject()) {
+                const QString parsed = doc.object().value(QStringLiteral("message")).toString();
+                if (!parsed.isEmpty()) {
+                    msg = parsed;
+                }
+            }
+            enqueueStreamError(session, msg.isEmpty() ? QStringLiteral("TTS stream returned JSON error") : msg);
+            return;
+        }
+        enqueueStreamError(session, errorString.isEmpty()
+            ? QStringLiteral("TTS stream ended before first audio")
+            : errorString);
+        return;
+    }
+
+    if (httpError) {
+        ERROR_DEBUG_OUTPUT("[TTS Operation]Stream HTTP error after first packet: " + errorString);
+    }
+    session->complete = true;
+    if (m_streamDevice && m_deliveredStream == session) {
+        m_streamDevice->markComplete();
+        resumeStreamIfNeeded();
+        scheduleStreamPlaybackEnd();
+    }
 }
 
 void TTSManager::enqueueTtsPlaybackFromReply(QNetworkReply* reply, bool httpError, const QString& errorString)
@@ -414,6 +703,10 @@ void TTSManager::tryDeliverPlayback()
     if (item.isError) {
         emit ttsError(item.errorString, item.text, item.emotion);
     }
+    else if (item.isStream) {
+        m_deliveredStream = item.stream;
+        emit ttsStreamReady(item.text, item.emotion);
+    }
     else {
         emit ttsFinished(item.audioData, item.mediaType, item.text, item.emotion);
     }
@@ -427,7 +720,18 @@ void TTSManager::notifyPlaybackFinished()
     m_awaitingPlayback = false;
     m_playingAudio = false;
     m_playbackGeneration++;
+    m_deliveredStream.clear();
+    stopAudioSink();
     tryDeliverPlayback();
+}
+
+void TTSManager::finishAudioPlayback()
+{
+    if (!m_awaitingPlayback) {
+        return;
+    }
+    emit playbackEnded();
+    notifyPlaybackFinished();
 }
 
 bool TTSManager::isPlayingAudio() const
@@ -440,18 +744,142 @@ void TTSManager::interruptPlayback()
     m_playbackGeneration++;
     requestQueue.clear();
     m_readyPlayback.clear();
+    m_currentReceive.clear();
+    m_deliveredStream.clear();
     cleanupCurrentReply();
     isProcessingRequest = false;
-    m_ignoreAudioIdle = true;
-    if (audioSink) {
-        audioSink->stop();
-        delete audioSink;
-        audioSink = nullptr;
-    }
+    stopAudioSink();
     m_playingAudio = false;
     m_awaitingPlayback = false;
-    m_ignoreAudioIdle = false;
+    m_resumingStream = false;
     FINE_DEBUG_OUTPUT("[TTS Operation]Playback interrupted");
+}
+
+void TTSManager::resumeStreamIfNeeded()
+{
+    if (!audioSink || !m_streamDevice || !m_playingAudio || m_resumingStream) {
+        return;
+    }
+    if (m_streamDevice->unreadBytes() <= 0) {
+        return;
+    }
+    const QAudio::State state = audioSink->state();
+    if (state == QAudio::IdleState || state == QAudio::StoppedState) {
+        m_resumingStream = true;
+        m_ignoreAudioIdle = true;
+        audioSink->start(m_streamDevice);
+        m_ignoreAudioIdle = false;
+        m_resumingStream = false;
+        if (audioSink && m_streamDevice
+            && (audioSink->state() == QAudio::IdleState || audioSink->state() == QAudio::StoppedState)
+            && m_streamDevice->isComplete() && m_streamDevice->atEnd()) {
+            scheduleStreamPlaybackEnd();
+        }
+    }
+}
+
+void TTSManager::scheduleStreamPlaybackEnd()
+{
+    if (!m_streamDevice || !m_deliveredStream || !m_playingAudio) {
+        return;
+    }
+    if (!m_deliveredStream->complete) {
+        return;
+    }
+    if (m_streamDevice->unreadBytes() > 0) {
+        return;
+    }
+
+    const double totalSec = pcmDurationSec(
+        m_deliveredStream->pcm.size(),
+        m_deliveredStream->sampleRate,
+        m_deliveredStream->channelCount,
+        m_deliveredStream->bitsPerSample);
+    int remainMs = 80;
+    if (totalSec > 0 && m_streamPlayTimer.isValid()) {
+        remainMs = static_cast<int>(totalSec * 1000.0)
+            - static_cast<int>(m_streamPlayTimer.elapsed()) + 80;
+    }
+    if (remainMs <= 0) {
+        finishAudioPlayback();
+        return;
+    }
+    const int gen = m_playbackGeneration;
+    QTimer::singleShot(remainMs, this, [this, gen]() {
+        if (gen != m_playbackGeneration) {
+            return;
+        }
+        finishAudioPlayback();
+    });
+}
+
+double TTSManager::pcmDurationSec(qint64 bytes, int sampleRate, int channelCount, int bitsPerSample) const
+{
+    if (bytes <= 0 || sampleRate <= 0 || channelCount <= 0 || bitsPerSample <= 0) {
+        return -1;
+    }
+    return static_cast<double>(bytes)
+        / (static_cast<double>(sampleRate) * channelCount * (bitsPerSample / 8.0));
+}
+
+double TTSManager::startStreamPlayback()
+{
+    if (!m_deliveredStream || m_deliveredStream->pcm.isEmpty()) {
+        QTimer::singleShot(0, this, [this]() {
+            finishAudioPlayback();
+        });
+        return -1;
+    }
+    const QSharedPointer<StreamSession> session = m_deliveredStream;
+
+    stopAudioSink();
+
+    QAudioFormat format;
+    format.setSampleRate(session->sampleRate);
+    format.setChannelCount(session->channelCount);
+    format.setSampleFormat(QAudioFormat::Int16);
+
+    QAudioDevice audioDevice = QMediaDevices::defaultAudioOutput();
+    if (!audioDevice.isFormatSupported(format)) {
+        ERROR_DEBUG_OUTPUT("[TTS Operation]Default format not supported, trying to use preferred format");
+        format = audioDevice.preferredFormat();
+    }
+
+    m_streamDevice = new StreamingPcmDevice(this);
+    m_streamDevice->append(session->pcm);
+    if (session->complete) {
+        m_streamDevice->markComplete();
+    }
+
+    audioSink = new QAudioSink(audioDevice, format, this);
+    audioSink->setBufferSize(qMax(8192, session->sampleRate * session->channelCount * 2));
+    connect(audioSink, &QAudioSink::stateChanged, this, [this](QAudio::State state) {
+        if (m_ignoreAudioIdle || !m_playingAudio || m_resumingStream) {
+            return;
+        }
+        if (state == QAudio::IdleState || state == QAudio::StoppedState) {
+            if (m_streamDevice && m_streamDevice->isComplete() && m_streamDevice->atEnd()) {
+                scheduleStreamPlaybackEnd();
+            }
+            else if (m_streamDevice && m_streamDevice->isComplete() && m_streamDevice->unreadBytes() > 0) {
+                resumeStreamIfNeeded();
+            }
+        }
+    });
+
+    m_playingAudio = true;
+    ++m_playbackGeneration;
+    m_streamPlayTimer.start();
+    audioSink->start(m_streamDevice);
+    m_ignoreAudioIdle = false;
+
+    const double duration = pcmDurationSec(
+        session->pcm.size(), session->sampleRate, session->channelCount, session->bitsPerSample);
+    if (session->complete) {
+        scheduleStreamPlaybackEnd();
+        return duration;
+    }
+    return -1;
 }
 
 double TTSManager::playAudio(const QByteArray& audioData)
@@ -477,12 +905,7 @@ double TTSManager::playAudio(const QByteArray& audioData)
     }
 
     // 队列播下一条时才 stop；此时上一条应已结束
-    m_ignoreAudioIdle = true;
-    if (audioSink) {
-        audioSink->stop();
-        delete audioSink;
-        audioSink = nullptr;
-    }
+    stopAudioSink();
 
     QAudioFormat format;
     format.setSampleRate(sampleRate);
@@ -495,9 +918,6 @@ double TTSManager::playAudio(const QByteArray& audioData)
         format = audioDevice.preferredFormat();
     }
 
-    if (audioBuffer) {
-        delete audioBuffer;
-    }
     audioBuffer = new QBuffer(this);
     audioBuffer->setData(pcm);
     audioBuffer->open(QIODevice::ReadOnly);
@@ -538,7 +958,7 @@ bool TTSManager::saveAudioToFile(const QByteArray& audioData, const QString& fil
     return false;
 }
 
-bool TTSManager::extractWavPcm(const QByteArray& wav, WavPcmInfo* out) const
+bool TTSManager::parseWavHeader(const QByteArray& wav, WavHeaderInfo* out) const
 {
     if (!out || wav.size() < 12) {
         return false;
@@ -583,6 +1003,11 @@ bool TTSManager::extractWavPcm(const QByteArray& wav, WavPcmInfo* out) const
             pcmSize = chunkSize;
             break;
         }
+        else {
+            if (payload + static_cast<int>(chunkSize) > wav.size()) {
+                return false;
+            }
+        }
         offset += 8 + static_cast<int>(chunkSize);
         if (chunkSize & 1) {
             offset += 1;
@@ -592,29 +1017,45 @@ bool TTSManager::extractWavPcm(const QByteArray& wav, WavPcmInfo* out) const
     if (pcmOffset < 0 || sampleRate <= 0 || channelCount <= 0 || bitsPerSample <= 0) {
         return false;
     }
-    const int available = wav.size() - pcmOffset;
+    out->sampleRate = sampleRate;
+    out->channelCount = channelCount;
+    out->bitsPerSample = bitsPerSample;
+    out->pcmOffset = pcmOffset;
+    out->pcmSize = pcmSize;
+    return true;
+}
+
+bool TTSManager::extractWavPcm(const QByteArray& wav, WavPcmInfo* out) const
+{
+    if (!out) {
+        return false;
+    }
+    WavHeaderInfo header;
+    if (!parseWavHeader(wav, &header)) {
+        return false;
+    }
+    const int available = wav.size() - header.pcmOffset;
     int bytes = 0;
-    if (pcmSize == 0 || static_cast<int>(pcmSize) < available) {
+    if (header.pcmSize == 0 || static_cast<int>(header.pcmSize) < available) {
         bytes = available;
     }
     else {
-        bytes = qMin(static_cast<int>(pcmSize), available);
+        bytes = qMin(static_cast<int>(header.pcmSize), available);
     }
     if (bytes <= 0) {
         return false;
     }
 
-    out->pcm = wav.mid(pcmOffset, bytes);
-    out->sampleRate = sampleRate;
-    out->channelCount = channelCount;
-    out->bitsPerSample = bitsPerSample;
-    out->durationSec = static_cast<double>(bytes)
-        / (static_cast<double>(sampleRate) * channelCount * (bitsPerSample / 8.0));
+    out->pcm = wav.mid(header.pcmOffset, bytes);
+    out->sampleRate = header.sampleRate;
+    out->channelCount = header.channelCount;
+    out->bitsPerSample = header.bitsPerSample;
+    out->durationSec = pcmDurationSec(bytes, header.sampleRate, header.channelCount, header.bitsPerSample);
 
     FINE_DEBUG_OUTPUT(QString("[TTS Operation]WAV file information: ")
-        + "sample rate: " + QString::number(sampleRate)
-        + "| channel num: " + QString::number(channelCount)
-        + "| bits per sample: " + QString::number(bitsPerSample)
+        + "sample rate: " + QString::number(header.sampleRate)
+        + "| channel num: " + QString::number(header.channelCount)
+        + "| bits per sample: " + QString::number(header.bitsPerSample)
         + "| data size:" + QString::number(bytes)
         + "| duration:" + QString::number(out->durationSec) + " second");
     return true;
@@ -687,6 +1128,10 @@ void TTSManager::executeTTSGet(const TTSRequestParams& params)
 
     connect(currentReply, &QNetworkReply::finished,
         this, &TTSManager::onNetworkReplyFinished);
+    attachStreamingReadyRead();
+    if (m_streaming && !m_currentIsWarmup && currentReply && currentReply->bytesAvailable() > 0) {
+        onTtsReadyRead();
+    }
 }
 
 void TTSManager::executeTTSPost(const TTSRequestParams& params)
@@ -714,6 +1159,10 @@ void TTSManager::executeTTSPost(const TTSRequestParams& params)
 
     connect(currentReply, &QNetworkReply::finished,
         this, &TTSManager::onNetworkReplyFinished);
+    attachStreamingReadyRead();
+    if (m_streaming && !m_currentIsWarmup && currentReply && currentReply->bytesAvailable() > 0) {
+        onTtsReadyRead();
+    }
 }
 
 void TTSManager::executeControlCommand(const QString& command)

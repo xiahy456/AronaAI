@@ -118,6 +118,7 @@ cp Config/config.example.json Config/config.json
     "seed": -1, // 随机种子（-1 表示随机）
     "parallel_infer": true, // 是否启用并行推理（8GB 显卡建议 false）
     "reload_weights_on_start": false, // 启动时是否再调 /set_gpt_weights 与 /set_sovits_weights；默认 false，沿用 api 已从 yaml 加载的权重，避免打掉参考音频缓存
+    "streaming": true, // 是否流式接收 TTS 并边收边播。true 时官方请求 streaming_mode=true；minimal 始终 chunked，此开关只控制客户端是否首包开播。缺省 false（整包返回）
     "request_timeout_ms": 45000, // 客户端等待 /tts 的超时（毫秒）；超时后仍显示字幕，不卡死 UI
     "repetition_penalty": 1.35, // 重复惩罚系数
     "sample_steps": 32, // 采样步数

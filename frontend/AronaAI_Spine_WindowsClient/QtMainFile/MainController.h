@@ -46,7 +46,7 @@ public:
 	MainController(MainWidget* mainWidget, TTSManager* ttsManager, AudioRecorder* audioRecorder, TencentSpeechRecognizer* speechRecognizer, WebSocketController* webSocketController, UserInputWidget* userInputWidget);
 	~MainController();
 
-	// 执行输出（按 40 字拆句后排队 TTS；字幕与语音同时上屏；合成可与上一条播放重叠）
+	// 执行输出（按 40 字拆句后排队 TTS；字幕按句上屏；合成可与上一条播放重叠）
 	void executeOutput(const QString& text);
 	// 开始持续聆听
 	void startAudioProcessing();
@@ -74,6 +74,10 @@ signals:
 private slots:
 	// TTS工作完毕
 	void onTTSFinished(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion);
+	// 流式：首包到达且轮到该句
+	void onTTSStreamReady(const QString& text, const QString& emotion);
+	// 流式：当前句音频实际播完
+	void onTtsPlaybackEnded();
 	// TTS失败（超时等）：仍显示字幕
 	void onTTSError(const QString& errorString, const QString& text, const QString& emotion);
 	// 音频输入出错
@@ -116,6 +120,8 @@ private:
 	bool m_awaitingStartupWelcome = true;	// 是否仍在等待启动欢迎语
 	bool m_hasPendingOutput = false;	// 是否有待遮罩关闭后呈现的输出
 	bool m_pendingIsError = false;	// 待呈现输出是否为 TTS 失败兜底
+	bool m_pendingIsStream = false;	// 待呈现输出是否为流式首包
+	bool m_streamingPresentation = false;	// 当前字幕是否随流式播完隐藏
 	QByteArray m_pendingAudio;	// 待播放的欢迎语音频
 	QString m_pendingMediaType;	// 待播放音频的媒体类型
 	QString m_pendingText;	// 待呈现的本条文本
@@ -136,9 +142,9 @@ private:
 	QList<QWidget*> computerUseExcludeWindows() const;
 	void sendComputerUseDisabled(const QJsonObject& action);
 	void interruptOutput();
-	void presentOutput(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion);
+	void presentOutput(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion, bool isStream = false);
 	void presentOutputError(const QString& text, const QString& emotion);
-	void holdOrPresentOutput(const QByteArray& audioData, const QString& mediaType, bool isError, const QString& text, const QString& emotion);
+	void holdOrPresentOutput(const QByteArray& audioData, const QString& mediaType, bool isError, const QString& text, const QString& emotion, bool isStream = false);
 	void applySilentEmotion(const QString& emotion);
 	void dismissSplashOnUnrecoverableError();
 

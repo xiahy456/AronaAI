@@ -63,6 +63,8 @@ MainController::MainController(MainWidget* mainWidget, TTSManager* ttsManager, A
     m_ttsRefMap.loadFromConfig();
 
     connect(m_ttsManager, &TTSManager::ttsFinished, this, &MainController::onTTSFinished);
+    connect(m_ttsManager, &TTSManager::ttsStreamReady, this, &MainController::onTTSStreamReady);
+    connect(m_ttsManager, &TTSManager::playbackEnded, this, &MainController::onTtsPlaybackEnded);
     connect(m_ttsManager, &TTSManager::ttsError, this, &MainController::onTTSError);
 
     m_ttsWeightTimer.start();
@@ -185,10 +187,27 @@ void MainController::executeOutput(const QString& text)
 
 void MainController::onTTSFinished(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion)
 {
-    holdOrPresentOutput(audioData, mediaType, false, text, emotion);
+    holdOrPresentOutput(audioData, mediaType, false, text, emotion, false);
 }
 
-void MainController::presentOutput(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion)
+void MainController::onTTSStreamReady(const QString& text, const QString& emotion)
+{
+    holdOrPresentOutput(QByteArray(), QString(), false, text, emotion, true);
+}
+
+void MainController::onTtsPlaybackEnded()
+{
+    if (!m_streamingPresentation) {
+        return;
+    }
+    m_streamingPresentation = false;
+    m_mainWidget->hideOutputText();
+    m_mainWidget->clearAnimation(2, 0.2f);
+    m_mainWidget->clearAnimation(1, 0.2f);
+    m_audioRecorder->setPlaybackGuard(false);
+}
+
+void MainController::presentOutput(const QByteArray& audioData, const QString& mediaType, const QString& text, const QString& emotion, bool isStream)
 {
     Q_UNUSED(mediaType);
     const QString line = text;
@@ -197,8 +216,8 @@ void MainController::presentOutput(const QByteArray& audioData, const QString& m
     m_currentEmotion = face;
     ++m_outputGeneration;
     const int gen = m_outputGeneration;
+    m_streamingPresentation = isStream;
 
-    const double wavSec = m_ttsManager->playAudio(audioData);
     m_audioRecorder->setPlaybackGuard(true);
     m_bargeInGuardTimer.start();
     m_mainWidget->showOutputText(line);
@@ -207,13 +226,20 @@ void MainController::presentOutput(const QByteArray& audioData, const QString& m
             .arg(m_userTurnTimer.elapsed()));
         m_measuringUserTurn = false;
     }
+    const QString expressionAnim = AronaEmotion::toAnimationName(face);
+    m_mainWidget->setAnimation(expressionAnim, 1, true);
+    m_mainWidget->setAnimation("Arona_Work_In_1_CN", 2, true);
+
+    if (isStream) {
+        m_ttsManager->startStreamPlayback();
+        return;
+    }
+
+    const double wavSec = m_ttsManager->playAudio(audioData);
     int duration = qMax(500, line.size() * 100);
     if (wavSec > 0) {
         duration = static_cast<int>(1000 * wavSec);
     }
-    const QString expressionAnim = AronaEmotion::toAnimationName(face);
-    m_mainWidget->setAnimation(expressionAnim, 1, true);
-    m_mainWidget->setAnimation("Arona_Work_In_1_CN", 2, true);
     QTimer::singleShot(duration, this, [this, gen]() {
         if (gen != m_outputGeneration) {
             return;
@@ -222,7 +248,7 @@ void MainController::presentOutput(const QByteArray& audioData, const QString& m
         m_mainWidget->clearAnimation(2, 0.2f);
         m_mainWidget->clearAnimation(1, 0.2f);
         m_audioRecorder->setPlaybackGuard(false);
-        });
+    });
 }
 
 void MainController::onTTSError(const QString& errorString, const QString& text, const QString& emotion)
@@ -241,7 +267,7 @@ void MainController::onTTSError(const QString& errorString, const QString& text,
         return;
     }
 
-    holdOrPresentOutput(QByteArray(), QString(), true, text, emotion);
+    holdOrPresentOutput(QByteArray(), QString(), true, text, emotion, false);
 }
 
 void MainController::presentOutputError(const QString& text, const QString& emotion)
@@ -252,6 +278,7 @@ void MainController::presentOutputError(const QString& text, const QString& emot
     m_currentEmotion = face;
     ++m_outputGeneration;
     const int gen = m_outputGeneration;
+    m_streamingPresentation = false;
 
     m_mainWidget->showOutputText(line);
     if (m_measuringUserTurn) {
@@ -272,13 +299,14 @@ void MainController::presentOutputError(const QString& text, const QString& emot
     m_ttsManager->notifyPlaybackFinished();
 }
 
-void MainController::holdOrPresentOutput(const QByteArray& audioData, const QString& mediaType, bool isError, const QString& text, const QString& emotion)
+void MainController::holdOrPresentOutput(const QByteArray& audioData, const QString& mediaType, bool isError, const QString& text, const QString& emotion, bool isStream)
 {
     if (m_awaitingStartupWelcome) {
         m_awaitingStartupWelcome = false;
         if (m_splashActive) {
             m_hasPendingOutput = true;
             m_pendingIsError = isError;
+            m_pendingIsStream = isStream;
             m_pendingAudio = audioData;
             m_pendingMediaType = mediaType;
             m_pendingText = text;
@@ -297,7 +325,7 @@ void MainController::holdOrPresentOutput(const QByteArray& audioData, const QStr
     if (isError) {
         presentOutputError(text, emotion);
     } else {
-        presentOutput(audioData, mediaType, text, emotion);
+        presentOutput(audioData, mediaType, text, emotion, isStream);
     }
 }
 
@@ -315,12 +343,13 @@ void MainController::onSplashClosed()
     if (m_pendingIsError) {
         presentOutputError(m_pendingText, m_pendingEmotion);
     } else {
-        presentOutput(m_pendingAudio, m_pendingMediaType, m_pendingText, m_pendingEmotion);
+        presentOutput(m_pendingAudio, m_pendingMediaType, m_pendingText, m_pendingEmotion, m_pendingIsStream);
     }
     m_pendingAudio.clear();
     m_pendingMediaType.clear();
     m_pendingText.clear();
     m_pendingEmotion.clear();
+    m_pendingIsStream = false;
 }
 
 void MainController::dismissSplashOnUnrecoverableError()
@@ -554,6 +583,7 @@ void MainController::interruptOutput()
 {
     FINE_DEBUG_OUTPUT("[Main Controller] Interrupting output");
     ++m_outputGeneration;
+    m_streamingPresentation = false;
     m_ttsManager->interruptPlayback();
     m_audioRecorder->setPlaybackGuard(false);
     m_waitingForAIResponse = false;
