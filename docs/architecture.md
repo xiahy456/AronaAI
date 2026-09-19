@@ -64,27 +64,29 @@ arona-ai/
 │           ├── start.bat       # Windows 一键训练
 │           └── README.md
 │
-├── gpt-sovits/                 # 官方 GPT-SoVITS 语音合成（需手动部署，或使用外部服务）
-│   ├── GPT_SoVITS/             # 核心模型
-│   ├── GPT_weights_v2/         # GPT 权重
-│   │   └── ALuoNa_cn-e15.ckpt  # 阿洛娜 GPT 权重
-│   ├── SoVITS_weights_v2/      # SoVITS 权重
-│   │   └── ALuoNa_cn_e16_s256.pth    # 阿洛娜 SoVITS 权重
-│   ├── api_v2.py               # API 服务
-│   ├── watch-apiv2.ps1         # Windows：API 卡死/崩溃自动重启
-│   ├── watch-apiv2.sh          # Linux：API 卡死/崩溃自动重启
-│   ├── go-apiv2.bat            # Windows 一键启动 API（经 watchdog）
-│   ├── go-apiv2.sh             # Linux 一键启动 API（经 watchdog）
-│   └── ref_audio/              # 参考音频
-│       └── Arona/
-│           └── arona_academy_in_2.ogg   # 推荐的参考音频
-│
-├── gpt-sovits-minimal/         # GPT-SoVITS_minimal_inference（可选；与官方二选一）
-│   ├── DEPLOY.md               # clone、独立 Python、voices.json
-│   ├── go-api.bat / go-api.ps1
-│   ├── watch-api.ps1           # 崩溃自动重启
-│   ├── config/voices.json      # 阿洛娜 v2 权重路径（相对本目录）
-│   └── api_server.py           # clone 上游后才有；默认 :8000
+├── tts/                        # 所有语音合成后端（官方 / minimal 二选一）
+│   ├── README.md               # TTS 总览
+│   ├── gpt-sovits/             # 官方 GPT-SoVITS（需手动部署，或使用外部服务）
+│   │   ├── GPT_SoVITS/         # 核心模型
+│   │   ├── GPT_weights_v2/     # GPT 权重
+│   │   │   └── ALuoNa_cn-e15.ckpt  # 阿洛娜 GPT 权重
+│   │   ├── SoVITS_weights_v2/  # SoVITS 权重
+│   │   │   └── ALuoNa_cn_e16_s256.pth    # 阿洛娜 SoVITS 权重
+│   │   ├── api_v2.py           # API 服务
+│   │   ├── watch-apiv2.ps1     # Windows：API 卡死/崩溃自动重启
+│   │   ├── watch-apiv2.sh      # Linux：API 卡死/崩溃自动重启
+│   │   ├── go-apiv2.bat        # Windows 一键启动 API（经 watchdog）
+│   │   ├── go-apiv2.sh         # Linux 一键启动 API（经 watchdog）
+│   │   └── ref_audio/          # 参考音频
+│   │       └── Arona/
+│   │           └── arona_academy_in_2.ogg   # 推荐的参考音频
+│   └── gpt-sovits-minimal/     # GPT-SoVITS_minimal_inference（可选；与官方二选一）
+│       ├── DEPLOY.md           # clone、独立 Python、voices.json
+│       ├── go-api.bat / go-api.ps1
+│       ├── watch-api.ps1       # 崩溃自动重启
+│       ├── launch_api.py       # Arona 启动包装（不改上游源码）
+│       ├── config/voices.json  # 阿洛娜 v2 权重路径（相对本目录）
+│       └── api_server.py       # clone 上游后才有；默认 :8000
 │
 ├── docs/                       # 项目文档
 │   └── architecture.md         # 完整目录树

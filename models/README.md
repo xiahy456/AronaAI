@@ -19,7 +19,7 @@ models/
 └── Qwen3-1.7B/                         # 导出 GGUF 用 16bit 基座（仅导出时需要）
 ```
 
-> TTS 权重放在 `gpt-sovits/GPT_weights_v2/`、`gpt-sovits/SoVITS_weights_v2/`，不放在本目录。
+> TTS 权重放在 `tts/gpt-sovits/GPT_weights_v2/`、`tts/gpt-sovits/SoVITS_weights_v2/`，不放在本目录。
 
 ---
 

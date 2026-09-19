@@ -44,8 +44,7 @@ The project wires **Planner → AronaLM Renderer**, relationship climate, proact
 arona-ai/
 ├── backend/                              # Python backend (FastAPI + WebSocket)
 ├── frontend/                             # Desktop client (Qt/C++ + Spine)
-├── gpt-sovits/                           # Official GPT-SoVITS TTS
-├── gpt-sovits-minimal/                   # GPT-SoVITS_minimal_inference (optional fast backend)
+├── tts/                                  # TTS engine root
 ├── llm/aronaLM/finetune/                 # AronaLM fine-tune (not actually a large model… I wrote that wrong earlier and still haven't changed it)
 ├── models/                               # Local model weights (download yourself)
 ├── docs/                                 # Architecture, hot-word lists, and other docs
@@ -153,7 +152,7 @@ For a remote setup, change `websocket_url` / `tts.host` to the corresponding IPs
 #### Place GPT-SoVITS model files
 
 ```
-gpt-sovits/
+tts/gpt-sovits/
 ├── GPT_weights_v2/            # GPT weights
 │   └── ALuoNa_cn-e15.ckpt
 └── SoVITS_weights_v2/         # SoVITS weights
@@ -165,14 +164,14 @@ gpt-sovits/
 The default backend is official:
 
 ```bash
-cd gpt-sovits
+cd tts/gpt-sovits
 # Windows: go-apiv2.bat
 # Linux:   chmod +x go-apiv2.sh && ./go-apiv2.sh
 ```
 
 `go-apiv2` auto-restarts the API if inference stalls. For debugging without auto-restart, you can run `python api_v2.py` directly.
 
-Optional faster backend: [GPT-SoVITS_minimal_inference](https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_inference). See [`gpt-sovits-minimal/DEPLOY.md`](gpt-sovits-minimal/DEPLOY.md). Set client `tts.backend` to `minimal` and `start-all.ps1` starts only that process (default `127.0.0.1:8000`). Run only one TTS engine at a time.
+Optional faster backend: [GPT-SoVITS_minimal_inference](https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_inference). TTS overview: [`tts/README.md`](tts/README.md). Deploy: [`tts/gpt-sovits-minimal/DEPLOY.md`](tts/gpt-sovits-minimal/DEPLOY.md). Set client `tts.backend` to `minimal` and `start-all.ps1` starts only that process (default `127.0.0.1:8000`). Run only one TTS engine at a time.
 
 ---
 
@@ -182,7 +181,7 @@ Optional faster backend: [GPT-SoVITS_minimal_inference](https://github.com/GPT-S
 |------|------|
 | **Backend** | [`backend/README.md`](backend/README.md) |
 | **Desktop client** | [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md) |
-| **TTS** | [`gpt-sovits/DEPLOY.md`](gpt-sovits/DEPLOY.md) · [`gpt-sovits-minimal/DEPLOY.md`](gpt-sovits-minimal/DEPLOY.md) |
+| **TTS** | [`tts/README.md`](tts/README.md) · [`tts/gpt-sovits/DEPLOY.md`](tts/gpt-sovits/DEPLOY.md) · [`tts/gpt-sovits-minimal/DEPLOY.md`](tts/gpt-sovits-minimal/DEPLOY.md) |
 | **Models** | [`models/README.md`](models/README.md) |
 | **AronaLM fine-tune** (for developers) | [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md) |
 

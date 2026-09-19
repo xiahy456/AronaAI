@@ -47,8 +47,10 @@ param(
 $ErrorActionPreference = "Stop"
 $GptDir = $PSScriptRoot
 $ApiPy = Join-Path $GptDir "api_server.py"
-$RepoRoot = Split-Path -Parent $GptDir
-$OfficialDir = Join-Path $RepoRoot "gpt-sovits"
+$LaunchPy = Join-Path $GptDir "launch_api.py"
+$TtsRoot = Split-Path -Parent $GptDir
+$RepoRoot = Split-Path -Parent $TtsRoot
+$OfficialDir = Join-Path $TtsRoot "gpt-sovits"
 $CnhubertPath = Join-Path $OfficialDir "GPT_SoVITS\pretrained_models\chinese-hubert-base"
 $BertPath = Join-Path $OfficialDir "GPT_SoVITS\pretrained_models\chinese-roberta-wwm-ext-large"
 $SvPath = Join-Path $OfficialDir "GPT_SoVITS\pretrained_models\sv\pretrained_eres2netv2w24s4ep4.ckpt"
@@ -57,6 +59,9 @@ $MinimalPretrained = Join-Path $GptDir "pretrained_models"
 
 if (-not (Test-Path -LiteralPath $ApiPy)) {
     throw "api_server.py not found in $GptDir. Clone GPT-SoVITS_minimal_inference into this directory. See DEPLOY.md."
+}
+if (-not (Test-Path -LiteralPath $LaunchPy)) {
+    throw "launch_api.py not found in $GptDir. This Arona wrapper must stay next to the upstream clone. See DEPLOY.md."
 }
 
 function Resolve-CondaCmd {
@@ -111,17 +116,46 @@ function Resolve-MinimalPython {
 
 $PythonExe = Resolve-MinimalPython -Explicit $PythonExe
 
+function Get-LinkTarget([string]$Path) {
+    try {
+        $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+        $target = $item.Target
+        if ($target -is [array]) { $target = $target[0] }
+        if ($target) { return [string]$target }
+    } catch {}
+    return $null
+}
+
 function Ensure-OfficialPretrainedLink {
     if (-not (Test-Path -LiteralPath $OfficialPretrained)) {
         Write-Watch "Official pretrained_models missing: $OfficialPretrained" Yellow
         return
     }
-    if (Test-Path -LiteralPath $MinimalPretrained) {
-        return
+    $officialResolved = (Resolve-Path -LiteralPath $OfficialPretrained).Path
+    $probe = Join-Path $MinimalPretrained "chinese-roberta-wwm-ext-large"
+    $existing = Get-Item -LiteralPath $MinimalPretrained -Force -ErrorAction SilentlyContinue
+    if ($existing) {
+        $target = Get-LinkTarget $MinimalPretrained
+        $probeOk = Test-Path -LiteralPath $probe
+        $targetOk = $false
+        if ($target) {
+            try {
+                $targetOk = ([IO.Path]::GetFullPath($target).TrimEnd('\') -ieq $officialResolved.TrimEnd('\'))
+            } catch { $targetOk = $false }
+        }
+        if ($probeOk -and ($targetOk -or -not $target)) {
+            return
+        }
+        Write-Watch "Replacing stale pretrained_models link (was: $target)" Yellow
+        cmd.exe /c "rmdir `"$MinimalPretrained`"" | Out-Null
+        if (Get-Item -LiteralPath $MinimalPretrained -Force -ErrorAction SilentlyContinue) {
+            Write-Watch "Could not remove stale pretrained_models at $MinimalPretrained" Yellow
+            return
+        }
     }
     try {
-        New-Item -ItemType Junction -Path $MinimalPretrained -Target $OfficialPretrained | Out-Null
-        Write-Watch "Linked pretrained_models -> $OfficialPretrained"
+        New-Item -ItemType Junction -Path $MinimalPretrained -Target $officialResolved | Out-Null
+        Write-Watch "Linked pretrained_models -> $officialResolved"
     } catch {
         Write-Watch "Could not link pretrained_models: $_" Yellow
     }
@@ -204,8 +238,10 @@ function Start-ApiProcess {
     if ($useRuntimeHome) {
         $setHome = 'set PYTHONHOME=' + $runtimeHome + '& set PYTHONPATH=& '
     }
-    $arg = '/c chcp 65001 >nul & set PYTHONIOENCODING=utf-8& set PYTHONUTF8=1& ' + $setHome + '"' +
-        $PythonExe + '" -X utf8 api_server.py --host ' + $ListenAddress + ' --port ' + $Port +
+    $offline = 'set HF_HUB_OFFLINE=1& set TRANSFORMERS_OFFLINE=1& set HF_HUB_DISABLE_TELEMETRY=1& set "CNHUBERT_PATH=' +
+        $hubertArg + '"& set "BERT_PATH=' + $bertArg + '"& '
+    $arg = '/c chcp 65001 >nul & set PYTHONIOENCODING=utf-8& set PYTHONUTF8=1& ' + $setHome + $offline + '"' +
+        $PythonExe + '" -X utf8 launch_api.py --host ' + $ListenAddress + ' --port ' + $Port +
         ' --voices_config "' + $VoicesConfig + '"' +
         ' --cnhubert_path "' + $hubertArg + '"' +
         ' --bert_path "' + $bertArg + '"' +
@@ -219,6 +255,11 @@ function Start-ApiProcess {
     $psi.CreateNoWindow = $true
     $psi.EnvironmentVariables["PYTHONIOENCODING"] = "utf-8"
     $psi.EnvironmentVariables["PYTHONUTF8"] = "1"
+    $psi.EnvironmentVariables["HF_HUB_OFFLINE"] = "1"
+    $psi.EnvironmentVariables["TRANSFORMERS_OFFLINE"] = "1"
+    $psi.EnvironmentVariables["HF_HUB_DISABLE_TELEMETRY"] = "1"
+    $psi.EnvironmentVariables["CNHUBERT_PATH"] = $hubertArg
+    $psi.EnvironmentVariables["BERT_PATH"] = $bertArg
     if ($useRuntimeHome) {
         $psi.EnvironmentVariables["PYTHONHOME"] = $runtimeHome
         $psi.EnvironmentVariables["PYTHONPATH"] = ""
@@ -327,6 +368,8 @@ try {
 Write-Watch "watch-api starting"
 Write-Watch "  WorkDir:  $GptDir"
 Write-Watch "  Python:   $PythonExe"
+Write-Watch "  Official: $OfficialDir"
+Write-Watch "  BERT:     $BertPath"
 Write-Watch "  LogPath:  $LogPath"
 Write-Watch "  Listen:   ${ListenAddress}:${Port} | Cooldown: ${RestartCooldownSec}s"
 Ensure-OfficialPretrainedLink

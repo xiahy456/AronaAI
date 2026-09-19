@@ -6,7 +6,7 @@
 
 仓库 `.gitignore` **不提交** GPT-SoVITS 本体、权重与 `runtime/`。clone 后这里通常只有启动脚本和本文件，需要自行补齐官方程序、预训练模型、阿洛娜微调权重和参考音频。
 
-上游说明见同目录 [`README.md`](README.md)；项目总览见仓库根目录 [`README.md`](../README.md)。
+上游说明见同目录 [`README.md`](README.md)。TTS 总览见 [`../README.md`](../README.md)；项目总览见仓库根目录 [`README.md`](../../README.md)。
 
 ---
 
@@ -72,9 +72,9 @@ gpt-sovits/
 
 ### 1. 放入官方 GPT-SoVITS
 
-任选一种，**解压 / clone 到本目录**（使 `api_v2.py` 位于 `gpt-sovits/api_v2.py`）：
+任选一种，**解压 / clone 到本目录**（使 `api_v2.py` 位于 `tts/gpt-sovits/api_v2.py`）：
 
-- **Windows（推荐）**：下载 [官方整合包](https://huggingface.co/lj1995/GPT-SoVITS-windows-package)，解压后把内容放到 `gpt-sovits/`。国内用户也可走[语雀镜像](https://www.yuque.com/baicaigongchang1145haoyuangong/ib3g1e/dkxgpiy9zb96hob4#KTvnO)。
+- **Windows（推荐）**：下载 [官方整合包](https://huggingface.co/lj1995/GPT-SoVITS-windows-package)，解压后把内容放到 `tts/gpt-sovits/`。国内用户也可走[语雀镜像](https://www.yuque.com/baicaigongchang1145haoyuangong/ib3g1e/dkxgpiy9zb96hob4#KTvnO)。
 - **从源码安装**：见上游 README（conda 环境 `GPTSoVits` + `bash install.sh` 或 `pip install -r requirements.txt`）。预训练放到 `GPT_SoVITS/pretrained_models/`，见 [GPT-SoVITS Models](https://huggingface.co/lj1995/GPT-SoVITS)。
 
 完成后应能看到 `api_v2.py`、`GPT_SoVITS/pretrained_models/chinese-hubert-base` 和 `chinese-roberta-wwm-ext-large`。
@@ -90,7 +90,7 @@ gpt-sovits/
 └── ref_audio/Arona/arona_academy_in_2.ogg
 ```
 
-路径一律相对 **GPT-SoVITS 进程工作目录**（即 `gpt-sovits/`），不要写成客户端本机路径。
+路径一律相对 **GPT-SoVITS 进程工作目录**（即 `tts/gpt-sovits/`），不要写成客户端本机路径。
 
 ### 3. 启动 API
 
@@ -99,7 +99,7 @@ gpt-sovits/
 **只启动 TTS：**
 
 ```bash
-cd gpt-sovits
+cd tts/gpt-sovits
 # Windows
 go-apiv2.bat
 # Linux
@@ -136,7 +136,7 @@ python api_v2.py
 | `reload_weights_on_start` | 默认 `false`。为 `true` 时客户端启动会再切 GPT/SoVITS 权重 |
 | `request_timeout_ms` | `45000`（超时仍显示字幕，不卡 UI） |
 
-客户端启动时默认**不再**请求 `/set_gpt_weights`、`/set_sovits_weights`（权重已由 `tts_infer.yaml` 加载），而是 `GET /set_refer_audio` 再 POST 一句极短 `/tts` 预热 prompt cache，随后对话才 POST `/tts`。需要热切权重时把 `reload_weights_on_start` 设为 `true`。完整字段见 [`frontend/AronaAI_Spine_WindowsClient/README.md`](../frontend/AronaAI_Spine_WindowsClient/README.md)。
+客户端启动时默认**不再**请求 `/set_gpt_weights`、`/set_sovits_weights`（权重已由 `tts_infer.yaml` 加载），而是 `GET /set_refer_audio` 再 POST 一句极短 `/tts` 预热 prompt cache，随后对话才 POST `/tts`。需要热切权重时把 `reload_weights_on_start` 设为 `true`。完整字段见 [`frontend/AronaAI_Spine_WindowsClient/README.md`](../../frontend/AronaAI_Spine_WindowsClient/README.md)。
 
 ---
 
@@ -144,13 +144,13 @@ python api_v2.py
 
 ### 同机（默认）
 
-后端、TTS、Qt 客户端都在一台 Windows 机器上时，用 `start-all.ps1`。Python 优先 `gpt-sovits/runtime/python.exe`，没有再退回 PATH 上的 `python`。
+后端、TTS、Qt 客户端都在一台 Windows 机器上时，用 `start-all.ps1`。Python 优先 `tts/gpt-sovits/runtime/python.exe`，没有再退回 PATH 上的 `python`。
 
 ### 异机（TTS 单独一台）
 
 适合把 GPU 推理拆到另一台机器：
 
-1. 在 TTS 机完成本文档第 1–2 步，工作目录仍是该机上的 `gpt-sovits/`。
+1. 在 TTS 机完成本文档第 1–2 步，工作目录仍是该机上的 `tts/gpt-sovits/`。
 2. **必须改绑定地址**。watchdog 当前按无参数启动 `api_v2.py`（只听 `127.0.0.1`），局域网访问请直接：
 
    ```bash
@@ -159,7 +159,7 @@ python api_v2.py
 
    或改 watchdog 里的启动命令，加上 `-a 0.0.0.0`。
 3. 防火墙放行 TCP `9880`。
-4. 客户端 `tts.host` 填 TTS 机 IP，`gpt_path` / `sovits_path` / `ref_audio_path` 仍是 **TTS 机上相对 `gpt-sovits/` 的路径**。
+4. 客户端 `tts.host` 填 TTS 机 IP，`gpt_path` / `sovits_path` / `ref_audio_path` 仍是 **TTS 机上相对 `tts/gpt-sovits/` 的路径**。
 
 不要把 API 暴露到公网；没有鉴权。
 

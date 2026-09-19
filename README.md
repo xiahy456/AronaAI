@@ -44,8 +44,7 @@
 arona-ai/
 ├── backend/                              # Python 后端（FastAPI + WebSocket）
 ├── frontend/                             # 桌面客户端（Qt/C++ + Spine）
-├── gpt-sovits/                           # 官方 GPT-SoVITS 语音合成
-├── gpt-sovits-minimal/                   # GPT-SoVITS_minimal_inference（可选加速后端）
+├── tts/                           # GPT-SoVITS 语音合成
 ├── llm/aronaLM/finetune/                 # AronaLM 微调（其实不是大模型啦……之前写错了还没有改过来呢）
 ├── models/                               # 本地模型权重（需自行下载）
 ├── docs/                                 # 架构与热词等文档
@@ -153,7 +152,7 @@ arona-ai/
 #### 放置 GPT-SoVITS 模型文件
 
 ```
-gpt-sovits/
+tts/gpt-sovits/
 ├── GPT_weights_v2/            # GPT 模型权重
 │   └── ALuoNa_cn-e15.ckpt
 └── SoVITS_weights_v2/         # SoVITS 模型权重
@@ -165,14 +164,14 @@ gpt-sovits/
 默认走官方后端：
 
 ```bash
-cd gpt-sovits
+cd tts/gpt-sovits
 # Windows: go-apiv2.bat
 # Linux:   chmod +x go-apiv2.sh && ./go-apiv2.sh
 ```
 
 `go-apiv2` 会在推理卡住时自动重启 API。仅调试、不要自动重启时，可直接运行 `python api_v2.py`。
 
-可选加速后端：[GPT-SoVITS_minimal_inference](https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_inference)。部署见 [`gpt-sovits-minimal/DEPLOY.md`](gpt-sovits-minimal/DEPLOY.md)。客户端 `tts.backend` 设为 `minimal` 后，`start-all.ps1` 只启动这一套（默认 `127.0.0.1:8000`）。同一时间只跑一个 TTS 进程。
+可选加速后端：[GPT-SoVITS_minimal_inference](https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_inference)。TTS 总览见 [`tts/README.md`](tts/README.md)，部署见 [`tts/gpt-sovits-minimal/DEPLOY.md`](tts/gpt-sovits-minimal/DEPLOY.md)。客户端 `tts.backend` 设为 `minimal` 后，`start-all.ps1` 只启动这一套（默认 `127.0.0.1:8000`）。同一时间只跑一个 TTS 进程。
 
 ---
 
@@ -182,7 +181,7 @@ cd gpt-sovits
 |------|------|
 | **后端** | [`backend/README.md`](backend/README.md) |
 | **桌面客户端** | [`frontend/AronaAI_Spine_WindowsClient/README.md`](frontend/AronaAI_Spine_WindowsClient/README.md) |
-| **语音合成** | [`gpt-sovits/DEPLOY.md`](gpt-sovits/DEPLOY.md) · [`gpt-sovits-minimal/DEPLOY.md`](gpt-sovits-minimal/DEPLOY.md) |
+| **语音合成** | [`tts/README.md`](tts/README.md) · [`tts/gpt-sovits/DEPLOY.md`](tts/gpt-sovits/DEPLOY.md) · [`tts/gpt-sovits-minimal/DEPLOY.md`](tts/gpt-sovits-minimal/DEPLOY.md) |
 | **模型** | [`models/README.md`](models/README.md) |
 | **AronaLM 微调**（如果您是开发者，请参考该文档） | [`llm/aronaLM/finetune/README.md`](llm/aronaLM/finetune/README.md) |
 

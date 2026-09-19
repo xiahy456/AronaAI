@@ -1036,8 +1036,8 @@ function Invoke-ControlCommand {
 New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
 
 $script:BackendDir = Join-Path $Root "backend"
-$script:GptDir = Join-Path $Root "gpt-sovits"
-$script:MinimalDir = Join-Path $Root "gpt-sovits-minimal"
+$script:GptDir = Join-Path $Root "tts\gpt-sovits"
+$script:MinimalDir = Join-Path $Root "tts\gpt-sovits-minimal"
 $GptApi = Join-Path $script:GptDir "api_v2.py"
 $GptRuntimePy = Join-Path $script:GptDir "runtime\python.exe"
 $MinimalApi = Join-Path $script:MinimalDir "api_server.py"
@@ -1054,7 +1054,7 @@ $script:GptWatch = if ($script:TtsBackend -eq "minimal") { $MinimalWatch } else 
 
 if ($script:TtsBackend -eq "minimal") {
     if (-not (Test-Path -LiteralPath $MinimalApi)) {
-        throw "GPT-SoVITS minimal api_server.py not found in $($script:MinimalDir). Clone the upstream repo first. See gpt-sovits-minimal/DEPLOY.md."
+        throw "GPT-SoVITS minimal api_server.py not found in $($script:MinimalDir). Clone the upstream repo first. See tts/gpt-sovits-minimal/DEPLOY.md."
     }
     Assert-Path $MinimalWatch "GPT-SoVITS minimal watch-api.ps1"
 } else {
@@ -1092,12 +1092,12 @@ Write-Host "  Timeout:     ${TimeoutSec}s for backend + TTS"
 
 if ($script:TtsBackend -eq "minimal") {
     if (-not $script:TtsPython) {
-        Write-Host "  gpt-sovits-minimal\runtime\python.exe not found; watch-api will try conda/.venv. Run gpt-sovits-minimal\pack-runtime.ps1 first." -ForegroundColor Yellow
+        Write-Host "  tts\gpt-sovits-minimal\runtime\python.exe not found; watch-api will try conda/.venv. Run tts\gpt-sovits-minimal\pack-runtime.ps1 first." -ForegroundColor Yellow
     }
 } elseif (-not (Test-Path -LiteralPath $GptRuntimePy)) {
-    Write-Host "  gpt-sovits\runtime\python.exe not found; falling back to python on PATH" -ForegroundColor Yellow
+    Write-Host "  tts\gpt-sovits\runtime\python.exe not found; falling back to python on PATH" -ForegroundColor Yellow
     $py = Get-Command python -ErrorAction SilentlyContinue
-    if (-not $py) { throw "Neither gpt-sovits\runtime\python.exe nor python on PATH was found." }
+    if (-not $py) { throw "Neither tts\gpt-sovits\runtime\python.exe nor python on PATH was found." }
 }
 
 # ---- 1) Backend + TTS in parallel ----

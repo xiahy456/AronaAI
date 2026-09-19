@@ -1,21 +1,22 @@
-# GPT-SoVITs：仅跟踪启动脚本与参考音频，其余一律不提交
-/gpt-sovits/**
-!/gpt-sovits/go-apiv2.bat
-!/gpt-sovits/go-apiv2.sh
-!/gpt-sovits/DEPLOY.md
-!/gpt-sovits/ref_audio/
-!/gpt-sovits/ref_audio/Arona/
-!/gpt-sovits/ref_audio/Arona/*.ogg
+# TTS：仅跟踪启动脚本、文档与参考音频，其余一律不提交
+/tts/gpt-sovits/**
+!/tts/gpt-sovits/go-apiv2.bat
+!/tts/gpt-sovits/go-apiv2.sh
+!/tts/gpt-sovits/DEPLOY.md
+!/tts/gpt-sovits/ref_audio/
+!/tts/gpt-sovits/ref_audio/Arona/
+!/tts/gpt-sovits/ref_audio/Arona/*.ogg
 
 # GPT-SoVITS minimal_inference：仅跟踪启动脚本与 voices 配置
-/gpt-sovits-minimal/**
-!/gpt-sovits-minimal/DEPLOY.md
-!/gpt-sovits-minimal/go-api.ps1
-!/gpt-sovits-minimal/go-api.bat
-!/gpt-sovits-minimal/watch-api.ps1
-!/gpt-sovits-minimal/pack-runtime.ps1
-!/gpt-sovits-minimal/config/
-!/gpt-sovits-minimal/config/voices.json
+/tts/gpt-sovits-minimal/**
+!/tts/gpt-sovits-minimal/DEPLOY.md
+!/tts/gpt-sovits-minimal/go-api.ps1
+!/tts/gpt-sovits-minimal/go-api.bat
+!/tts/gpt-sovits-minimal/watch-api.ps1
+!/tts/gpt-sovits-minimal/launch_api.py
+!/tts/gpt-sovits-minimal/pack-runtime.ps1
+!/tts/gpt-sovits-minimal/config/
+!/tts/gpt-sovits-minimal/config/voices.json
 
 # social preview：仅跟踪成品图，其余素材不提交
 /assets/social_preview/**

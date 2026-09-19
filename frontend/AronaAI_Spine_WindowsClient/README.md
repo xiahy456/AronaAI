@@ -51,7 +51,7 @@ cp Config/config.example.json Config/config.json
 > - 资源路径相对**程序工作目录**解析；在 Visual Studio 中调试时默认为项目根目录，请勿直接双击 `x64/Debug` 或 `x64/Release` 下的 exe（工作目录会不对）。
 > - 请将 AronaLM 后端服务、GPT-SoVITS 服务的地址、端口按实际情况填写。
 > - `tts.request_timeout_ms` 仅改配置即可生效（dist 客户端同理）；`TTSManager` / `MainController` 源码改动需重新编译客户端后才有超时、预热与合成/播放解耦逻辑。
-> - `tts.refs` 为表情到参考音频的扁平数组（`emotion` / `ref_audio_path` / `prompt_text`）。加音频或改某表情绑定只改该数组；路径相对官方 GPT-SoVITS 工作目录。`backend=minimal` 时客户端自动加 `../gpt-sovits/` 前缀。未列出的表情回退顶层 `ref_audio_path` / `prompt_text`。已有 `config.json` 需自行并入该数组，否则仍只用默认参考音频。
+> - `tts.refs` 为表情到参考音频的扁平数组（`emotion` / `ref_audio_path` / `prompt_text`）。加音频或改某表情绑定只改该数组；路径相对官方 GPT-SoVITS 工作目录（`tts/gpt-sovits/`）。`backend=minimal` 时客户端自动加 `../gpt-sovits/` 前缀（相对 minimal 工作目录 `tts/gpt-sovits-minimal/`）。未列出的表情回退顶层 `ref_audio_path` / `prompt_text`。已有 `config.json` 需自行并入该数组，否则仍只用默认参考音频。
 > - 本项目使用**腾讯云语音识别**（ASR），腾讯云 ASR 的 SecretId 和 SecretKey 可以在腾讯云控制台的 API 密钥管理中获取。
 > - `config.json` 已在 `.gitignore` 中，不会被提交到版本控制，请放心修改。
 
@@ -165,6 +165,6 @@ cp Config/config.example.json Config/config.json
 
 > **注意**：
 > - 资源路径相对**程序工作目录**解析；在 Visual Studio 中调试时默认为项目根目录，请勿直接双击 `x64/Debug` 或 `x64/Release` 下的 exe（工作目录会不对）。
-> - `tts.refs` 路径相对 **官方 GPT-SoVITS 工作目录**（`gpt-sovits/`）。`backend=minimal` 时客户端会自动加上 `../gpt-sovits/` 前缀，不必改 refs。未列出的表情回退顶层 `ref_audio_path` / `prompt_text`。`prompt_text` 须与对应 ogg 口播一致。
+> - `tts.refs` 路径相对 **官方 GPT-SoVITS 工作目录**（`tts/gpt-sovits/`）。
 > - `tts.backend` 为 `minimal` 时走 `POST /v1/audio/speech`（`minimal_host`/`minimal_port`）；缺省 `official` 仍走 `/tts`。同一时间只启动一套 TTS。
 > - `config.json` 已在 `.gitignore` 中，不会被提交到版本控制。

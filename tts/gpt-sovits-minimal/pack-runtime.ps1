@@ -4,8 +4,8 @@
   Copy the gpt-sovits-minimal conda/venv prefix into this directory's runtime/.
 
 .DESCRIPTION
-  Produces gpt-sovits-minimal/runtime/python.exe (same layout as official
-  gpt-sovits/runtime). watch-api.ps1 and start-all.ps1 prefer this interpreter.
+  Produces tts/gpt-sovits-minimal/runtime/python.exe (same layout as official
+  tts/gpt-sovits/runtime). watch-api.ps1 and start-all.ps1 prefer this interpreter.
   Does not copy weights, HuBERT, BERT, or ref audio.
 
   Create / fix the source env first (CUDA Torch), then:
@@ -21,7 +21,7 @@
 
 .PARAMETER Zip
   Also write release/AronaAI_GPTSoVITS_minimal_runtime_x64.zip
-  (archive root is runtime/). Extract into gpt-sovits-minimal/.
+  (archive root is runtime/). Extract into tts/gpt-sovits-minimal/.
 
 .EXAMPLE
   .\pack-runtime.ps1
@@ -36,7 +36,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $GptDir = $PSScriptRoot
-$RepoRoot = Split-Path -Parent $GptDir
+$TtsRoot = Split-Path -Parent $GptDir
+$RepoRoot = Split-Path -Parent $TtsRoot
 $DestDir = Join-Path $GptDir "runtime"
 $DestPy = Join-Path $DestDir "python.exe"
 
@@ -195,5 +196,5 @@ if ($Zip) {
         Compress-Archive -Path $DestDir -DestinationPath $zipPath -Force
     }
     Write-Host "Zip: $zipPath" -ForegroundColor Green
-    Write-Host "Extract the runtime folder into gpt-sovits-minimal/ so python.exe is gpt-sovits-minimal\runtime\python.exe."
+    Write-Host "Extract the runtime folder into tts/gpt-sovits-minimal/ so python.exe is tts\gpt-sovits-minimal\runtime\python.exe."
 }
