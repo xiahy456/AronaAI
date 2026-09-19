@@ -44,14 +44,15 @@ The project wires **Planner → AronaLM Renderer**, relationship climate, proact
 arona-ai/
 ├── backend/                              # Python backend (FastAPI + WebSocket)
 ├── frontend/                             # Desktop client (Qt/C++ + Spine)
-├── tts/                                  # TTS engine root
+├── tts/                                  # TTS backend (official / minimal)
 ├── llm/aronaLM/finetune/                 # AronaLM fine-tune (not actually a large model… I wrote that wrong earlier and still haven't changed it)
 ├── models/                               # Local model weights (download yourself)
 ├── docs/                                 # Architecture, hot-word lists, and other docs
 ├── assets/                               # Project assets
 ├── start-all.bat                         # Windows one-click local start for all services
 ├── pack-client.ps1                       # pack the desktop client
-└── pack-backend.ps1                      # pack the Windows portable backend
+├── pack-backend.ps1                      # pack the Windows portable backend
+└── pack-tts.ps1                          # pack TTS scripts, reference audio, and the minimal runtime
 ```
 
 See [`docs/architecture.md`](docs/architecture.md) for the full directory tree.
@@ -149,7 +150,11 @@ For a remote setup, change `websocket_url` / `tts.host` to the corresponding IPs
 
 ### TTS Service
 
-#### Place GPT-SoVITS model files
+Shortest path on Windows:
+
+1. Download `AronaAI_GPTSoVITS_v*_x64.zip` from [Releases](https://github.com/xiahy456/AronaAI/releases) and extract it to the **repo root** (same level as `start-all.ps1`). The zip contains launch scripts, reference audio, and the minimal `runtime\`; it does **not** include the official all-in-one package or Arona ckpt files.
+2. Extract the [official GPT-SoVITS Windows package](https://huggingface.co/lj1995/GPT-SoVITS-windows-package) into `tts/gpt-sovits/` (do not overwrite `go-apiv2` / `ref_audio`).
+3. Place the fine-tuned weights:
 
 ```
 tts/gpt-sovits/
@@ -159,19 +164,8 @@ tts/gpt-sovits/
     └── ALuoNa_cn_e16_s256.pth
 ```
 
-#### Start the GPT-SoVITS API
-
-The default backend is official:
-
-```bash
-cd tts/gpt-sovits
-# Windows: go-apiv2.bat
-# Linux:   chmod +x go-apiv2.sh && ./go-apiv2.sh
-```
-
-`go-apiv2` auto-restarts the API if inference stalls. For debugging without auto-restart, you can run `python api_v2.py` directly.
-
-Optional faster backend: [GPT-SoVITS_minimal_inference](https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_inference). TTS overview: [`tts/README.md`](tts/README.md). Deploy: [`tts/gpt-sovits-minimal/DEPLOY.md`](tts/gpt-sovits-minimal/DEPLOY.md). Set client `tts.backend` to `minimal` and `start-all.ps1` starts only that process (default `127.0.0.1:8000`). Run only one TTS engine at a time.
+4. `tts.backend` defaults to `official`. From the repo root, run `.\start-all.ps1` (`127.0.0.1:9880`).
+5. To use the faster backend, clone [GPT-SoVITS_minimal_inference](https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_inference) into `tts/gpt-sovits-minimal/` (do not overwrite `launch_api.py`), set `"backend": "minimal"` on the client, then restart the services.
 
 ---
 

@@ -6,6 +6,8 @@
 
 客户端用 `tts.backend` 选择调用哪套：`official`（默认，`127.0.0.1:9880`）或 `minimal`（本目录，`127.0.0.1:8000`）。`start-all.ps1` 只拉起配置中选中的那一个。
 
+**终端用户**请先看 TTS 总览 [`../README.md`](../README.md)。Releases 的 `AronaAI_GPTSoVITS_v*_x64.zip` 已含本目录的启动脚本和 `runtime\`，仍需：官方树里的权重 / 预训练，以及把上游 clone 进本目录（不要覆盖 `launch_api.py`）。维护者打该 zip：仓库根 `.\pack-tts.ps1`（会带上已有的 `runtime\`）。
+
 ---
 
 ## 目录树

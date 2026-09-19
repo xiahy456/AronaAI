@@ -44,14 +44,15 @@
 arona-ai/
 ├── backend/                              # Python 后端（FastAPI + WebSocket）
 ├── frontend/                             # 桌面客户端（Qt/C++ + Spine）
-├── tts/                           # GPT-SoVITS 语音合成
+├── tts/                                  # 语音合成后端（官方 / minimal）
 ├── llm/aronaLM/finetune/                 # AronaLM 微调（其实不是大模型啦……之前写错了还没有改过来呢）
 ├── models/                               # 本地模型权重（需自行下载）
 ├── docs/                                 # 架构与热词等文档
 ├── assets/                               # 项目资源
 ├── start-all.bat                         # Windows 一键本机启动所有服务
 ├── pack-client.ps1                       # 打包桌面客户端
-└── pack-backend.ps1                      # 打包后端 Windows 便携目录
+├── pack-backend.ps1                      # 打包后端 Windows 便携目录
+└── pack-tts.ps1                          # 打包 TTS 脚本、参考音频与 minimal runtime
 ```
 
 完整目录树见 [`docs/architecture.md`](docs/architecture.md)。
@@ -105,7 +106,7 @@ arona-ai/
 
    - `planner.api_key` / `memory.extractor.api_key`：把 `YOUR_DEEPSEEK_API_KEY` 换成你的 DeepSeek API Key。**Planner 必填**；不填 Key 或关闭 `planner.enabled` 则回落本地单模型。记忆抽取无 Key 时走正则降级。有截图或电脑操作时 Planner 使用 `planner.vision_model`（默认 `deepseek-flash`）
    - `model.enabled`：是否启用 Arona-Renderer 渲染修正；`true` 启用，`false` 只用 Planner 草稿。仅启用时才需要放置 GGUF。**默认不启用**
-   - `knowledge.enabled`：是否启用世界观 RAG。官方压缩包若已灌库，**默认启用**；从源码启动时示例配置为 `false`，需先灌库
+   - `knowledge.enabled`：是否启用世界观 RAG。官方压缩包已灌库，**默认启用**；从源码启动时示例配置为 `false`，需先灌库
    - `computer_use.enabled`：是否允许阿洛娜操作老师的电脑。**默认关闭**。打开后仍需客户端同步打开 `computer_use.enabled`，否则后端会收到 `disabled` 观察并停止
 
 3. 按需把模型放到解压目录内的 `models/`（路径已写在包内 `config.yaml`，详见包内 `models/README.txt` 或 [`models/README.md`](models/README.md)）：
@@ -149,7 +150,11 @@ arona-ai/
 
 ### 语音合成服务
 
-#### 放置 GPT-SoVITS 模型文件
+Windows 最短路径：
+
+1. 从 [Releases](https://github.com/xiahy456/AronaAI/releases) 下载 `AronaAI_GPTSoVITS_v*_x64.zip`，解压到**仓库根**（与 `start-all.ps1` 同级）。包内是启动脚本、参考音频和 minimal 的 `runtime\`，**不含**官方整合包和阿洛娜 ckpt。
+2. 把 [官方 GPT-SoVITS Windows 整合包](https://huggingface.co/lj1995/GPT-SoVITS-windows-package) 解压进 `tts/gpt-sovits/`（不要覆盖 `go-apiv2` / `ref_audio`）。
+3. 放入微调权重：
 
 ```
 tts/gpt-sovits/
@@ -159,19 +164,8 @@ tts/gpt-sovits/
     └── ALuoNa_cn_e16_s256.pth
 ```
 
-#### 启动 GPT-SoVITS API 服务
-
-默认走官方后端：
-
-```bash
-cd tts/gpt-sovits
-# Windows: go-apiv2.bat
-# Linux:   chmod +x go-apiv2.sh && ./go-apiv2.sh
-```
-
-`go-apiv2` 会在推理卡住时自动重启 API。仅调试、不要自动重启时，可直接运行 `python api_v2.py`。
-
-可选加速后端：[GPT-SoVITS_minimal_inference](https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_inference)。TTS 总览见 [`tts/README.md`](tts/README.md)，部署见 [`tts/gpt-sovits-minimal/DEPLOY.md`](tts/gpt-sovits-minimal/DEPLOY.md)。客户端 `tts.backend` 设为 `minimal` 后，`start-all.ps1` 只启动这一套（默认 `127.0.0.1:8000`）。同一时间只跑一个 TTS 进程。
+4. 默认 `tts.backend` 为 `official`，仓库根执行 `.\start-all.ps1`（`127.0.0.1:9880`）。
+5. 若要用加速后端：再把 [GPT-SoVITS_minimal_inference](https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_inference) clone 进 `tts/gpt-sovits-minimal/`（不要覆盖 `launch_api.py`），客户端设 `"backend": "minimal"` 后重启服务。
 
 ---
 

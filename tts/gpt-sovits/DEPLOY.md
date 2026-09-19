@@ -6,7 +6,9 @@
 
 仓库 `.gitignore` **不提交** GPT-SoVITS 本体、权重与 `runtime/`。clone 后这里通常只有启动脚本和本文件，需要自行补齐官方程序、预训练模型、阿洛娜微调权重和参考音频。
 
-上游说明见同目录 [`README.md`](README.md)。TTS 总览见 [`../README.md`](../README.md)；项目总览见仓库根目录 [`README.md`](../../README.md)。
+**终端用户**请先看 TTS 总览 [`../README.md`](../README.md)：解压 Releases 的 `AronaAI_GPTSoVITS_v*_x64.zip` 到仓库根，再把官方整合包和权重放进本目录。维护者打该 zip：仓库根 `.\pack-tts.ps1`。
+
+上游说明见同目录 [`README.md`](README.md)。项目总览见仓库根目录 [`README.md`](../../README.md)。
 
 ---
 

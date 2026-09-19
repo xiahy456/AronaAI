@@ -167,5 +167,5 @@ cp Config/config.example.json Config/config.json
 > **注意**：
 > - 资源路径相对**程序工作目录**解析；在 Visual Studio 中调试时默认为项目根目录，请勿直接双击 `x64/Debug` 或 `x64/Release` 下的 exe（工作目录会不对）。
 > - `tts.refs` 路径相对 **官方 GPT-SoVITS 工作目录**（`tts/gpt-sovits/`）。
-> - `tts.backend` 为 `minimal` 时走 `POST /v1/audio/speech`（`minimal_host`/`minimal_port`）；缺省 `official` 仍走 `/tts`。同一时间只启动一套 TTS。
+> - `tts.backend` 为 `minimal` 时走 `POST /v1/audio/speech`（`minimal_host`/`minimal_port`）；缺省 `official` 仍走 `/tts`。同一时间只启动一套 TTS。部署步骤见仓库 [`tts/README.md`](../../tts/README.md)。
 > - `config.json` 已在 `.gitignore` 中，不会被提交到版本控制。
