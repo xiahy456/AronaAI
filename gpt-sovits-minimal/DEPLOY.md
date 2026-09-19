@@ -2,7 +2,7 @@
 
 本目录是 AronaAI 的 **加速 TTS 后端**（[GPT-SoVITS_minimal_inference](https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_inference) 的 PyTorch `api_server.py`）。与官方 [`../gpt-sovits/`](../gpt-sovits/DEPLOY.md) **二选一**运行，不要同卡双开。
 
-仓库 `.gitignore` **不提交**上游源码与虚拟环境。clone 后这里通常只有本文件、启动脚本和 `config/voices.json`。
+仓库 `.gitignore` **不提交**上游源码、`runtime/` 与虚拟环境。clone 后这里通常只有本文件、启动脚本、`pack-runtime.ps1` 和 `config/voices.json`。
 
 客户端用 `tts.backend` 选择调用哪套：`official`（默认，`127.0.0.1:9880`）或 `minimal`（本目录，`127.0.0.1:8000`）。`start-all.ps1` 只拉起配置中选中的那一个。
 
@@ -15,7 +15,10 @@ gpt-sovits-minimal/
 ├── DEPLOY.md                      # 本文件
 ├── go-api.bat / go-api.ps1        # Windows 入口（经 watchdog）
 ├── watch-api.ps1                  # 崩溃自动重启
+├── pack-runtime.ps1               # 把 conda 环境拷到 runtime/（不入库）
 ├── config/voices.json             # 阿洛娜 v2 权重与默认参考音频（相对本目录）
+├── runtime/                       # 打包后的便携 Python；日常启动优先用这个
+│   └── python.exe
 ├── api_server.py                  # clone 后才有；OpenAI 兼容 /v1/audio/speech
 └── GPT_SoVITS/                    # clone 后才有
 ```
@@ -39,7 +42,8 @@ gpt-sovits-minimal/
 | 系统 | Windows 10/11（与 `start-all.ps1` 一致）；Linux 可作独立 TTS 机 |
 | GPU | NVIDIA + CUDA 12.x；CPU 能跑但延迟高 |
 | 显存 | 建议 ≥ 8 GB。与 Renderer 同卡时不要同时开官方 `api_v2` |
-| Python | **独立** conda/venv，建议名 `gpt-sovits-minimal`，Python 3.10+。**不要**用 `gpt-sovits/runtime/python.exe` |
+| Python | 日常用本目录 **`runtime/python.exe`**（`.\pack-runtime.ps1` 从 conda 环境拷出）。conda 只用于制作 runtime。**不要**用 `gpt-sovits/runtime/python.exe` |
+| 系统组件 | [VC++ x64 可再发行组件](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)；NVIDIA 驱动需能跑 CUDA 12.6 轮子（cu126） |
 
 ---
 
@@ -66,14 +70,14 @@ git clone --depth 1 https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_infer
 git clone --depth 1 https://github.com/GPT-SoVITS-Devel/GPT-SoVITS_minimal_inference.git .gpt-sovits-minimal-upstream
 robocopy .gpt-sovits-minimal-upstream gpt-sovits-minimal /E /XD .git /XF DEPLOY.md
 # voices.json 若被覆盖，从 git 恢复：
-git checkout -- gpt-sovits-minimal/config/voices.json gpt-sovits-minimal/DEPLOY.md gpt-sovits-minimal/watch-api.ps1 gpt-sovits-minimal/go-api.ps1 gpt-sovits-minimal/go-api.bat
+git checkout -- gpt-sovits-minimal/config/voices.json gpt-sovits-minimal/DEPLOY.md gpt-sovits-minimal/watch-api.ps1 gpt-sovits-minimal/go-api.ps1 gpt-sovits-minimal/go-api.bat gpt-sovits-minimal/pack-runtime.ps1
 ```
 
 完成后应能看到 `gpt-sovits-minimal/api_server.py`。
 
-### 3. 独立 Python 环境
+### 3. 独立 Python 环境（只用于制作 runtime）
 
-不要复用官方整合包的 `runtime/python.exe`。
+不要复用官方整合包的 `runtime/python.exe`。conda / venv 用来装 CUDA Torch 和依赖，再拷进本目录 `runtime/`。日常 `go-api` / `start-all` **优先** `runtime\python.exe`。
 
 ```bash
 conda create -n gpt-sovits-minimal python=3.10 -y
@@ -86,15 +90,22 @@ pip install -r requirements.txt
 python -c "import torch; assert torch.cuda.is_available(), torch.__version__"
 ```
 
-若上游没有 `requirements.txt`，按其 README 安装 PyTorch（CUDA）以及 FastAPI / uvicorn 等 API 依赖。也可用本目录 `.venv`：
+然后打包（整包大约数 GB，不含权重）：
 
-```bash
-python -m venv .venv
-.\.venv\Scripts\activate
-pip install -r requirements.txt
+```powershell
+cd gpt-sovits-minimal
+.\pack-runtime.ps1
+# 可选：打 zip 到仓库根 release/，解压到本目录后应存在 runtime\python.exe
+.\pack-runtime.ps1 -Zip
 ```
 
-`watch-api.ps1` 解析 Python 的顺序：环境变量 `GPT_SOVITS_MINIMAL_PYTHON` → `.venv\Scripts\python.exe` → conda 环境 `gpt-sovits-minimal` → PATH 上的 `python`。
+`pack-runtime.ps1` 会用 runtime 自己的 `python.exe` 检查 `torch.cuda.is_available()`，失败则报错，避免再打出 CPU 包。
+
+若上游没有 `requirements.txt`，按其 README 安装 PyTorch（CUDA）以及 FastAPI / uvicorn 等 API 依赖。也可用本目录 `.venv`，但 `watch-api` 在存在 `runtime\python.exe` 时不会用它。
+
+`watch-api.ps1` 解析 Python 的顺序：`-PythonExe` → 环境变量 `GPT_SOVITS_MINIMAL_PYTHON` → **`runtime\python.exe`** → `.venv\Scripts\python.exe` → conda 环境 `gpt-sovits-minimal` → PATH 上的 `python`。
+
+分发 runtime zip 只替代 Python 与 pip 依赖。用户仍需：本目录源码（`api_server.py`）、官方权重 / 预训练 / 参考音频，以及 VC++ 运行库。不要把 HuBERT、BERT、ckpt 打进 runtime。
 
 ### 4. 核对 voices.json
 
@@ -102,7 +113,7 @@ pip install -r requirements.txt
 
 ### 5. 启动 API
 
-**本机一键（Windows）**：客户端 `config.json` 设 `"backend": "minimal"`，在仓库根目录执行 `.\start-all.ps1`。它只拉起本 watchdog，日志在 `.start-logs/gpt-sovits.log`。也可 `.\start-all.ps1 -TtsBackend minimal` 覆盖配置。
+**本机一键（Windows）**：客户端 `config.json` 设 `"backend": "minimal"`，在仓库根目录执行 `.\start-all.ps1`。它只拉起本 watchdog，并把 `runtime\python.exe` 传给 `-PythonExe`。日志在 `.start-logs/gpt-sovits.log`。也可 `.\start-all.ps1 -TtsBackend minimal` 覆盖配置。启动横幅里 `TtsPython` 应指向 `gpt-sovits-minimal\runtime\python.exe`。
 
 **只启动 TTS：**
 
@@ -183,7 +194,8 @@ python api_server.py --host 127.0.0.1 --port 8000 --voices_config config/voices.
 | 现象 | 处理 |
 |------|------|
 | `start-all.ps1` 报缺少 `api_server.py` | 未把上游 clone 进本目录，见第 2 步 |
-| 找不到 Python / conda 环境 | 创建 `gpt-sovits-minimal` 或本目录 `.venv`，或设 `GPT_SOVITS_MINIMAL_PYTHON` |
+| 找不到 Python / conda 环境 | 先 `.\pack-runtime.ps1` 生成 `runtime\python.exe`；或创建 conda 环境 `gpt-sovits-minimal` / `.venv`，或设 `GPT_SOVITS_MINIMAL_PYTHON` |
+| `start-all` 仍走 conda、横幅没有 runtime 路径 | 尚未打包 runtime。不要用官方 `gpt-sovits\runtime\python.exe` |
 | `Failed to load model: ... pretrained_eres2netv2w24s4ep4.ckpt` | 阿洛娜是 **v2**，不需要这份 v2Pro SV。上游默认总会加载；本目录已改 `run_optimized_inference.py`，仅 v2Pro 才加载。改完后重启 `watch-api.ps1`。若用 v2Pro，把该 ckpt 放到 `../gpt-sovits/GPT_SoVITS/pretrained_models/sv/` |
 | HTTP 200 但只有 44 字节 WAV 头 | 推理异常被流式响应吞掉。常见是 `fast-langdetect` 找不到 `pretrained_models/fast_langdetect`；重启 `watch-api.ps1`（会 junction 到官方预训练目录）。看 `.start-logs/gpt-sovits.log` 的 `Inference error` |
 | `Loading models on cpu` | conda 环境是 CPU 版 PyTorch。`cu124` 最高只有 2.6，已装 `2.14.0+cpu` 时 `pip install ... cu124` 会跳过。先停掉 `watch-api.ps1`，再：`pip uninstall -y torch torchaudio` 然后 `pip install torch==2.11.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu126`。确认 `python -c "import torch; print(torch.__version__, torch.cuda.is_available())"` 为 `2.11.0+cu126 True` |

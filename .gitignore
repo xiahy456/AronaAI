@@ -13,6 +13,7 @@
 !/gpt-sovits-minimal/go-api.ps1
 !/gpt-sovits-minimal/go-api.bat
 !/gpt-sovits-minimal/watch-api.ps1
+!/gpt-sovits-minimal/pack-runtime.ps1
 !/gpt-sovits-minimal/config/
 !/gpt-sovits-minimal/config/voices.json
 

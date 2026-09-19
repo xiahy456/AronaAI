@@ -23,7 +23,8 @@
   Max seconds to wait for "startup complete" after launch. Default: 180
 
 .PARAMETER PythonExe
-  Python interpreter. If omitted, see DEPLOY.md resolution order.
+  Python interpreter. If omitted: GPT_SOVITS_MINIMAL_PYTHON, then
+  runtime\python.exe, .venv, conda env gpt-sovits-minimal, PATH python.
 
 .PARAMETER VoicesConfig
   Path to voices.json relative to this directory. Default: config/voices.json
@@ -82,6 +83,10 @@ function Resolve-MinimalPython {
     if (-not [string]::IsNullOrWhiteSpace($env:GPT_SOVITS_MINIMAL_PYTHON) -and (Test-Path -LiteralPath $env:GPT_SOVITS_MINIMAL_PYTHON)) {
         return (Resolve-Path $env:GPT_SOVITS_MINIMAL_PYTHON).Path
     }
+    $runtimePy = Join-Path $GptDir "runtime\python.exe"
+    if (Test-Path -LiteralPath $runtimePy) {
+        return (Resolve-Path $runtimePy).Path
+    }
     $venvPy = Join-Path $GptDir ".venv\Scripts\python.exe"
     if (Test-Path -LiteralPath $venvPy) {
         return (Resolve-Path $venvPy).Path
@@ -101,7 +106,7 @@ function Resolve-MinimalPython {
     }
     $py = Get-Command python -ErrorAction SilentlyContinue
     if ($py) { return $py.Source }
-    throw "No Python for gpt-sovits-minimal. Create conda env gpt-sovits-minimal or .venv, or set GPT_SOVITS_MINIMAL_PYTHON. See DEPLOY.md."
+    throw "No Python for gpt-sovits-minimal. Run .\pack-runtime.ps1, or create conda env gpt-sovits-minimal / .venv, or set GPT_SOVITS_MINIMAL_PYTHON. See DEPLOY.md."
 }
 
 $PythonExe = Resolve-MinimalPython -Explicit $PythonExe
@@ -183,15 +188,23 @@ function Clear-PortListeners {
 }
 
 function Start-ApiProcess {
-    $env:PYTHONIOENCODING = "utf-8"
-    $env:PYTHONUTF8 = "1"
+    $runtimeHome = Join-Path $GptDir "runtime"
+    $runtimePy = Join-Path $runtimeHome "python.exe"
+    $useRuntimeHome = $false
+    try {
+        $resolvedPy = (Resolve-Path -LiteralPath $PythonExe).Path
+        if (Test-Path -LiteralPath $runtimePy) {
+            $useRuntimeHome = $resolvedPy -ieq (Resolve-Path -LiteralPath $runtimePy).Path
+        }
+    } catch {}
 
     $hubertArg = $CnhubertPath
     $bertArg = $BertPath
-    if (Test-Path -LiteralPath $SvPath) {
-        $env:SV_MODEL_PATH = $SvPath
+    $setHome = ""
+    if ($useRuntimeHome) {
+        $setHome = 'set PYTHONHOME=' + $runtimeHome + '& set PYTHONPATH=& '
     }
-    $arg = '/c chcp 65001 >nul & set PYTHONIOENCODING=utf-8& set PYTHONUTF8=1& "' +
+    $arg = '/c chcp 65001 >nul & set PYTHONIOENCODING=utf-8& set PYTHONUTF8=1& ' + $setHome + '"' +
         $PythonExe + '" -X utf8 api_server.py --host ' + $ListenAddress + ' --port ' + $Port +
         ' --voices_config "' + $VoicesConfig + '"' +
         ' --cnhubert_path "' + $hubertArg + '"' +
@@ -204,6 +217,15 @@ function Start-ApiProcess {
     $psi.WorkingDirectory = $GptDir
     $psi.UseShellExecute = $false
     $psi.CreateNoWindow = $true
+    $psi.EnvironmentVariables["PYTHONIOENCODING"] = "utf-8"
+    $psi.EnvironmentVariables["PYTHONUTF8"] = "1"
+    if ($useRuntimeHome) {
+        $psi.EnvironmentVariables["PYTHONHOME"] = $runtimeHome
+        $psi.EnvironmentVariables["PYTHONPATH"] = ""
+    }
+    if (Test-Path -LiteralPath $SvPath) {
+        $psi.EnvironmentVariables["SV_MODEL_PATH"] = $SvPath
+    }
 
     $proc = New-Object System.Diagnostics.Process
     $proc.StartInfo = $psi
