@@ -79,7 +79,11 @@ git checkout -- gpt-sovits-minimal/config/voices.json gpt-sovits-minimal/DEPLOY.
 conda create -n gpt-sovits-minimal python=3.10 -y
 conda activate gpt-sovits-minimal
 cd gpt-sovits-minimal
+# 先装 CUDA 轮子。不要用默认 PyPI：会装成 +cpu。cu124 最高 2.6，已有 2.14+cpu 时 pip 会认为已满足。
+pip uninstall -y torch torchaudio torchvision
+pip install torch==2.11.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu126
 pip install -r requirements.txt
+python -c "import torch; assert torch.cuda.is_available(), torch.__version__"
 ```
 
 若上游没有 `requirements.txt`，按其 README 安装 PyTorch（CUDA）以及 FastAPI / uvicorn 等 API 依赖。也可用本目录 `.venv`：
@@ -148,7 +152,7 @@ python api_server.py --host 127.0.0.1 --port 8000 --voices_config config/voices.
 2. 改客户端 `tts.backend` 为 `official` 或 `minimal`。
 3. 重新 `start gpt` 或再跑 `start-all.ps1`。
 
-同卡双开会抢 Renderer 显存，不支持。要比对延迟时，先停一套再开另一套，用 [`frontend/AronaAI_Spine_WindowsClient/scripts/test_tts_interval.py`](../frontend/AronaAI_Spine_WindowsClient/scripts/test_tts_interval.py)。
+同卡双开会抢 Renderer 显存，不支持。要比对延迟时，先停一套再开另一套。RTT 用 [`frontend/AronaAI_Spine_WindowsClient/scripts/test_tts_interval.py`](../frontend/AronaAI_Spine_WindowsClient/scripts/test_tts_interval.py)；首包 vs 生成完毕用 [`frontend/AronaAI_Spine_WindowsClient/scripts/test_tts_first_packet.py`](../frontend/AronaAI_Spine_WindowsClient/scripts/test_tts_first_packet.py)。
 
 ---
 
@@ -180,6 +184,9 @@ python api_server.py --host 127.0.0.1 --port 8000 --voices_config config/voices.
 |------|------|
 | `start-all.ps1` 报缺少 `api_server.py` | 未把上游 clone 进本目录，见第 2 步 |
 | 找不到 Python / conda 环境 | 创建 `gpt-sovits-minimal` 或本目录 `.venv`，或设 `GPT_SOVITS_MINIMAL_PYTHON` |
+| `Failed to load model: ... pretrained_eres2netv2w24s4ep4.ckpt` | 阿洛娜是 **v2**，不需要这份 v2Pro SV。上游默认总会加载；本目录已改 `run_optimized_inference.py`，仅 v2Pro 才加载。改完后重启 `watch-api.ps1`。若用 v2Pro，把该 ckpt 放到 `../gpt-sovits/GPT_SoVITS/pretrained_models/sv/` |
+| HTTP 200 但只有 44 字节 WAV 头 | 推理异常被流式响应吞掉。常见是 `fast-langdetect` 找不到 `pretrained_models/fast_langdetect`；重启 `watch-api.ps1`（会 junction 到官方预训练目录）。看 `.start-logs/gpt-sovits.log` 的 `Inference error` |
+| `Loading models on cpu` | conda 环境是 CPU 版 PyTorch。`cu124` 最高只有 2.6，已装 `2.14.0+cpu` 时 `pip install ... cu124` 会跳过。先停掉 `watch-api.ps1`，再：`pip uninstall -y torch torchaudio` 然后 `pip install torch==2.11.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu126`。确认 `python -c "import torch; print(torch.__version__, torch.cuda.is_available())"` 为 `2.11.0+cu126 True` |
 | 合成声线不对 / 找不到权重 | `voices.json` 路径相对本目录；官方权重文件名与路径一致 |
 | 客户端有字幕无声音 | 确认走的是 `backend: minimal` 且客户端已更新（需能解析 data 长度为 0 的流式 WAV） |
 | 切回官方后连不上 | `backend` 改回 `official`，确认 9880 在听且 `host`/`port` 指向官方 |

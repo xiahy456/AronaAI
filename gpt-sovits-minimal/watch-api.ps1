@@ -50,6 +50,9 @@ $RepoRoot = Split-Path -Parent $GptDir
 $OfficialDir = Join-Path $RepoRoot "gpt-sovits"
 $CnhubertPath = Join-Path $OfficialDir "GPT_SoVITS\pretrained_models\chinese-hubert-base"
 $BertPath = Join-Path $OfficialDir "GPT_SoVITS\pretrained_models\chinese-roberta-wwm-ext-large"
+$SvPath = Join-Path $OfficialDir "GPT_SoVITS\pretrained_models\sv\pretrained_eres2netv2w24s4ep4.ckpt"
+$OfficialPretrained = Join-Path $OfficialDir "GPT_SoVITS\pretrained_models"
+$MinimalPretrained = Join-Path $GptDir "pretrained_models"
 
 if (-not (Test-Path -LiteralPath $ApiPy)) {
     throw "api_server.py not found in $GptDir. Clone GPT-SoVITS_minimal_inference into this directory. See DEPLOY.md."
@@ -102,6 +105,22 @@ function Resolve-MinimalPython {
 }
 
 $PythonExe = Resolve-MinimalPython -Explicit $PythonExe
+
+function Ensure-OfficialPretrainedLink {
+    if (-not (Test-Path -LiteralPath $OfficialPretrained)) {
+        Write-Watch "Official pretrained_models missing: $OfficialPretrained" Yellow
+        return
+    }
+    if (Test-Path -LiteralPath $MinimalPretrained) {
+        return
+    }
+    try {
+        New-Item -ItemType Junction -Path $MinimalPretrained -Target $OfficialPretrained | Out-Null
+        Write-Watch "Linked pretrained_models -> $OfficialPretrained"
+    } catch {
+        Write-Watch "Could not link pretrained_models: $_" Yellow
+    }
+}
 
 if ([string]::IsNullOrWhiteSpace($LogPath)) {
     $defaultDir = Join-Path $RepoRoot ".start-logs"
@@ -169,6 +188,9 @@ function Start-ApiProcess {
 
     $hubertArg = $CnhubertPath
     $bertArg = $BertPath
+    if (Test-Path -LiteralPath $SvPath) {
+        $env:SV_MODEL_PATH = $SvPath
+    }
     $arg = '/c chcp 65001 >nul & set PYTHONIOENCODING=utf-8& set PYTHONUTF8=1& "' +
         $PythonExe + '" -X utf8 api_server.py --host ' + $ListenAddress + ' --port ' + $Port +
         ' --voices_config "' + $VoicesConfig + '"' +
@@ -285,6 +307,7 @@ Write-Watch "  WorkDir:  $GptDir"
 Write-Watch "  Python:   $PythonExe"
 Write-Watch "  LogPath:  $LogPath"
 Write-Watch "  Listen:   ${ListenAddress}:${Port} | Cooldown: ${RestartCooldownSec}s"
+Ensure-OfficialPretrainedLink
 
 try {
     Restart-Api -Reason "initial start"

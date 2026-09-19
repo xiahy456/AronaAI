@@ -79,7 +79,8 @@ $script:BackendDir = $null
 $script:GptDir = $null
 $script:MinimalDir = $null
 $script:GptWatch = $null
-$script:TtsBackend = "official"
+$script:TtsBackend = $null
+$script:ClientConfigPath = $null
 $script:Conda = $null
 $script:FrontendInfo = $null
 $script:BackendLog = $null
@@ -284,6 +285,7 @@ function Find-ClientConfigJson {
 
 function Get-ClientTtsObject {
     $path = Find-ClientConfigJson
+    $script:ClientConfigPath = $path
     if (-not $path) { return $null }
     try {
         $json = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -295,10 +297,13 @@ function Get-ClientTtsObject {
 }
 
 function Resolve-TtsBackendName {
-    if (-not [string]::IsNullOrWhiteSpace($TtsBackend)) {
-        $v = $TtsBackend.Trim().ToLowerInvariant()
+    param([string]$CliOverride)
+    # Do not read $TtsBackend / $script:TtsBackend here: in a .ps1 they are the
+    # same variable, so an early $script:TtsBackend = "official" would hide config.
+    if (-not [string]::IsNullOrWhiteSpace($CliOverride)) {
+        $v = $CliOverride.Trim().ToLowerInvariant()
         if ($v -eq "official" -or $v -eq "minimal") { return $v }
-        throw "Invalid -TtsBackend '$TtsBackend'. Use official or minimal."
+        throw "Invalid -TtsBackend '$CliOverride'. Use official or minimal."
     }
     $tts = Get-ClientTtsObject
     if ($tts -and $null -ne $tts.backend) {
@@ -1039,7 +1044,7 @@ Assert-Path $script:GptDir "gpt-sovits directory"
 
 $script:Conda = Resolve-CondaCmd
 $script:FrontendInfo = Resolve-Frontend -Explicit $FrontendExe
-$script:TtsBackend = Resolve-TtsBackendName
+$script:TtsBackend = Resolve-TtsBackendName -CliOverride $TtsBackend
 $script:GptWatch = if ($script:TtsBackend -eq "minimal") { $MinimalWatch } else { Join-Path $script:GptDir "watch-apiv2.ps1" }
 
 if ($script:TtsBackend -eq "minimal") {
@@ -1067,6 +1072,7 @@ Write-Host ("  Frontend:    {0}" -f ($script:FrontendInfo).Exe)
 Write-Host ("  FrontendCwd: {0}" -f ($script:FrontendInfo).WorkDir)
 Write-Host "  BackendPort: $($script:ResolvedBackendPort)"
 Write-Host "  TtsBackend:  $($script:TtsBackend)"
+Write-Host ("  TtsConfig:   {0}" -f $(if ($script:ClientConfigPath) { $script:ClientConfigPath } else { "(none)" }))
 Write-Host "  GptPort:     $($script:ResolvedGptPort)"
 Write-Host "  Logs:        $LogDir"
 Write-Host "  Timeout:     ${TimeoutSec}s for backend + TTS"
